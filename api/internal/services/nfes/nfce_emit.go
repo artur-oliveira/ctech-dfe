@@ -98,6 +98,7 @@ func (s *NfceService) Emit(ctx context.Context, orgPK string, req NfceEmitBody, 
 	currentNumber := intAttr(configItem, fmt.Sprintf("%s_current_number", envPrefix), 0)
 	cscID := fmt.Sprintf("%d", intAttr(configItem, fmt.Sprintf("%s_csc_id", envPrefix), 0))
 	csc := strAttr(configItem, fmt.Sprintf("%s_csc", envPrefix))
+	qrVersion := intAttr(configItem, "qr_code_version", qrCodeVersionV2)
 
 	// A operação da NFC-e é implícita: a informada no request, senão a padrão da
 	// organização. Nenhum passo ou campo novo aparece na tela de balcão.
@@ -139,7 +140,10 @@ func (s *NfceService) Emit(ctx context.Context, orgPK string, req NfceEmitBody, 
 		return nil, err
 	}
 	// C0: ver o comentário equivalente em emit.go.
-	mode := NormalEmission(nfModel65)
+	mode, offline, err := resolveNFCeEmission(configItem)
+	if err != nil {
+		return nil, err
+	}
 	if err := mode.Validate(); err != nil {
 		return nil, err
 	}
@@ -150,7 +154,11 @@ func (s *NfceService) Emit(ctx context.Context, orgPK string, req NfceEmitBody, 
 		return nil, err
 	}
 
-	supl, err := buildNFCeSupl(emitUF, environment, accessKey, cscID, csc)
+	// ZX02-222 (rejeição 444): QR v2 com emitente pessoa física (CPF). Pré-validação local, antes do número.
+	if err := checkQRVersionForIssuer(qrVersion, emitDoc, emitUF); err != nil {
+		return nil, err
+	}
+	supl, err := buildNFCeSupl(emitUF, environment, accessKey, cscID, csc, qrVersion)
 	if err != nil {
 		return nil, err
 	}
@@ -223,6 +231,17 @@ func (s *NfceService) Emit(ctx context.Context, orgPK string, req NfceEmitBody, 
 		},
 	)
 	totalNFe := setTroco(enviNFe)
+	// Offline v3: the QR signature (egress SignText) needs vNF, so it is set before the gate.
+	var oq *offlineQR
+	if offline {
+		oq = &offlineQR{
+			orgPK: orgPK, issuerDoc: emitDoc, uf: emitUF, environment: environment, version: qrVersion,
+			dhEmi: fmtDhEmi(now), vNF: totalNFe.StringFixed(2), destDoc: destDoc, accessKey: accessKey, csc: csc, cscID: cscID,
+		}
+		if err := s.applyOfflineQRv3(ctx, oq, enviNFe); err != nil {
+			return nil, err
+		}
+	}
 	dfecheck.ShadowEnviNFe(accessKey, enviNFe)
 	if err := gateEnviNFe(enviNFe, nfModel65); err != nil {
 		return nil, err
@@ -296,18 +315,32 @@ func (s *NfceService) Emit(ctx context.Context, orgPK string, req NfceEmitBody, 
 		BillingSubscriptionID: reservation.SubscriptionID, BillingPriceID: reservation.PriceID,
 		BillingMeter: reservation.Meter, BillingExempt: reservation.Exempt,
 	}
-	outboxTx, operationID, err := s.workerSvc.BuildOutboxTx(workerMsg)
-	if err != nil {
-		return nil, err
+	var txItems []types.TransactWriteItem
+	if offline {
+		// Offline: sign now, keep the signed XML pending (contingency index), transmit later.
+		// No outbox row: the retransmission worker sends the stored message.
+		signed, err := s.signOfflineXML(ctx, oq, enviNFe, sefazEnv)
+		if err != nil {
+			return nil, err
+		}
+		if err := markOfflinePending(nfceEncoded, workerMsg, signed, now); err != nil {
+			return nil, err
+		}
+	} else {
+		outboxTx, operationID, err := s.workerSvc.BuildOutboxTx(workerMsg)
+		if err != nil {
+			return nil, err
+		}
+		nfceEncoded["operation_id"] = &types.AttributeValueMemberS{Value: operationID}
+		txItems = append(txItems, outboxTx)
 	}
-	nfceEncoded["operation_id"] = &types.AttributeValueMemberS{Value: operationID}
 
 	// The quota is claimed **before** the write, and before anything reaches
 	// SEFAZ. Counting authorised documents instead would make the limit
 	// asynchronous and passable by two concurrent requests, each reading the same
 	// count and each issuing one more. The cost is that a document SEFAZ rejects
 	// has spent a slot; the worker gives it back on a terminal rejection.
-	txItems := append([]types.TransactWriteItem{outboxTx}, encerranteTx(s.fuelPumpRepo, orgPK, pumpReadings)...)
+	txItems = append(txItems, encerranteTx(s.fuelPumpRepo, orgPK, pumpReadings)...)
 	if reservation.Tx != nil {
 		txItems = append(txItems, *reservation.Tx)
 	}

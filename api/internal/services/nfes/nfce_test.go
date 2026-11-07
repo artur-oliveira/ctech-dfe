@@ -77,13 +77,13 @@ func TestAppendQueryParam(t *testing.T) {
 }
 
 func TestBuildNFCeSupl_Errors(t *testing.T) {
-	if _, err := buildNFCeSupl("XX", 2, strings.Repeat("3", 44), "1", "csc"); err == nil {
+	if _, err := buildNFCeSupl("XX", 2, strings.Repeat("3", 44), "1", "csc", 2); err == nil {
 		t.Error("expected error for unknown UF")
 	}
-	if _, err := buildNFCeSupl("SP", 2, strings.Repeat("3", 44), "", ""); err == nil {
+	if _, err := buildNFCeSupl("SP", 2, strings.Repeat("3", 44), "", "", 2); err == nil {
 		t.Error("expected error for missing CSC")
 	}
-	supl, err := buildNFCeSupl("SP", 2, strings.Repeat("3", 44), "1", "csc")
+	supl, err := buildNFCeSupl("SP", 2, strings.Repeat("3", 44), "1", "csc", 2)
 	if err != nil {
 		t.Fatalf("buildNFCeSupl: %v", err)
 	}
@@ -107,5 +107,37 @@ func TestBuildSubstituteBody_Structure(t *testing.T) {
 	}
 	if det["nProt"] != "PROT123" {
 		t.Errorf("nProt = %v", det["nProt"])
+	}
+}
+
+// Manual DANFE NFC-e 4.4.1: online v3 is chave|3|tpAmb, with no CSC, hash or signature.
+func TestBuildNFCeSupl_V3NoCSC(t *testing.T) {
+	chave := strings.Repeat("3", 44)
+	supl, err := buildNFCeSupl("SP", 1, chave, "", "", 3)
+	if err != nil {
+		t.Fatalf("v3 must not need the CSC: %v", err)
+	}
+	want := "https://www.nfce.fazenda.sp.gov.br/qrcode?p=" + chave + "|3|1"
+	if supl["qrCode"] != want {
+		t.Errorf("qrCode = %v, want %s", supl["qrCode"], want)
+	}
+	if _, err := buildNFCeSupl("SP", 2, chave, "", "", 2); err == nil {
+		t.Error("v2 without CSC must still fail")
+	}
+}
+
+// ZX02-222 / rejeição 444.
+func TestCheckQRVersionForIssuer(t *testing.T) {
+	cpf, cnpj := "12345678909", "11222333000181"
+	if checkQRVersionForIssuer(2, cpf, "SP") == nil {
+		t.Error("v2 with CPF issuer must be rejected")
+	}
+	for _, c := range []struct {
+		v       int
+		doc, uf string
+	}{{3, cpf, "SP"}, {2, cnpj, "SP"}, {2, cpf, "PR"}} {
+		if err := checkQRVersionForIssuer(c.v, c.doc, c.uf); err != nil {
+			t.Errorf("%+v: %v", c, err)
+		}
 	}
 }

@@ -131,3 +131,9 @@ Every change that alters behavior, a contract or an operational rule updates the
 
 
 Delivery design, resilience table and queue drain runbook: `../docs/specs/2026-11-02-sns-lambda-worker-delivery.md`.
+
+## Contingency retransmission (`cmd/contingency-retransmit`)
+
+Sends the document's stored `contingency_msg` (a `WorkerMessage` whose body is `{"@signed_xml": ...}`) through
+`DfeService.Process`, then classifies the item with `contingency.Classify`. Needs the same env and IAM as
+`cmd/worker`. Terminal outcomes remove `contingency_sweep` and `contingency_msg` (the message carries the cert password).

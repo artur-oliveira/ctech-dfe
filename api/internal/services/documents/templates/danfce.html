@@ -191,9 +191,7 @@
                         <td class="b">{{ consumidor }}</td>
                     </tr>
                     <tr>
-                        <td class="b">NFC-e nº {{ ident.nNF }} Série {{ ident.serie }}
-                            {%- if via.label %} - {{ via.label }}{% endif %}
-                        </td>
+                        <td class="b">NFC-e nº {{ ident.nNF }} Série {{ ident.serie }}</td>
                     </tr>
                     {% if protocolo %}
                     <tr>
@@ -204,7 +202,9 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td class="b">Data de emissão: {{ ident.dhEmi }}</td>
+                        <td class="b">Data de emissão: {{ ident.dhEmi }}
+                            {%- if via.label %} - {{ via.label }}{% endif %}
+                        </td>
                     </tr>
                     {% endif %}
                 </table>

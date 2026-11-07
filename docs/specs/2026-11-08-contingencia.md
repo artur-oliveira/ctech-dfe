@@ -192,6 +192,10 @@ da assinatura do XML; **não usa**. O que os documentos dizem:
 | Fatia | Estado |
 |---|---|
 | Design (este documento) | atualizado com as decisões de 2026-11-07 |
+| NFC-e QR Code v3 online (`qr_code_version`, sem CSC; rejeição 444 para CPF com v2) | feito (fatia 1) |
+| NFC-e QR Code v3 offline: string e assinatura (`go-dfe` `nfce/SignText`, `nfes/nfce_offline.go`) | feito (fatia 2); o plumbing de emissão offline fica na fatia 3 |
+| NFC-e offline (tpEmis 9): `SignOnly` no egress, `@signed_xml`, QR v2/v3, registro pendente no índice | feito (fatia 3); `status` segue `pending` |
+| Retransmissão: `contingency-retransmit` reenvia `contingency_msg` por `DfeService.Process` e classifica com `Classify` (150 ou 100 fora do prazo = sucesso, duplicidade reconciliada pelo Process, vencido sai do índice) | feito (fatia 4); a Lambda precisa das variáveis e permissões do worker (ver abaixo) |
 | go-dfe: SVC-AN/SVC-RS, UF para SVC, `Request.Contingency`, `dfe.SVCFor` | feito |
 | NF-e SVC: `tpEmis` 6/7, `dhCont`/`xJust`, roteamento, cancelamento na SVC de origem | feito |
 | B: modelo de configuração por documento, endpoints `*-emission`, validação, `contingency_since` | feito |
@@ -199,7 +203,7 @@ da assinatura do XML; **não usa**. O que os documentos dizem:
 | D: emissão offline (MDF-e, CT-e, CT-e SVC, NFC-e) | ver relatório da rodada |
 | E: contingência automática | ver relatório da rodada |
 | F: retransmissão (worker + cdk) | parcial: `contingency-index`, dispatcher a cada 15 min, worker com `Classify` e marcação de vencido; falta o reenvio pelo egress (depende de D) |
-| G: DANFC-e de duas vias | ver relatório da rodada |
+| G: DANFC-e de duas vias | feito (fatia 5, seção 9.3) |
 
 ### 9.1 DANFC-e offline (decisão 2)
 
@@ -209,6 +213,20 @@ guarda eletrônica do XML), ambas com tarja de emissão em contingência e pende
 O QR Code offline do MOC lido em 2026-11-07 (`DanfeQrCodeNFCe.html`, item 3.2.2) é a **versão 2**:
 `chave|2|tpAmb|dia|vNF|DigestValue(hex, 56)|idCSC|hash`. O formato "v3 com a assinatura" **não consta** nessa página
 e fica **não verificado**.
+
+### 9.2 Pendência de infra da fatia 4
+
+`cmd/contingency-retransmit` agora usa `config.Load()` e `service.New`, como `cmd/worker`: a Lambda precisa de
+`DOCUMENTS_BUCKET`, `CERTIFICATES_BUCKET`, `DFE_LAMBDA_NAME`, `DFE_EGRESS_REGION`, `RESULTS_TOPIC_ARN`, leitura/escrita
+S3, `lambda:InvokeFunction` no egress, `sns:Publish` e escrita nas tabelas. Isto é `cdk/` (não alterado nesta rodada).
+
+### 9.3 DANFC-e offline (fatia 5)
+
+O renderizador (`api/internal/services/documents`, `nfce.go` e `templates/danfce.html`) já tinha as duas tarjas, a
+supressão do protocolo e as duas vias para `tpEmis=9`. Ajustes: o texto "Via do Estabelecimento" passa para o lado da data
+e hora de emissão (Manual 3.1.8) e só a segunda via é identificada; `GET` do DANFC-e de uma NFC-e offline ainda sem
+`xml_s3_key` imprime a partir do XML assinado guardado em `contingency_msg`, com o estado de cache próprio
+`contingency_pending` (o PDF é regerado, com protocolo, depois da autorização).
 
 ## Decisões do dono (2026-11-07), substituem as pendentes
 

@@ -103,26 +103,13 @@ func NewClient(
 // (xmlops.BuildProcessedXML; a no-op for every currently unsigned
 // implemented service).
 func (c *Client) Call(ctx context.Context, service string, payload map[string]any) (map[string]any, error) {
-	rootTag, body, err := singleRootElement(payload)
-	if err != nil {
-		return nil, fmt.Errorf("services: %w", err)
-	}
-
-	xmlBytes, err := xmlops.BuildXML(body, rootTag, constants.DocNamespace[c.docType])
-	if err != nil {
-		return nil, fmt.Errorf("services: build xml: %w", err)
-	}
-	xmlBytes = normalizeFiscalText(c.docType, c.uf, xmlBytes)
-
-	if c.config.RequiresSignature(service) {
-		xpath := ""
-		if local := c.config.SignXPath(service); local != "" {
-			xpath = fmt.Sprintf(".//{%s}%s", constants.DocNamespace[c.docType], local)
-		}
-		xmlBytes, err = xmlops.Sign(xmlBytes, xpath, c.cert, c.key)
-		if err != nil {
-			return nil, fmt.Errorf("services: sign: %w", err)
-		}
+	var xmlBytes []byte
+	var err error
+	if raw, ok := payload[constants.BodyKeySignedXML].(string); ok {
+		// Retransmission of a document signed earlier (offline NFC-e): send the stored XML as is.
+		xmlBytes = []byte(raw)
+	} else if xmlBytes, err = c.prepareXML(service, payload, c.config.RequiresSignature(service)); err != nil {
+		return nil, err
 	}
 
 	slog.Info("sending xml", "xml", string(xmlBytes))
@@ -184,6 +171,40 @@ func (c *Client) Call(ctx context.Context, service string, payload map[string]an
 	}
 
 	return result, nil
+}
+
+// prepareXML builds the XML of payload and, when sign is set, signs it with the service's
+// signature xpath. Shared by Call and SignOnly so both produce the same signed bytes.
+func (c *Client) prepareXML(service string, payload map[string]any, sign bool) ([]byte, error) {
+	rootTag, body, err := singleRootElement(payload)
+	if err != nil {
+		return nil, fmt.Errorf("services: %w", err)
+	}
+	xmlBytes, err := xmlops.BuildXML(body, rootTag, constants.DocNamespace[c.docType])
+	if err != nil {
+		return nil, fmt.Errorf("services: build xml: %w", err)
+	}
+	xmlBytes = normalizeFiscalText(c.docType, c.uf, xmlBytes)
+	if !sign {
+		return xmlBytes, nil
+	}
+	xpath := ""
+	if local := c.config.SignXPath(service); local != "" {
+		xpath = fmt.Sprintf(".//{%s}%s", constants.DocNamespace[c.docType], local)
+	}
+	xmlBytes, err = xmlops.Sign(xmlBytes, xpath, c.cert, c.key)
+	if err != nil {
+		return nil, fmt.Errorf("services: sign: %w", err)
+	}
+	return xmlBytes, nil
+}
+
+// SignOnly builds and signs the payload of service without transmitting it.
+func (c *Client) SignOnly(service string, payload map[string]any) ([]byte, error) {
+	if !c.config.RequiresSignature(service) {
+		return nil, fmt.Errorf("services: %q is not a signed service", service)
+	}
+	return c.prepareXML(service, payload, true)
 }
 
 // normalizeFiscalText aplica somente compatibilidades comprovadamente

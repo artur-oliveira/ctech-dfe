@@ -106,6 +106,12 @@ supported end to end — this is fiscal software talking to a government tax aut
 rejected/wrong tax documents. Signed operations were added 2026-07-18 without the byte-identical signature gate (see
 the Signer section), and NFS-e (`nfse/`) is gated by homologação against produção restrita (NFS-e plan's F6).
 
+**Local operations (no authority call).** `nfce/SignText` (`constants.ServiceSignText`) signs `Body["text"]` with RSA
+SHA-1 (Base64) using the request's certificate and returns `{"signature": ...}` (NFC-e QR Code v3 offline, Manual DANFE
+NFC-e 4.4.2). It reuses the `rsa.SignPKCS1v15`+SHA-1 primitive of `signer.go` in `xmlops/signtext.go`; the C14N code is
+untouched. Gate: round-trip test in `dfe_test.go` (`TestCallSignText`) that verifies the signature with the public key of a
+throwaway certificate generated in the test. No byte-identical corpus applies (a plain string signature).
+
 ### XSD validation and DANFE — explicitly out of scope
 
 - XSD validation (`Config.RequiresValidation`) is not implemented — `CGO_ENABLED=0` (ARM64 Lambda

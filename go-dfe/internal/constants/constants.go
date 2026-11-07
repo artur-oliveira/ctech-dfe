@@ -291,3 +291,25 @@ const (
 	ErrCodeUnexpected       = "unexpected error"
 	ErrCodeCertRequired     = "certificate required"
 )
+
+// Local (non-SEFAZ) operations executed in the egress because the certificate lives only there.
+// They never open a connection to an authority; they need only the certificate.
+const (
+	// ServiceSignText signs Body["text"] with RSA SHA-1 (Base64). NFC-e QR Code v3 offline.
+	ServiceSignText = "SignText"
+	// BodyKeyText / BodyKeySignature are the request and response keys of ServiceSignText.
+	BodyKeyText      = "text"
+	BodyKeySignature = "signature"
+)
+
+const (
+	// ServiceSignOnly builds and signs the NFeAutorizacao payload (Body, same shape) and returns
+	// {"xml": signed enviNFe} without contacting the authority. Offline NFC-e (tpEmis 9).
+	ServiceSignOnly = "SignOnly"
+	// BodyKeyXML is the response key of ServiceSignOnly.
+	BodyKeyXML = "xml"
+	// BodyKeySignedXML in an NFeAutorizacao Body means: send this already signed enviNFe as is.
+	BodyKeySignedXML = "@signed_xml"
+	// signOnlyBaseService is the signed service whose build and signature SignOnly reproduces.
+	SignOnlyBaseService = "NFeAutorizacao"
+)

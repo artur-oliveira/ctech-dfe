@@ -40,6 +40,10 @@ func (s *NfceService) GetDANFCeURL(ctx context.Context, orgPK, accessKey string)
 	}
 	xmlKey := documentAttr(doc, "xml_s3_key")
 	if xmlKey == "" {
+		// Offline NFC-e not yet authorized: print from the stored signed XML.
+		if signed := offlineSignedXML(doc); signed != "" {
+			return s.documentSvc.GetURL(ctx, orgPK, documents.DocTypeNFCe, accessKey, []byte(signed), documents.StateContingencyPending)
+		}
 		return nil, problem.NotFound("XML da NFC-e ainda não disponível")
 	}
 	xmlBytes, err := downloadS3(ctx, s.clients, s.bucketDocs, xmlKey)

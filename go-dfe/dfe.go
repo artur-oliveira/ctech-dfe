@@ -13,6 +13,7 @@ import (
 	"gopkg.aoctech.app/dfe/go-dfe/internal/constants"
 	"gopkg.aoctech.app/dfe/go-dfe/internal/endpoints"
 	"gopkg.aoctech.app/dfe/go-dfe/internal/services"
+	"gopkg.aoctech.app/dfe/go-dfe/internal/xmlops"
 	"gopkg.aoctech.app/dfe/go-dfe/nfse"
 	"gopkg.aoctech.app/dfe/go-dfe/nfse/nacional"
 )
@@ -56,6 +57,13 @@ var implemented = map[string]map[string]bool{
 		"NFeAutorizacao":  true,
 		"RecepcaoEvento":  true,
 		"NfeInutilizacao": true,
+		// Local, no authority call: RSA SHA-1 over a string with the issuer certificate
+		// (QR Code v3 offline). Gate: round trip against the public key in dfe_test.go
+		// (SignText); it reuses the signer.go primitive and does not touch the C14N code.
+		constants.ServiceSignText: true,
+		// Sign without transmitting (offline NFC-e). Same build and signature code as
+		// NFeAutorizacao (services.Client.prepareXML); no authority call.
+		constants.ServiceSignOnly: true,
 	},
 	constants.DocTypeCTE: {
 		"CTeStatusServico":   true,
@@ -126,6 +134,10 @@ func Call(ctx context.Context, req Request) (Response, error) {
 		return problemResponse(400, constants.ErrCodeCertificate, err.Error())
 	}
 
+	if req.Service == constants.ServiceSignText {
+		return callSignText(req, key)
+	}
+
 	if req.DocType == constants.DocTypeNFSE {
 		return callNFSe(ctx, req, httpClient, cert, key, maxRetries)
 	}
@@ -133,6 +145,18 @@ func Call(ctx context.Context, req Request) (Response, error) {
 	client, err := services.NewClient(req.DocType, req.UF, req.Environment, httpClient, cert, key, req.ValidateSchema, maxRetries)
 	if err != nil {
 		return problemResponse(400, constants.ErrCodeValidation, err.Error())
+	}
+
+	if req.Service == constants.ServiceSignOnly {
+		signed, err := client.SignOnly(constants.SignOnlyBaseService, req.Body)
+		if err != nil {
+			return problemResponse(400, constants.ErrCodeXMLSign, err.Error())
+		}
+		bodyJSON, err := json.Marshal(map[string]string{constants.BodyKeyXML: string(signed)})
+		if err != nil {
+			return problemResponse(500, constants.ErrCodeUnexpected, "failed to encode response")
+		}
+		return Response{StatusCode: 200, Body: string(bodyJSON), Headers: map[string]string{}}, nil
 	}
 
 	if req.Contingency != "" {
@@ -148,6 +172,23 @@ func Call(ctx context.Context, req Request) (Response, error) {
 	}
 
 	bodyJSON, err := json.Marshal(result)
+	if err != nil {
+		return problemResponse(500, constants.ErrCodeUnexpected, "failed to encode response")
+	}
+	return Response{StatusCode: 200, Body: string(bodyJSON), Headers: map[string]string{}}, nil
+}
+
+// callSignText answers the local SignText operation: Body["text"] in, Body["signature"] out.
+func callSignText(req Request, key *rsa.PrivateKey) (Response, error) {
+	text, _ := req.Body[constants.BodyKeyText].(string)
+	if text == "" {
+		return problemResponse(400, constants.ErrCodeValidation, "SignText requires a non-empty body.text")
+	}
+	sig, err := xmlops.SignText(text, key)
+	if err != nil {
+		return problemResponse(500, constants.ErrCodeXMLSign, err.Error())
+	}
+	bodyJSON, err := json.Marshal(map[string]string{constants.BodyKeySignature: sig})
 	if err != nil {
 		return problemResponse(500, constants.ErrCodeUnexpected, "failed to encode response")
 	}

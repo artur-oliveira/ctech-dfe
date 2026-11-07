@@ -1831,6 +1831,32 @@ do MDF-e sai com `idCSRT` e `hashCSRT = Base64(SHA1(CSRT + chave de acesso))` �
 **O `csrt` nunca volta numa resposta**, nem no PUT que acabou de gravá-lo; o mesmo vale para
 `prod_csc`/`hom_csc` da NFC-e. Ver `CONDUCT.md` §6.
 
+**QR Code da NFC-e (`qr_code_version`, NT 2025.001).** `PUT /nfce-config` aceita `qr_code_version` 2 (padrão) ou 3.
+Na versão 2 o CSC e o id dos dois ambientes são obrigatórios e o QR é `chave|2|tpAmb|idCSC|hash`. Na versão 3 o
+QR online é `chave|3|tpAmb` (Manual DANFE NFC-e 4.4.1), sem CSC, hash nem assinatura, e os campos de CSC passam a ser
+opcionais (um PUT v3 sem eles não apaga o CSC gravado). As URLs base por UF são as mesmas. Emitente CPF (produtor
+rural) com a versão 2 é rejeitado na emissão (ZX02-222, rejeição 444), exceto PR. A UF pode ainda não aceitar a v3
+(ZX02-220, rejeição 407): o erro volta da SEFAZ.
+
+**QR Code v3 offline (tpEmis 9).** `p=chave|3|tpAmb|dia|vNF|tp_idDest|idDest|assinatura`; `dia` = 2 dígitos do `dhEmi`,
+`vNF` com ponto e sem milhar, `tp_idDest` 1 CNPJ / 2 CPF / 3 idEstrangeiro, e destinatário não identificado deixa os
+parâmetros 6 e 7 só com o separador. A `assinatura` é RSA SHA-1 em Base64 dos parâmetros 1 a 7 (com os `|`), pelo mesmo
+certificado da NFC-e (ZX02-324 a 338). Como o certificado só existe no `go-dfe-egress`, a API chama a operação local
+`nfce/SignText` (body `{"text"}`, resposta `{"signature"}`); código em `api/internal/services/nfes/nfce_offline.go`.
+
+**Emissão offline da NFC-e (tpEmis 9).** Com `emission_type = offline` no `PUT /nfce-emission`, o
+`POST /nfces` monta o `infNFe` com `tpEmis=9`, `dhCont` (`contingency_since`) e `xJust` (`contingency_reason`), mantém
+`idDest=1`, `finNFe=1`, `indFinal=1`, `indPres=1` e numeração/chave/`cNF` normais, e **não** publica no outbox. Ordem: monta o
+`infNFe`; v3: o egress assina a string do QR (`nfce/SignText`) e a API monta o `qrCode`; o egress assina o XML sem
+transmitir (`nfce/SignOnly`, mesmo corpo do `NFeAutorizacao`, devolve `{"xml"}`); v2: o QR sai do `DigestValue` da
+assinatura (`digVal` = hexadecimal do texto do DigestValue, hash SHA-1 maiúsculo com o CSC, Manual 4.3.5) e substitui um
+marcador no `infNFeSupl` (fora da área assinada). O registro fica `status = pending` com os atributos do índice esparso:
+`contingency_sweep = "1"`, `contingency_state = pending`, `contingency_deadline` = emissão + 3 dias, e `contingency_msg`,
+a `WorkerMessage` JSON com `sefaz_service = NFeAutorizacao` e `body = {"@signed_xml": <enviNFe assinado>}`. O
+`NFeAutorizacao` do egress, vendo `@signed_xml`, transmite o XML guardado sem remontar nem reassinar. O reenvio é do
+`contingency-retransmit` (worker), que classifica com `contingency.Classify`. O DANFC-e de uma NFC-e offline pendente sai do
+XML guardado (duas vias, tarjas, sem protocolo).
+
 **Grupo `emit` — derivado do cadastro, nunca do request:**
 
 | Tag        | Origem                                                                                     |

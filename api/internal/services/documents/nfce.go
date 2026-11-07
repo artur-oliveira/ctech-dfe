@@ -81,7 +81,8 @@ func buildNFCeContext(root *xmlNode, canceled bool) (map[string]any, error) {
 	additional := inf.child("infAdic")
 	vias := []map[string]any{{"label": ""}}
 	if isContingency {
-		vias = []map[string]any{{"label": "Via Consumidor"}, {"label": "Via do Estabelecimento"}}
+		// Manual DANFE NFC-e 3.1.8: only the 2nd copy is identified, next to the date and time of emission.
+		vias = []map[string]any{{"label": ""}, {"label": "Via do Estabelecimento"}}
 	}
 	return map[string]any{
 		"emit": map[string]any{

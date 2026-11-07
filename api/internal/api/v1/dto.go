@@ -1420,15 +1420,45 @@ type MdfeConfigBody struct {
 }
 
 // NfceConfigBody is the body for PUT /…/nfce-config (adds CSC fields).
+//
+// QrCodeVersion picks the QR Code layout (NT 2025.001): 2 (default, needs the CSC) or 3
+// (no CSC). The CSC fields are required only for version 2 (validateNfceConfig); they are
+// omitempty so a v3 PUT without them does not overwrite a stored CSC with "".
 type NfceConfigBody struct {
 	fiscalConfigBase
-	ProdCsc   string `json:"prod_csc" validate:"required,max=36"`
-	ProdCscID int    `json:"prod_csc_id" validate:"required,gt=0"`
-	HomCsc    string `json:"hom_csc" validate:"required,max=36"`
-	HomCscID  int    `json:"hom_csc_id" validate:"required,gt=0"`
+	QrCodeVersion int    `json:"qr_code_version,omitempty" validate:"omitempty,oneof=2 3"`
+	ProdCsc       string `json:"prod_csc,omitempty" validate:"omitempty,max=36"`
+	ProdCscID     int    `json:"prod_csc_id,omitempty" validate:"omitempty,gt=0"`
+	HomCsc        string `json:"hom_csc,omitempty" validate:"omitempty,max=36"`
+	HomCscID      int    `json:"hom_csc_id,omitempty" validate:"omitempty,gt=0"`
+}
+
+// nfceQRCodeV3 is the QR Code version that does not use the CSC.
+const nfceQRCodeV3 = 3
+
+// validateNfceConfig exige o CSC e seu id nos dois ambientes quando o QR Code é
+// versão 2 (padrão, ausente ou 0). Na versão 3 o QR não tem CSC nem hash.
+func validateNfceConfig(sl validator.StructLevel) {
+	f := sl.Current().Interface().(NfceConfigBody)
+	if f.QrCodeVersion == nfceQRCodeV3 {
+		return
+	}
+	if f.ProdCsc == "" {
+		sl.ReportError(f.ProdCsc, "prod_csc", "ProdCsc", "required", "")
+	}
+	if f.ProdCscID == 0 {
+		sl.ReportError(f.ProdCscID, "prod_csc_id", "ProdCscID", "required", "")
+	}
+	if f.HomCsc == "" {
+		sl.ReportError(f.HomCsc, "hom_csc", "HomCsc", "required", "")
+	}
+	if f.HomCscID == 0 {
+		sl.ReportError(f.HomCscID, "hom_csc_id", "HomCscID", "required", "")
+	}
 }
 
 func init() {
+	validation.RegisterStructRule(validateNfceConfig, NfceConfigBody{})
 	validation.RegisterStructRule(validateIbsCbsGroup, TaxFieldsBody{})
 	validation.RegisterStructRule(validateAddressBody, AddressBody{})
 	validation.RegisterStructRule(validateServiceLocationDefaults, ServiceLocationDefaultsBody{})

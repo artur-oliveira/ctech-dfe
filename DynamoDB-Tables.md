@@ -263,6 +263,7 @@ Fiscal configuration per org per document type. PK only (no SK). Table names use
 | `environment`             | S    | `producao` or `homologacao`                            |
 | `csc_token`               | S    | NFC-e only: CSC token for QR Code HMAC                 |
 | `csc_id`                  | S    | NFC-e only: CSC identifier                             |
+| `qr_code_version`         | N    | NFC-e only: QR Code version, 2 (default) or 3 (no CSC) |
 | `nsu`                     | N    | Last NSU fetched (distributions)                       |
 | `last_dist_nsu_at`        | S    | ISO-8601 UTC — last distNSU call                       |
 | `improper_usage_until`    | S    | ISO-8601 UTC — consumo indevido block expiry           |
@@ -297,6 +298,10 @@ One item per issued fiscal document. PK encodes environment + issuer CNPJ for or
 | `xml_s3_key`   | S    | S3 key of the authorized XML                               |
 | `created_at`   | S    | ISO-8601 UTC                                               |
 | `updated_at`   | S    | ISO-8601 UTC                                               |
+| `contingency_sweep` | S | `"1"` only on offline/EPEC documents not yet reconciled; key of the sparse `contingency-index` (NFC-e offline writes it) |
+| `contingency_state` | S | `pending`, `authorized`, `authorized_late`, `rejected_late`, `overdue` |
+| `contingency_deadline` | S | RFC3339; sort key of `contingency-index`. NFC-e offline: emission + 3 days |
+| `contingency_msg` | S | NFC-e offline: `WorkerMessage` JSON whose body is `{"@signed_xml": signed enviNFe}`; sent by the retransmission worker |
 
 CT-e emitido pela API (`POST /v1.0/ctes`, `incoming = 0`) grava também: `emit_cpf_cnpj`, `emit_name`,
 `dest_cpf_cnpj`, `dest_name`, `dh_emi`, `total` e `freight_total` (vTPrest, S, 2 casas), `cfop`, `icms_cst`

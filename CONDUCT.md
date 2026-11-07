@@ -1296,3 +1296,10 @@ chegou ao egress. Teste: `cdk/test/go-code.test.ts`. Qualquer dependência por `
 - `contingency-dispatcher` (15 min) lê o índice e invoca `contingency-retransmit-worker` de forma assíncrona; falha vai ao `dlq-processor`. Nunca Scan.
 - Autorização fora do prazo (cStat 150, ou 100 após o `contingency_deadline`) é sucesso (`authorized_late`). Reenvio mantém chave e `cNF`.
 - O reenvio pelo egress ainda não está ligado (depende da emissão offline guardar o XML assinado); hoje o worker só marca `overdue`.
+
+## NFC-e offline: o certificado só existe no egress
+
+A API nunca assina. O QR Code v3 offline e o XML da NFC-e com `tpEmis=9` são assinados pelo `go-dfe-egress` (`nfce/SignText`
+e `nfce/SignOnly`); o XML assinado fica em `contingency_msg` e é transmitido depois com `Body["@signed_xml"]`, sem remontar
+nem reassinar (a chave e o `cNF` não mudam). `contingency_msg` carrega a senha do certificado: o `contingency-retransmit`
+remove o atributo em todo desfecho terminal.

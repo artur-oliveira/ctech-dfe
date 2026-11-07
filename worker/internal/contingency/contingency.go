@@ -13,6 +13,8 @@ const (
 	SweepValue   = "1"
 	StateAttr    = "contingency_state"
 	DeadlineAttr = "contingency_deadline"
+	// MsgAttr holds the WorkerMessage JSON (signed XML as body) the resend sends.
+	MsgAttr = "contingency_msg"
 
 	StatePending        = "pending"
 	StateAuthorized     = "authorized"

@@ -2,8 +2,10 @@ package dfe
 
 import (
 	"context"
+	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha1"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/base64"
@@ -168,5 +170,88 @@ func TestCall_NFSeReachesProviderConstruction(t *testing.T) {
 	}
 	if !strings.Contains(p.Detail, "provider desconhecido") {
 		t.Errorf("Problem.Detail = %q, esperado mencionar provider desconhecido (prova que newNFSeProvider foi alcançado)", p.Detail)
+	}
+}
+
+// SignText round trip with a throwaway certificate generated here (never a real one): the
+// signature the egress returns must verify against the public key (RSA PKCS1v15, SHA-1).
+func TestCallSignText(t *testing.T) {
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	template := &x509.Certificate{
+		SerialNumber: big.NewInt(1), Subject: pkix.Name{CommonName: "TEST"},
+		NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().Add(time.Hour),
+	}
+	der, err := x509.CreateCertificate(rand.Reader, template, template, &key.PublicKey, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cert, _ := x509.ParseCertificate(der)
+	pfx, err := pkcs12.Modern.Encode(key, cert, nil, "pw")
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := Request{
+		DocType: constants.DocTypeNFCE, Service: constants.ServiceSignText,
+		CertificateB64: base64.StdEncoding.EncodeToString(pfx), CertificatePassword: "pw",
+		Body: map[string]any{constants.BodyKeyText: "35200514200166000187650010000000011000000018|3|2|08|10.00|2|12345678909"},
+	}
+	if !Implements(req.DocType, req.Service) {
+		t.Fatal("SignText must be in the allowlist")
+	}
+	resp, err := Call(context.Background(), req)
+	if err != nil || resp.StatusCode != 200 {
+		t.Fatalf("Call: %v %+v", err, resp)
+	}
+	var out map[string]string
+	if err := json.Unmarshal([]byte(resp.Body), &out); err != nil {
+		t.Fatal(err)
+	}
+	sig, err := base64.StdEncoding.DecodeString(out[constants.BodyKeySignature])
+	if err != nil {
+		t.Fatal(err)
+	}
+	sum := sha1.Sum([]byte(req.Body[constants.BodyKeyText].(string)))
+	if err := rsa.VerifyPKCS1v15(&key.PublicKey, crypto.SHA1, sum[:], sig); err != nil {
+		t.Fatalf("signature does not verify: %v", err)
+	}
+	// empty text is a 400 problem, not a signature of nothing
+	req.Body = map[string]any{}
+	if resp, _ := Call(context.Background(), req); resp.StatusCode != 400 {
+		t.Errorf("empty text status = %d, want 400", resp.StatusCode)
+	}
+}
+
+// SignOnly returns the signed enviNFe (Signature after infNFeSupl, inside NFe) and never needs an
+// endpoint; the same bytes feed the later NFeAutorizacao with Body["@signed_xml"].
+func TestCallSignOnly(t *testing.T) {
+	req := Request{
+		DocType: constants.DocTypeNFCE, Service: constants.ServiceSignOnly, UF: "SP", Environment: "hom",
+		CertificateB64: buildTestPFX(t, "pw"), CertificatePassword: "pw",
+		Body: map[string]any{"enviNFe": map[string]any{
+			"@versao": "4.00", "idLote": "1", "indSinc": "1",
+			"NFe": map[string]any{
+				"infNFe":     map[string]any{"@Id": "NFe35200514200166000187650010000000011000000018", "@versao": "4.00", "ide": map[string]any{"cUF": "35"}},
+				"infNFeSupl": map[string]any{"qrCode": "https://x?p=1", "urlChave": "https://x"},
+			},
+		}},
+	}
+	if !Implements(req.DocType, req.Service) {
+		t.Fatal("SignOnly must be in the allowlist")
+	}
+	resp, err := Call(context.Background(), req)
+	if err != nil || resp.StatusCode != 200 {
+		t.Fatalf("Call: %v %+v", err, resp)
+	}
+	var out map[string]string
+	if err := json.Unmarshal([]byte(resp.Body), &out); err != nil {
+		t.Fatal(err)
+	}
+	x := out[constants.BodyKeyXML]
+	i, j, k := strings.Index(x, "</infNFe>"), strings.Index(x, "<infNFeSupl>"), strings.Index(x, "<Signature")
+	if i < 0 || !(i < j && j < k) || !strings.Contains(x, "<DigestValue>") {
+		t.Fatalf("unexpected signed xml: %s", x)
 	}
 }

@@ -69,6 +69,9 @@ const (
 	StateActive      DocumentState = "active"
 	StateCancelled   DocumentState = "cancelled"
 	StateSubstituted DocumentState = "substituted"
+	// StateContingencyPending is an offline NFC-e rendered from its stored signed XML, before the
+	// authorization: its own cache key so the PDF is regenerated (with the protocol) afterwards.
+	StateContingencyPending DocumentState = "contingency_pending"
 )
 
 // CancelledWhen mapeia o par ativo/cancelado dos doc types que não têm
@@ -81,5 +84,5 @@ func CancelledWhen(cancelled bool) DocumentState {
 }
 
 var documentStates = map[DocumentState]bool{
-	StateActive: true, StateCancelled: true, StateSubstituted: true,
+	StateActive: true, StateCancelled: true, StateSubstituted: true, StateContingencyPending: true,
 }

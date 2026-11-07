@@ -23,7 +23,27 @@ import (
 	"gopkg.aoctech.app/api-commons/problem"
 )
 
-const qrCodeVersion = "2"
+// QR Code versions (NT 2025.001). v2 carries the CSC hash; v3 online is just
+// chave|3|tpAmb (Manual DANFE NFC-e 4.4.1), with no CSC, hash or signature.
+const (
+	qrCodeVersion   = "2"
+	qrCodeVersionV2 = 2
+	qrCodeVersionV3 = 3
+
+	// ufNoQRv3ForCPF: the Manual (4.4 obs. 2) excepts PR from the v3 guidance for pessoa física.
+	ufNoQRv3ForCPF = "PR"
+	cpfLen         = 11
+)
+
+// checkQRVersionForIssuer is the deterministic part of ZX02-222 (rejeição 444, "NFC-e com
+// qrCode na versão 2 para Pessoa Física"): a CPF issuer (produtor rural) cannot use QR v2.
+// PR is excepted by the Manual; whether PR accepts v2 for CPF is not stated, so it is let through.
+func checkQRVersionForIssuer(qrVersion int, issuerDoc, uf string) error {
+	if qrVersion == qrCodeVersionV3 || len(issuerDoc) != cpfLen || uf == ufNoQRv3ForCPF {
+		return nil
+	}
+	return problem.BadRequest("emitente pessoa física (CPF) exige o QR Code versão 3; configure qr_code_version = 3 na Configuração Fiscal da NFC-e (rejeição 444)")
+}
 
 // nfceQRBase holds the QR Code base URL per environment.
 type nfceQRBase struct {
@@ -96,8 +116,9 @@ var nfceConsultURL = map[string]nfceQRBase{
 }
 
 // buildNFCeSupl returns the infNFeSupl node (qrCode + urlChave) for an NFC-e.
-// environment: 1 = produção, 2 = homologação.
-func buildNFCeSupl(uf string, environment int, accessKey, cscID, csc string) (map[string]any, error) {
+// environment: 1 = produção, 2 = homologação. qrVersion 3 builds the online v3
+// QR (no CSC); any other value builds v2, which requires the CSC.
+func buildNFCeSupl(uf string, environment int, accessKey, cscID, csc string, qrVersion int) (map[string]any, error) {
 	base, ok := nfceQRBaseURL[uf]
 	if !ok {
 		return nil, problem.BadRequest("NFC-e não disponível para a UF do emitente: " + uf)
@@ -106,11 +127,15 @@ func buildNFCeSupl(uf string, environment int, accessKey, cscID, csc string) (ma
 	if !ok {
 		return nil, problem.BadRequest("URL de consulta de NFC-e não configurada para a UF: " + uf)
 	}
-	if csc == "" || cscID == "" {
-		return nil, problem.BadRequest("configure o CSC da NFC-e em Configuração Fiscal antes de emitir")
+	var qrCode string
+	if qrVersion == qrCodeVersionV3 {
+		qrCode = buildQRCodeV3Online(qrBaseForEnv(base, environment), accessKey, environment)
+	} else {
+		if csc == "" || cscID == "" {
+			return nil, problem.BadRequest("configure o CSC da NFC-e em Configuração Fiscal antes de emitir")
+		}
+		qrCode = buildQRCode(qrBaseForEnv(base, environment), accessKey, cscID, csc, environment)
 	}
-
-	qrCode := buildQRCode(qrBaseForEnv(base, environment), accessKey, cscID, csc, environment)
 	return map[string]any{
 		"qrCode":   qrCode,
 		"urlChave": qrBaseForEnv(consult, environment),
@@ -131,6 +156,12 @@ func buildQRCode(baseURL, accessKey, cscID, csc string, environment int) string 
 	sum := sha1.Sum([]byte(dados + csc))
 	hash := strings.ToUpper(hex.EncodeToString(sum[:]))
 	p := dados + "|" + hash
+	return appendQueryParam(baseURL, "p="+p)
+}
+
+// buildQRCodeV3Online builds the online QR Code version 3: p=chave|3|tpAmb.
+func buildQRCodeV3Online(baseURL, accessKey string, environment int) string {
+	p := strings.Join([]string{accessKey, strconv.Itoa(qrCodeVersionV3), strconv.Itoa(environment)}, "|")
 	return appendQueryParam(baseURL, "p="+p)
 }
 

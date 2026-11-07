@@ -193,9 +193,10 @@ paths:
       tags: [ Fiscal Configs ]
       summary: Grava a configuração de NFC-e
       description: |
-        Além da série/numeração, exige o CSC (Código de Segurança do
-        Contribuinte) e seu identificador por ambiente — sem eles o QR Code
-        não pode ser gerado.
+        Além da série/numeração, com `qr_code_version` 2 (padrão) exige o CSC
+        (Código de Segurança do Contribuinte) e seu identificador por ambiente;
+        sem eles o QR Code não pode ser gerado. Com `qr_code_version` 3 (NT
+        2025.001) o QR Code não usa CSC e os campos de CSC são opcionais.
       operationId: putNfceConfig
       requestBody:
         required: true
@@ -402,11 +403,21 @@ components:
 
     NfceConfigBody:
       type: object
-      description: Configuração de NFC-e — acrescenta o CSC ao formato comum.
-      required: [ timezone, environment, prod_csc, prod_csc_id, hom_csc, hom_csc_id ]
+      required: [ timezone, environment ]
+      description: |
+        Configuração de NFC-e. Com `qr_code_version` 2 (ou ausente) os quatro campos de CSC
+        são obrigatórios; com 3 são opcionais.
       properties:
         timezone: { $ref: '#/components/schemas/Timezone' }
         environment: { type: integer, enum: [ 1, 2 ] }
+        qr_code_version:
+          type: integer
+          enum: [ 2, 3 ]
+          default: 2
+          description: |
+            Versão do QR Code da NFC-e. A 3 (NT 2025.001) dispensa CSC, hash e assinatura no
+            QR online; a UF pode ainda não aceitar (rejeição 407). Emitente CPF (produtor
+            rural) exige a 3, exceto PR (rejeição 444).
         prod_current_serie: { type: integer, minimum: 0 }
         prod_current_number: { type: integer, minimum: 0 }
         hom_current_serie: { type: integer, minimum: 0 }

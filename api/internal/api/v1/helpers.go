@@ -96,10 +96,20 @@ func readOptionalUpload(c fiber.Ctx, field string) ([]byte, error) {
 	return buf, nil
 }
 
-// unmarshal converts a DynamoDB attribute map to map[string]any for JSON response.
+// internalAttrs são atributos que só o servidor usa e nunca saem em resposta da API. `contingency_msg` guarda a
+// mensagem de retransmissão da contingência offline, com a senha do certificado e o XML assinado.
+var internalAttrs = []string{"contingency_msg"}
+
+// unmarshal converts a DynamoDB attribute map to map[string]any for JSON response, sem os atributos internos.
 func unmarshal(item map[string]types.AttributeValue) (map[string]any, error) {
 	var out map[string]any
-	return out, attributevalue.UnmarshalMap(item, &out)
+	if err := attributevalue.UnmarshalMap(item, &out); err != nil {
+		return out, err
+	}
+	for _, k := range internalAttrs {
+		delete(out, k)
+	}
+	return out, nil
 }
 
 // extractCrt reads the nested person.crt out of an already-unmarshalled

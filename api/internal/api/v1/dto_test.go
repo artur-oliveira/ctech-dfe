@@ -101,6 +101,7 @@ func TestValidDTOsPass(t *testing.T) {
 		"vehicle-all-fields": validVehicleWithAllFields(),
 		"nfe-config":         FiscalConfigBody{fiscalConfigBase{Timezone: "America/Sao_Paulo", Environment: 2}},
 		"nfce-config":        NfceConfigBody{fiscalConfigBase: fiscalConfigBase{Timezone: "America/Sao_Paulo", Environment: 2}, ProdCsc: "CSC", ProdCscID: 1, HomCsc: "CSC", HomCscID: 1},
+		"nfce-config-v3":     NfceConfigBody{fiscalConfigBase: fiscalConfigBase{Timezone: "America/Sao_Paulo", Environment: 2}, QrCodeVersion: 3},
 	}
 	for name, dto := range cases {
 		if p := validation.Struct(dto); p != nil {
@@ -645,5 +646,15 @@ func TestOperationBody_AcceptsNfseDefaults(t *testing.T) {
 	body.Nfse.CPaisPrestacao = &country
 	if validation.Struct(body) == nil {
 		t.Error("município e país juntos aceitos na operação")
+	}
+}
+
+func TestNfceConfigRequiresCSCUnlessV3(t *testing.T) {
+	base := fiscalConfigBase{Timezone: "America/Sao_Paulo", Environment: 2}
+	if p := validation.Struct(NfceConfigBody{fiscalConfigBase: base}); p == nil {
+		t.Error("v2 (default) without CSC must fail")
+	}
+	if p := validation.Struct(NfceConfigBody{fiscalConfigBase: base, QrCodeVersion: 4, ProdCsc: "x", ProdCscID: 1, HomCsc: "x", HomCscID: 1}); p == nil {
+		t.Error("qr_code_version 4 must fail")
 	}
 }

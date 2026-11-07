@@ -469,9 +469,10 @@ func newNFCeService(
 	cfg *config.Config,
 	billingSvc *services.BillingService,
 	documentSvc *documents.Service,
+	extSvc *services.ExternalService,
 ) *nfesvc.NfceService {
 	eventRepo := repositories.NewDocumentEventRepository(db, cfg, "nfce")
-	return nfesvc.NewNfceService(
+	nfce := nfesvc.NewNfceService(
 		orgRepo, certRepo, personRepo, configRepo, productRepo, taxProfileRepo, operationRepo,
 		paymentTerminalRepo, fuelPumpRepo, nfceRepo, eventRepo, clients, workerSvc, billingSvc, documentSvc, cfg.S3BucketDocuments,
 		nfesvc.TechData{
@@ -482,6 +483,7 @@ func newNFCeService(
 			Version: cfg.AppVersion,
 		},
 	)
+	return nfce.WithEgress(extSvc)
 }
 
 func newMDFeService(
