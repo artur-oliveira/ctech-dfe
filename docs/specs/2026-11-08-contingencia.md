@@ -154,6 +154,39 @@ logo montar o QR depois de assinar não invalida a assinatura; (d) a alternativa
 duplicaria a canonicalização C14N do `signer.go` (arquivo de maior risco) e foi descartada; (e) depende da decisão
 pendente 3 (a UF permite offline) e do formato exato do QR v3 offline no MOC (`DanfeQrCodeNFCe.html`), a ler antes de codar.
 
+
+### 8.2 Correção da seção 8 depois de ler a NT 2025.001 e o Manual do DANFE NFC-e (2026-11-07)
+
+Fontes lidas: `NT2025.001_v1.00 - NFCe_qrCode_3.pdf` (itens 02.1, 03.3 grupo ZX, 04) e o Manual de Padrões Técnicos do
+DANFE NFC-e e QR Code (itens 3.1.8, 4.4.1 e 4.4.2). A seção 8 e a 8.1 partiam de que o QR v3 offline usa o `DigestValue`
+da assinatura do XML; **não usa**. O que os documentos dizem:
+
+- **QR v3 online** (`tpEmis` diferente de 9): `URL?p=<chave>|3|<tpAmb>`. Sem CSC, sem `idCSC`, sem hash, sem
+  assinatura (informar `assinatura` fora da contingência é a rejeição 445).
+- **QR v3 offline** (`tpEmis` 9): `URL?p=<chave>|3|<tpAmb>|<dia>|<vNF>|<tp_idDest>|<idDest>|<assinatura>`. `dia` com
+  2 dígitos (dia de `dhEmi`), `vNF` com ponto e sem milhar, `tp_idDest` 1 CNPJ, 2 CPF, 3 idEstrangeiro (destinatário
+  não identificado: só o separador `|`; estrangeiro ou não identificado: `idDest` vazio, só o separador), e
+  `assinatura` = **RSA SHA-1 em Base64 da concatenação dos parâmetros 1 a 7, mantendo os `|`, com o mesmo certificado que
+  assina a NFC-e**. Regras: ZX02-324 a 338 (rejeições 396, 397, 474, 583). Sem `CDATA` na v2 e na v3.
+- **Consequência de arquitetura**: não há dependência do `DigestValue`; o que precisa do certificado é assinar uma
+  string. O egress (único lugar com o certificado) ganha uma operação "assinar texto" (RSA-SHA1, Base64). O QR v3
+  offline exige a chave de acesso, o dia e o valor, todos conhecidos antes de assinar o XML; então o fluxo é: a API
+  monta o `infNFe`, pede ao egress a assinatura da string do QR, monta o `qrCode` e o `infNFeSupl` (fora da área
+  assinada) e depois o egress assina o XML (modo "só assinar", para guardar e transmitir depois).
+- **QR v2 offline** continua com `digVal` (SHA1 do `DigestValue` em hexadecimal) e CSC; só então a assinatura do XML
+  precede o QR.
+- **Escolha de versão**: a UF pode ainda não aceitar a v3 (rejeição 407, ZX02-220); a v3 é obrigatória para emitente
+  produtor rural pessoa física, exceto PR (a v2 para pessoa física é a rejeição 444); para pessoa jurídica é opção.
+  A configuração fiscal da NFC-e precisa de `qr_code_version` (2 ou 3), com a v2 como padrão até a UF aceitar a v3.
+- **DANFC-e em contingência** (Manual, 3.1.8): em dois lugares (abaixo do cabeçalho e abaixo da identificação da NFC-e)
+  o texto em duas linhas "EMITIDA EM CONTINGÊNCIA" e "Pendente de autorização"; a informação do protocolo é
+  suprimida; uma **segunda via** com o texto "Via do Estabelecimento" ao lado da data e hora de emissão (a UF pode
+  dispensar; alternativa: guarda eletrônica do XML mediante termo no livro modelo 6). Decisão do dono: duas páginas
+  (via do consumidor e via do estabelecimento) com as tarjas.
+- **Fora do QR, na mesma NT 2025.001** (verificar se já está implementado): B09-20 (atraso de 7 dias com cStat 150,
+  e só contingência depois de 30 dias a critério da UF), E16a-30/35, Y09-40 e Y09-50, YA03-10 a YA06-10 e a mudança no
+  tratamento de `indIEDest` (5E17-12, rejeição 300).
+
 ## 9. Estado de implementação
 
 | Fatia | Estado |
