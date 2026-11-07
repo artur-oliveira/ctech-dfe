@@ -3237,6 +3237,24 @@ Limites do leiaute numa fonte só, `ui/src/lib/constants/layout-limits.ts` (`LAY
   `fiscal_prevalidation` numa linha por erro, com a ação de correção ("Abrir cadastro" ou "Editar" o passo).
 - **Guia e capturas**: `/guide/registries` (`address-abroad`, `layout-limits`) e `/guide/nfe` (`local-refusal`).
 
+### MDF-e na UI (F4)
+
+- **Emissão** (`/mdfe/emit`, `MdfeEmitForm`): tipo de emitente (`emitter_type`) em `EmitterTypeField`, padrão 2; a opção
+  inválida fica desabilitada com o motivo (1 exige CT-e, F14; 3 só dentro de uma UF, F17; carregamento posterior só 2,
+  F24); com 1 ou 3 em rodoviário com `rntrc` na config, o CIOT de 12 dígitos é exigido (F113). `authorized_xml` até 10
+  pessoas do cadastro (`AuthorizedXmlFields`). Carregamento posterior: chave no passo 1, sem o passo Documentos, um
+  município de carga e descarga, `later_loading: true`.
+- **Recusas**: `emitFailure(err, fallback, actionFor, 'mdfe')` e `parseEmitIssues(raw, doc)` com a tabela de dicas do
+  MDF-e (a série F colide com a da NF-e); entendem `invalid_access_key` e o 422 de validação com tag `dfe_access_key`.
+- **Detalhe** (`/mdfe/detail`): "Consultar na SEFAZ" (`MdfeSefazStatus`, só ao clicar, avisa divergência com o status
+  local; não reconcilia); "Incluir NF-e" (`openInclude`, `POST include-dfe`, `sequence_number` = inclusões 110115 + 1);
+  aviso das 168 h (F25) em MDF-e autorizado sem documentos.
+- **Não encerrados** (`/mdfe/unclosed`, `DocContext.tools` do MDF-e): `GET /v1.0/mdfes/unclosed`, Encerrar pelo modal
+  de 110112; cStat 112 é estado vazio.
+- `validateCNPJ` usa ASCII menos 48 (A=17, como a api); `validateAccessKey(key, models)` espelha
+  `validation.AccessKeyReason` (modelos 55, 57 e 58, CNPJ alfanumérico).
+- Limitações da api que a UI contorna: sem flag `later_loading` no detalhe, sem número ou UF em `unclosed`.
+
 ## 6. ctech-dfe-worker — Async Workers
 
 **Location:** `/worker/`

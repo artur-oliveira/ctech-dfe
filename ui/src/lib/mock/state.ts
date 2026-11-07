@@ -20,7 +20,7 @@ export interface MockState {
    * and every one of these screens has to be reviewable without one.
    */
   billing: BillingScenario
-  /** Emissão de NF-e recusada localmente (422 `fiscal_prevalidation`), para revisar a tela de erro. */
+  /** Emissão de NF-e e de MDF-e recusada localmente (422 `fiscal_prevalidation`), para revisar a tela de erro. */
   emitPrevalidation: boolean
 }
 

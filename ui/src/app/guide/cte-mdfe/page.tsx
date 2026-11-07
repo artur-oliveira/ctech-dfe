@@ -40,8 +40,8 @@ export default function GuideCteMdfe() {
             <>
               <GuideTerms>
                 <GuideTerm term="1. Transporte">
-                  O modal. Rodoviário está disponível; aéreo, aquaviário e ferroviário aparecem
-                  marcados como em breve.
+                  O modal (rodoviário, aéreo, aquaviário ou ferroviário) e, se for o caso, o{' '}
+                  <b>carregamento posterior</b>.
                 </GuideTerm>
                 <GuideTerm term="2. Documentos">
                   As chaves de NF-e ou CT-e que viajam na carga, agrupadas por município de descarga.
@@ -50,7 +50,8 @@ export default function GuideCteMdfe() {
                   Peso total, valor e produto predominante. A prévia soma o que veio dos documentos.
                 </GuideTerm>
                 <GuideTerm term="4. Trajeto">
-                  UF de início e fim e as UFs de percurso, além dos municípios de carregamento.
+                  UF de início e fim e as UFs de percurso, os municípios de carregamento, o{' '}
+                  <b>tipo de emitente</b> e quem mais pode baixar o XML.
                 </GuideTerm>
                 <GuideTerm term="5. Veículo">
                   Tração, reboques, condutor e RNTRC; vindos do cadastro de veículos e composições.
@@ -61,6 +62,19 @@ export default function GuideCteMdfe() {
                 <b>Cadastros → Composições veiculares</b>. Na emissão, ela preenche veículo, reboques
                 e condutor de uma vez.
               </GuideCallout>
+              <GuideCallout kind="info" title="Tipo de emitente">
+                Três opções, com os nomes do leiaute: <b>1. Prestador de serviço de transporte</b> (manifesta CT-e),{' '}
+                <b>2. Transportador de carga própria</b> (manifesta NF-e; é o padrão aqui, porque este formulário
+                leva NF-e) e <b>3. Prestador que emitirá CT-e globalizado</b> (manifesta NF-e e só vale para viagem
+                dentro de um estado). A opção que não vale para a viagem fica desabilitada com o motivo escrito
+                nela. Com o tipo 1 ou 3 no rodoviário e o RNTRC na configuração, a SEFAZ exige ao menos um CIOT, e o
+                botão Próximo espera por ele.
+              </GuideCallout>
+              <GuideCallout kind="info" title="Autorizados a baixar o XML">
+                Até 10 pessoas do cadastro (contador, embarcador) que podem baixar o XML no portal da SEFAZ. A
+                busca é a do cadastro de pessoas; o CPF ou CNPJ nunca é digitado. Repetido, documento com dígito
+                inválido ou pessoa no exterior são recusados na hora, antes de chegar à SEFAZ.
+              </GuideCallout>
               <GuideCallout kind="info" title="CIOT no passo do veículo">
                 Em viagem rodoviária, o bloco <b>CIOT</b> aceita um ou mais códigos de <b>12 dígitos</b>,
                 cada um com o <b>responsável pela geração</b> (a própria organização ou uma pessoa do
@@ -68,6 +82,35 @@ export default function GuideCteMdfe() {
                 CIOT (regra F113 do MOC, NT 2026.001, em produção em 23/11/2026). O sistema não declara o
                 CIOT na ANTT por você: informe aqui o que o seu sistema de frete ou a sua administradora
                 de pagamento já gerou.
+              </GuideCallout>
+            </>
+          ),
+        },
+        {
+          id: 'mdfe-later-loading',
+          title: 'Carregamento posterior',
+          summary:
+            'O manifesto sai antes das notas: a viagem começa e as NF-e entram depois, pela inclusão de DF-e.',
+          image: {
+            src: '/guide/mdfe-emit-later-loading.webp',
+            alt: 'Emissão de MDF-e com carregamento posterior, pedindo o município único, o valor e o peso da carga',
+          },
+          body: (
+            <>
+              <p>
+                Ligue <b>Carregamento posterior</b> no primeiro passo. O passo Documentos some, e a carga pede só o
+                município onde o veículo carrega e descarrega, mais o valor e o peso (vazios, saem como zero). O
+                padrão vem de <b>Configuração Fiscal → MDF-e</b>, em &quot;Inclui carga depois de emitir&quot;.
+              </p>
+              <GuideBullets>
+                <li>Só no modal <b>rodoviário</b>; os outros ficam desabilitados.</li>
+                <li>Só com o tipo de emitente <b>2. Transportador de carga própria</b>.</li>
+                <li>Um único município, que é o de carregamento e o de descarregamento, dentro de um estado.</li>
+                <li>Nenhuma nota na emissão: as NF-e entram depois, em <b>Incluir NF-e</b> no detalhe.</li>
+              </GuideBullets>
+              <GuideCallout kind="warning" title="Prazo de 168 horas">
+                Manifesto com carregamento posterior que passa 168 horas sem inclusão de NF-e trava a emissão de
+                novos MDF-e do emitente na SEFAZ. O detalhe do manifesto avisa enquanto ele está sem notas.
               </GuideCallout>
             </>
           ),
@@ -85,15 +128,46 @@ export default function GuideCteMdfe() {
             <>
               <GuideBullets>
                 <li><b>Incluir condutor</b>: troca de motorista no meio do trajeto.</li>
-                <li><b>Incluir DF-e</b>: nota que entrou na carga depois da autorização.</li>
+                <li>
+                  <b>Incluir NF-e</b>: nota que entrou na carga depois da autorização, escolhida da lista de NF-e
+                  autorizadas, com os municípios de carregamento e descarregamento.
+                </li>
                 <li><b>Encerrar</b>: informa que a viagem terminou, com município e data.</li>
                 <li><b>Cancelar</b>: a viagem não aconteceu, e o manifesto ainda não foi encerrado.</li>
               </GuideBullets>
+              <p>
+                <b>Consultar na SEFAZ</b> pergunta ao autorizador a situação do manifesto (autorizado, cancelado,
+                encerrado ou não encontrado), o protocolo e os eventos registrados lá. A consulta só lê: quando a
+                SEFAZ e o status mostrado aqui discordam, aparece um aviso, e nada é corrigido sozinho.
+              </p>
               <p>
                 Todos são eventos e ficam registrados na linha do tempo do documento;{' '}
                 <Link href="/guide/events" className="font-medium text-primary-700 underline underline-offset-2">
                   ver eventos
                 </Link>.
+              </p>
+            </>
+          ),
+        },
+        {
+          id: 'mdfe-unclosed',
+          title: 'MDF-e não encerrados',
+          summary:
+            'O que a SEFAZ ainda tem como aberto para o emitente, emitido aqui ou em outro sistema, com o atalho para encerrar.',
+          image: {
+            src: '/guide/mdfe-unclosed.webp',
+            alt: 'Lista de MDF-e não encerrados na SEFAZ com número, chave, protocolo e o botão Encerrar',
+          },
+          body: (
+            <>
+              <p>
+                Em <b>MDF-e → Não encerrados</b> a lista vem direto da SEFAZ, com número, chave e protocolo de cada
+                manifesto aberto. <b>Encerrar</b> abre o mesmo encerramento do detalhe: escolha o município onde a
+                viagem terminou. <b>Consultar de novo</b> refaz a pergunta; a resposta vale por um minuto.
+              </p>
+              <p>
+                Lista vazia quer dizer que nada está pendente de encerramento. Se a SEFAZ recusar a consulta, a
+                mensagem dela aparece no lugar da lista.
               </p>
             </>
           ),

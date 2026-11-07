@@ -15,9 +15,10 @@ export const validateCPF = (cpf: string): boolean => {
 };
 
 /**
- * Validates a CNPJ — supports the new alphanumeric format (IN RFB 2229/2024).
- * Characters A–Z map to 10–35; digits map to their face value.
- * Check digits (positions 13–14) must be numeric (0–9).
+ * Validates a CNPJ, alphanumeric format included (IN RFB 2229/2024).
+ * Each character is worth its ASCII code minus 48 (0–9 keep their value, A=17 … Z=42),
+ * the same value the access key's cDV uses; the official example 12.ABC.345/01DE-35 validates.
+ * Mirrors api/internal/validation ValidCNPJ. Check digits (positions 13–14) must be numeric.
  */
 export const validateCNPJ = (cnpj: string): boolean => {
   const clean = cnpj.replace(/[^A-Z0-9]/gi, '').toUpperCase();
@@ -27,10 +28,7 @@ export const validateCNPJ = (cnpj: string): boolean => {
   // Check digits must be numeric
   if (!/^\d$/.test(clean[12]) || !/^\d$/.test(clean[13])) return false;
 
-  const val = (c: string): number => {
-    const code = c.charCodeAt(0);
-    return code >= 48 && code <= 57 ? code - 48 : code - 55;
-  };
+  const val = (c: string): number => c.charCodeAt(0) - 48;
 
   const w1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
   const s1 = clean.slice(0, 12).split('').reduce((acc, c, i) => acc + val(c) * w1[i], 0);

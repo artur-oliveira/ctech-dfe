@@ -62,6 +62,8 @@ export interface DocContext {
   keywords?: string[]
   /** Ação primária do contexto (emissão), quando existe. */
   emit?: NavItem
+  /** Telas de operação do documento que não são cadastro (ex.: MDF-e não encerrados). */
+  tools?: NavItem[]
   /** Cadastros exclusivos deste contexto. */
   items: NavItem[]
 }
@@ -134,6 +136,12 @@ export const DOC_CONTEXTS: DocContext[] = [
     icon: <MdfeIcon/>,
     keywords: ['manifesto', 'carga', 'viagem', 'modelo 58'],
     emit: {href: '/mdfe/emit', label: 'Emitir MDF-e', icon: <MdfeIcon/>, keywords: ['manifesto', 'viagem']},
+    tools: [
+      {
+        href: '/mdfe/unclosed', label: 'Não encerrados', icon: <ClipboardIcon/>,
+        keywords: ['mdfe', 'nao encerrados', 'não encerrados', 'encerrar', 'pendentes', 'encerramento', 'aberto'],
+      },
+    ],
     items: [
       {
         href: '/vehicles', label: 'Veículos', icon: <TruckIcon/>,
@@ -281,6 +289,7 @@ export const SEARCH_ENTRIES: SearchEntry[] = [
   ...NAV_GROUPS.flatMap(group => group.items.map(item => toEntry(item, group.label))),
   ...DOC_CONTEXTS.flatMap(ctx => [
     ...(ctx.emit ? [toEntry(ctx.emit, ctx.label)] : []),
+    ...(ctx.tools ?? []).map(item => toEntry(item, ctx.label)),
     ...ctx.items.map(item => toEntry(item, `${ctx.label} · Cadastros`)),
   ]),
   ...EXTRA_SEARCHABLE.map(item => toEntry(item, 'Conta')),
@@ -300,6 +309,7 @@ export const CONTEXT_BY_HREF: Record<string, DfeThemeKey> = Object.fromEntries(
   DOC_CONTEXTS.flatMap(ctx => [
     [ctx.href, ctx.key] as const,
     ...(ctx.emit ? [[ctx.emit.href, ctx.key] as const] : []),
+    ...(ctx.tools ?? []).map(item => [item.href, ctx.key] as const),
     ...ctx.items.map(item => [item.href, ctx.key] as const),
   ]),
 );
@@ -318,7 +328,11 @@ export function contextForPath(pathname: string): DocContext | null {
 /** Todas as rotas da navegação — usado para resolver o item ativo mais específico. */
 const ALL_HREFS = [
   ...NAV_GROUPS.flatMap(g => g.items.map(i => i.href)),
-  ...DOC_CONTEXTS.flatMap(c => [...(c.emit ? [c.emit.href] : []), ...c.items.map(i => i.href)]),
+  ...DOC_CONTEXTS.flatMap(c => [
+    ...(c.emit ? [c.emit.href] : []),
+    ...(c.tools ?? []).map(i => i.href),
+    ...c.items.map(i => i.href),
+  ]),
 ];
 
 export function isItemActive(href: string, pathname: string): boolean {

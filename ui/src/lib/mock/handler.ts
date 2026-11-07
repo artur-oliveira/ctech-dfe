@@ -23,6 +23,10 @@ import {
   mdfeConfigFixture,
   mdfeDetailFixture,
   mdfeEventsFixture,
+  mdfeFiscalPrevalidationFixture,
+  mdfeSefazStatusClosedFixture,
+  mdfeSefazStatusFixture,
+  mdfeUnclosedFixture,
   mdfesFixture,
   meFixture,
   membersFixture,
@@ -241,7 +245,20 @@ function route(method: string, path: string, body: unknown, params?: Record<stri
   if (key === 'get /v1.0/nfces') return {data: paginated(nfcesFixture)};
   if (m === 'post' && path === '/v1.0/nfces') return {data: echo(body, 'nfce')};
   if (key === 'get /v1.0/mdfes') return {data: paginated(mdfesFixture)};
-  if (m === 'post' && path === '/v1.0/mdfes') return {data: echo(body, 'mdfe')};
+  if (m === 'post' && path === '/v1.0/mdfes') {
+    if (getMockState().emitPrevalidation) return {error: {status: 422, data: mdfeFiscalPrevalidationFixture}};
+    return {data: echo(body, 'mdfe')};
+  }
+  // Consultas síncronas na SEFAZ. Antes das rotas de detalhe, que também casam com `/mdfes/{key}`.
+  if (key === 'get /v1.0/mdfes/unclosed') return {data: mdfeUnclosedFixture};
+  {
+    const status = /^get \/v1\.0\/mdfes\/([^/]+)\/sefaz-status$/.exec(key);
+    // O terceiro manifesto está com encerramento pendente aqui e já encerrado na SEFAZ: a divergência da tela.
+    if (status) {
+      const closed = status[1] === mdfesFixture[1].sk || status[1] === mdfesFixture[2].sk;
+      return {data: {...(closed ? mdfeSefazStatusClosedFixture : mdfeSefazStatusFixture), access_key: status[1]}};
+    }
+  }
   if (m === 'post' && path === '/v1.0/mdfes/cargo-preview') {
     return {data: {items: mdfeDetailFixture.documents, total_weight: '2450.000', total_value: '3589.80'}};
   }

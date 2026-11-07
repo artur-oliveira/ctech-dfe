@@ -109,6 +109,8 @@ export const queryKeys = {
     list: (orgPk: string | undefined, params?: object) => ['mdfes', orgPk, params] as const,
     detail: (accessKey: string) => ['mdfe', accessKey] as const,
     events: (accessKey: string) => ['mdfe-events', accessKey] as const,
+    sefazStatus: (accessKey: string) => ['mdfe-sefaz-status', accessKey] as const,
+    unclosed: (orgPk: string | undefined) => ['mdfes-unclosed', orgPk] as const,
     cargoPreview: (orgPk: string | undefined, keys: string[]) => ['mdfe-cargo-preview', orgPk, keys] as const,
   },
   ctes: {

@@ -7,11 +7,11 @@ import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
 import {toast} from 'sonner';
 import {apiClient} from '@/lib/api/client';
 import {EmitError} from '@/components/ui/emit-error';
-import {emitFailure, type EmitFailure} from '@/lib/billing/notice';
+import {type EmitActionFor, emitFailure, type EmitFailure} from '@/lib/billing/notice';
+import {type EmitTarget, issuesFor} from '@/lib/api/emit-problem';
 import {useAuth} from '@/lib/hooks/useAuth';
-import {useDebounce} from '@/lib/hooks/useDebounce';
 import {queryKeys} from '@/lib/api/query-keys';
-import {Button} from '@aoctech/ui';
+import {Button, Switch} from '@aoctech/ui';
 import {Input} from '@/components/ui/input';
 import {RowCheckbox} from '@/components/ui/table-shell';
 import {LoadingSkeleton} from '@/components/ui/loading-skeleton';
@@ -38,6 +38,7 @@ import type {
   MdfeEmit,
   MdfeMunIn,
   MdfeCiotIn,
+  MdfeEmitterType,
   MdfeContractorIn,
   MdfePaymentIn,
   MdfeTransportUnitIn,
@@ -50,6 +51,7 @@ import type {
   VehicleCreate,
   VehicleOut,
 } from '@/lib/types/api';
+import {DocumentPicker} from '@/components/mdfe/DocumentPicker';
 import {TollVouchersFields} from '@/components/mdfe/TollVouchersFields';
 import {InsurancePoliciesFields} from '@/components/mdfe/InsurancePoliciesFields';
 import {
@@ -60,7 +62,10 @@ import {
   railComplete,
   waterComplete,
 } from '@/components/mdfe/ModalFields';
-import {CiotFields} from '@/components/mdfe/CiotFields';
+import {CIOT_LENGTH, CiotFields} from '@/components/mdfe/CiotFields';
+import {ciotRequired, defaultEmitterType, emitterTypeBlock, EmitterTypeField} from '@/components/mdfe/EmitterTypeField';
+import {type AuthorizedXmlEntry, AuthorizedXmlFields} from '@/components/mdfe/AuthorizedXmlFields';
+import {LaterLoadingCargo, type LaterLoadingMun} from '@/components/mdfe/LaterLoadingCargo';
 import {ContractorsFields} from '@/components/mdfe/ContractorsFields';
 import {FreightPaymentFields} from '@/components/mdfe/FreightPaymentFields';
 import {TransportUnitsFields} from '@/components/mdfe/TransportUnitsFields';
@@ -117,6 +122,9 @@ const MODAL_BLOCKED_REASON: Record<ModalId, string> = {
   ferroviario: 'Preencha carga, trajeto, os dados do trem e ao menos um vagão completo.',
 };
 
+const CIOT_REQUIRED_MESSAGE =
+  'Com este tipo de emitente e RNTRC na configuração, a viagem rodoviária precisa de ao menos um CIOT (regra F113).';
+
 const EMPTY_AIR: MdfeAirModalIn = {
   nationality: '', registration: '', flight_number: '',
   origin_airport: '', dest_airport: '', flight_date: '',
@@ -157,82 +165,6 @@ function StepIndicator({steps, current}: { steps: StepDef[]; current: Step }) {
           </div>
         );
       })}
-    </div>
-  );
-}
-
-// ─── document picker (NF-e) ───────────────────────────────────────────────────
-
-function DocumentPicker({selected, onToggle}: {
-  selected: NfeListOut[]
-  onToggle: (n: NfeListOut) => void
-}) {
-  const {selectedOrg} = useAuth();
-  const [incoming, setIncoming] = useState<0 | 1>(0);
-  const [numberSearch, setNumberSearch] = useState('');
-  const debouncedNumber = useDebounce(numberSearch, 300);
-
-  const params = {
-    sort: 'desc' as const,
-    incoming,
-    limit: 50,
-    ...(debouncedNumber ? {number: parseInt(debouncedNumber, 10)} : {}),
-  };
-
-  const {data, isLoading} = useQuery({
-    queryKey: queryKeys.nfes.list(selectedOrg?.pk, params),
-    queryFn: () => apiClient.getNfes(params),
-    enabled: !!selectedOrg,
-  });
-
-  // Only authorized NF-es have an XML available for manifestation.
-  const items = (data?.items ?? []).filter((n) => n.status === 'authorized');
-  const selectedKeys = new Set(selected.map((s) => s.sk));
-
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        <Button type="button" size="sm" variant={incoming === 0 ? 'brand' : 'outline'}
-                onClick={() => setIncoming(0)}>Emitidas</Button>
-        <Button type="button" size="sm" variant={incoming === 1 ? 'brand' : 'outline'}
-                onClick={() => setIncoming(1)}>Recebidas</Button>
-        <div className="ml-auto w-32">
-          <NumericInput value={numberSearch} onChange={setNumberSearch} integerPlaces={9}
-                        placeholder="Nº da nota" className="w-full"/>
-        </div>
-      </div>
-
-      <div className="max-h-72 overflow-y-auto rounded-lg border border-gray-200 divide-y divide-gray-100">
-        {isLoading ? (
-          <div className="p-3">
-            <LoadingSkeleton count={4} height="h-10" rounded="rounded-md"/>
-          </div>
-        ) : items.length === 0 ? (
-          <p className="p-4 text-sm text-gray-500 text-center">Nenhuma NF-e autorizada encontrada.</p>
-        ) : (
-          items.map((n) => {
-            const checked = selectedKeys.has(n.sk);
-            const counterparty = incoming === 0 ? n.dest_name : n.emit_name;
-            const doc = incoming === 0 ? n.dest_cpf_cnpj : n.emit_cpf_cnpj;
-            return (
-              <button key={n.sk} type="button" onClick={() => onToggle(n)}
-                      className={`flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors ${checked ? 'bg-brand-50' : 'hover:bg-gray-50'}`}>
-                <span
-                  className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${checked ? 'border-brand-600 bg-brand-600 text-white' : 'border-gray-300'}`}>
-                  {checked && <span className="text-xs leading-none">✓</span>}
-                </span>
-                <span className="flex-1 min-w-0">
-                  <span className="block text-sm font-medium text-gray-900 truncate">
-                    Nº {n.number} · {counterparty || 'Sem destinatário'}
-                  </span>
-                  {doc && <span className="block text-xs text-gray-400 font-mono">{formatCpfCnpj(doc)}</span>}
-                </span>
-                <span className="text-xs text-gray-500 shrink-0">{formatCurrency(n.total)}</span>
-              </button>
-            );
-          })
-        )}
-      </div>
     </div>
   );
 }
@@ -445,6 +377,14 @@ export function MdfeEmitForm() {
   const [seals, setSeals] = useState('');
   const [rodoSeals, setRodoSeals] = useState('');
   const [portAgentCode, setPortAgentCode] = useState('');
+  const [emitterChoice, setEmitterChoice] = useState<MdfeEmitterType | null>(null);
+  const [autXml, setAutXml] = useState<AuthorizedXmlEntry[]>([]);
+
+  // Carregamento posterior: null segue a configuração fiscal (`ind_carrega_posterior`).
+  const [laterLoadingChoice, setLaterLoadingChoice] = useState<boolean | null>(null);
+  const [laterMun, setLaterMun] = useState<LaterLoadingMun | null>(null);
+  const [cargoValue, setCargoValue] = useState('');
+  const [cargoWeight, setCargoWeight] = useState('');
 
   // Bulk cargo (single document).
   const [cepCarrega, setCepCarrega] = useState('');
@@ -469,6 +409,9 @@ export function MdfeEmitForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const {config: mdfeConfig} = useFiscalConfig('mdfe', selectedOrg?.pk);
+  const laterLoading = laterLoadingChoice ?? !!mdfeConfig?.ind_carrega_posterior;
+  // No carregamento posterior o manifesto sai sem documentos (F27): os escolhidos antes de ligar ficam guardados.
+  const activeDocs = laterLoading ? [] : docs;
 
   const {data: tractorsData} = useQuery({
     queryKey: queryKeys.vehicles.list(selectedOrg?.pk, 'tractor'),
@@ -544,25 +487,60 @@ export function MdfeEmitForm() {
   const hasCte = false;
   const STEPS = useMemo(() => {
     const base = baseSteps(modal);
-    return hasCte ? [...base.slice(0, 4), SEGURO_STEP, base[4]] : base;
-  }, [hasCte, modal]);
+    const steps = hasCte ? [...base.slice(0, 4), SEGURO_STEP, base[4]] : base;
+    return laterLoading ? steps.filter((s) => s.id !== 'documentos') : steps;
+  }, [hasCte, modal, laterLoading]);
 
   // Cargo preview: fetched once documents are chosen and we reach the carga step.
-  const docKeys = docs.map((d) => d.sk);
+  const docKeys = activeDocs.map((d) => d.sk);
   const {data: preview, isLoading: previewLoading, error: previewErr} = useQuery({
     queryKey: queryKeys.mdfes.cargoPreview(selectedOrg?.pk, docKeys),
-    queryFn: () => apiClient.previewMdfeCargo(docs.map((d) => ({type: 'nfe' as const, access_key: d.sk}))),
+    queryFn: () => apiClient.previewMdfeCargo(activeDocs.map((d) => ({type: 'nfe' as const, access_key: d.sk}))),
     enabled: !!selectedOrg && docKeys.length > 0 && (step === 'carga' || step === 'transporte' || step === 'veiculo'),
   });
 
-  // Effective trajeto values: user override, else derived from the preview.
-  const loadings = loadingsOverride ?? preview?.loadings ?? [];
-  const unloadings = unloadingsOverride ?? preview?.unloadings ?? [];
-  const ufIni = ufIniOverride || preview?.uf_start || '';
-  const ufFim = ufFimOverride || preview?.uf_end || '';
+  // Effective trajeto values: user override, else derived from the preview. No carregamento posterior o único
+  // município é o de carregamento e o de descarregamento, e a UF dele é o início e o fim (F21, F22).
+  const laterMunIn: MdfeMunIn[] = laterMun ? [{ibge_code: laterMun.ibge_code, city: laterMun.city}] : [];
+  const loadings = laterLoading ? laterMunIn : loadingsOverride ?? preview?.loadings ?? [];
+  const unloadings = laterLoading ? laterMunIn : unloadingsOverride ?? preview?.unloadings ?? [];
+  const ufIni = laterLoading ? laterMun?.uf ?? '' : ufIniOverride || preview?.uf_start || '';
+  const ufFim = laterLoading ? laterMun?.uf ?? '' : ufFimOverride || preview?.uf_end || '';
   const routeNeeded = !!ufIni && !!ufFim && !ufsBorder(ufIni, ufFim);
   const suggestedRoute = routeNeeded ? suggestRoute(ufIni, ufFim) : [];
   const route = routeOverride ?? suggestedRoute;
+
+  // Tipo do emitente (F14 a F17, F24) e o CIOT que ele exige no rodoviário (F113).
+  const emitterContext = {
+    docType: 'nfe' as const,
+    laterLoading,
+    interstate: !!ufIni && !!ufFim && (ufIni !== ufFim || ufIni === 'EX'),
+  };
+  const emitterType = emitterChoice ?? defaultEmitterType(emitterContext);
+  const emitterBlocked = emitterTypeBlock(emitterType, emitterContext);
+  const ciotMissing = ciotRequired(emitterType, modal === 'rodoviario', mdfeConfig?.rntrc)
+    && !ciots.some((c) => c.ciot.length === CIOT_LENGTH);
+
+  const toggleLaterLoading = (on: boolean) => {
+    setLaterLoadingChoice(on);
+    // Carregamento posterior é só rodoviário (F23) e só carga própria (F24).
+    if (on) {
+      setModal('rodoviario');
+      setEmitterChoice(null);
+    }
+  };
+
+  // Recusas da api por bloco do formulário, para mostrar junto do campo.
+  const fieldIssues = (target: EmitTarget) =>
+    issuesFor(submitError?.issues, target).map((i) => i.hint ?? i.text);
+  const TARGET_STEP: Partial<Record<EmitTarget, Step>> = {
+    tipo_emitente: 'transporte', ciot: 'transporte', aut_xml: 'transporte',
+    carregamento_posterior: laterLoading ? 'carga' : 'modal', documentos: laterLoading ? 'modal' : 'documentos',
+  };
+  const actionFor: EmitActionFor = (target) => {
+    const to = TARGET_STEP[target];
+    return to ? {label: 'Corrigir', onClick: () => setStep(to)} : undefined;
+  };
 
   const toggleDoc = (n: NfeListOut) =>
     setDocs((prev) => prev.some((d) => d.sk === n.sk) ? prev.filter((d) => d.sk !== n.sk) : [...prev, n]);
@@ -608,7 +586,7 @@ export function MdfeEmitForm() {
   const ufIniOptions = UF_OPTIONS.filter((o) => docUfs.size === 0 || docUfs.has(o.value));
   const ufFimOptions = ufIniOptions;
 
-  const isSingleDoc = docs.length === 1;
+  const isSingleDoc = activeDocs.length === 1;
   const needsBulk = isSingleDoc;
   const allWeightsKnown = (preview?.documents ?? []).every(
     (d) => d.has_weight || (weightOverrides[d.access_key]?.trim() ?? '') !== '',
@@ -617,11 +595,11 @@ export function MdfeEmitForm() {
   const canNext = (s: Step): boolean => {
     if (s === 'modal') return true;
     if (s === 'documentos') return docs.length > 0;
-    if (s === 'carga') return !!preview && allWeightsKnown;
+    if (s === 'carga') return laterLoading ? !!laterMun : !!preview && allWeightsKnown;
     if (s === 'transporte') {
       const bulkOk = !needsBulk || (cepCarrega.replace(/\D/g, '').length === 8 && cepDescarrega.replace(/\D/g, '').length === 8);
       const routeOk = !routeNeeded || route.length > 0;
-      return !!ufIni && !!ufFim && bulkOk && routeOk;
+      return !!ufIni && !!ufFim && bulkOk && routeOk && !emitterBlocked && !ciotMissing;
     }
     if (s === 'seguro') return true;
     return false;
@@ -641,9 +619,13 @@ export function MdfeEmitForm() {
     : modal === 'aereo' ? airComplete(air)
       : modal === 'ferroviario' ? railComplete(rail)
         : waterComplete(water);
-  const canEmit = docs.length > 0 && modalReady && allWeightsKnown
+  const cargoReady = laterLoading ? !!laterMun : activeDocs.length > 0 && allWeightsKnown;
+  const canEmit = cargoReady && modalReady && !emitterBlocked && !ciotMissing
     && (!needsBulk || (cepCarrega.replace(/\D/g, '').length === 8 && cepDescarrega.replace(/\D/g, '').length === 8));
-  const emitBlockedReason = canEmit ? null : MODAL_BLOCKED_REASON[modal];
+  const emitBlockedReason = canEmit ? null
+    : emitterBlocked ? `Tipo de emitente: ${emitterBlocked}`
+      : ciotMissing ? CIOT_REQUIRED_MESSAGE
+        : MODAL_BLOCKED_REASON[modal];
 
   const handleSubmit = async () => {
     setSubmitError(null);
@@ -654,7 +636,11 @@ export function MdfeEmitForm() {
     const isRodo = modal === 'rodoviario';
     const payload: MdfeEmit = {
       modal,
-      documents: docs.map((d) => {
+      later_loading: laterLoading,
+      emitter_type: emitterType,
+      authorized_xml: autXml.length ? autXml.map((e) => e.doc) : undefined,
+      ...(laterLoading ? {cargo_value: cargoValue || undefined, cargo_weight: cargoWeight || undefined} : {}),
+      documents: activeDocs.map((d) => {
         const override = weightOverrides[d.sk]?.trim();
         return {type: 'nfe', access_key: d.sk, ...(override ? {weight: override} : {})};
       }),
@@ -678,8 +664,8 @@ export function MdfeEmitForm() {
       ciots: isRodo && ciots.length ? ciots : undefined,
       contractors: contractors.length ? contractors : undefined,
       payments: freightPayments.length ? freightPayments : undefined,
-      redelivery_keys: Object.keys(redelivery).filter((k) => redelivery[k]),
-      transport_units: transportUnits.length ? transportUnits : undefined,
+      redelivery_keys: laterLoading ? [] : Object.keys(redelivery).filter((k) => redelivery[k]),
+      transport_units: !laterLoading && transportUnits.length ? transportUnits : undefined,
       seals: splitSeals(seals),
       rodo_seals: splitSeals(rodoSeals),
       port_agent_code: portAgentCode || undefined,
@@ -693,7 +679,7 @@ export function MdfeEmitForm() {
       toast.success('MDF-e enviado, aguardando autorização da SEFAZ.');
       router.push('/mdfe');
     } catch (err) {
-      setSubmitError(emitFailure(err, 'Erro ao emitir MDF-e.'));
+      setSubmitError(emitFailure(err, 'Erro ao emitir MDF-e.', actionFor, 'mdfe'));
     } finally {
       setIsSubmitting(false);
     }
@@ -711,20 +697,43 @@ export function MdfeEmitForm() {
         <div className="space-y-3">
           <p className="text-sm text-gray-500">Selecione o tipo de transporte.</p>
           <div className="grid grid-cols-2 gap-3">
-            {MODAIS.map((m) => (
-              <button key={m.id} type="button" disabled={!m.enabled} aria-pressed={m.id === modal}
-                      onClick={() => setModal(m.id)}
-                      className={`relative rounded-xl border p-4 text-left transition-colors ${
-                        m.id === modal
-                          ? 'border-brand-500 bg-brand-50 ring-2 ring-brand-200'
-                          : m.enabled
-                            ? 'border-gray-200 hover:border-brand-300'
-                            : 'border-gray-200 opacity-50 cursor-not-allowed'}`}>
-                {m.icon}
-                <p className="mt-2 text-sm font-medium text-gray-900">{m.label}</p>
-                {!m.enabled && <span
-                    className="absolute top-2 right-2 text-xs font-medium text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">em breve</span>}
-              </button>
+            {MODAIS.map((m) => {
+              const enabled = m.enabled && (!laterLoading || m.id === 'rodoviario');
+              return (
+                <button key={m.id} type="button" disabled={!enabled} aria-pressed={m.id === modal}
+                        onClick={() => setModal(m.id)}
+                        className={`relative rounded-xl border p-4 text-left transition-colors ${
+                          m.id === modal
+                            ? 'border-brand-500 bg-brand-50 ring-2 ring-brand-200'
+                            : enabled
+                              ? 'border-gray-200 hover:border-brand-300'
+                              : 'border-gray-200 opacity-50 cursor-not-allowed'}`}>
+                  {m.icon}
+                  <p className="mt-2 text-sm font-medium text-gray-900">{m.label}</p>
+                  {!m.enabled && <span
+                      className="absolute top-2 right-2 text-xs font-medium text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">em breve</span>}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="rounded-xl border border-gray-200 bg-white p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <label htmlFor="mdfe-later-loading" className="text-sm font-medium text-gray-900">
+                  Carregamento posterior
+                </label>
+                <p className="mt-0.5 text-xs text-gray-500">
+                  O manifesto sai sem notas e elas entram depois, pela inclusão de NF-e no manifesto autorizado.
+                  Só no rodoviário, dentro de um estado e como carga própria.
+                </p>
+              </div>
+              <span className="flex min-h-11 shrink-0 items-center">
+                <Switch id="mdfe-later-loading" checked={laterLoading} onCheckedChange={toggleLaterLoading}/>
+              </span>
+            </div>
+            {!laterLoading && fieldIssues('carregamento_posterior').map((e) => (
+              <p key={e} role="alert" className="mt-2 text-xs text-red-600">{e}</p>
             ))}
           </div>
         </div>
@@ -748,6 +757,7 @@ export function MdfeEmitForm() {
             </div>
           )}
           <DocumentPicker selected={docs} onToggle={toggleDoc}/>
+          {fieldIssues('documentos').map((e) => <p key={e} role="alert" className="text-xs text-red-600">{e}</p>)}
           <p className="text-xs text-gray-400">
             Apenas NF-e por enquanto. Na próxima etapa mostramos a carga e os valores extraídos das notas.
           </p>
@@ -755,7 +765,13 @@ export function MdfeEmitForm() {
       )}
 
       {/* Step 3; carga */}
-      {step === 'carga' && (
+      {step === 'carga' && laterLoading && (
+        <LaterLoadingCargo mun={laterMun} onMunChange={setLaterMun}
+                           cargoValue={cargoValue} onCargoValueChange={setCargoValue}
+                           cargoWeight={cargoWeight} onCargoWeightChange={setCargoWeight}
+                           errors={fieldIssues('carregamento_posterior')}/>
+      )}
+      {step === 'carga' && !laterLoading && (
         <CargoStep preview={preview} isLoading={previewLoading} error={previewError}
                    weightOverrides={weightOverrides}
                    onWeightChange={(k, w) => setWeightOverrides((p) => ({...p, [k]: w}))}
@@ -766,6 +782,14 @@ export function MdfeEmitForm() {
       {/* Step 4; transporte */}
       {step === 'transporte' && (
         <div className="space-y-4">
+          {laterLoading ? (
+            <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-1">
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Trajeto</p>
+              <p className="text-sm text-gray-700">
+                Carrega e descarrega em <b>{laterMun ? `${laterMun.city} / ${laterMun.uf}` : 'município não escolhido'}</b>.
+              </p>
+            </div>
+          ) : (
           <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
             <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Trajeto</p>
             <div className="grid grid-cols-2 gap-3">
@@ -782,6 +806,10 @@ export function MdfeEmitForm() {
             </div>
             <p className="text-xs text-gray-400">Preenchido com a origem/destino das notas. Ajuste se necessário.</p>
           </div>
+          )}
+
+          <EmitterTypeField value={emitterType} onChange={setEmitterChoice} context={emitterContext}
+                            errors={fieldIssues('tipo_emitente')}/>
 
           {routeNeeded && (
             <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
@@ -812,11 +840,15 @@ export function MdfeEmitForm() {
             </div>
           )}
 
-          <MunReorderList title="Onde será carregado?" hint="Ordene os municípios de carregamento na ordem da viagem."
-                          muns={loadings} onReorder={setLoadingsOverride}/>
-          <MunReorderList title="Onde será o destino?"
-                          hint="Ordene os municípios de descarregamento na ordem da viagem."
-                          muns={unloadings} onReorder={setUnloadingsOverride}/>
+          {!laterLoading && (
+            <>
+              <MunReorderList title="Onde será carregado?" hint="Ordene os municípios de carregamento na ordem da viagem."
+                              muns={loadings} onReorder={setLoadingsOverride}/>
+              <MunReorderList title="Onde será o destino?"
+                              hint="Ordene os municípios de descarregamento na ordem da viagem."
+                              muns={unloadings} onReorder={setUnloadingsOverride}/>
+            </>
+          )}
 
           <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
             <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Início da viagem (opcional)</p>
@@ -827,13 +859,17 @@ export function MdfeEmitForm() {
           <TollVouchersFields vouchers={tollVouchers} onChange={setTollVouchers}/>
 
           {modal === 'rodoviario' && <CiotFields ciots={ciots} onChange={setCiots}/>}
+          {ciotMissing && <p role="alert" className="-mt-2 text-xs text-red-600">{CIOT_REQUIRED_MESSAGE}</p>}
+          {fieldIssues('ciot').map((e) => <p key={e} role="alert" className="-mt-2 text-xs text-red-600">{e}</p>)}
 
           <ContractorsFields contractors={contractors} onChange={setContractors}/>
 
           <FreightPaymentFields payments={freightPayments} onChange={setFreightPayments}
                                 required={contractors.length > 0}/>
 
-          <TransportUnitsFields units={transportUnits} onChange={setTransportUnits} documentKeys={docKeys}/>
+          {!laterLoading && (
+            <TransportUnitsFields units={transportUnits} onChange={setTransportUnits} documentKeys={docKeys}/>
+          )}
 
           <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
             <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Lacres (opcional)</p>
@@ -861,6 +897,8 @@ export function MdfeEmitForm() {
               </div>
             </div>
           </div>
+
+          <AuthorizedXmlFields entries={autXml} onChange={setAutXml} errors={fieldIssues('aut_xml')}/>
 
           {needsBulk && (
             <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
@@ -1053,7 +1091,10 @@ export function MdfeEmitForm() {
         }}
         docLabel="MDF-e"
         summary={[
-          {label: 'Documentos', value: `${docs.length} documento(s)`},
+          {
+            label: 'Documentos',
+            value: laterLoading ? 'Carregamento posterior; notas incluídas depois' : `${activeDocs.length} documento(s)`,
+          },
           {
             label: MODAL_STEP_LABEL[modal],
             value: modal === 'rodoviario'

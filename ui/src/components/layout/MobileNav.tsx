@@ -43,6 +43,13 @@ export function MobileNav({onOpenMenu, onOpenSearch}: MobileNavProps) {
               active: isItemActive(ctx.href, pathname),
               group: 'Documentos fiscais',
             })),
+            ...(activeContext?.tools ?? []).map(item => ({
+              label: item.label,
+              icon: item.icon,
+              href: item.href,
+              active: isItemActive(item.href, pathname),
+              group: activeContext!.label,
+            })),
             ...(activeContext?.items ?? []).map(item => ({
               label: item.label,
               icon: item.icon,

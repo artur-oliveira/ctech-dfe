@@ -73,3 +73,36 @@ describe('mock handler: recusa local da NF-e', () => {
     }
   });
 });
+
+describe('mock handler: MDF-e na SEFAZ', () => {
+  it('serve os não encerrados antes da rota de detalhe', async () => {
+    const data = await get('/v1.0/mdfes/unclosed');
+    expect(data).toMatchObject({c_stat: '111'});
+    expect(data.items).toHaveLength(2);
+  });
+
+  it('serve a situação na SEFAZ, com a divergência no manifesto de encerramento pendente', async () => {
+    const {mdfesFixture} = await import('@/lib/mock/fixtures');
+    expect(await get(`/v1.0/mdfes/${mdfesFixture[0].sk}/sefaz-status`)).toMatchObject({status: 'authorized'});
+    expect(await get(`/v1.0/mdfes/${mdfesFixture[2].sk}/sefaz-status`))
+      .toMatchObject({status: 'closed', access_key: mdfesFixture[2].sk});
+  });
+
+  it('com ?mock=prevalidation a emissão do MDF-e volta 422 com regras F', async () => {
+    const {initMockStateFromUrl, setMockState} = await import('@/lib/mock/state');
+    initMockStateFromUrl('?mock=prevalidation');
+    try {
+      await expect(mockAdapter({method: 'post', url: '/v1.0/mdfes', data: '{}', headers: {}} as InternalAxiosRequestConfig))
+        .rejects.toMatchObject({response: {status: 422, data: {errors: [{field: 'F17'}, {field: 'F107'}]}}});
+    } finally {
+      setMockState({emitPrevalidation: false});
+    }
+  });
+
+  it('as chaves das fixtures passam na mesma checagem que a UI faz antes de usar', async () => {
+    const {mdfesFixture, nfesFixture} = await import('@/lib/mock/fixtures');
+    const {ACCESS_KEY_MOD_MDFE, validateAccessKey} = await import('@/lib/utils/access-key');
+    for (const m of mdfesFixture) expect(validateAccessKey(m.sk, [ACCESS_KEY_MOD_MDFE])).toEqual({valid: true});
+    for (const n of nfesFixture) expect(validateAccessKey(n.sk)).toEqual({valid: true});
+  });
+});

@@ -11,6 +11,7 @@ import {
   SEARCH_ENTRIES,
   SHARED_REGISTRIES,
 } from '@/lib/navigation/nav';
+import {pageNameForPath} from '@/lib/navigation/page-title';
 
 /**
  * Rotas que existem como página mas não pertencem à navegação autenticada:
@@ -100,5 +101,14 @@ describe('configuração de navegação', () => {
       .filter(route => !NOT_NAVIGABLE.has(route))
       .filter(route => !indexed.has(`/${route}`));
     expect(missing).toEqual([]);
+  });
+
+  it('MDF-e não encerrados: tela do contexto MDF-e, pesquisável por encerrar e pendentes, com título', () => {
+    const entry = SEARCH_ENTRIES.find(e => e.href === '/mdfe/unclosed')!;
+    expect(entry.context).toBe('MDF-e');
+    expect(entry.keywords).toEqual(expect.arrayContaining(['mdfe', 'nao encerrados', 'encerrar', 'pendentes']));
+    expect(contextForPath('/mdfe/unclosed')?.key).toBe('mdfe');
+    expect(isItemActive('/mdfe', '/mdfe/unclosed')).toBe(false);
+    expect(pageNameForPath('/mdfe/unclosed')).toBe('Não encerrados · MDF-e');
   });
 });

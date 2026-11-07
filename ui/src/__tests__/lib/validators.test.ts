@@ -36,9 +36,14 @@ describe('validateCNPJ', () => {
     expect(validateCNPJ('11222333000181')).toBe(true);
   });
 
-  it('aceita CNPJ alfanumérico válido (IN RFB 2229/2024)', () => {
-    // 12ABC34501DE: d1=4 (326%11=7 → 11-7=4), d2=5 (314%11=6 → 11-6=5)
-    expect(validateCNPJ('12ABC34501DE45')).toBe(true);
+  it('aceita CNPJ alfanumérico válido (IN RFB 2229/2024): exemplo oficial da Receita', () => {
+    // Valor do caractere = código ASCII menos 48 (A=17), o mesmo da chave de acesso.
+    expect(validateCNPJ('12.ABC.345/01DE-35')).toBe(true);
+    expect(validateCNPJ('12ABC34501DE35')).toBe(true);
+  });
+
+  it('rejeita o DV calculado com a regra antiga A=10 (regressão)', () => {
+    expect(validateCNPJ('12ABC34501DE45')).toBe(false);
   });
 
   it('rejeita CNPJ com dígito verificador errado', () => {

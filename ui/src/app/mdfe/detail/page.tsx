@@ -20,6 +20,11 @@ import {formatCurrency, formatDate} from '@/lib/utils/helpers';
 import {formatDatetimeBR, triggerRemoteDownload} from '@/lib/utils/dfe';
 import type {NfeEventOut} from '@/lib/types/api';
 import {EVENT_TYPE_LABELS} from "@/lib/data/dfe_event";
+import {MdfeSefazStatus} from '@/components/mdfe/MdfeSefazStatus';
+import {ACCESS_KEY_MOD_MDFE, validateAccessKey} from '@/lib/utils/access-key';
+
+/** Evento de inclusão de DF-e (110115): o seguimento do carregamento posterior. */
+const EVENT_INCLUDE_DFE = '110115';
 
 
 function InfoCard({label, children}: { label: string; children: React.ReactNode }) {
@@ -35,7 +40,7 @@ function MdfeDetail({accessKey}: { accessKey: string }) {
   const {selectedOrg} = useAuth();
   const [xmlLoading, setXmlLoading] = useState(false);
   const [eventXmlLoading, setEventXmlLoading] = useState<string | null>(null);
-  const {openCancel, openClose, modals} = useMdfeActions(selectedOrg?.pk);
+  const {openCancel, openClose, openInclude, modals} = useMdfeActions(selectedOrg?.pk);
   
   const {data: doc, isLoading, error} = useQuery({
     queryKey: queryKeys.mdfes.detail(accessKey),
@@ -49,6 +54,11 @@ function MdfeDetail({accessKey}: { accessKey: string }) {
     enabled: !!accessKey && !!selectedOrg,
   });
   
+  const includes = (eventsData?.items ?? []).filter((e) => e.event_type === EVENT_INCLUDE_DFE).length;
+  const target = doc ? {sk: accessKey, number: doc.number, uf_end: doc.uf_end, includes} : null;
+  // Autorizado sem documento é o carregamento posterior: as notas ainda vão entrar.
+  const awaitingDocs = doc?.status === 'authorized' && (doc.documents ?? []).length === 0;
+
   const handleDownloadXml = async () => {
     setXmlLoading(true);
     try {
@@ -106,8 +116,12 @@ function MdfeDetail({accessKey}: { accessKey: string }) {
                                label="DAMDFE" variant="outline" size="sm"
                                className="text-brand-600 border-brand-200 hover:bg-brand-50"/>
           )}
-          {doc.status === 'authorized' && (
+          {doc.status === 'authorized' && target && (
             <>
+              <Button variant="outline" size="sm" onClick={() => openInclude(target)}
+                      className="text-brand-600 border-brand-200 hover:bg-brand-50">
+                Incluir NF-e
+              </Button>
               <Button variant="outline" size="sm"
                       onClick={() => openClose({sk: accessKey, number: doc.number, uf_end: doc.uf_end})}
                       className="text-blue-600 border-blue-200 hover:bg-blue-50">
@@ -141,6 +155,21 @@ function MdfeDetail({accessKey}: { accessKey: string }) {
         </div>
       )}
       
+      {awaitingDocs && target && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 space-y-2">
+          <p>
+            <b>Carregamento posterior:</b> este manifesto saiu sem notas. Inclua as NF-e da carga assim que forem
+            emitidas; a SEFAZ dá 168 horas a partir da autorização.
+          </p>
+          <Button type="button" variant="outline" onClick={() => openInclude(target)}
+                  className="min-h-11 border-amber-300 bg-white text-amber-900 hover:bg-amber-100 sm:min-h-0">
+            Incluir NF-e agora
+          </Button>
+        </div>
+      )}
+
+      <MdfeSefazStatus accessKey={accessKey} localStatus={doc.status}/>
+
       {/* Trajeto + carga */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <InfoCard label="Trajeto">
@@ -276,10 +305,14 @@ function MdfeDetailContent() {
           <span>/</span>
           <span className="text-gray-600 font-mono truncate max-w-[200px]">{accessKey || 'Detalhe'}</span>
         </div>
-        {accessKey ? (
-          <MdfeDetail accessKey={accessKey}/>
-        ) : (
+        {!accessKey ? (
           <p className="text-sm text-gray-500">Chave de acesso não informada.</p>
+        ) : !validateAccessKey(accessKey, [ACCESS_KEY_MOD_MDFE]).valid ? (
+          <p role="alert" className="text-sm text-red-700">
+            A chave de acesso não é de um MDF-e válido; confira o link ou abra o manifesto pela lista.
+          </p>
+        ) : (
+          <MdfeDetail accessKey={accessKey}/>
         )}
       </div>
     </RootLayout>

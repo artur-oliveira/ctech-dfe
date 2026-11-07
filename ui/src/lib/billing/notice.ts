@@ -12,7 +12,7 @@ import {ApiError} from '@/lib/api/client';
 import {METER_LABELS, PLAN_LABELS, STATUS_CANCELED, STATUS_INCOMPLETE, STATUS_PAST_DUE, STATUS_PAUSED} from '@/lib/constants/billing';
 import type {AccountSubscription} from '@/lib/types/billing';
 import {ONBOARDING_ROOT, STEP_PLAN} from '@/lib/constants/onboarding';
-import {type EmitIssue, type EmitTarget, parseEmitIssues} from '@/lib/api/emit-problem';
+import {type EmitDoc, type EmitIssue, type EmitTarget, parseEmitIssues} from '@/lib/api/emit-problem';
 
 /** RFC 7807 type for every refusal money fixes (`api/internal/problem`). */
 export const PROBLEM_TYPE_PAYMENT_REQUIRED = '/problems/payment-required';
@@ -142,7 +142,7 @@ export interface EmitFailureIssue extends EmitIssue {
 export interface EmitFailure {
   message: string
   action?: { label: string; href: string }
-  /** The local 422 refusals (`invalid_decimal`, `registration_incomplete`, `fiscal_prevalidation`), one per error. */
+  /** The local 422 refusals (`invalid_decimal`, `registration_incomplete`, `fiscal_prevalidation`, `invalid_access_key`), one per error. */
   issues?: EmitFailureIssue[]
 }
 
@@ -156,17 +156,18 @@ export type EmitActionFor = (target: EmitTarget, item?: number) => EmitAction | 
  * quota that ran out mid-session is the common case, and "erro interno" there is
  * a support call about an invoice. A local 422 refusal (layout
  * length, MOC rule, incomplete record) becomes one line per error, each with the
- * place to fix it that the form supplies through `actionFor`. Everything else
+ * place to fix it that the form supplies through `actionFor`; `doc` picks the
+ * MOC rule hints (the MDF-e F series is not the NF-e one). Everything else
  * keeps the API's own detail.
  */
-export function emitFailure(err: unknown, fallback: string, actionFor?: EmitActionFor): EmitFailure {
+export function emitFailure(err: unknown, fallback: string, actionFor?: EmitActionFor, doc?: EmitDoc): EmitFailure {
   const billing = parseBillingProblem(err);
   if (billing) {
     const notice = noticeForReason(billing);
     return {message: notice.message, action: {label: notice.actionLabel, href: notice.href}};
   }
   if (err instanceof ApiError) {
-    const issues = parseEmitIssues(err.raw);
+    const issues = parseEmitIssues(err.raw, doc);
     if (issues) {
       return {message: err.detail, issues: issues.map((i) => ({...i, action: actionFor?.(i.target, i.item)}))};
     }

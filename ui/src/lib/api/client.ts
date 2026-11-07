@@ -48,6 +48,8 @@ import type {
   MdfeEmit,
   MdfeIncludeDFeDoc,
   MdfeListOut,
+  MdfeSituationOut,
+  MdfeUnclosedOut,
   MeResponse,
   MunicipalParamsOut,
   NFCeConfigOut,
@@ -1062,6 +1064,14 @@ class ApiClient {
       documents,
       sequence_number: sequenceNumber,
     });
+  }
+
+  async getMdfeSefazStatus(accessKey: string): Promise<MdfeSituationOut> {
+    return this.get(`/v1.0/mdfes/${accessKey}/sefaz-status`);
+  }
+
+  async getMdfeUnclosed(): Promise<MdfeUnclosedOut> {
+    return this.get('/v1.0/mdfes/unclosed');
   }
 
   async getMdfeEvents(accessKey: string): Promise<PaginatedResponse<NfeEventOut>> {

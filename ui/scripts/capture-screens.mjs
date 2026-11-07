@@ -169,7 +169,20 @@ const CAPTURES = [
   },
   {slug: 'mdfe-list', route: '/mdfe', waitText: 'Detalhes'},
   {slug: 'mdfe-emit', route: '/mdfe/emit', waitText: 'tipo de transporte'},
-  {slug: 'mdfe-detail', route: `/mdfe/detail?key=${MDFE_KEY}`, waitText: 'Encerrar'},
+  {
+    slug: 'mdfe-emit-later-loading',
+    route: '/mdfe/emit',
+    steps: [
+      {waitAt: '#mdfe-later-loading'}, {clickAt: '#mdfe-later-loading'},
+      {click: 'Próximo'}, {waitText: 'Município de carregamento e descarregamento'},
+    ],
+  },
+  {
+    slug: 'mdfe-detail',
+    route: `/mdfe/detail?key=${MDFE_KEY}`,
+    steps: [{waitText: 'Encerrar'}, {click: 'Consultar na SEFAZ'}, {waitText: 'cStat 100'}],
+  },
+  {slug: 'mdfe-unclosed', route: '/mdfe/unclosed', waitText: 'manifestos abertos'},
 
   // ── NFS-e ────────────────────────────────────────────────────────────────
   {slug: 'nfse-list', route: '/nfse', waitText: 'Cliente Exemplo LTDA'},

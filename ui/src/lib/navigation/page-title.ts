@@ -33,6 +33,7 @@ const ROUTE_LABELS: [string, string][] = [
   ...SHARED_REGISTRIES.map(i => [i.href, i.label] as [string, string]),
   ...DOC_CONTEXTS.flatMap(ctx => [
     ...(ctx.emit ? [[ctx.emit.href, ctx.emit.label] as [string, string]] : []),
+    ...(ctx.tools ?? []).map(i => [i.href, `${i.label} · ${ctx.label}`] as [string, string]),
     ...ctx.items.map(i => [i.href, i.label] as [string, string]),
   ]),
   ...Object.entries(STANDALONE_TITLES),

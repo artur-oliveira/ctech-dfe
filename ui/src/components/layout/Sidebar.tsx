@@ -58,7 +58,7 @@ function ContextItem(
   const inContext = contextForPath(pathname)?.key === ctx.key;
   const [expanded, setExpanded] = useState(false);
   const open = inContext || expanded;
-  const children: NavItem[] = [...(ctx.emit ? [ctx.emit] : []), ...ctx.items];
+  const children: NavItem[] = [...(ctx.emit ? [ctx.emit] : []), ...(ctx.tools ?? []), ...ctx.items];
   const active = isItemActive(ctx.href, pathname);
   const panelId = `nav-context-${ctx.key}`;
 

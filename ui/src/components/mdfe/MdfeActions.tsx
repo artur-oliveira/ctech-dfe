@@ -10,6 +10,11 @@ import {JustificationField} from '@/components/ui/justification-field';
 import {Combobox} from '@/components/ui/combobox';
 import {setDocStatusOptimistic} from '@/lib/utils/dfe-status';
 import {CITIES, CITY_OPTIONS} from '@/lib/data/cities';
+import {DocumentPicker} from '@/components/mdfe/DocumentPicker';
+import {EmitError} from '@/components/ui/emit-error';
+import {emitFailure, type EmitFailure} from '@/lib/billing/notice';
+import {validateAccessKey} from '@/lib/utils/access-key';
+import type {NfeListOut} from '@/lib/types/api';
 
 const CANCEL_JUSTIFICATION_MIN_LENGTH = 15;
 const CANCEL_JUSTIFICATION_MAX_LENGTH = 255;
@@ -20,13 +25,18 @@ export interface MdfeActionTarget {
   number: number | string
   /** Default UF for the close (encerramento) modal — usually the trip end UF. */
   uf_end?: string
+  /** Inclusões de DF-e (110115) já registradas; a próxima usa o seguinte nSeqEvento. */
+  includes?: number
 }
 
+/** Município escolhido pelo código IBGE, com o nome que o evento leva. */
+const cityOf = (code: string) => CITIES.find((c) => c.code === code);
+
 /**
- * useMdfeActions centralizes the MDF-e cancel (110111) and close/encerramento
- * (110112) flows — mutations, modal state, and the rendered modals — so the list
+ * useMdfeActions centralizes the MDF-e cancel (110111), close/encerramento
+ * (110112) and inclusão de DF-e (110115, the follow-up of a carregamento posterior) flows — mutations, modal state, and the rendered modals — so the list
  * and detail pages share one implementation. Render the returned `modals` once
- * and wire trigger buttons to `openCancel`/`openClose`.
+ * and wire trigger buttons to `openCancel`/`openClose`/`openInclude`.
  */
 export function useMdfeActions(orgPk?: string) {
   const qc = useQueryClient();
@@ -35,6 +45,11 @@ export function useMdfeActions(orgPk?: string) {
   const [closeTarget, setCloseTarget] = useState<MdfeActionTarget | null>(null);
   const [closeUf, setCloseUf] = useState('');
   const [closeMun, setCloseMun] = useState('');
+  const [includeTarget, setIncludeTarget] = useState<MdfeActionTarget | null>(null);
+  const [includeDocs, setIncludeDocs] = useState<NfeListOut[]>([]);
+  const [includeLoadMun, setIncludeLoadMun] = useState('');
+  const [includeUnloadMun, setIncludeUnloadMun] = useState('');
+  const [includeError, setIncludeError] = useState<EmitFailure | null>(null);
 
   // Optimistically show the transitional status (the GSI is eventually
   // consistent); the WebSocket delivers the final status when the worker finishes.
@@ -66,6 +81,48 @@ export function useMdfeActions(orgPk?: string) {
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : 'Erro ao encerrar MDF-e.'),
   });
+
+  const resetInclude = () => {
+    setIncludeTarget(null);
+    setIncludeDocs([]);
+    setIncludeLoadMun('');
+    setIncludeUnloadMun('');
+    setIncludeError(null);
+  };
+
+  const includeMutation = useMutation({
+    mutationFn: ({target, docs}: { target: MdfeActionTarget; docs: NfeListOut[] }) => {
+      const load = cityOf(includeLoadMun)!;
+      const unload = cityOf(includeUnloadMun)!;
+      return apiClient.includeMdfeDFe(target.sk, load.code, load.description, docs.map((d) => ({
+        unloading_ibge_code: unload.code, unloading_city: unload.description, nfe_key: d.sk,
+      })), (target.includes ?? 0) + 1);
+    },
+    onSuccess: (_data, {target}) => {
+      resetInclude();
+      void qc.invalidateQueries({queryKey: queryKeys.mdfes.detail(target.sk)});
+      void qc.invalidateQueries({queryKey: queryKeys.mdfes.events(target.sk)});
+      toast.success('Inclusão de NF-e enviada à SEFAZ.');
+    },
+    onError: (e) => setIncludeError(emitFailure(e, 'Erro ao incluir NF-e.', undefined, 'mdfe')),
+  });
+
+  // A chave vem da nota escolhida, mas passa pela mesma checagem da api antes de sair (modelo 55, DV).
+  const invalidInclude = includeDocs.find((d) => !validateAccessKey(d.sk).valid);
+  const includeReady = includeDocs.length > 0 && !!includeLoadMun && !!includeUnloadMun && !invalidInclude;
+
+  const handleConfirmInclude = () => {
+    if (!includeTarget || !includeReady) return;
+    includeMutation.mutate({target: includeTarget, docs: includeDocs});
+  };
+
+  const toggleIncludeDoc = (n: NfeListOut) =>
+    setIncludeDocs((prev) => prev.some((d) => d.sk === n.sk) ? prev.filter((d) => d.sk !== n.sk) : [...prev, n]);
+
+  const openInclude = (m: MdfeActionTarget) => {
+    resetInclude();
+    setIncludeTarget(m);
+  };
 
   const openCancel = (m: MdfeActionTarget) => {
     setJustification('');
@@ -153,8 +210,45 @@ export function useMdfeActions(orgPk?: string) {
           </div>
         </div>
       </Modal>
+
+      <Modal
+        open={includeTarget !== null}
+        title={includeTarget ? `Incluir NF-e no MDF-e nº ${includeTarget.number}` : ''}
+        onClose={resetInclude}
+        onSubmit={handleConfirmInclude}
+        submitLabel="Incluir NF-e"
+        cancelLabel="Voltar"
+        loading={includeMutation.isPending}
+        submitDisabled={!includeReady}
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">
+            As notas entram na carga por evento de inclusão de DF-e. No carregamento posterior, inclua em até 168 horas
+            da autorização; depois disso a SEFAZ recusa novos manifestos do emitente.
+          </p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div className="flex flex-col gap-1">
+              <label htmlFor="mdfe-include-load" className="text-xs font-medium text-gray-600">Município de carregamento</label>
+              <Combobox id="mdfe-include-load" value={includeLoadMun} onValueChange={setIncludeLoadMun}
+                        options={CITY_OPTIONS} placeholder="Selecione o município" searchPlaceholder="Buscar município…"/>
+            </div>
+            <div className="flex flex-col gap-1">
+              <label htmlFor="mdfe-include-unload" className="text-xs font-medium text-gray-600">Município de descarregamento</label>
+              <Combobox id="mdfe-include-unload" value={includeUnloadMun} onValueChange={setIncludeUnloadMun}
+                        options={CITY_OPTIONS} placeholder="Selecione o município" searchPlaceholder="Buscar município…"/>
+            </div>
+          </div>
+          <DocumentPicker selected={includeDocs} onToggle={toggleIncludeDoc}/>
+          {invalidInclude && (
+            <p role="alert" className="text-xs text-red-600">
+              A chave da NF-e nº {invalidInclude.number} não confere; tire ela da seleção.
+            </p>
+          )}
+          <EmitError failure={includeError}/>
+        </div>
+      </Modal>
     </>
   );
 
-  return {openCancel, openClose, modals};
+  return {openCancel, openClose, openInclude, modals};
 }

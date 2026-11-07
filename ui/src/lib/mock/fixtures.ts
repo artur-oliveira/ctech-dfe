@@ -223,8 +223,10 @@ export const personsFixture = [
  */
 function accessKey(cnpj: string, model: string, serie: number, number: number, code: number) {
   const body = `35260${''}7${cnpj}${model}${String(serie).padStart(3, '0')}${String(number).padStart(9, '0')}1${String(code).padStart(8, '0')}`;
-  const digit = String(body.split('').reduce((sum, char) => sum + Number(char), 0) % 10);
-  return `${body}${digit}`;
+  // cDV de verdade (módulo 11, pesos 2 a 9 da direita para a esquerda): a UI confere a chave antes de usar.
+  const sum = body.split('').reverse().reduce((acc, char, i) => acc + (char.charCodeAt(0) - 48) * (2 + (i % 8)), 0);
+  const rem = sum % 11;
+  return `${body}${rem < 2 ? 0 : 11 - rem}`;
 }
 
 function nfeList(status: string, number: number, total: string, day: number) {
@@ -1323,4 +1325,66 @@ export const nfeFiscalPrevalidationFixture = {
       params: {entity: 'emitente', xml_path: 'NFe/infNFe/emit/xFant', limit: 60, got: 64},
     },
   ],
+};
+
+/** Recusa local do MDF-e (422 `fiscal_prevalidation`, `mdfes/prevalidate.go`): tipo de emitente e autXML. */
+export const mdfeFiscalPrevalidationFixture = {
+  type: 'about:blank',
+  title: 'Unprocessable Entity',
+  status: 422,
+  code: 'fiscal_prevalidation',
+  detail: 'o manifesto não passa nas validações do leiaute e do MOC; corrija os itens apontados antes de emitir',
+  errors: [
+    {
+      field: 'F17',
+      code: 'fiscal_rule',
+      message: 'regra F17 do MOC (rejeição 541): Tipo de emitente inválido para operações interestaduais ou com exterior',
+      params: {rule: 'F17', cstat: 541},
+    },
+    {
+      field: 'F107',
+      code: 'fiscal_rule',
+      message: 'regra F107 do MOC (rejeição 459): Documento autorizado ao XML duplicado no MDFe',
+      params: {rule: 'F107', cstat: 459},
+    },
+  ],
+};
+
+/** Situação na SEFAZ (`GET /mdfes/{key}/sefaz-status`): autorizado, igual ao registro local do primeiro MDF-e. */
+export const mdfeSefazStatusFixture = {
+  access_key: mdfesFixture[0].sk,
+  c_stat: '100',
+  x_motivo: 'Autorizado o uso do MDF-e',
+  status: 'authorized' as const,
+  protocol: {n_prot: '958260000555111', dh_recbto: '2026-07-01T08:00:12-03:00', c_stat: '100', x_motivo: 'Autorizado o uso do MDF-e'},
+  events: [] as {tp_evento: string; n_seq_evento: string; c_stat: string; x_motivo: string; n_prot: string; dh_reg_evento: string}[],
+};
+
+/** A SEFAZ já tem o encerramento que o registro local ainda não mostra (divergência, sem reconciliação). */
+export const mdfeSefazStatusClosedFixture = {
+  ...mdfeSefazStatusFixture,
+  c_stat: '132',
+  x_motivo: 'Encerramento de MDF-e homologado',
+  status: 'closed' as const,
+  events: [{
+    tp_evento: '110112', n_seq_evento: '1', c_stat: '135', x_motivo: 'Evento registrado e vinculado a MDF-e',
+    n_prot: '958260000555222', dh_reg_evento: '2026-07-02T18:40:05-03:00',
+  }],
+};
+
+/** Não encerrados do emitente (`GET /mdfes/unclosed`): cStat 111 com a lista. */
+export const mdfeUnclosedFixture = {
+  c_stat: '111',
+  x_motivo: 'Consulta não encerrados localizou MDF-e nessa situação',
+  items: [
+    {access_key: mdfesFixture[0].sk, n_prot: '958260000555111'},
+    {access_key: mdfesFixture[2].sk, n_prot: '958260000555333'},
+  ],
+};
+
+/** cStat 112: nenhum MDF-e pendente de encerramento. */
+export const mdfeUnclosedEmptyFixture = {
+  c_stat: '112',
+  x_motivo: 'Consulta não encerrados não localizou MDF-e nessa situação',
+  items: [] as {access_key: string; n_prot: string}[],
 };

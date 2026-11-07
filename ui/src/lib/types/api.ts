@@ -1765,7 +1765,15 @@ export interface MdfeEmit {
   rntrc?: string | null
   ciot?: string | null
   /** Tipo do emitente (tpEmit): 1 prestador (só CT-e), 2 carga própria (só NF-e), 3 CT-e globalizado. Sem ele vale o do documento. */
-  emitter_type?: string | null
+  emitter_type?: MdfeEmitterType | null
+  /** CPF/CNPJ autorizados a baixar o XML (infMDFe/autXML), até 10, sem repetição. */
+  authorized_xml?: string[] | null
+  /** Carregamento posterior (ide/indCarregaPosterior): sai sem documentos; eles entram por include-dfe. */
+  later_loading?: boolean | null
+  /** tot/vCarga do carregamento posterior (padrão 0). */
+  cargo_value?: string | null
+  /** tot/qCarga (kg) do carregamento posterior (padrão 0). */
+  cargo_weight?: string | null
   /** CIOTs da viagem (infANTT/infCIOT, 0 a N); no lugar do `ciot` único. */
   ciots?: MdfeCiotIn[] | null
   additional_info?: string | null
@@ -1985,6 +1993,28 @@ export interface MdfeDetailOut extends MdfeListOut {
   bulk_cargo: { cep_loading: string; cep_unloading: string } | null
   xml_s3_key: string | null
   sefaz_protocol: string | null
+}
+
+/** tpEmit: 1 prestador de serviço de transporte, 2 carga própria, 3 prestador que emitirá CT-e globalizado. */
+export type MdfeEmitterType = '1' | '2' | '3'
+
+/** Situação na SEFAZ (`GET /mdfes/{key}/sefaz-status`, MDFeConsulta). Só lê; o registro local não muda. */
+export type MdfeSefazSituation = 'authorized' | 'cancelled' | 'closed' | 'not_found'
+
+export interface MdfeSituationOut {
+  access_key: string
+  c_stat: string
+  x_motivo: string
+  status: MdfeSefazSituation
+  protocol: { n_prot: string; dh_recbto: string; c_stat: string; x_motivo: string } | null
+  events: { tp_evento: string; n_seq_evento: string; c_stat: string; x_motivo: string; n_prot: string; dh_reg_evento: string }[]
+}
+
+/** MDF-e não encerrados do emitente (`GET /mdfes/unclosed`, MDFeConsNaoEnc): cStat 111 com itens, 112 vazio. */
+export interface MdfeUnclosedOut {
+  c_stat: string
+  x_motivo: string
+  items: { access_key: string; n_prot: string }[]
 }
 
 export interface MdfeIncludeDFeDoc {
