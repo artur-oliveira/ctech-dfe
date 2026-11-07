@@ -174,7 +174,8 @@ func attrSimples(n *node) []*simple {
 }
 
 // Lengths devolve os limites de tamanho (minLength e maxLength, em caracteres) da tag simples em path, um caminho
-// a partir da raiz sem índices ("NFe/infNFe/dest/xNome"). ok é false se a tag não existe ou não tem os dois limites.
+// a partir da raiz sem índices ("NFe/infNFe/dest/xNome"); minLen é 0 quando o tipo não o declara. ok é false se
+// a tag não existe ou não declara maxLength (tamanho só por padrão, como o da IE do destinatário).
 // É a fonte única dos tamanhos do leiaute para quem valida cadastro (a api compara os seus DTOs com ela em teste).
 func (s *Spec) Lengths(path string) (minLen, maxLen int, ok bool) {
 	parts := strings.Split(strings.Trim(path, "/"), "/")
@@ -187,10 +188,13 @@ func (s *Spec) Lengths(path string) (minLen, maxLen int, ok bool) {
 			return 0, 0, false
 		}
 	}
-	if n.Simple == nil || n.Simple.MinLen == nil || n.Simple.MaxLen == nil {
+	if n.Simple == nil || n.Simple.MaxLen == nil {
 		return 0, 0, false
 	}
-	return *n.Simple.MinLen, *n.Simple.MaxLen, true
+	if n.Simple.MinLen != nil {
+		minLen = *n.Simple.MinLen
+	}
+	return minLen, *n.Simple.MaxLen, true
 }
 
 // Options ajusta a validação.

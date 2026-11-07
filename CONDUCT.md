@@ -1213,3 +1213,21 @@ SP próprios; o resto SVRS), a mesma para produção e homologação: conferir n
 só fingerprintava o diretório do módulo; uma mudança só em `go-dfe` (api, worker e egress o importam por `replace`)
 não mudava o asset e a Lambda ficava com o código antigo. Foi assim que o conserto do `tpOper` da NFS-e (E0904) não
 chegou ao egress. Teste: `cdk/test/go-code.test.ts`. Qualquer dependência por `replace` nova entra em `SHARED_SOURCES`.
+
+## NF-e e NFC-e: cadastro nunca é truncado nem inventado
+
+- **Tamanho:** os limites de texto do cadastro (pessoa, organização, endereço, IE, e-mail, produto) e do pedido
+  (`NfeLocalBody`) são os do leiaute da NF-e. A fonte única é o schema gerado dos XSDs (`go-dfe/validate`,
+  `Spec.Lengths`); `api/internal/api/v1/dto_layout_limits_test.go` falha se uma tag `validate` passar dele. Registro
+  antigo mais longo **não é migrado nem truncado**: a emissão devolve 422 `fiscal_prevalidation` com `too_long`, a
+  entidade e o campo, e o usuário corrige o cadastro. A única truncagem que existe é a do `natOp` (`truncateNatOp`).
+- **Placeholders:** nenhum código fiscal inventado. Sem município IBGE, sem UF ou (no exterior) sem país, a emissão
+  devolve 422 `registration_incomplete` nomeando a entidade e o campo; o `0000000` de `cMun`, `cMunFG` e do ISSQN e o
+  `cUF` 35 de reserva foram removidos. Número malformado num cadastro é 422 `invalid_decimal` (o `d()` entra em
+  pânico tipado e `recoverDecimal`, na entrada do `Emit`, converte; qualquer outro pânico segue adiante).
+- **Exterior:** endereço com `state_federation` `EX`, `city_ibge_code` `9999999`, sem CEP e com `country_code` (BACEN,
+  4 dígitos, diferente de 1058) e `country_name`. A NF-e sai com `idDest` 3, `indIEDest` 9 e sem `IE`. A tabela BACEN
+  está só na UI; a api valida o formato. Inscrição estadual `ISENTO` é o contribuinte isento (`indIEDest` 2, sem IE).
+- **Portão:** regras do MOC só recusam a emissão quando estão em `blockRules` (`nfes/prevalidate.go`), e só regras
+  "Obrig." entram ali; as facultativas por UF ficam no shadow. Uma regra nova em block precisa de teste que a dispare
+  e de um documento coerente que passe (`nfes/f3_test.go`).

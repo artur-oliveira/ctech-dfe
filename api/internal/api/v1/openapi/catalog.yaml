@@ -707,7 +707,7 @@ components:
       required: [ code, description, ncm, origin, unit, value, ind_tot, cfop_nfce, cfop_config ]
       properties:
         code: { type: string, maxLength: 60, pattern: '^[A-Z0-9._\-]+$' }
-        description: { type: string, minLength: 2, maxLength: 255 }
+        description: { type: string, minLength: 2, maxLength: 120 }
         brand: { type: [ string, 'null' ], maxLength: 60 }
         ncm: { $ref: '#/components/schemas/Ncm' }
         cest: { type: [ string, 'null' ], pattern: '^\d{7}$' }

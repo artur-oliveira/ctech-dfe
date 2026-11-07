@@ -362,16 +362,23 @@ components:
 
     AddressBody:
       type: object
-      required: [ city_ibge_code, street, neighborhood, number, city, state_federation, postal_code ]
+      description: |
+        Endereço com os tamanhos do leiaute da NF-e (TEndereco). No Brasil, `postal_code` é
+        obrigatório e `country_code`, se informado, é `1058`. No exterior: `state_federation`
+        `EX`, `city_ibge_code` `9999999`, sem CEP, e `country_code` (código BACEN de 4 dígitos,
+        diferente de `1058`) e `country_name` obrigatórios; a NF-e sai com `idDest` 3.
+      required: [ city_ibge_code, street, neighborhood, number, city, state_federation ]
       properties:
         city_ibge_code: { $ref: '#/components/schemas/Ibge' }
-        street: { type: string, maxLength: 255 }
-        neighborhood: { type: string, maxLength: 120 }
+        street: { type: string, minLength: 2, maxLength: 60 }
+        neighborhood: { type: string, minLength: 2, maxLength: 60 }
         number: { type: string, maxLength: 20 }
-        city: { type: string, maxLength: 120 }
-        state_federation: { $ref: '#/components/schemas/Uf' }
+        city: { type: string, minLength: 2, maxLength: 60 }
+        state_federation: { $ref: '#/components/schemas/UfOrExterior' }
         postal_code: { $ref: '#/components/schemas/Cep' }
-        complement: { type: [ string, 'null' ], maxLength: 120 }
+        complement: { type: [ string, 'null' ], minLength: 1, maxLength: 60 }
+        country_code: { type: [ string, 'null' ], pattern: '^\d{4}$', description: 'Código do país na tabela BACEN (cPais).' }
+        country_name: { type: [ string, 'null' ], minLength: 2, maxLength: 60, description: 'Nome do país (xPais).' }
 
     StateRegistrationBody:
       type: object
@@ -379,7 +386,11 @@ components:
       required: [ uf, state_registration ]
       properties:
         uf: { $ref: '#/components/schemas/Uf' }
-        state_registration: { type: string, maxLength: 20 }
+        state_registration:
+          type: string
+          minLength: 2
+          maxLength: 14
+          description: Dígitos da IE, ou `ISENTO` para o contribuinte isento de inscrição (NF-e sai com `indIEDest` 2, sem a tag IE).
 
     ContactsBody:
       type: object
@@ -387,7 +398,7 @@ components:
         emails:
           type: array
           maxItems: 5
-          items: { type: string, format: email }
+          items: { type: string, format: email, minLength: 6, maxLength: 60 }
         phones:
           type: array
           maxItems: 5
@@ -460,7 +471,7 @@ components:
       description: Objeto `person` compartilhado por pessoas e organizações.
       required: [ addresses ]
       properties:
-        fantasy_name: { type: [ string, 'null' ], maxLength: 255 }
+        fantasy_name: { type: [ string, 'null' ], minLength: 1, maxLength: 60 }
         crt:
           type: [ integer, 'null' ]
           enum: [ 1, 2, 3, 4, null ]
@@ -560,7 +571,7 @@ components:
       required: [ cpf_or_cnpj, name, person ]
       properties:
         cpf_or_cnpj: { $ref: '#/components/schemas/CpfCnpj' }
-        name: { type: string, minLength: 2, maxLength: 255 }
+        name: { type: string, minLength: 2, maxLength: 60 }
         roles:
           $ref: '#/components/schemas/PersonRoles'
         person: { $ref: '#/components/schemas/PersonObjectBody' }
@@ -569,7 +580,7 @@ components:
       type: object
       description: Atualização parcial. O documento vem do path.
       properties:
-        name: { type: [ string, 'null' ], minLength: 2, maxLength: 255 }
+        name: { type: [ string, 'null' ], minLength: 2, maxLength: 60 }
         roles:
           $ref: '#/components/schemas/PersonRoles'
         person: { $ref: '#/components/schemas/PersonObjectBody' }
@@ -599,7 +610,7 @@ components:
       required: [ cpf_or_cnpj, name, person ]
       properties:
         cpf_or_cnpj: { $ref: '#/components/schemas/CpfCnpj' }
-        name: { type: string, minLength: 2, maxLength: 255 }
+        name: { type: string, minLength: 2, maxLength: 60 }
         description: { type: [ string, 'null' ], maxLength: 120 }
         person: { $ref: '#/components/schemas/PersonObjectBody' }
 
@@ -607,7 +618,7 @@ components:
       type: object
       description: Atualização parcial.
       properties:
-        name: { type: [ string, 'null' ], minLength: 2, maxLength: 255 }
+        name: { type: [ string, 'null' ], minLength: 2, maxLength: 60 }
         description: { type: [ string, 'null' ], maxLength: 120 }
         person: { $ref: '#/components/schemas/PersonObjectBody' }
 

@@ -35,12 +35,12 @@ type NfeEmitBody struct {
 	OperationID *string `json:"operation_id" validate:"omitempty"`
 	// PaymentTermID expande para payments, cobr_fat e cobr_duplicatas a partir
 	// do total do documento. Valores explícitos no request vencem a expansão.
-	PaymentTermID  *string            `json:"payment_term_id" validate:"omitempty"`
-	SelfIssuance   bool               `json:"self_issuance"`
-	Products       []NfeProductItem   `json:"products" validate:"required,min=1,dive"`
-	Payments       []NfePaymentItem   `json:"payments" validate:"omitempty,dive"`
-	AdditionalInfo *string            `json:"additional_info" validate:"omitempty,max=5000"`
-	NatOp          *string            `json:"nat_op" validate:"omitempty,max=60"`
+	PaymentTermID  *string          `json:"payment_term_id" validate:"omitempty"`
+	SelfIssuance   bool             `json:"self_issuance"`
+	Products       []NfeProductItem `json:"products" validate:"required,min=1,dive"`
+	Payments       []NfePaymentItem `json:"payments" validate:"omitempty,dive"`
+	AdditionalInfo *string          `json:"additional_info" validate:"omitempty,max=5000"`
+	NatOp          *string          `json:"nat_op" validate:"omitempty,max=60"`
 	// FinNFe 5 (nota de crédito) e 6 (nota de débito) são da reforma tributária (NT 2025.002) e exigem
 	// tp_nf_credito / tp_nf_debito (regras B25.1 e B25.2); só levam IBS/CBS, salvo as exceções da B25-80.
 	FinNFe         *string            `json:"fin_nfe" validate:"omitempty,oneof=1 2 3 4 5 6"`
@@ -292,10 +292,10 @@ type NfeTransportItem struct {
 	TransportaPK    *string `json:"transporta_pk" validate:"omitempty"`
 	TransportaCNPJ  *string `json:"transporta_cnpj" validate:"omitempty,cnpj"`
 	TransportaCPF   *string `json:"transporta_cpf" validate:"omitempty,cpf"`
-	TransportaNome  *string `json:"transporta_nome" validate:"omitempty,max=60"`
-	TransportaIE    *string `json:"transporta_ie" validate:"omitempty,max=20"`
-	TransportaEnder *string `json:"transporta_ender" validate:"omitempty,max=255"`
-	TransportaMun   *string `json:"transporta_mun" validate:"omitempty,max=120"`
+	TransportaNome  *string `json:"transporta_nome" validate:"omitempty,min=2,max=60"`
+	TransportaIE    *string `json:"transporta_ie" validate:"omitempty,min=2,max=14"`
+	TransportaEnder *string `json:"transporta_ender" validate:"omitempty,min=1,max=60"`
+	TransportaMun   *string `json:"transporta_mun" validate:"omitempty,min=1,max=60"`
 	TransportaUF    *string `json:"transporta_uf" validate:"omitempty,uf"`
 	VeiculoSK       *string `json:"veiculo_sk" validate:"omitempty"`
 	VeiculoPlaca    *string `json:"veiculo_placa" validate:"omitempty,placa"`

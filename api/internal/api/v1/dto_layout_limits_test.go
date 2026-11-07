@@ -49,13 +49,13 @@ func TestEntityLimitsMatchLayout(t *testing.T) {
 		{nfes.NfeLocalBody{}, "x_pais", inf + "retirada/xPais"},
 		{nfes.NfeLocalBody{}, "email", inf + "retirada/email"},
 		{nfes.NfeLocalBody{}, "ie", inf + "retirada/IE"},
+		{nfes.NfeTransportItem{}, "transporta_nome", inf + "transp/transporta/xNome"},
+		{nfes.NfeTransportItem{}, "transporta_ie", inf + "transp/transporta/IE"},
+		{nfes.NfeTransportItem{}, "transporta_ender", inf + "transp/transporta/xEnder"},
+		{nfes.NfeTransportItem{}, "transporta_mun", inf + "transp/transporta/xMun"},
 	}
 	for _, c := range cases {
 		lo, hi, ok := spec.Lengths(c.path)
-		if !ok {
-			// IE e e-mail do destinatário não declaram minLength no XSD: só o máximo vale.
-			lo, hi, ok = layoutMax(t, spec, c.path)
-		}
 		if !ok {
 			t.Errorf("%s: leiaute sem limites em %s", c.field, c.path)
 			continue
@@ -69,14 +69,6 @@ func TestEntityLimitsMatchLayout(t *testing.T) {
 			t.Errorf("%s: min=%d, o leiaute exige ao menos %d (%s)", name, dtoMin, lo, c.path)
 		}
 	}
-}
-
-// layoutMax devolve o máximo de tags cujo tipo só declara maxLength (ou padrão de tamanho fixo).
-func layoutMax(t *testing.T, spec *validate.Spec, path string) (int, int, bool) {
-	t.Helper()
-	known := map[string]int{"NFe/infNFe/dest/IE": 14, "NFe/infNFe/emit/IEST": 14, "NFe/infNFe/dest/email": 60, "NFe/infNFe/retirada/IE": 14}
-	hi, ok := known[path]
-	return 0, hi, ok
 }
 
 // tagLimits lê min= e max= da tag validate do campo json (depois de "dive", para listas).

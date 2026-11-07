@@ -46,10 +46,10 @@ func getIEForUF(person map[string]any, uf string) string {
 // buildEnder monta TEndereco (enderEmit/enderDest). Endereço no exterior (UF "EX") sai com cMun 9999999, sem CEP,
 // e com o país do cadastro (código BACEN e nome); no Brasil, cPais 1058. Tag vazia não sai: a emissão já recusou
 // o cadastro sem município (requireAddress), nunca há código de município inventado.
-func buildEnder(person map[string]any) map[string]string {
+func buildEnder(person map[string]any) map[string]any {
 	address := services.FirstAddress(person)
 	uf := anyStr(address, "state_federation", "")
-	ender := map[string]string{
+	ender := map[string]any{
 		"xLgr":    anyStr(address, "street", ""),
 		"nro":     strOrDefault(anyStr(address, "number", ""), "S/N"),
 		"xCpl":    anyStr(address, "complement", ""),

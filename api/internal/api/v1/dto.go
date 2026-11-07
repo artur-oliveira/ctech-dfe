@@ -43,7 +43,7 @@ type AddressBody struct {
 
 // StateRegistrationBody is a state registration (inscrição estadual) entry.
 type StateRegistrationBody struct {
-	UF                string `json:"uf" validate:"required,uf"`
+	UF string `json:"uf" validate:"required,uf"`
 	// 2 a 14 (TIe): dígitos, ou a literal ISENTO para o contribuinte isento de inscrição (indIEDest 2).
 	StateRegistration string `json:"state_registration" validate:"required,min=2,max=14"`
 	// IeSt é a inscrição de substituto tributário nesta UF (emit/IEST). Mora

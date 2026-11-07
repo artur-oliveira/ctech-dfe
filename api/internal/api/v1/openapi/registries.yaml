@@ -1558,7 +1558,7 @@ components:
           items: { type: string, enum: [ nfe, nfce, cte, mdfe, nfse ] }
         nat_op: { type: [ string, 'null' ], maxLength: 60 }
         tp_nf: { type: [ string, 'null' ], enum: [ '0', '1', null ] }
-        fin_nfe: { type: [ string, 'null' ], enum: [ '1', '2', '3', '4', null ] }
+        fin_nfe: { type: [ string, 'null' ], enum: [ '1', '2', '3', '4', '5', '6', null ] }
         ind_final: { type: [ string, 'null' ], enum: [ '0', '1', null ] }
         ind_pres: { type: [ string, 'null' ], enum: [ '0', '1', '2', '3', '4', '5', '9', null ] }
         cfop_suffix:

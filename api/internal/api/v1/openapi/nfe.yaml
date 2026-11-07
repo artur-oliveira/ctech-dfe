@@ -15,6 +15,14 @@ paths:
         WebSocket ou por `GET /nfes/{access_key}`.
 
         Informe `receiver_id` **ou** `self_issuance: true` — nunca os dois.
+
+        Recusas locais (422, antes de qualquer número ser reservado), pelo `code`:
+        `invalid_decimal` (número malformado num cadastro, `errors[].field` nomeia a chave);
+        `registration_incomplete` (endereço sem UF ou sem município IBGE, exterior sem país,
+        item de serviço sem município do ISSQN; `errors[].params.entity` diz qual cadastro);
+        `fiscal_prevalidation` (regra do MOC em block, `errors[].code` `fiscal_rule` com
+        `params.rule` e `params.cstat`, ou texto fora do tamanho do leiaute,
+        `errors[].code` `too_long`/`too_short` com `params.entity`, `limit`, `got` e `item`).
       operationId: emitNfe
       parameters:
         - $ref: '#/components/parameters/OrgHeader'
@@ -505,6 +513,10 @@ paths:
         Venda presencial ao consumidor final. Não tem endereço de destinatário,
         transporte nem cobrança/duplicatas; o consumidor é opcional e só aceita
         CPF. `fin_nfe`, `ind_final`, `ind_pres` e `tp_nf` são fixos.
+
+        O troco (`vTroco`) é a soma dos pagamentos menos o `vNF` do documento. As recusas
+        locais (422) são as mesmas da NF-e (`invalid_decimal`, `registration_incomplete`,
+        `fiscal_prevalidation`); na NFC-e o pago a menos também recusa (YA03-10, rejeição 865).
       operationId: emitNfce
       parameters:
         - $ref: '#/components/parameters/OrgHeader'
@@ -1016,10 +1028,10 @@ components:
         transporta_pk: { type: [ string, 'null' ] }
         transporta_cnpj: { type: [ string, 'null' ] }
         transporta_cpf: { type: [ string, 'null' ] }
-        transporta_nome: { type: [ string, 'null' ], maxLength: 60 }
-        transporta_ie: { type: [ string, 'null' ], maxLength: 20 }
-        transporta_ender: { type: [ string, 'null' ], maxLength: 255 }
-        transporta_mun: { type: [ string, 'null' ], maxLength: 120 }
+        transporta_nome: { type: [ string, 'null' ], minLength: 2, maxLength: 60 }
+        transporta_ie: { type: [ string, 'null' ], minLength: 2, maxLength: 14 }
+        transporta_ender: { type: [ string, 'null' ], minLength: 1, maxLength: 60 }
+        transporta_mun: { type: [ string, 'null' ], minLength: 1, maxLength: 60 }
         transporta_uf: { $ref: '#/components/schemas/Uf' }
         veiculo_sk: { type: [ string, 'null' ] }
         veiculo_placa: { $ref: '#/components/schemas/Placa' }
@@ -1047,22 +1059,27 @@ components:
     NfeLocalBody:
       type: object
       description: |
-        Local de retirada/entrega (`TLocal`). Formato mais enxuto que o endereço
-        cadastral: o XSD não tem CEP aqui.
+        Local de retirada/entrega (`TLocal`), com os tamanhos do leiaute. No exterior,
+        `uf` é `EX`, `c_mun` sai como `9999999` e `c_pais` (código BACEN) e `x_pais`
+        são obrigatórios (422 `registration_incomplete` sem eles); `cep` não sai.
       required: [ x_lgr, nro, x_bairro, c_mun, x_mun, uf ]
       properties:
         cnpj: { type: [ string, 'null' ] }
         cpf: { type: [ string, 'null' ] }
-        x_nome: { type: [ string, 'null' ], maxLength: 60 }
-        x_lgr: { type: string, maxLength: 255 }
-        nro: { type: string, maxLength: 60 }
-        x_cpl: { type: [ string, 'null' ], maxLength: 60 }
-        x_bairro: { type: string, maxLength: 60 }
+        x_nome: { type: [ string, 'null' ], minLength: 2, maxLength: 60 }
+        x_lgr: { type: string, minLength: 2, maxLength: 60 }
+        nro: { type: string, minLength: 1, maxLength: 60 }
+        x_cpl: { type: [ string, 'null' ], minLength: 1, maxLength: 60 }
+        x_bairro: { type: string, minLength: 2, maxLength: 60 }
         c_mun: { $ref: '#/components/schemas/Ibge' }
-        x_mun: { type: string, maxLength: 60 }
-        uf: { $ref: '#/components/schemas/Uf' }
+        x_mun: { type: string, minLength: 2, maxLength: 60 }
+        uf: { $ref: '#/components/schemas/UfOrExterior' }
+        cep: { $ref: '#/components/schemas/Cep' }
+        c_pais: { type: [ string, 'null' ], pattern: '^\d{1,4}$', description: Código do país na tabela BACEN (só no exterior). }
+        x_pais: { type: [ string, 'null' ], minLength: 2, maxLength: 60 }
         fone: { $ref: '#/components/schemas/PhoneBr' }
-        email: { type: [ string, 'null' ], format: email }
+        email: { type: [ string, 'null' ], format: email, maxLength: 60 }
+        ie: { type: [ string, 'null' ], minLength: 2, maxLength: 14, description: IE do local (dígitos ou ISENTO). }
 
     NfeEmitBody:
       type: object
@@ -1101,8 +1118,20 @@ components:
         nat_op: { type: [ string, 'null' ], maxLength: 60, description: Natureza da operação. }
         fin_nfe:
           type: [ string, 'null' ]
-          enum: [ '1', '2', '3', '4', null ]
-          description: '`1` normal · `2` complementar · `3` ajuste · `4` devolução. Padrão `1`.'
+          enum: [ '1', '2', '3', '4', '5', '6', null ]
+          description: |
+            `1` normal · `2` complementar · `3` ajuste · `4` devolução · `5` nota de crédito ·
+            `6` nota de débito (reforma tributária). Padrão `1`. A 5 exige `tp_nf_credito` e
+            `tp_nf` 0; a 6 exige `tp_nf_debito` e `tp_nf` 1 (regras B25.1, B25.2, B25-110 e
+            B25-120). Nas duas o item só leva IBS/CBS, salvo as exceções da B25-80.
+        tp_nf_debito:
+          type: [ string, 'null' ]
+          enum: [ '01', '02', '03', '04', '05', '06', '07', '08', null ]
+          description: Tipo da nota de débito (ide/tpNFDebito). Vence o da natureza de operação.
+        tp_nf_credito:
+          type: [ string, 'null' ]
+          enum: [ '01', '02', '03', '04', '05', '06', null ]
+          description: Tipo da nota de crédito (ide/tpNFCredito). Vence o da natureza de operação.
         ind_final:
           type: [ string, 'null' ]
           enum: [ '0', '1', null ]

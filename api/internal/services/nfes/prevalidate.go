@@ -44,11 +44,12 @@ const (
 // (o modelo de cada regra já está na própria regra). Só regras "Obrig." da SEFAZ entram: uma regra facultativa
 // (a critério da UF, como E14-10, E14-20 e I08-60) continua só no shadow.
 var blockRules = validate.Modes{
-	// Destinatário no exterior (E03a, E10, E12, E14, E16a, E17) e coerência do CFOP 3xxx/7xxx com idDest 3.
+	// Destinatário no exterior (E03a, E10, E12, E14, E16a, E17) e coerência do escopo do CFOP com o idDest
+	// (I08-30, I08-40 e I08-50: CFOP 7xxx só com idDest 3, 6xxx só com 2, 5xxx só com 1).
 	"E03a-10": validate.ModeBlock, "E03a-20": validate.ModeBlock, "E03a-30": validate.ModeBlock,
 	"E03a-60": validate.ModeBlock, "E10-30": validate.ModeBlock, "E12-10": validate.ModeBlock,
 	"E14-30": validate.ModeBlock, "E16a-20": validate.ModeBlock, "E17-40": validate.ModeBlock,
-	"I08-30": validate.ModeBlock,
+	"I08-30": validate.ModeBlock, "I08-40": validate.ModeBlock, "I08-50": validate.ModeBlock,
 	// Locais de retirada e entrega no exterior.
 	"F07-10": validate.ModeBlock, "G07-10": validate.ModeBlock,
 	// Indicador de IE do destinatário (isento).

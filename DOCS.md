@@ -1629,7 +1629,9 @@ at `Emit` time; every event record (`nfe_events`) carries the same for whoever t
 | `operation_id`    | string      | Natureza de operação do cadastro. Preenche `nat_op`, `fin_nfe`, `ind_final`, `ind_pres`, `tp_nf`, `mod_frete`, `additional_info` e o CFOP dos itens; **todo campo explícito no request vence**. Ausente, vale a operação marcada como padrão. |
 | `payment_term_id` | string      | Condição de pagamento do cadastro. Expande para `payments`, `cobr_fat` e `cobr_duplicatas` — cada um só quando o request não trouxe o seu. |
 | `nat_op`          | string      | Transaction nature — frontend sends a summarized CFOP description (≤60 chars; backend truncates with `…`). The UI also derives `tp_nf` from the first product's CFOP (1/2/3→0 inbound, 5/6/7→1 outbound) and blocks mixing inbound/outbound CFOPs. |
-| `fin_nfe`         | "1"–"4"     | Purpose: 1=Normal, 2=Complementary, 3=Adjustment, 4=Return |
+| `fin_nfe`         | "1"–"6"     | Purpose: 1=Normal, 2=Complementary, 3=Adjustment, 4=Return, 5=Nota de crédito, 6=Nota de débito (reforma, NT 2025.002). 5 exige `tp_nf_credito` e `tp_nf` 0; 6 exige `tp_nf_debito` e `tp_nf` 1. Ver "Notas de crédito e de débito" abaixo. |
+| `tp_nf_debito`    | "01"–"08"   | Tipo da nota de débito (`ide/tpNFDebito`); vence o da operação. Só com `fin_nfe` 6 (B25.1-10, 1139). |
+| `tp_nf_credito`   | "01"–"06"   | Tipo da nota de crédito (`ide/tpNFCredito`); vence o da operação. Só com `fin_nfe` 5 (B25.2-10, 1163). |
 | `ind_final`       | "0"/"1"     | End consumer (default "1")                                 |
 | `ind_pres`        | "1"–"4","9" | Presence: 1=In-person (default), 2=Internet, 9=Other       |
 | `tp_nf`           | "0"/"1"     | Type: 0=Inbound, 1=Outbound (default)                      |
@@ -1639,11 +1641,45 @@ at `Emit` time; every event record (`nfe_events`) carries the same for whoever t
 | `v_troco`         | decimal     | Change amount in BRL                                       |
 | `payments[].terminal_id` | string | Terminal de captura do cadastro. Preenche `detPag/CNPJPag`, `detPag/UFPag`, `card/CNPJReceb`, `card/idTermPag` e a bandeira default. |
 | `payments[].x_pag` | string     | Descrição da forma de pagamento quando `payment_type` é `99` (outros). |
-| `retirada`        | object      | Local de retirada (TLocal — no CEP, unlike an `AddressBody`): `cnpj`/`cpf`, `x_nome`, `x_lgr`, `nro`, `x_cpl`, `x_bairro`, `c_mun`, `x_mun`, `uf`, `fone`, `email`. Free-form per emission — org itself is the remetente for this purpose. |
+| `retirada`        | object      | Local de retirada (TLocal): `cnpj`/`cpf`, `x_nome`, `x_lgr`, `nro`, `x_cpl`, `x_bairro`, `c_mun`, `x_mun`, `uf`, `cep`, `ie`, `c_pais`, `x_pais`, `fone`, `email`, com os tamanhos do leiaute. No exterior `uf` é `EX`, o XML sai com `cMun` 9999999 e sem CEP, e `c_pais` (código BACEN) e `x_pais` são obrigatórios (422 `registration_incomplete`); no Brasil `cPais` é 1058. Free-form per emission — org itself is the remetente for this purpose. |
 | `entrega`         | object      | Local de entrega, same TLocal shape as `retirada`, scoped to the selected `receiver_id`. |
 | `save_retirada_location` | bool | If `true` and `retirada` is set, best-effort appends it to `organizations.pickup_locations` (cap 5, dedup by street+number+complement) for reuse in future emissions. Never fails the emission. |
 | `save_entrega_location`  | bool | Same as above, but onto `organization_persons.delivery_locations` for the selected `receiver_id`. |
 | `nf_refs`         | list        | Documentos referenciados (`ide/NFref`, máx. 500). **Obrigatório quando `fin_nfe` é 2, 3 ou 4** — sem ele a emissão devolve 400. Cada entrada é ou `{"nfe_id": "<chave>"}`, uma nota da própria organização de onde chave e tipo são derivados (vira `refNFe`), ou um documento de fora do sistema com `kind` + os campos do grupo. |
+
+**Destinatário no exterior.** O cadastro marca o endereço no exterior com `state_federation` `EX`,
+`city_ibge_code` `9999999`, sem CEP, e `country_code` (código BACEN de 4 dígitos, diferente de 1058) mais
+`country_name` (`AddressBody`, regra em `validateAddressBody`). A pessoa estrangeira é a de `id_estrangeiro`
+(sk `IDEST_`). Na NF-e: `idDest` 3, `enderDest` com `UF` EX, `cMun` 9999999, `cPais`/`xPais` do cadastro e sem CEP,
+`indIEDest` 9 e sem `IE` (E16a-20, E17-40). O CFOP do item resolvido pela operação sai com escopo 7. A tabela BACEN
+de países só existe na UI (`ui/src/lib/data/bacen_countries.ts`): a api valida só o formato do código, então a
+rejeição 377 (país inexistente) não é pré-validada.
+
+**Contribuinte isento de IE.** Inscrição estadual gravada como a literal `ISENTO` (a mesma convenção do CT-e) sai com
+`indIEDest` 2 e sem a tag `IE` (E17-30). UFs que não admitem isento (E16a-30, 805) são recusadas localmente.
+
+**Notas de crédito e de débito (`fin_nfe` 5 e 6).** O tipo vem de `tp_nf_credito`/`tp_nf_debito` (request vence a
+operação). O builder tira dos itens os grupos que a regra B25-80 (1001) proíbe (ICMS, ISSQN, IPI, II, PIS, PISST,
+COFINS, COFINSST, ICMSUFDest) e zera os totais correspondentes; ficam IBS/CBS e IS. Exceções da regra: crédito 03,
+04 e 06 e débito 07 mantêm todos os grupos; débito 06 mantém IPI e, em 2026, PIS/COFINS. A lista e as exceções são as
+de `validate.NFeCreditDebitForbidden`/`NFeCreditDebitAllowed` (go-dfe), as mesmas que a regra usa.
+
+**Recusas locais antes da SEFAZ (NF-e e NFC-e).** Depois de montar o enviNFe e antes de reservar o número, a emissão
+devolve 422:
+
+| `code` | Quando | `errors[]` |
+|---|---|---|
+| `invalid_decimal` | número malformado num cadastro (`d()` não vira mais 0.00 calado) | `field` = chave lida, `code` `invalid_decimal` |
+| `registration_incomplete` | endereço do emitente/destinatário sem UF ou sem município IBGE (antes saía `0000000` e a SEFAZ rejeitava 272/274), exterior sem país, retirada/entrega no exterior sem `c_pais`/`x_pais`, item de serviço sem `issqn_c_mun_fg` | `field` = campo do cadastro (`person.addresses[0].city_ibge_code`, `entrega.c_pais`...), `params.entity` |
+| `fiscal_prevalidation` | regra do MOC promovida a block (`prevalidate.go`, `blockRules`) ou texto fora do tamanho do leiaute | regra: `field` = id da regra, `code` `fiscal_rule`, `params.rule`/`params.cstat`; tamanho: `field` = campo do cadastro ou do pedido, `code` `too_long`/`too_short`, `params.entity`, `limit`, `got`, `item` |
+
+Regras em block: exterior (E03a-10/20/30/60, E10-30, E12-10, E14-30, E16a-20, E17-40, F07-10, G07-10), escopo do CFOP x
+`idDest` (I08-30/40/50), isento (E16a-30, E17-30), crédito/débito (B25-30, B25-65, B25-80, B25-100, B25-110, B25-120,
+B25.1-10/20, B25.2-10/20/30/40) e pagamento (YA03-20 866, YA09-10 869, YA03-30 904; YA03-10 865 só na NFC-e, porque o
+MOC marca o modelo 55 como implementação futura). Regras facultativas (E14-10, E14-20, I08-60) ficam no shadow.
+O tamanho vem do schema gerado dos XSDs (`dfecheck.Gate`, códigos `min_length`/`max_length`); o valor nunca é
+truncado. Na NFC-e o `vTroco` é a soma dos `vPag` menos o `vNF` do documento montado (`setTroco`), e o total gravado é
+o `vNF`.
 
 **Canal de venda (`ide/indIntermed` + `infNFe/infIntermed`).** É a operação que diz o canal, não a
 nota: `operations.ind_intermed` (`0` plataforma própria, `1` plataforma de terceiros) e
@@ -2444,7 +2480,7 @@ Pacote `go-dfe/validate` valida o dicionário que os builders produzem antes de 
 - **Regras de negócio do MOC** (`rules.go`): catálogo `Rule{ID, CStat, Mode, Doc, Check}`. Modo padrão `warn`
   (emissão segue, vira aviso); `shadow` só registra; `block` recusa e só serve para regra determinística provável
   offline; `Modes` sobrescreve por id sem deploy. Nada bloqueia o cliente sem decisão explícita.
-- Catálogo atual: 579 regras do MOC avaliáveis offline (NF-e/NFC-e 343 em `rules_nfe.go`, CT-e 57 141 em
+- Catálogo atual: 584 regras do MOC avaliáveis offline (NF-e/NFC-e 348 em `rules_nfe.go`, CT-e 57 141 em
   `rules_cte.go`, MDF-e 95 em `rules_mdfe.go`), id e cStat iguais aos do MOC. `block` só em DV de chave, CPF/CNPJ e
   GTIN; somas e identidades com tolerância ficam em `warn`. Fora do catálogo, de propósito: regra que exige banco,
   tabela externa (IBGE, NCM, CST/cClassTrib, IE por UF), relógio de recebimento ou certificado; CT-e OS, GTV-e e
@@ -2453,7 +2489,11 @@ Pacote `go-dfe/validate` valida o dicionário que os builders produzem antes de 
   não tem (`tpRegimeIBSCBS`, `vUnComLiq`, `vProdLiq`, `cAtivSN`, `gTribSN`, `vProdLiqTot`). Todo nó do overlay é
   opcional; a obrigatoriedade condicional é regra de negócio. Remover a entrada ao vendorizar o XSD que a contém.
 - **Integração (shadow)**: `api/internal/services/dfecheck` valida o documento no emit de NF-e, NFC-e e MDF-e e só
-  registra no log (`dfecheck: achado pré-SEFAZ`); nunca bloqueia nem devolve erro. Subir uma regra a warn/block é
+  registra no log (`dfecheck: achado pré-SEFAZ`); nunca bloqueia nem devolve erro. **Portão (block)**:
+  `dfecheck.Gate`/`GateEnviNFe` devolve só as regras que o chamador promove a `block` (lista em
+  `api/internal/services/nfes/prevalidate.go`) e os achados de tamanho (`min_length`/`max_length`, com `Limit` e `Got`
+  na `Violation`); falha aberto se o validador quebrar. `Spec.Lengths(path)` expõe os tamanhos do leiaute, e
+  `api/internal/api/v1/dto_layout_limits_test.go` compara com eles as tags dos DTOs de cadastro. Subir uma regra a warn/block é
   decisão por regra depois de observar o log em produção. Os modais do MDF-e (rodo, aereo, aquav, ferrov) são validados com esquema próprio. O CT-e (`dfecheck.ShadowCTe`) valida o `<CTe>` e o modal `rodo` (`cte_rodo`); as regras do CT-e recebem o `<CTe>` como as das outras famílias.
 
 ## 5. ui — Frontend
