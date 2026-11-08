@@ -257,6 +257,15 @@ go-dfe/
     constants/constants.go       # enums, WSDL service/operation tables, retry defaults
 ```
 
+**CIOT (ANTT, C1 e C2):** `doc_type` `ciot` (pacote `go-dfe/ciot`, roteado em `go-dfe/ciot.go`): os 8 serviços do PEF
+(`{host}/api/{Servico}`, REST+JSON sobre o mesmo cliente mTLS) mais `GerarIdentificador` (gerador: `POST /token` com
+cabeçalho `Chave`, `POST /gerar` com Bearer; contingência por gateway só em HTTP 500 em produção). `Request.Body` leva
+`carrier_cpf_cnpj`, `payment_institution`, `generator_api_key`, `generator_fallback_url`, `cpf_cnpj`; a resposta de
+sucesso é o `ciot.Result` (`ciot` com 16 caracteres, `aviso_transportador`); rejeição de negócio volta 422 com
+`internal_code` (`CIOT_<GRUPO>_<codigo>`), `antt_code`, `antt_message`, `protocol`; indisponibilidade volta 502. Validador
+local (`ciot.Validate`, `ciot.ValidateLifecycle`), tabela de rejeições e cálculo do piso (tabela versionada, hoje placeholder
+NÃO VERIFICADO) ficam no pacote, ainda sem integração ao `go-dfe/validate`. Spec: `docs/specs/2026-11-04-ciot-antt-pef-integracao.md`.
+
 **Timeouts de rede:** o `http.Client` de `certificate.Load` usa `constants.DialTimeout` (10 s) no TCP
 connect, e `nfse/nacional`'s `httpDo` limita cada tentativa a `constants.NFSeAttemptTimeout` (20 s).
 

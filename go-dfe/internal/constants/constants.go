@@ -22,6 +22,8 @@ const (
 	DocTypeCTE  = "cte"
 	DocTypeMDFE = "mdfe"
 	DocTypeNFSE = "nfse"
+	// DocTypeCIOT is the ANTT CIOT (REST+JSON, go-dfe/ciot).
+	DocTypeCIOT = "ciot"
 )
 
 // Retry defaults.

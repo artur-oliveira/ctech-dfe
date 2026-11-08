@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"gopkg.aoctech.app/dfe/go-dfe/internal/taxid"
 )
 
 // Helpers das regras do CT-e (rules_cte.go). Todos prefixados com cte para não colidir com os de NF-e/MDF-e.
@@ -136,43 +138,11 @@ func cteAllSame(s string) bool {
 	return len(s) > 0
 }
 
-// cteCNPJOK valida CNPJ numérico ou alfanumérico: formato, zeros e os dois dígitos de controle.
-func cteCNPJOK(s string) bool {
-	if !cteCNPJRe.MatchString(s) || strings.Trim(s, "0") == "" {
-		return false
-	}
-	dv := func(n int, w []int) int {
-		sum := 0
-		for i := 0; i < n; i++ {
-			sum += int(s[i]-'0') * w[i]
-		}
-		if r := sum % 11; r >= 2 {
-			return 11 - r
-		}
-		return 0
-	}
-	d1 := dv(12, []int{5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2})
-	d2 := dv(13, []int{6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2})
-	return int(s[12]-'0') == d1 && int(s[13]-'0') == d2
-}
+// cteCNPJOK valida CNPJ numérico ou alfanumérico (implementação única em internal/taxid).
+func cteCNPJOK(s string) bool { return taxid.CNPJ(s) }
 
-// cteCPFOK valida CPF: 11 dígitos, não repetidos, dois dígitos de controle.
-func cteCPFOK(s string) bool {
-	if !cteCPFRe.MatchString(s) || cteAllSame(s) {
-		return false
-	}
-	dv := func(n int) int {
-		sum := 0
-		for i := 0; i < n; i++ {
-			sum += int(s[i]-'0') * (n + 1 - i)
-		}
-		if r := (sum * 10) % 11; r < 10 {
-			return r
-		}
-		return 0
-	}
-	return int(s[9]-'0') == dv(9) && int(s[10]-'0') == dv(10)
-}
+// cteCPFOK valida CPF (implementação única em internal/taxid).
+func cteCPFOK(s string) bool { return taxid.CPF(s) }
 
 // cteDocOK valida um identificador que pode ser CNPJ ou CPF conforme o comprimento.
 func cteDocOK(s string) bool {

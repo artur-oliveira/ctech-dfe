@@ -1342,3 +1342,25 @@ NFC-e. Na SVC do CT-e (7/8) **não** se informa `dhCont`/`xJust` nem `sign` (o o
   3 dígitos de sequência, `descEvento` "do CT-e" nos comprovantes de entrega, `nTentativa` com 3 dígitos, `xObs` do 610110
   obrigatório; MDF-e: o encerramento (110112) agora leva o grupo `evEncMDFe` dentro de `detEvento` (antes os campos iam
   soltos) e `dtEnc` usa a data de Brasília.
+
+## CIOT (ANTT): cliente, gerador e piso
+
+- Testes nunca falam com a ANTT real nem com qualquer host real: só `ciot/ciottest` (TLS com certificado de cliente
+  obrigatório). `ciot.SetTestHosts` deve receber todos os ambientes que o teste toca numa única chamada; um ambiente
+  ausente cai no host real (isso já aconteceu uma vez: um teste do próprio desenvolvimento chegou ao host de homologação
+  com chave e certificado falsos; corrigido no teste).
+- Chave do gerador e URL de contingência nunca entram em log, erro ou resposta; a biblioteca recusa vazio e `CHANGE_ME`
+  ao construir o gerador. Quem lê o SSM (worker, C4) precisa de `ssm:GetParameter` e `kms:Decrypt` com escopo de caminho;
+  o egress não tem cliente AWS e recebe os valores no corpo.
+- O piso mínimo só calcula com tabela marcada `verified`; a tabela embutida é um placeholder vazio. Coeficientes vêm da
+  publicação oficial da ANTT, nunca de memória.
+- Mapeamentos entre código ANTT e regra inferidos pela posição na tabela da spec estão marcados `Inferred` em
+  `ciot/rejections.go`; confirmar em homologação.
+
+## CIOT: nenhum teste alcança a ANTT real
+
+`ciot.HostFor` recusa o host real quando roda dentro de um binário de teste (`testing.Testing()`): sem `SetTestHosts`
+para o ambiente, devolve erro em vez de `appservices(-hml).antt.gov.br`. A guarda existe porque um teste do C1 chegou
+uma vez ao host de homologação (um `defer SetTestHosts` dentro de laço desfez o desvio do ambiente seguinte; foram
+enviados só um certificado descartável e uma chave falsa, e a ANTT respondeu 403). O mapa ambiente para host real fica em
+`realHostFor`, que só os testes de constantes usam, sem abrir conexão.

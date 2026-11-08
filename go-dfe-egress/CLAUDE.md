@@ -20,6 +20,12 @@ operation) becomes a Lambda function error, which `worker`/`api` treat as a fail
 - Build: `CGO_ENABLED=0 GOARCH=arm64 go build ./...`. Test: `go test ./... -race`.
 - Timeout chain: worker/API (150 s) > this Lambda (120 s, `cdk/lib/egress.ts`) > go-dfe worst case (NFS-e: 4 attempts × 20 s + backoff).
 
+## ciot
+
+`doc_type` `ciot` is routed inside `dfe.Call` (`../go-dfe/ciot.go`); this Lambda needs no code for it. It still holds no
+AWS client: the caller (worker, C4) reads `/ctech-dfe/{env}/ciot/generator-api-key` and `generator-fallback-url` from SSM
+and passes them in `Request.Body`. Contract test: `ciot_test.go` (fake ANTT only).
+
 ## Mandatory Documentation Policy
 
 Every code change must update the matching docs in the same change.

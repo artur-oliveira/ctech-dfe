@@ -41,6 +41,14 @@ go-dfe/
 │   │   └── response.go           # per-(authorizer,service) response node-path unwrap + ensure_list normalization
 │   ├── endpoints/table.go        # (doc_type, uf, env, service) → URL, incl. SVRS redirects + MT special-casing
 │   └── constants/constants.go    # enums, WSDL service/operation tables, retry defaults
+├── ciot/                        # ANTT CIOT (PEF), C1/C2: REST+JSON over the mTLS client, no signed XML, no SOAP
+│   ├── client.go, types.go, result.go, normalize.go   # 8 services at {host}/api/{Service}; Codigo/Mensagem scalar or list
+│   ├── generator.go             # POST /token (header Chave) + POST /gerar; token cache; fallback only on HTTP 500 in prod
+│   ├── validator.go, lifecycle.go, rejections.go      # data catalogs: local rules, deadline rules, ANTT code -> CIOT_<GROUP>_<code>
+│   ├── floor.go, floor_table.json                     # freight floor; embedded table is an UNVERIFIED empty placeholder
+│   ├── certcheck.go             # preflight: OID 2.16.76.1.3.3, client EKU, carrier match (B112)
+│   └── ciottest/                # throwaway PFX with the OID + fake ANTT (TLS with required client cert) for tests
+├── internal/taxid/              # single CPF/CNPJ (numeric and alphanumeric) check-digit implementation; validate delegates
 └── nfse/                        # NFS-e layer (F2): neutral document model + provider dispatch
     ├── document.go, result.go, provider.go, errors.go, constants.go, dispatch.go
     ├── tables/                   # F1 reference tables (trib nacional, NBS, indOp) — generated, never hand-edit
@@ -113,6 +121,17 @@ SHA-1 (Base64) using the request's certificate and returns `{"signature": ...}` 
 NFC-e 4.4.2). It reuses the `rsa.SignPKCS1v15`+SHA-1 primitive of `signer.go` in `xmlops/signtext.go`; the C14N code is
 untouched. Gate: round-trip test in `dfe_test.go` (`TestCallSignText`) that verifies the signature with the public key of a
 throwaway certificate generated in the test. No byte-identical corpus applies (a plain string signature).
+
+**`ciot` (ANTT CIOT).** `ciot/*` services and `ciot/GerarIdentificador` are in the allowlist (`ciot.go` in this
+package routes them; no signature, no C14N). Gate: contract tests against the fake server only (`ciot/ciottest`); the
+real ANTT (homologation) is a manual pass before production (spec C0). Rules: the host comes from `ciot.HostFor(env)`
+(prod and hom never mix; `SetTestHosts` is the only override and is for tests; **always set every environment the test
+touches in one call**, or an unset one falls through to the real host). The library never reads AWS: the generator key
+and fallback URL arrive in `Request.Body` (`generator_api_key`, `generator_fallback_url`), resolved from SSM by the
+caller; empty and `CHANGE_ME` keys are refused when the generator is built. Business rejections return HTTP 422 with
+`internal_code`/`antt_code`/`protocol`; transport, 5xx and generator failures return 502 (retryable by the caller).
+Certificate preflight (`ciot.CheckCertificate`) runs before any network call and fails with 400. The freight floor
+refuses to compute from an unverified table.
 
 ### XSD validation and DANFE — explicitly out of scope
 

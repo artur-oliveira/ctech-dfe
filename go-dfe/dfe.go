@@ -106,6 +106,9 @@ var implemented = map[string]map[string]bool{
 		constants.ServiceNFSeDANFSE:               true,
 		constants.ServiceNFSeParametrosMunicipais: true,
 	},
+	// CIOT (ANTT PEF): REST+JSON over mTLS, no signed XML. Gate: homologation by hand (spec C0) after the fake-server
+	// contract tests; see ciot.go.
+	constants.DocTypeCIOT: ciotServiceSet(),
 }
 
 // Implements reports whether (docType, service) is a supported operation.
@@ -143,6 +146,10 @@ func Call(ctx context.Context, req Request) (Response, error) {
 
 	if req.Service == constants.ServiceSignText {
 		return callSignText(req, key)
+	}
+
+	if req.DocType == constants.DocTypeCIOT {
+		return callCIOT(ctx, req, httpClient, cert)
 	}
 
 	if req.DocType == constants.DocTypeNFSE {

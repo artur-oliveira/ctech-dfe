@@ -263,6 +263,12 @@ padrão das demais tabelas de domínio) e usar seletor, nunca texto livre; Pix c
 | C6 | UI, mock, capturas e guia | 1,5 |
 | C7 | Atualização versionada dos coeficientes do piso e aviso de vigência | 0,5 |
 
+**Status (2026-11-08):** C1 e C2 implementados em `go-dfe/ciot` e `go-dfe/ciot.go` com testes contra servidor falso.
+Pendências do C1: tabela do piso é placeholder NÃO VERIFICADO (a publicação oficial não pôde ser lida automaticamente);
+regras B57, B58, B63 a B67 e B69 não implementadas (a spec não define seu conteúdo); nomes de sub-campos fora da tabela da
+seção 5 (OrigemDestino, DadosCarga, banco, tipo de veículo, corpos das consultas, cancelamento, encerramento) são
+[prática] não verificados; integração com `go-dfe/validate` adiada.
+
 Total de 8 semanas. Testes de integração só contra um servidor falso que imita os 8 serviços, o gerador, uma rejeição por
 grupo, timeout e 5xx; a ANTT real (inclusive homologação) só em uma passada manual antes de produção.
 
