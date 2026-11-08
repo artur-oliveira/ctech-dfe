@@ -803,7 +803,7 @@ export class DynamoDBStack extends cdk.Stack {
     this.tables.set('ciots', ciotsTable);
 
     // ciot_audit: append-only proof of what was sent to the ANTT and what came back. pk = the CIOT row's sk,
-    // sk = {RFC3339 nano}#{operation}. Items hold the sealed body, the response and the body hash; written
+    // sk = {RFC3339 nano}#{operation}. Items hold the sent body, the response and the body hash (SSE at rest; the body carries documents and is never logged); written
     // with attribute_not_exists, never updated or deleted by the services (only LGPD erasure removes them).
     // Cost: on-demand, 1 to 3 small items per CIOT operation, no TTL (compliance evidence), PITR in prod.
     const ciotAuditTable = new dynamodb.TableV2(this, `${tablePrefix}_ciot_audit`, {

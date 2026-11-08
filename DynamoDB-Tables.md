@@ -1,6 +1,6 @@
 # ctech-dfe — DynamoDB Tables Reference
 
-Physical names are `{env}_dfe_{table}` with env `dev`, `stage` or `prod` (e.g. `dev_dfe_users`, `dev_dfe_organization_persons`); the tables below are listed without that prefix. The CDK defines 47 tables (`cdk/lib/dynamodb-stack.ts`); this index may lag it (e.g. `serie_claims` is not described), so the code wins.  
+Physical names are `{env}_dfe_{table}` with env `dev`, `stage` or `prod` (e.g. `dev_dfe_users`, `dev_dfe_organization_persons`); the tables below are listed without that prefix. The CDK defines 49 tables (`cdk/lib/dynamodb-stack.ts`); this index may lag it (e.g. `serie_claims` is not described), so the code wins.  
 Billing: on-demand, capped at max 1000 RCU/WCU per table and per GSI (`cdk/lib/dynamodb-stack.ts`, `Billing.onDemand({maxReadRequestUnits: 1000, maxWriteRequestUnits: 1000})` — uniform across every table).  
 Encryption: AWS Managed Keys.  
 PITR: enabled in production only.
@@ -1119,3 +1119,29 @@ Claims and replayable answers of the API's POSTs. Schema owned by `ctech-go-comm
 | `created_at`   | S    | RFC 3339                                                          |
 
 Holds response bodies for 24 h at most; the account-deletion purge leaves it (`ScopeKept`) because every row expires.
+
+## 48. `ciots`
+
+CIOT (ANTT) operations. One row per declaration request; the 12-character code exists only after the generator runs in
+the worker (spec `docs/specs/2026-11-04-ciot-antt-pef-integracao.md`). Cost: on-demand, PITR in prod, no TTL on CIOT rows.
+
+| Attribute | Type | Meaning |
+|-----------|------|---------|
+| `pk` | S | `{env}#{org_pk}` (carrier-status cache rows: `CARRIER_STATUS#{env}#{cpf_cnpj}`) |
+| `sk` | S | `CIOT_{request id}` (cache rows: `STATUS`) |
+| `code` | S | 12-character identifier from the generator (`code-index`, sk) |
+| `ciot` | S | 16-character CIOT (code + verifier digits) |
+| `mdfe_access_key` | S | linked MDF-e (`mdfe-index`, sk) |
+| `status` | S | `pending`, `declared`, `rectified`, `cancelled`, `closed`, `rejected` |
+| `history` | L | transitions: `{status, operation, at, antt_code, internal_code}` |
+| `expires_at` | N | TTL (epoch seconds), only on carrier-status cache rows (1 h) |
+
+GSIs: `code-index` (pk, `code`) and `mdfe-index` (pk, `mdfe_access_key`), both ALL. Erasure: `ScopeEnvDocs` with `ciot_audit`
+as its events table.
+
+## 49. `ciot_audit`
+
+Append-only evidence of what was sent to the ANTT and what came back. `pk` = the `ciots` row's `sk`; `sk` =
+`{RFC3339 nano}#{operation}`. Attributes: `operation`, `body_hash` (sha256 of the sent body), `body`, `response`
+(both SSE at rest, never logged), `antt_code`, `created_at`. Written with `attribute_not_exists`; never updated or deleted by the services (only
+the LGPD purge removes it, `ScopeDocEvents`). On-demand, PITR in prod, no TTL (compliance evidence).
