@@ -41,6 +41,8 @@ type LambdaClient interface {
 type DynamoClient interface {
 	GetItem(ctx context.Context, params *dynamodb.GetItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.GetItemOutput, error)
 	UpdateItem(ctx context.Context, params *dynamodb.UpdateItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.UpdateItemOutput, error)
+	// Query serves the CIOT links of an MDF-e (ciot_link.go).
+	Query(ctx context.Context, params *dynamodb.QueryInput, optFns ...func(*dynamodb.Options)) (*dynamodb.QueryOutput, error)
 }
 
 // SNSClient is the SNS operations subset used by the worker.
@@ -450,10 +452,12 @@ func (s *DfeService) handleSefazResponse(ctx context.Context, msg WorkerMessage,
 			if err := s.updateStatus(ctx, msg.DocPK, msg.AccessKey, msg.TableName, StatusClosed, updateAttrs{}, false); err != nil {
 				return err
 			}
+			s.offerCiotCascade(ctx, msg, "close")
 		} else if isCancellation {
 			if err := s.updateStatus(ctx, msg.DocPK, msg.AccessKey, msg.TableName, StatusCancelled, updateAttrs{}, false); err != nil {
 				return err
 			}
+			s.offerCiotCascade(ctx, msg, "cancel")
 		} else if !isSefazEvent {
 			if err := s.updateClaimedDocument(ctx, msg, StatusAuthorized, updateAttrs{
 				SefazStatus:   cStat,
@@ -498,6 +502,7 @@ func (s *DfeService) handleSefazResponse(ctx context.Context, msg WorkerMessage,
 			}, true); err != nil {
 				return err
 			}
+			s.unlinkCiotsOfMdfe(ctx, msg)
 		}
 
 	default:
@@ -564,9 +569,13 @@ func (s *DfeService) failTerminal(ctx context.Context, msg WorkerMessage, motive
 			return err
 		}
 	} else if !isSefazEvent {
-		return s.updateClaimedDocument(ctx, msg, StatusFailed, updateAttrs{
+		if err := s.updateClaimedDocument(ctx, msg, StatusFailed, updateAttrs{
 			SefazMotive: &motive,
-		}, true)
+		}, true); err != nil {
+			return err
+		}
+		s.unlinkCiotsOfMdfe(ctx, msg)
+		return nil
 	}
 
 	if isSefazEvent {

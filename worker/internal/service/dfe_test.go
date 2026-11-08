@@ -123,6 +123,8 @@ type mockDynamo struct {
 	// found", matching the default behavior needed by every pre-existing test.
 	getItemOutput *dynamodb.GetItemOutput
 	getItemErr    error
+	// linked is what the mdfe-index query on the ciots table returns.
+	linked []map[string]types.AttributeValue
 }
 
 func (m *mockDynamo) GetItem(_ context.Context, _ *dynamodb.GetItemInput, _ ...func(*dynamodb.Options)) (*dynamodb.GetItemOutput, error) {
@@ -133,6 +135,10 @@ func (m *mockDynamo) GetItem(_ context.Context, _ *dynamodb.GetItemInput, _ ...f
 		return m.getItemOutput, nil
 	}
 	return &dynamodb.GetItemOutput{}, nil
+}
+
+func (m *mockDynamo) Query(_ context.Context, _ *dynamodb.QueryInput, _ ...func(*dynamodb.Options)) (*dynamodb.QueryOutput, error) {
+	return &dynamodb.QueryOutput{Items: m.linked}, nil
 }
 
 func (m *mockDynamo) UpdateItem(_ context.Context, in *dynamodb.UpdateItemInput, _ ...func(*dynamodb.Options)) (*dynamodb.UpdateItemOutput, error) {
@@ -648,6 +654,25 @@ func TestProcess_MDFeClose_Accepted_MarksDocClosed(t *testing.T) {
 	}
 	if dynm.updates[1].status != EventStatusSuccess {
 		t.Errorf("event status = %q, want success", dynm.updates[1].status)
+	}
+}
+
+// Closing an MDF-e offers closing its open CIOT: the row is marked in the same message, after the document.
+func TestProcess_MDFeClose_Accepted_OffersCiotClose(t *testing.T) {
+	dynm := &mockDynamo{linked: []map[string]types.AttributeValue{linkedRow("CIOT_1", "declared")}}
+	svc := newSvc(certS3(), &mockLambda{payload: invokeResp("135", "Evento registrado e vinculado", "prot-c1")}, dynm)
+
+	if err := svc.Process(context.Background(), mdfeCloseMsg); err != nil {
+		t.Fatalf("Process: %v", err)
+	}
+	var onCiots int
+	for _, u := range dynm.updates {
+		if u.table == "dev_ciots" && u.values[":op"].(*types.AttributeValueMemberS).Value == "close" {
+			onCiots++
+		}
+	}
+	if onCiots != 1 {
+		t.Fatalf("ciot offers = %d, want 1: %+v", onCiots, dynm.updates)
 	}
 }
 

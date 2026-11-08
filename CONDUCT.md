@@ -1424,6 +1424,12 @@ uma vez ao host de homologação (um `defer SetTestHosts` dentro de laço desfez
 enviados só um certificado descartável e uma chave falsa, e a ANTT respondeu 403). O mapa ambiente para host real fica em
 `realHostFor`, que só os testes de constantes usam, sem abrir conexão.
 
+## CIOT: vínculo com o MDF-e
+
+- O CIOT entra no MDF-e por `ciot_id` (declarado) ou por código e responsável (externo); nunca os dois. O código do XSD é `[0-9]{12}`: um identificador do gerador que não seja numérico é recusado na emissão (422), não corrigido.
+- O vínculo (`mdfe_access_key`) é gravado na transação da emissão; desvincular é do worker quando o MDF-e é rejeitado ou falha. Cancelar ou encerrar o MDF-e só marca `mdfe_cascade` no CIOT: nenhuma operação na ANTT parte sozinha.
+- Os workers `mdfe-emission` e `mdfe-event` têm `ciots` e `ciot_audit` e o tópico de alertas (`linksCiots` no CDK).
+
 ## CIOT: API e worker
 
 - O identificador de 12 caracteres nunca nasce na API: só o worker o pede ao gerador. A linha do `ciots` usa um id local (ULID) na SK.

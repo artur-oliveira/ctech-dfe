@@ -131,8 +131,11 @@ type MdfeTollBody struct {
 // MdfeCIOT é um CIOT do manifesto: o código de 12 dígitos e o CPF (11) ou CNPJ (14)
 // de quem o gerou na ANTT (infANTT/infCIOT, regra F113 do MOC, NT 2026.001).
 type MdfeCIOT struct {
-	CIOT           string `json:"ciot" validate:"required,len=12,numeric"`
-	ResponsibleDoc string `json:"responsible_doc" validate:"required,cpfcnpj"`
+	// CiotID escolhe um CIOT declarado pela organização (seletor): código e responsável vêm da linha.
+	// Sem CiotID, é um CIOT emitido por fora e CIOT e ResponsibleDoc são obrigatórios (ciot_link.go).
+	CiotID         string `json:"ciot_id" validate:"omitempty,max=40"`
+	CIOT           string `json:"ciot" validate:"omitempty,len=12,numeric"`
+	ResponsibleDoc string `json:"responsible_doc" validate:"omitempty,cpfcnpj"`
 }
 
 // MdfeContractorBody é um contratante do frete. Nome e identidade vêm do
@@ -390,9 +393,6 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 	if err := validateModalPayload(modal, req); err != nil {
 		return nil, err
 	}
-	if err := validateCIOTs(req.CIOTs); err != nil {
-		return nil, err
-	}
 	var docType string
 	if len(req.Documents) > 0 {
 		dt, err := validateSingleDocType(req.Documents)
@@ -566,7 +566,11 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 	if req.RNTRC != nil && *req.RNTRC != "" {
 		rntrcInformado = *req.RNTRC
 	}
-	hasCIOT := len(req.CIOTs) > 0 || (req.CIOT != nil && *req.CIOT != "")
+	ciotList, ciotLinks, err := s.resolveCIOTs(ctx, envPrefix+"#"+orgPK, req.CIOTs)
+	if err != nil {
+		return nil, err
+	}
+	hasCIOT := len(ciotList) > 0 || (req.CIOT != nil && *req.CIOT != "")
 	if err := requireCIOT(modal, tpEmit, rntrcInformado, cargo.ufIni, cargo.ufFim, hasCIOT); err != nil {
 		return nil, err
 	}
@@ -590,7 +594,7 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 		tripStart:   req.TripStart,
 		rntrc:       req.RNTRC,
 		ciot:        req.CIOT,
-		ciots:       req.CIOTs,
+		ciots:       ciotList,
 		tpEmit:      tpEmit,
 		addInfo:     req.AdditionalInfo,
 		// Canal Verde e mensagem ao fisco são da configuração do MDF-e: recorrem
@@ -659,6 +663,9 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 		BillingMeter: reservation.Meter, BillingExempt: reservation.Exempt,
 	}
 	var extraTx []types.TransactWriteItem
+	for _, id := range ciotLinks {
+		extraTx = append(extraTx, s.ciotRepo.LinkMdfeTx(pk, id, accessKey, ciotOpenStatuses))
+	}
 	if offline {
 		// Offline: sign now, keep the signed XML pending (contingency index), transmit later.
 		// No outbox row: the retransmission worker sends the stored message.

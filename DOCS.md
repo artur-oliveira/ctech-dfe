@@ -2225,7 +2225,7 @@ reusa essa função em vez de ganhar uma cópia. Regras aplicadas antes de chama
   dentro de uma UF (F17, 541). Com `1` ou `3`, modal rodoviário, RNTRC informado e UF diferente de exterior exigem ao menos um
   CIOT (F113, 684, NT 2026.001, em produção em 2026-11-23). Ainda não cobertos: `tpTransp` com `tpEmit=2`, seguro, `infPag` e
   dados bancários do TAC (F113a, F113b), que dependem do cadastro de RNTRC da ANTT. Código: `mdfes/emitter_type.go`.
-- `ciots[]?` — CIOTs da viagem (`infANTT/infCIOT`, 0 a N): `{ciot, responsible_doc}`. `ciot` tem 12 dígitos;
+- `ciots[]?` — CIOTs da viagem (`infANTT/infCIOT`, 0 a N): `{ciot_id}` (CIOT declarado da organização: código e responsável vêm da linha, `carrier_doc` como responsável; a linha ganha `mdfe_access_key` na transação da emissão; 409 se já vinculada, em operação ou fora de `declared`/`rectified`; 422 se o código não tem 12 dígitos) ou `{ciot, responsible_doc}` (emitido por fora; os dois formatos juntos são 400). `ciot` tem 12 dígitos;
   `responsible_doc` é o CPF (11) ou CNPJ (14, alfanumérico aceito) de quem gerou o CIOT na ANTT, com DV (`cpfcnpj`,
   422 de validação), e vira o choice `CPF | CNPJ`. CIOT repetido é 400. O campo `ciot` único continua aceito (12 dígitos); sem `ciots`, vira um item
   cujo responsável é o **emitente** (antes era o CPF do primeiro condutor, que não é o responsável). Regra F113 do MOC
@@ -3779,6 +3779,8 @@ Permissions: "action.resource"
 ---
 
 ## CIOT (ANTT) API
+
+**Vínculo com o MDF-e (C5):** o vínculo nasce na emissão (`mdfes/ciot_link.go`, `CiotRepository.LinkMdfeTx`, mesma transação do número e do outbox). O worker, no MDF-e: rejeitado ou falho desfaz o vínculo (`unlinkCiots`); cancelado ou encerrado marca cada CIOT aberto vinculado com `mdfe_cascade = cancel|close` e acrescenta `cascade:*` à `ciot_audit` (`offerCiotCascade`, idempotente por condição). A marca é uma oferta: o cancelamento do CIOT pede motivo e o encerramento pede peso e rotas, então o operador executa a operação (a UI mostra o aviso no detalhe). Falha dessa ligação alerta (`ciot-mdfe-link`) e não derruba o evento do MDF-e.
 
 Spec: `docs/specs/2026-11-04-ciot-antt-pef-integracao.md`. Code: `api/internal/services/ciots`, `api/internal/api/v1/ciots.go`,
 `api/internal/repositories/ciots.go`, OpenAPI `openapi/ciots.yaml`. Tables `ciots` and `ciot_audit` (`DynamoDB-Tables.md`).

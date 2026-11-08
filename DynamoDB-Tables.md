@@ -1131,7 +1131,8 @@ the worker (spec `docs/specs/2026-11-04-ciot-antt-pef-integracao.md`). Cost: on-
 | `sk` | S | `CIOT_{request id}` (cache rows: `STATUS`) |
 | `code` | S | 12-character identifier from the generator (`code-index`, sk) |
 | `ciot` | S | 16-character CIOT (code + verifier digits) |
-| `mdfe_access_key` | S | linked MDF-e (`mdfe-index`, sk) |
+| `mdfe_access_key` | S | linked MDF-e (`mdfe-index`, sk); set by the MDF-e emission transaction, removed by the worker when the MDF-e is rejected |
+| `mdfe_cascade` | S | `cancel` or `close`: the linked MDF-e was cancelled or closed and the CIOT should follow (offer, never automatic) |
 | `status` | S | `pending`, `declared`, `rectified`, `cancelled`, `closed`, `rejected` |
 | `history` | L | transitions: `{status, operation, at, antt_code, internal_code}` |
 | `expires_at` | N | TTL (epoch seconds), only on carrier-status cache rows (1 h) |

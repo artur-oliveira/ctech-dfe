@@ -99,6 +99,14 @@ function CiotDetail({id}: { id: string }) {
         </div>
       )}
 
+      {ciot.mdfe_cascade && (ciot.status === 'declared' || ciot.status === 'rectified') && (
+        <div role="status" className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          {ciot.mdfe_cascade === 'cancel'
+            ? 'O MDF-e vinculado foi cancelado. Cancele também este CIOT, dentro do prazo de 24 horas da declaração.'
+            : 'O MDF-e vinculado foi encerrado. Encerre também este CIOT.'}
+        </div>
+      )}
+
       {ciot.carrier_warning && (
         <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-900 space-y-2">
           <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Aviso ao transportador</p>

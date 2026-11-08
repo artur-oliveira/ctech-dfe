@@ -97,12 +97,24 @@ func TestDecideCiot(t *testing.T) {
 
 type ciotDynamo struct {
 	updates []*dynamodb.UpdateItemInput
-	claim   map[string]types.AttributeValue // row returned by the claim; nil makes the claim fail
-	current map[string]types.AttributeValue // row returned by GetItem after a failed claim
+	claim   map[string]types.AttributeValue   // row returned by the claim; nil makes the claim fail
+	current map[string]types.AttributeValue   // row returned by GetItem after a failed claim
+	linked  []map[string]types.AttributeValue // rows returned by the mdfe-index query
+	queries []*dynamodb.QueryInput
+	// condFail makes UpdateItem on the cascade/unlink conditions fail like an already-applied row.
+	condFail bool
+}
+
+func (d *ciotDynamo) Query(_ context.Context, in *dynamodb.QueryInput, _ ...func(*dynamodb.Options)) (*dynamodb.QueryOutput, error) {
+	d.queries = append(d.queries, in)
+	return &dynamodb.QueryOutput{Items: d.linked}, nil
 }
 
 func (d *ciotDynamo) UpdateItem(_ context.Context, in *dynamodb.UpdateItemInput, _ ...func(*dynamodb.Options)) (*dynamodb.UpdateItemOutput, error) {
 	d.updates = append(d.updates, in)
+	if d.condFail && strings.Contains(aws.ToString(in.ConditionExpression), "#mk = :k") {
+		return nil, &types.ConditionalCheckFailedException{}
+	}
 	if strings.Contains(aws.ToString(in.UpdateExpression), "processing_lease_until = :lease") {
 		if d.claim == nil {
 			return nil, &types.ConditionalCheckFailedException{}
@@ -374,5 +386,69 @@ func TestCiotDLQ(t *testing.T) {
 	}
 	if strings.Contains(aws.ToString(d.updates[1].UpdateExpression), "#st") {
 		t.Fatal("a lifecycle operation must leave the row status alone")
+	}
+}
+
+// --- MDF-e <-> CIOT link (ciot_link.go) ---
+
+func linkedRow(sk, status string) map[string]types.AttributeValue {
+	return map[string]types.AttributeValue{
+		"pk": &types.AttributeValueMemberS{Value: "prod#ORG"}, "sk": &types.AttributeValueMemberS{Value: sk},
+		"status": &types.AttributeValueMemberS{Value: status},
+	}
+}
+
+func mdfeMsg() WorkerMessage {
+	return WorkerMessage{DocPK: "prod#ORG", AccessKey: strings.Repeat("1", 44), TableName: "mdfes", DocType: "mdfe"}
+}
+
+func countUpdates(d *ciotDynamo, sub string) (n int) {
+	for _, u := range d.updates {
+		if strings.Contains(aws.ToString(u.UpdateExpression), sub) {
+			n++
+		}
+	}
+	return n
+}
+
+func TestOfferCiotCascadeMarksOpenRowsAndAuditsOnce(t *testing.T) {
+	r := newCiotRig(t, nil, nil)
+	r.dyn.linked = []map[string]types.AttributeValue{linkedRow("CIOT_1", "declared"), linkedRow("CIOT_2", "closed")}
+	r.svc.offerCiotCascade(t.Context(), mdfeMsg(), "cancel")
+	if got := countUpdates(r.dyn, "mdfe_cascade = :op"); got != 1 {
+		t.Fatalf("cascade marks = %d, want 1 (closed row skipped)", got)
+	}
+	if got := countUpdates(r.dyn, "body_hash"); got != 1 {
+		t.Fatalf("audit entries = %d, want 1", got)
+	}
+	if len(r.dyn.queries) != 1 || aws.ToString(r.dyn.queries[0].IndexName) != "mdfe-index" {
+		t.Fatalf("query = %+v", r.dyn.queries)
+	}
+}
+
+func TestOfferCiotCascadeIsIdempotentOnRedelivery(t *testing.T) {
+	r := newCiotRig(t, nil, nil)
+	r.dyn.linked = []map[string]types.AttributeValue{linkedRow("CIOT_1", "declared")}
+	r.dyn.condFail = true // the row already carries this offer
+	r.svc.offerCiotCascade(t.Context(), mdfeMsg(), "close")
+	if countUpdates(r.dyn, "body_hash") != 0 || len(r.al.got) != 0 {
+		t.Fatalf("redelivery wrote audit or alerted: audit=%d alerts=%d", countUpdates(r.dyn, "body_hash"), len(r.al.got))
+	}
+}
+
+func TestUnlinkCiotsRemovesLinkAndAudits(t *testing.T) {
+	r := newCiotRig(t, nil, nil)
+	r.dyn.linked = []map[string]types.AttributeValue{linkedRow("CIOT_1", "declared")}
+	r.svc.unlinkCiotsOfMdfe(t.Context(), mdfeMsg())
+	if countUpdates(r.dyn, "REMOVE #mk") != 1 || countUpdates(r.dyn, "body_hash") != 1 {
+		t.Fatalf("updates = %d", len(r.dyn.updates))
+	}
+	// Only MDF-e authorization failures unlink; any other document type leaves the table alone.
+	r2 := newCiotRig(t, nil, nil)
+	m := mdfeMsg()
+	m.DocType = "nfe"
+	r2.svc.unlinkCiotsOfMdfe(t.Context(), m)
+	if len(r2.dyn.queries) != 0 {
+		t.Fatal("nfe queried the ciots table")
 	}
 }

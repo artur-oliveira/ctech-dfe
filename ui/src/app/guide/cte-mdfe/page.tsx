@@ -76,12 +76,15 @@ export default function GuideCteMdfe() {
                 inválido ou pessoa no exterior são recusados na hora, antes de chegar à SEFAZ.
               </GuideCallout>
               <GuideCallout kind="info" title="CIOT no passo do veículo">
-                Em viagem rodoviária, o bloco <b>CIOT</b> aceita um ou mais códigos de <b>12 dígitos</b>,
-                cada um com o <b>responsável pela geração</b> (a própria organização ou uma pessoa do
-                cadastro; o CPF ou CNPJ vai no manifesto). O MDF-e de transportadora e o de TAC exigem
-                CIOT (regra F113 do MOC, NT 2026.001, em produção em 23/11/2026). O sistema não declara o
-                CIOT na ANTT por você: informe aqui o que o seu sistema de frete ou a sua administradora
-                de pagamento já gerou.
+                Em viagem rodoviária, o bloco <b>CIOT</b> aceita um ou mais CIOTs. Em <b>Origem do CIOT</b> você
+                escolhe um CIOT <b>declarado aqui</b> (o código e o responsável vêm dele, e ele fica vinculado ao
+                manifesto) ou <b>Emitido fora do sistema</b>: então informe o código de <b>12 dígitos</b> e o
+                <b>responsável pela geração</b> (a própria organização ou uma pessoa do cadastro; o CPF ou CNPJ vai no
+                manifesto). O MDF-e de transportadora e o de TAC exigem CIOT (regra F113 do MOC, NT 2026.001, em
+                produção em 23/11/2026). Se o manifesto for rejeitado, o vínculo é desfeito e o CIOT volta a ficar
+                livre. Quando o manifesto é cancelado ou encerrado, o detalhe do CIOT avisa e você cancela ou encerra
+                o CIOT em seguida; o sistema não faz isso sozinho, porque o cancelamento pede motivo e o encerramento
+                pede peso e rotas.
               </GuideCallout>
             </>
           ),

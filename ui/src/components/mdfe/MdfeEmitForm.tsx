@@ -62,7 +62,7 @@ import {
   railComplete,
   waterComplete,
 } from '@/components/mdfe/ModalFields';
-import {CIOT_LENGTH, CiotFields} from '@/components/mdfe/CiotFields';
+import {ciotComplete, CiotFields} from '@/components/mdfe/CiotFields';
 import {ciotRequired, defaultEmitterType, emitterTypeBlock, EmitterTypeField} from '@/components/mdfe/EmitterTypeField';
 import {type AuthorizedXmlEntry, AuthorizedXmlFields} from '@/components/mdfe/AuthorizedXmlFields';
 import {LaterLoadingCargo, type LaterLoadingMun} from '@/components/mdfe/LaterLoadingCargo';
@@ -519,7 +519,7 @@ export function MdfeEmitForm() {
   const emitterType = emitterChoice ?? defaultEmitterType(emitterContext);
   const emitterBlocked = emitterTypeBlock(emitterType, emitterContext);
   const ciotMissing = ciotRequired(emitterType, modal === 'rodoviario', mdfeConfig?.rntrc)
-    && !ciots.some((c) => c.ciot.length === CIOT_LENGTH);
+    && !ciots.some(ciotComplete);
 
   const toggleLaterLoading = (on: boolean) => {
     setLaterLoadingChoice(on);
@@ -858,7 +858,7 @@ export function MdfeEmitForm() {
 
           <TollVouchersFields vouchers={tollVouchers} onChange={setTollVouchers}/>
 
-          {modal === 'rodoviario' && <CiotFields ciots={ciots} onChange={setCiots}/>}
+          {modal === 'rodoviario' && <CiotFields ciots={ciots} onChange={setCiots} environment={mdfeConfig?.environment === 1 ? 'prod' : 'hom'}/>}
           {ciotMissing && <p role="alert" className="-mt-2 text-xs text-red-600">{CIOT_REQUIRED_MESSAGE}</p>}
           {fieldIssues('ciot').map((e) => <p key={e} role="alert" className="-mt-2 text-xs text-red-600">{e}</p>)}
 

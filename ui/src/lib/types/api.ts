@@ -1897,8 +1897,12 @@ export interface MdfePaymentIn {
   first_due_days?: number
 }
 
-/** CIOT da viagem: código de 12 dígitos e CPF ou CNPJ de quem o gerou na ANTT. */
+/**
+ * CIOT da viagem. Declarado aqui: só `ciot_id` (o código e o responsável vêm do CIOT). Emitido por fora:
+ * código de 12 dígitos e CPF ou CNPJ de quem o gerou na ANTT.
+ */
 export interface MdfeCiotIn {
+  ciot_id?: string
   ciot: string
   responsible_doc: string
 }
@@ -2504,6 +2508,8 @@ export interface CiotOut {
   ciot?: string
   carrier_warning?: string
   mdfe_access_key?: string
+  /** O MDF-e vinculado foi cancelado ou encerrado: o sistema oferece a mesma operação no CIOT. */
+  mdfe_cascade?: 'cancel' | 'close'
   operation_type?: number
   carrier_doc?: string
   hirer_doc?: string

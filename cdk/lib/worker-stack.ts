@@ -216,6 +216,8 @@ export class WorkerStack extends cdk.Stack {
             StringLike: {'kms:EncryptionContext:PARAMETER_ARN': `arn:aws:ssm:${this.region}:${this.account}:parameter${CIOT_SSM_PARAMETER_PATH}`},
           },
         }))
+      }
+      if (worker.readsCiotSecrets || worker.linksCiots) {
         role.addToPrincipalPolicy(new iam.PolicyStatement({
           actions: ['sns:Publish'],
           resources: [alertsTopicArn],
@@ -245,7 +247,7 @@ export class WorkerStack extends cdk.Stack {
           DFE_LAMBDA_NAME: dfeLambdaName,
           DFE_EGRESS_REGION: dfeEgressRegion,
           RESULTS_TOPIC_ARN: resultsTopicArn,
-          ...(worker.readsCiotSecrets ? {ALERTS_TOPIC_ARN: alertsTopicArn} : {}),
+          ...(worker.readsCiotSecrets || worker.linksCiots ? {ALERTS_TOPIC_ARN: alertsTopicArn} : {}),
           ...worker.environment,
         },
       })

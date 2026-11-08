@@ -33,6 +33,8 @@ export type WorkerDefinition = {
    * alerts. Only this worker gets ssm:GetParameter and kms:Decrypt; never the egress.
    */
   readsCiotSecrets?: boolean
+  /** Marks and unlinks the CIOTs of an MDF-e (ciots and ciot_audit tables) and alerts when that fails. */
+  linksCiots?: boolean
 }
 
 /** SSM path of the CIOT generator parameters, per CIOT environment (prod, hom). */
@@ -90,7 +92,8 @@ export const WORKERS: WorkerDefinition[] = [
     name: 'mdfe-emission-worker',
     timeoutSeconds: 300,
     memory: 128,
-    dynamoTables: ['mdfes'],
+    dynamoTables: ['mdfes', 'ciots', 'ciot_audit'],
+    linksCiots: true,
     sefazServices: ['MDFeRecepcaoSinc'],
     environment: {},
   },
@@ -99,7 +102,8 @@ export const WORKERS: WorkerDefinition[] = [
     name: 'mdfe-event-worker',
     timeoutSeconds: SEFAZ_CALL_TIMEOUT_SECONDS,
     memory: 128,
-    dynamoTables: ['mdfes', 'mdfe_events'],
+    dynamoTables: ['mdfes', 'mdfe_events', 'ciots', 'ciot_audit'],
+    linksCiots: true,
     sefazServices: ['MDFeRecepcaoEvento'],
     environment: {},
   },

@@ -352,6 +352,7 @@ components:
         ciot: { type: string, description: CIOT de 16 caracteres (12 mais o verificador). }
         carrier_warning: { type: string, description: AvisoTransportador; mostrar ao transportador e imprimir é obrigatório. }
         mdfe_access_key: { type: string }
+        mdfe_cascade: { type: string, enum: [ cancel, close ], description: 'O MDF-e vinculado foi cancelado ou encerrado; o operador cancela ou encerra o CIOT (oferta, nunca automático).' }
         operation_type: { type: integer }
         carrier_doc: { type: string }
         hirer_doc: { type: string }

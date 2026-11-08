@@ -137,6 +137,8 @@ type MdfeService struct {
 	cargoUnitRepo *repositories.CargoUnitRepository
 	// insurancePolicyRepo traz as apólices de seguro da carga do cadastro.
 	insurancePolicyRepo *repositories.InsurancePolicyRepository
+	// ciotRepo resolve e vincula os CIOTs declarados escolhidos no MDF-e (ciot_link.go).
+	ciotRepo *repositories.CiotRepository
 	// productRepo reencontra no cadastro o produto que a NF-e referenciada
 	// declarou, para derivar dele o grupo peri (produto perigoso).
 	productRepo *repositories.ProductRepository
@@ -174,6 +176,7 @@ func NewMdfeService(
 	productRepo *repositories.ProductRepository,
 	cargoUnitRepo *repositories.CargoUnitRepository,
 	insurancePolicyRepo *repositories.InsurancePolicyRepository,
+	ciotRepo *repositories.CiotRepository,
 	clients *awsclient.Clients,
 	workerSvc *services.WorkerService,
 	billingSvc *services.BillingService,
@@ -203,6 +206,7 @@ func NewMdfeService(
 		productRepo:         productRepo,
 		cargoUnitRepo:       cargoUnitRepo,
 		insurancePolicyRepo: insurancePolicyRepo,
+		ciotRepo:            ciotRepo,
 		clients:             clients,
 		workerSvc:           workerSvc,
 		bucketDocs:          bucketDocs,

@@ -80,6 +80,27 @@ func (r *CiotRepository) QueueOperationTx(pk, id, op string, allowed []string) t
 	return r.BuildRawUpdateTxItem(pk, &sk, "SET #po = :op, #ua = :ua", cond+")", names, values)
 }
 
+// LinkMdfeTx links an open CIOT with no operation in flight to an MDF-e access key, in the MDF-e emission
+// transaction. Re-linking the same key is a no-op; a CIOT linked to another MDF-e fails the condition.
+func (r *CiotRepository) LinkMdfeTx(pk, id, accessKey string, allowed []string) types.TransactWriteItem {
+	names := map[string]string{"#st": "status", "#po": "pending_operation", "#mk": AttrCiotMdfeKey}
+	values := map[string]types.AttributeValue{
+		":k":  &types.AttributeValueMemberS{Value: accessKey},
+		":ua": &types.AttributeValueMemberS{Value: NowStr()},
+	}
+	cond := "attribute_exists(pk) AND attribute_not_exists(#po) AND (attribute_not_exists(#mk) OR #mk = :k) AND #st IN ("
+	for i, s := range allowed {
+		k := fmt.Sprintf(":s%d", i)
+		values[k] = &types.AttributeValueMemberS{Value: s}
+		if i > 0 {
+			cond += ", "
+		}
+		cond += k
+	}
+	sk := CiotSK(id)
+	return r.BuildRawUpdateTxItem(pk, &sk, "SET #mk = :k, updated_at = :ua", cond+")", names, values)
+}
+
 // GetCarrierStatus returns the cached ConsultarSituacaoTransportador body, or "" when absent or expired
 // (DynamoDB TTL deletion is lazy, so expiry is checked here).
 func (r *CiotRepository) GetCarrierStatus(ctx context.Context, env, doc string, now time.Time) (string, error) {

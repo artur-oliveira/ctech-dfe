@@ -504,6 +504,7 @@ func newMDFeService(
 	productRepo *repositories.ProductRepository,
 	cargoUnitRepo *repositories.CargoUnitRepository,
 	insurancePolicyRepo *repositories.InsurancePolicyRepository,
+	ciotRepo *repositories.CiotRepository,
 	clients *awsclient.Clients,
 	workerSvc *services.WorkerService,
 	db *dynamodb.Client,
@@ -516,7 +517,7 @@ func newMDFeService(
 	return mdfesvc.NewMdfeService(
 		orgRepo, certRepo, configRepo, mdfeRepo, nfeRepo, cteRepo,
 		eventRepo, vehicleRepo, personRepo, vehicleSetRepo, tollProviderRepo, productRepo, cargoUnitRepo,
-		insurancePolicyRepo,
+		insurancePolicyRepo, ciotRepo,
 		clients, workerSvc, billingSvc, documentSvc, cfg.S3BucketDocuments,
 		mdfesvc.TechData{
 			CNPJ:    cfg.TechnicalCNPJ,

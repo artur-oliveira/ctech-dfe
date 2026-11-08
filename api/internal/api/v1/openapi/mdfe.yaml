@@ -892,11 +892,14 @@ components:
           type: array
           description: |
             CIOTs da viagem (`infANTT/infCIOT`, 0 a N). Cada um com o código de 12 dígitos e o
-            CPF (11) ou CNPJ (14) de quem o gerou na ANTT. CIOT repetido é 400.
+            CPF (11) ou CNPJ (14) de quem o gerou na ANTT. CIOT repetido é 400. Cada item é um CIOT
+            declarado (`ciot_id`: código e responsável vêm da linha, que fica vinculada ao MDF-e na
+            mesma transação; 409 se já vinculado, em operação ou fora de `declared`/`rectified`) ou um CIOT
+            emitido por fora (`ciot` e `responsible_doc` obrigatórios). Os dois juntos são 400.
           items:
             type: object
-            required: [ ciot, responsible_doc ]
             properties:
+              ciot_id: { type: string, description: 'Id de um CIOT declarado da organização (mesmo ambiente do MDF-e).' }
               ciot: { type: string, pattern: '^[0-9]{12}$' }
               responsible_doc: { type: string, description: 'CPF (11) ou CNPJ (14, alfanumérico aceito), com DV.' }
         toll_vouchers:
