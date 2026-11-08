@@ -83,6 +83,9 @@ export const dfeStatusLabel = (status: string, gender: DfeGender = 'f'): string 
 
 export const dfeStatusTone = (status: string): DfeStatusTone => meta(status)?.tone ?? 'neutral';
 
+/** Cores de um tom, para quem tem um tom e não um status (ex.: estado de contingência). */
+export const dfeToneClasses = (tone: DfeStatusTone): string => TONE_CLASSES[tone];
+
 export const dfeStatusClasses = (status: string): string => {
   const m = meta(status);
   return m ? TONE_CLASSES[m.tone] : UNKNOWN_CLASSES;

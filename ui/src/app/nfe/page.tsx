@@ -527,7 +527,7 @@ function NfeListTab({
               <td className={`${TABLE_CELL} text-gray-700 whitespace-nowrap`}
                   data-label="Total">{formatCurrency(nfe.total)}</td>
               <td className={TABLE_CELL} data-label="Status">
-                <DfeStatusCell status={nfe.status} sefazMotive={nfe.sefaz_motive}/>
+                <DfeStatusCell status={nfe.status} sefazMotive={nfe.sefaz_motive} contingencyState={nfe.contingency_state}/>
               </td>
               <td className={`${TABLE_CELL} text-gray-500 whitespace-nowrap text-xs`}
                   data-label="Emissão">

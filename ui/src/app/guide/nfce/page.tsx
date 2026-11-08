@@ -59,6 +59,55 @@ export default function GuideNfce() {
           ),
         },
         {
+          id: 'qr-version',
+          title: 'Versão do QR Code',
+          summary:
+            'A versão 3 do QR Code dispensa o CSC, mas a SEFAZ da sua UF precisa aceitá-la.',
+          image: {
+            src: '/guide/fiscal-config-nfce-qr.webp',
+            alt: 'Configuração fiscal da NFC-e com o seletor de versão do QR Code e os campos de CSC',
+          },
+          body: (
+            <>
+              <p>
+                Em <b>Configuração Fiscal → NFC-e</b> escolha a versão 2 (padrão, usa CSC) ou a 3 (sem CSC). Com a
+                versão 3 os campos de CSC ficam opcionais. A versão 3 é obrigatória para produtor rural pessoa física,
+                exceto no Paraná.
+              </p>
+              <GuideCallout kind="warning" title="Emitente com CPF e QR Code versão 2">
+                A emissão é recusada (rejeição 444) quando o emitente é pessoa física e o QR Code está na versão 2. A
+                mensagem traz o botão que abre esta configuração: troque para a versão 3 e emita de novo. Se a SEFAZ
+                recusar a versão 3 (rejeição 407), a UF ainda não a aceita.
+              </GuideCallout>
+            </>
+          ),
+        },
+        {
+          id: 'offline',
+          title: 'NFC-e emitida em contingência offline',
+          summary:
+            'Com a forma de emissão em Contingência offline, a venda sai na hora e a transmissão fica pendente.',
+          image: {
+            src: '/guide/nfce-contingency.webp',
+            alt: 'Detalhe de uma NFC-e pendente em contingência, com o aviso de prazo e o botão do DANFE',
+          },
+          body: (
+            <>
+              <p>
+                A lista e o detalhe mostram o selo da contingência e o aviso{' '}
+                <b>Emitida em contingência, pendente de autorização; prazo até</b> a data limite para transmitir. O
+                DANFC-e, com as duas vias, pode ser baixado mesmo pendente; o XML só fica disponível depois da
+                autorização.
+              </p>
+              <GuideBullets>
+                <li><b>Autorizada após contingência</b>: a SEFAZ aceitou; a nota é válida.</li>
+                <li><b>Rejeitada após contingência</b>: a nota não tem validade; emita outra corrigindo o motivo.</li>
+                <li><b>Prazo da contingência vencido</b>: confira a situação na SEFAZ antes de emitir outro documento.</li>
+              </GuideBullets>
+            </>
+          ),
+        },
+        {
           id: 'after',
           title: 'Cancelar ou substituir',
           summary:

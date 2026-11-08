@@ -51,6 +51,7 @@ function NfceDetail({accessKey}: { accessKey: string }) {
       cancelFn={(j) => apiClient.cancelNfce(accessKey, j)}
       downloadXml={() => apiClient.downloadNfceXml(accessKey)}
       downloadDanfe={() => apiClient.downloadNfceDanfe(accessKey)}
+      danfeWhilePending
       downloadEventXml={(sk) => apiClient.downloadNfceEventXml(accessKey, sk)}
       headerActions={(doc) =>
         doc.status === 'authorized' && doc.incoming === 0 ? (

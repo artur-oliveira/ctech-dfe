@@ -164,12 +164,42 @@ export default function GuideConta() {
           },
           body: (
             <p>
-              NF-e e CT-e mostram também o NSU da distribuição; NFC-e acrescenta o CSC; MDF-e, o
+              NF-e e CT-e mostram também o NSU da distribuição; NFC-e acrescenta a versão do QR Code e o CSC; MDF-e, o
               Canal Verde, a mensagem ao fisco e o RNTRC da transportadora (8 dígitos, da ANTT; opcional
               no MDF-e e obrigatório para emitir CT-e rodoviário); NFS-e, o provedor e o município de
               emissão. Produção e homologação têm série e número atual
               independentes, então testar nunca queima numeração válida.
             </p>
+          ),
+        },
+        {
+          id: 'emission',
+          title: 'Forma de emissão e contingência',
+          summary:
+            'Em cada aba, a forma como o documento é emitido agora: normal ou uma contingência, para quando a SEFAZ está fora do ar.',
+          image: {
+            src: '/guide/fiscal-config-emission.webp',
+            alt: 'Configuração fiscal da NF-e em contingência SVC, com o aviso de início e motivo, o seletor da forma de emissão e o aviso no topo do app',
+          },
+          body: (
+            <>
+              <GuideBullets>
+                <li><b>Normal</b>: a nota vai direto para a SEFAZ do seu estado.</li>
+                <li><b>Contingência SVC</b>: usa o ambiente de contingência da SEFAZ (NF-e: SVC-AN ou SVC-RS conforme a UF; CT-e: SVC-RS ou SVC-SP).</li>
+                <li><b>EPEC</b>: registro prévio na SEFAZ Nacional; só NF-e.</li>
+                <li><b>Contingência offline</b>: a nota é assinada e impressa agora e fica pendente até a SEFAZ voltar (NFC-e, CT-e e MDF-e).</li>
+              </GuideBullets>
+              <p>
+                Cada aba lista só as formas que valem para o documento. Sair de Normal pede um motivo de 15 a
+                256 caracteres, que vai no XML; a data e hora de início ficam registradas e aparecem como{' '}
+                <b>Em contingência desde</b>. Enquanto algum documento estiver fora de Normal, o topo do app mostra
+                um aviso que leva direto a esta aba. Voltar para Normal não pede motivo e apaga a data de início.
+              </p>
+              <GuideCallout kind="info" title="Contingência automática">
+                A opção <b>Entrar em contingência sozinho</b> aparece desligada, com o selo Disponível em breve: a
+                troca automática ainda não está ativa. Hoje a mudança é sempre manual.
+              </GuideCallout>
+            </>
           ),
         },
         {

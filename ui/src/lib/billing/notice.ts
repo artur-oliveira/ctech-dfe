@@ -12,6 +12,7 @@ import {ApiError} from '@/lib/api/client';
 import {METER_LABELS, PLAN_LABELS, STATUS_CANCELED, STATUS_INCOMPLETE, STATUS_PAST_DUE, STATUS_PAUSED} from '@/lib/constants/billing';
 import type {AccountSubscription} from '@/lib/types/billing';
 import {ONBOARDING_ROOT, STEP_PLAN} from '@/lib/constants/onboarding';
+import {contingencyFailure} from '@/lib/contingency';
 import {type EmitDoc, type EmitIssue, type EmitTarget, parseEmitIssues} from '@/lib/api/emit-problem';
 
 /** RFC 7807 type for every refusal money fixes (`api/internal/problem`). */
@@ -167,6 +168,8 @@ export function emitFailure(err: unknown, fallback: string, actionFor?: EmitActi
     return {message: notice.message, action: {label: notice.actionLabel, href: notice.href}};
   }
   if (err instanceof ApiError) {
+    const contingency = contingencyFailure(err.raw, err.detail, doc ?? 'nfe');
+    if (contingency) return contingency;
     const issues = parseEmitIssues(err.raw, doc);
     if (issues) {
       return {message: err.detail, issues: issues.map((i) => ({...i, action: actionFor?.(i.target, i.item)}))};

@@ -95,6 +95,7 @@ import {STORAGE_KEY_ORG} from '@/lib/constants/storage';
 import {isStrippableBody, stripNulls} from '@/lib/utils/strip-nulls';
 import {MOCK_ENABLED} from '@/lib/mock/env';
 import {withRetry} from '@aoctech/ui';
+import type {EmissionBody, EmissionDoc} from '@/lib/contingency';
 import {ApiUnavailableError, requireApiAvailable} from '@/lib/network/api-status';
 import {redirectOnMaintenance} from '@/lib/network/maintenance';
 import type {PersonRole} from '@/lib/schemas/entity';
@@ -824,6 +825,11 @@ class ApiClient {
 
   async upsertMDFeConfig(pk: string, data: object): Promise<MDFeConfigOut> {
     return this.put(`/v1.0/organizations/${unformatCpfCnpj(pk)}/mdfe-config`, data);
+  }
+
+  /** Forma de emissão corrente do documento (`PUT /{nfe,nfce,cte,mdfe}-emission`); devolve a configuração. */
+  async putEmission(doc: EmissionDoc, pk: string, data: EmissionBody): Promise<NFeConfigOut> {
+    return this.put(`/v1.0/organizations/${unformatCpfCnpj(pk)}/${doc}-emission`, data);
   }
 
   async getNfseConfig(pk: string): Promise<NfseConfigOut> {

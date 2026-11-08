@@ -66,12 +66,12 @@ func TestSetEmissionReasonAndSince(t *testing.T) {
 	}
 	// switching inside contingency keeps the original timestamp and reason
 	const since = "2026-11-08T10:00:00Z"
-	s, r = emissionSvc(ModelNFe, map[string]types.AttributeValue{
+	s, r = emissionSvc(ModelCTe, map[string]types.AttributeValue{
 		repositories.AttrEmissionType:      &types.AttributeValueMemberS{Value: repositories.EmissionSVC},
 		repositories.AttrContingencySince:  &types.AttributeValueMemberS{Value: since},
 		repositories.AttrContingencyReason: &types.AttributeValueMemberS{Value: "autorizador indisponivel"},
 	})
-	if _, err := s.SetEmission(context.Background(), "O", EmissionUpdate{Type: repositories.EmissionEPEC}); err != nil {
+	if _, err := s.SetEmission(context.Background(), "O", EmissionUpdate{Type: repositories.EmissionOffline}); err != nil {
 		t.Fatal(err)
 	}
 	if r.gotAt.UTC().Format(time.RFC3339) != since {

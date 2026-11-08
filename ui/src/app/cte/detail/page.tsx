@@ -12,6 +12,7 @@ import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
 import {Button, Skeleton} from '@aoctech/ui';
 import {DfeStatusBadge} from '@/components/dfe/DfeStatusBadge';
+import {ContingencyBadge, ContingencyNotice} from '@/components/dfe/ContingencyNotice';
 import {CopyableCode} from '@/components/ui/copyable-code';
 import {Pagination} from '@/components/ui/pagination';
 import {TableShell, TABLE_ROW, TABLE_CELL} from '@/components/ui/table-shell';
@@ -98,8 +99,13 @@ function CteDetail({accessKey}: { accessKey: string }) {
           </p>
           <CopyableCode value={accessKey}/>
         </div>
-        <DfeStatusBadge status={doc.status} gender="m" size="md"/>
+        <div className="flex flex-wrap items-center gap-2">
+          <DfeStatusBadge status={doc.status} gender="m" size="md"/>
+          <ContingencyBadge state={doc.contingency_state} male size="md"/>
+        </div>
       </div>
+
+      <ContingencyNotice doc={doc} male/>
 
       {authorized && (
         <section aria-label="Ações do CT-e" className="flex flex-wrap gap-2">

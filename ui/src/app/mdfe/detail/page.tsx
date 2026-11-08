@@ -11,6 +11,8 @@ import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
 import {Button, Skeleton} from '@aoctech/ui';
 import {DfeStatusBadge} from '@/components/dfe/DfeStatusBadge';
+import {ContingencyBadge, ContingencyNotice} from '@/components/dfe/ContingencyNotice';
+import {CONTINGENCY_PENDING} from '@/lib/contingency';
 import {CopyableCode} from '@/components/ui/copyable-code';
 import {useMdfeActions} from '@/components/mdfe/MdfeActions';
 import {DownloadPdfButton} from '@/components/dfe/DownloadPdfButton';
@@ -105,13 +107,14 @@ function MdfeDetail({accessKey}: { accessKey: string }) {
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <DfeStatusBadge status={doc.status} gender="m" size="md"/>
+          <ContingencyBadge state={doc.contingency_state} male size="md"/>
           {doc.xml_s3_key && (
             <Button variant="outline" size="sm" onClick={handleDownloadXml} disabled={xmlLoading}
                     className="text-brand-600 border-brand-200 hover:bg-brand-50">
               {xmlLoading ? 'Baixando…' : 'XML'}
             </Button>
           )}
-          {(doc.status === 'authorized' || doc.status === 'closed' || doc.status === 'cancelled') && (
+          {(doc.status === 'authorized' || doc.status === 'closed' || doc.status === 'cancelled' || doc.contingency_state === CONTINGENCY_PENDING) && (
             <DownloadPdfButton fetchPdf={() => apiClient.downloadMdfeDamdfe(accessKey)}
                                label="DAMDFE" variant="outline" size="sm"
                                className="text-brand-600 border-brand-200 hover:bg-brand-50"/>
@@ -137,6 +140,8 @@ function MdfeDetail({accessKey}: { accessKey: string }) {
         </div>
       </div>
       
+      <ContingencyNotice doc={doc} male/>
+
       {/* SEFAZ info */}
       {(doc.sefaz_status || doc.sefaz_motive) && (
         <div className={`rounded-lg border px-4 py-3 text-sm ${

@@ -3323,6 +3323,24 @@ Limites do leiaute numa fonte só, `ui/src/lib/constants/layout-limits.ts` (`LAY
 - `lib/utils/access-key.ts` espelha a api: modelo 64 (tpEmis 1 e 2) e tpEmis 1, 2, 3, 4, 5, 7 e 8 para 57 e 67.
 - **Mock**: `?mock=prevalidation` (422 G193 e G122) e `?mock=regime-normal` (CRT 3).
 
+### Contingência na UI
+
+Em Configuração Fiscal, as abas NF-e, NFC-e, CT-e e MDF-e têm o bloco "Forma de emissão"
+(`components/fiscal-config/EmissionSection.tsx`), que lê `emission_type`, `emission_options`, `auto_contingency`,
+`contingency_since` e `contingency_reason` do GET da configuração e grava com
+`PUT /v1.0/organizations/{org}/{nfe,nfce,cte,mdfe}-emission` (`apiClient.putEmission`).
+
+- O seletor lista só `emission_options`; `justification` (15 a 256) só aparece e só vai fora de `normal`; voltar a
+  `normal` não envia justificativa e zera `contingency_since`. O EPEC não é oferecido até existir rota que o emita.
+- `auto_contingency` aparece desabilitado ("Disponível em breve") enquanto `AUTO_CONTINGENCY_AVAILABLE`
+  (`lib/contingency.ts`) for falso: a troca automática ainda não existe na API.
+- `ContingencyIndicator` (Topbar) avisa enquanto qualquer documento estiver fora de `normal`.
+- NFC-e: `qr_code_version` (2 ou 3); o CSC só é obrigatório fora da v3.
+- Documentos com `contingency_state` (`pending`, `authorized_late`, `rejected_late`, `overdue`) ganham selo nas listas e
+  aviso no detalhe com `contingency_deadline`. DANFC-e e DAMDFE pendentes continuam baixáveis; o XML só depois de autorizado.
+- Erros: `emission_type_invalid` e `emission_reason_required` (422), rejeição 444 e "UF do emitente sem SVC designada"
+  (400, por texto) viram mensagem com ação em `emitFailure`.
+
 ## 6. ctech-dfe-worker — Async Workers
 
 **Location:** `/worker/`

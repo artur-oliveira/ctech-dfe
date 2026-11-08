@@ -2,7 +2,7 @@
 
 import {useEffect, useState} from 'react';
 import type {Resolver} from 'react-hook-form';
-import {useForm} from 'react-hook-form';
+import {useForm, useWatch} from 'react-hook-form';
 import {zodResolver} from '@hookform/resolvers/zod';
 import {Input} from '@/components/ui/input';
 import {Textarea} from '@aoctech/ui';
@@ -21,6 +21,8 @@ import {
   mdfeConfigSchema,
   type NFCeConfigFormData,
   nfceConfigSchema,
+  QR_CODE_VERSION_WITHOUT_CSC,
+  QR_CODE_VERSIONS,
   type NFeConfigFormData,
   nfeConfigSchema,
   TIMEZONE_LABELS,
@@ -43,6 +45,11 @@ const SCHEMA_BY_VARIANT = {
   cte: cteConfigSchema,
   nfce: nfceConfigSchema,
   mdfe: mdfeConfigSchema,
+};
+
+const QR_VERSION_LABELS: Record<(typeof QR_CODE_VERSIONS)[number], string> = {
+  '2': 'Versão 2 (com CSC)',
+  '3': 'Versão 3 (sem CSC)',
 };
 
 const LABEL_BY_VARIANT: Record<DocVariant, string> = {
@@ -74,10 +81,12 @@ function toFormValues(variant: DocVariant, data: AnyConfigOut): AnyFormData {
     const nfce = data as NFCeConfigOut | undefined;
     return {
       ...base,
+      qr_code_version: String(nfce?.qr_code_version ?? 2),
       prod_csc: nfce?.prod_csc ?? '',
-      prod_csc_id: String(nfce?.prod_csc_id ?? ''),
+      // 0 é "sem CSC" (mínimo da API é 1): o campo nasce vazio, não "0".
+      prod_csc_id: nfce?.prod_csc_id ? String(nfce.prod_csc_id) : '',
       hom_csc: nfce?.hom_csc ?? '',
-      hom_csc_id: String(nfce?.hom_csc_id ?? ''),
+      hom_csc_id: nfce?.hom_csc_id ? String(nfce.hom_csc_id) : '',
     } as never;
   }
 
@@ -111,12 +120,14 @@ function toApiPayload(variant: DocVariant, data: AnyFormData): Record<string, un
   };
 
   if (variant === 'nfce') {
+    // Com a versão 3 o CSC é opcional: campo vazio sai do corpo em vez de virar 0 ou NaN.
     return {
       ...base,
-      prod_csc: d.prod_csc,
-      prod_csc_id: parseInt(d.prod_csc_id, 10),
-      hom_csc: d.hom_csc,
-      hom_csc_id: parseInt(d.hom_csc_id, 10),
+      qr_code_version: parseInt(d.qr_code_version, 10),
+      ...(d.prod_csc ? {prod_csc: d.prod_csc} : {}),
+      ...(d.prod_csc_id ? {prod_csc_id: parseInt(d.prod_csc_id, 10)} : {}),
+      ...(d.hom_csc ? {hom_csc: d.hom_csc} : {}),
+      ...(d.hom_csc_id ? {hom_csc_id: parseInt(d.hom_csc_id, 10)} : {}),
     };
   }
 
@@ -172,6 +183,8 @@ function FiscalConfigFormInner({variant, initialData, onSave, loading = false}: 
   const showCsc = variant === 'nfce';
   const showMdfeFields = variant === 'mdfe';
   const showNsu = variant !== 'nfce';
+  const qrVersion = useWatch({control: form.control, name: 'qr_code_version' as never}) as unknown as string | undefined;
+  const cscOptional = qrVersion === QR_CODE_VERSION_WITHOUT_CSC;
   const nsuConfig = showNsu ? (initialData as NFeConfigOut | null) : null;
   const isProd = nsuConfig?.environment === 1;
   const activeNsu = nsuConfig ? (isProd ? nsuConfig.prod_nsu : nsuConfig.hom_nsu) : undefined;
@@ -256,6 +269,31 @@ function FiscalConfigFormInner({variant, initialData, onSave, loading = false}: 
           )}
         />
 
+        {showCsc && (
+          <FormField
+            control={form.control}
+            name={'qr_code_version' as never}
+            render={({field}) => (
+              <FormItem>
+                <FormLabel>Versão do QR Code</FormLabel>
+                <OptionsSelect
+                  id={field.name}
+                  value={String(field.value ?? '2')}
+                  onValueChange={field.onChange}
+                  options={QR_CODE_VERSIONS.map((v) => ({value: v, label: QR_VERSION_LABELS[v]}))}
+                  clearable={false}
+                  className="w-full sm:max-w-80"
+                />
+                <p className="text-xs text-gray-500">
+                  A versão 3 não usa CSC, mas a SEFAZ da sua UF precisa aceitá-la; se recusar, volte para a 2.
+                  É obrigatória para produtor rural pessoa física, exceto no Paraná.
+                </p>
+                <FormMessage/>
+              </FormItem>
+            )}
+          />
+        )}
+
         {/* Two-column layout: Produção | Homologação */}
         <div className="grid grid-cols-2 gap-6">
           {/* Produção */}
@@ -295,7 +333,7 @@ function FiscalConfigFormInner({variant, initialData, onSave, loading = false}: 
                   name="prod_csc"
                   render={({field}) => (
                     <FormItem>
-                      <FormLabel>CSC (token)</FormLabel>
+                      <FormLabel>CSC (token){cscOptional && ' (opcional)'}</FormLabel>
                       <Input
                         {...field}
                         placeholder="000100000000000000000000000000000001"
@@ -311,7 +349,7 @@ function FiscalConfigFormInner({variant, initialData, onSave, loading = false}: 
                   name="prod_csc_id"
                   render={({field}) => (
                     <FormItem>
-                      <FormLabel>Identificador do CSC</FormLabel>
+                      <FormLabel>Identificador do CSC{cscOptional && ' (opcional)'}</FormLabel>
                       <NumericInput {...field} integerPlaces={10} placeholder="1" onChange={field.onChange}/>
                       <FormMessage/>
                     </FormItem>
@@ -357,7 +395,7 @@ function FiscalConfigFormInner({variant, initialData, onSave, loading = false}: 
                   name="hom_csc"
                   render={({field}) => (
                     <FormItem>
-                      <FormLabel>CSC (token)</FormLabel>
+                      <FormLabel>CSC (token){cscOptional && ' (opcional)'}</FormLabel>
                       <Input
                         {...field}
                         placeholder="000100000000000000000000000000000001"
@@ -373,7 +411,7 @@ function FiscalConfigFormInner({variant, initialData, onSave, loading = false}: 
                   name="hom_csc_id"
                   render={({field}) => (
                     <FormItem>
-                      <FormLabel>Identificador do CSC</FormLabel>
+                      <FormLabel>Identificador do CSC{cscOptional && ' (opcional)'}</FormLabel>
                       <NumericInput {...field} integerPlaces={10} placeholder="1" onChange={field.onChange}/>
                       <FormMessage/>
                     </FormItem>

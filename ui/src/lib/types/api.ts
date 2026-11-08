@@ -1,4 +1,5 @@
 import type {DfeStatus} from '@/lib/data/dfe_status';
+import type {ContingencyDocFields, EmissionFields} from '@/lib/contingency';
 import type {PersonRole} from '@/lib/schemas/entity';
 
 // Auth
@@ -260,7 +261,7 @@ export interface CertificateOut {
 }
 
 // Fiscal configs
-export interface NFeConfigOut {
+export interface NFeConfigOut extends EmissionFields {
   pk: string
   timezone: string
   environment: number
@@ -277,7 +278,9 @@ export interface NFeConfigOut {
   updated_at: string
 }
 
-export interface NFCeConfigOut {
+export interface NFCeConfigOut extends EmissionFields {
+  /** Versão do QR Code: 2 (padrão, exige CSC) ou 3 (NT 2025.001, sem CSC). */
+  qr_code_version?: 2 | 3 | null
   pk: string
   timezone: string
   environment: number
@@ -1644,7 +1647,7 @@ export interface NfePaymentOut {
 // o ciclo de vida; `DfeStatus` (lib/data/dfe_status) é a lista canônica.
 export type NfeStatus = DfeStatus
 
-export interface NfeListOut {
+export interface NfeListOut extends ContingencyDocFields {
   pk: string    // {env}#{org_pk}
   sk: string    // 44-digit chave de acesso
   incoming: number
@@ -1947,7 +1950,7 @@ export interface MdfeCargoPreview {
   predominant: MdfeProdPredIn
 }
 
-export interface MdfeListOut {
+export interface MdfeListOut extends ContingencyDocFields {
   pk: string
   sk: string            // 44-digit chave de acesso
   incoming: number
@@ -2133,7 +2136,7 @@ export interface CteIbsCbs {
 }
 
 /** Linha de `GET /v1.0/ctes` e corpo do 202 da emissão (`CteDocument` do OpenAPI). */
-export interface CteListOut {
+export interface CteListOut extends ContingencyDocFields {
   pk: string
   sk: string            // 44-digit chave de acesso
   status: DfeStatus

@@ -14,6 +14,8 @@ import {
   billingSubscriptionFixtures,
   certificatesFixture,
   cteConfigFixture,
+  contingencyConfigOverrides,
+  emissionProblemFixtures,
   cteDeriveNotesFixture,
   ctePersonIdsFixture,
   cteDetailFixture,
@@ -68,6 +70,7 @@ import {
   vehiclesFixture,
   vehicleSetsFixture,
 } from './fixtures';
+import type {ContingencyDocFields} from '@/lib/contingency';
 import {getMockState, shouldError} from './state';
 
 /** The ctech-account organization the mock plan belongs to, managed by the mock user. */
@@ -174,6 +177,44 @@ function mockCteDerive(body: unknown): RouteResult {
   };
 }
 
+const CONFIG_FIXTURES: Record<string, object> = {
+  nfe: nfeConfigFixture, nfce: nfceConfigFixture, cte: cteConfigFixture, mdfe: mdfeConfigFixture,
+};
+
+/** Forma de emissão gravada pelo `PUT /{doc}-emission`, por documento; vale até recarregar a página. */
+const savedEmission: Record<string, object> = {};
+
+function mockConfig(doc: string): object {
+  const overrides = getMockState().contingency ? contingencyConfigOverrides[doc] : undefined;
+  return {...CONFIG_FIXTURES[doc], ...overrides, ...savedEmission[doc]};
+}
+
+const EMISSION_PROBLEMS = {invalid: 'invalid', reason: 'reason'} as const;
+
+/**
+ * `PUT /{doc}-emission`: grava a forma de emissão como a API (início da contingência ao sair de `normal`, apagado
+ * ao voltar) e devolve a configuração. `?mock=emission-422|emission-reason` força os dois 422.
+ */
+function mockEmission(doc: string, raw: unknown): RouteResult {
+  const body = (typeof raw === 'string' ? JSON.parse(raw) : raw) as {emission_type: string; auto_contingency?: boolean; justification?: string};
+  const forced = getMockState().emissionProblem;
+  if (forced === EMISSION_PROBLEMS.invalid || forced === EMISSION_PROBLEMS.reason) {
+    return {error: {status: 422, data: emissionProblemFixtures[forced]}};
+  }
+  const leaving = body.emission_type !== 'normal';
+  if (leaving && (body.justification ?? '').trim().length < 15) {
+    return {error: {status: 422, data: emissionProblemFixtures.reason}};
+  }
+  const before = mockConfig(doc) as {contingency_since?: string};
+  savedEmission[doc] = {
+    emission_type: body.emission_type,
+    auto_contingency: body.auto_contingency ?? false,
+    contingency_since: leaving ? before.contingency_since ?? new Date().toISOString() : null,
+    contingency_reason: leaving ? body.justification : null,
+  };
+  return {data: mockConfig(doc)};
+}
+
 type RouteResult = {data: unknown; status?: number} | {error: {status: number; data: unknown}}
 
 function route(method: string, path: string, body: unknown, params?: Record<string, unknown>): RouteResult {
@@ -197,10 +238,12 @@ function route(method: string, path: string, body: unknown, params?: Record<stri
   }
 
   // Configs (path-based org in URL)
-  if (path.endsWith('/nfe-config')) return {data: nfeConfigFixture};
-  if (path.endsWith('/nfce-config')) return {data: nfceConfigFixture};
-  if (path.endsWith('/cte-config')) return {data: cteConfigFixture};
-  if (path.endsWith('/mdfe-config')) return {data: mdfeConfigFixture};
+  {
+    const emission = /\/(nfe|nfce|cte|mdfe)-emission$/.exec(path);
+    if (m === 'put' && emission) return mockEmission(emission[1], body);
+    const cfg = /\/(nfe|nfce|cte|mdfe)-config$/.exec(path);
+    if (cfg) return {data: mockConfig(cfg[1])};
+  }
   if (path.endsWith('/nfse-config')) return {data: nfseConfigFixture};
 
   // Certificates / members
@@ -248,10 +291,14 @@ function route(method: string, path: string, body: unknown, params?: Record<stri
   if (key === 'get /v1.0/nfes') return {data: paginated(Number(params?.incoming) === 1 ? receivedNfesFixture : nfesFixture)};
   if (m === 'post' && path === '/v1.0/nfes') {
     if (getMockState().emitPrevalidation) return {error: {status: 422, data: nfeFiscalPrevalidationFixture}};
+    if (getMockState().emissionProblem === 'svcUf') return {error: {status: 400, data: emissionProblemFixtures.svcUf}};
     return {data: echo(body, 'nfe')};
   }
   if (key === 'get /v1.0/nfces') return {data: paginated(nfcesFixture)};
-  if (m === 'post' && path === '/v1.0/nfces') return {data: echo(body, 'nfce')};
+  if (m === 'post' && path === '/v1.0/nfces') {
+    if (getMockState().emissionProblem === 'qr444') return {error: {status: 400, data: emissionProblemFixtures.qr444}};
+    return {data: echo(body, 'nfce')};
+  }
   if (key === 'get /v1.0/mdfes') return {data: paginated(mdfesFixture)};
   if (m === 'post' && path === '/v1.0/mdfes') {
     if (getMockState().emitPrevalidation) return {error: {status: 422, data: mdfeFiscalPrevalidationFixture}};
@@ -306,9 +353,23 @@ function route(method: string, path: string, body: unknown, params?: Record<stri
   if (/^get \/v1\.0\/nfses\/[^/]+\/events$/.test(key)) return {data: paginated(nfseEventsFixture)};
 
   // Detail routes (any access key)
-  if (/^get \/v1\.0\/nfes\/[^/]+$/.test(key)) return {data: nfeDetailFixture};
-  if (/^get \/v1\.0\/nfces\/[^/]+$/.test(key)) return {data: nfceDetailFixture};
-  if (/^get \/v1\.0\/mdfes\/[^/]+$/.test(key)) return {data: mdfeDetailFixture};
+  {
+    const found = /^get \/v1\.0\/(nfes|nfces)\/([^/]+)$/.exec(key);
+    if (found) {
+      const [, kind, sk] = found;
+      const base = kind === 'nfes' ? nfeDetailFixture : nfceDetailFixture;
+      const row = (kind === 'nfes' ? nfesFixture : nfcesFixture).find((d) => d.sk === sk) as ContingencyDocFields & typeof nfesFixture[number] | undefined;
+      // Documento em contingência traz o próprio estado; o pendente ainda não tem XML autorizado.
+      return {data: row?.contingency_state ? {...base, ...row, xml_s3_key: row.contingency_state === 'pending' ? null : base.xml_s3_key} : base};
+    }
+  }
+  {
+    const found = /^get \/v1\.0\/mdfes\/([^/]+)$/.exec(key);
+    if (found) {
+      const row = mdfesFixture.find((d) => d.sk === found[1]) as ContingencyDocFields & typeof mdfesFixture[number] | undefined;
+      return {data: row?.contingency_state ? {...mdfeDetailFixture, ...row, xml_s3_key: null} : mdfeDetailFixture};
+    }
+  }
   {
     const cte = /^get \/v1\.0\/ctes\/([^/]+)$/.exec(key);
     if (cte) return {data: cteDetailFixture(cte[1])};

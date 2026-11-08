@@ -252,18 +252,31 @@ function nfeList(status: string, number: number, total: string, day: number) {
   };
 }
 
+import type {ContingencyDocFields} from '@/lib/contingency';
+
+/** Documento emitido em contingência (EPEC/offline): estado e prazo; o pendente ainda não tem XML autorizado. */
+const inContingency = (state: string, deadline: string) => ({contingency_state: state, contingency_deadline: deadline});
+
 export const nfesFixture = [
   nfeList('authorized', 1001, '3679.70', 1),
   nfeList('authorized', 1002, '89.90', 2),
   nfeList('processing', 1003, '259.90', 3),
   nfeList('rejected', 1004, '1299.00', 5),
   nfeList('cancelled', 1005, '599.00', 8),
+  // EPEC: transmitida depois; os dois estados que a tela precisa distinguir.
+  {...nfeList('pending', 1006, '420.00', 9), ...inContingency('pending', '2026-07-16T12:00:00Z')},
+  {...nfeList('authorized', 1007, '150.00', 7), ...inContingency('authorized_late', '2026-07-12T12:00:00Z')},
 ];
 
 export const nfcesFixture = [
   {...nfeList('authorized', 2001, '45.00', 1), sk: accessKey(ORG_PK, '65', 1, 2001, 11)},
   {...nfeList('authorized', 2002, '12.50', 2), sk: accessKey(ORG_PK, '65', 1, 2002, 22)},
   {...nfeList('pending', 2003, '88.90', 4), sk: accessKey(ORG_PK, '65', 1, 2003, 33)},
+  // Offline (tpEmis 9): um por estado de contingência.
+  {...nfeList('pending', 2004, '64.00', 6), sk: accessKey(ORG_PK, '65', 1, 2004, 44), ...inContingency('pending', '2026-07-09T12:00:00Z')},
+  {...nfeList('authorized', 2005, '31.90', 5), sk: accessKey(ORG_PK, '65', 1, 2005, 55), ...inContingency('authorized_late', '2026-07-08T12:00:00Z')},
+  {...nfeList('rejected', 2006, '27.00', 3), sk: accessKey(ORG_PK, '65', 1, 2006, 66), ...inContingency('rejected_late', '2026-07-06T12:00:00Z')},
+  {...nfeList('pending', 2007, '19.90', 2), sk: accessKey(ORG_PK, '65', 1, 2007, 77), ...inContingency('overdue', '2026-07-05T12:00:00Z')},
 ];
 
 function mdfeList(status: string, number: number, day: number, ufEnd: string) {
@@ -296,6 +309,9 @@ export const mdfesFixture = [
   mdfeList('authorized', 1, 1, 'RJ'),
   mdfeList('closed', 2, 4, 'MG'),
   mdfeList('close_pending', 3, 9, 'PR'),
+  // Offline (tpEmis 2, prazo de 168 h).
+  {...mdfeList('pending', 4, 10, 'SC'), ...inContingency('pending', '2026-07-17T08:00:00Z')},
+  {...mdfeList('authorized', 5, 7, 'ES'), ...inContingency('authorized_late', '2026-07-14T08:00:00Z')},
 ];
 
 // ─── CT-e ───────────────────────────────────────────────────────────────────
@@ -398,6 +414,9 @@ export const ctesFixture = [
   cteList('authorized', 35, 8, 'remetente', '1230.00'),
   // A organização emite, o cliente é o tomador: só o tomador faz "prestação em desacordo".
   cteOtherTaker('authorized', 34, 7, '760.00'),
+  // Offline (tpEmis 2, prazo de 168 h).
+  {...cteList('pending', 36, 10, 'remetente', '540.00'), ...inContingency('pending', '2026-07-17T08:00:00Z')},
+  {...cteList('authorized', 37, 5, 'remetente', '300.00'), ...inContingency('authorized_late', '2026-07-12T08:00:00Z')},
 ].map((c) => ({...c, emit_cpf_cnpj: ORG_PK, emit_name: 'Empresa Mock LTDA'}));
 
 /** Detalhe de um CT-e da lista: notas, trajeto e carga. */
@@ -409,7 +428,7 @@ export function cteDetailFixture(sk: string) {
     origin: {uf: 'SP', city_ibge: '3550308', city: 'São Paulo'},
     destination: {uf: 'MG', city_ibge: '3106200', city: 'Belo Horizonte'},
     cargo: {total_value: '3589.80', total_weight_kg: '338.500', volumes: 15, predominant_product: 'Notebook 15 polegadas'},
-    xml_s3_key: `xml/${ORG_PK}/cte/${base.number}.xml`,
+    xml_s3_key: (base as ContingencyDocFields).contingency_state === 'pending' ? null : `xml/${ORG_PK}/cte/${base.number}.xml`,
   };
 }
 
@@ -464,6 +483,9 @@ export const nfeConfigFixture = {
   prod_last_dist_nsu_at: null,
   hom_nsu: 100000002,
   hom_last_dist_nsu_at: '2026-07-02T11:05:00Z',
+  emission_type: 'normal',
+  emission_options: ['normal', 'svc'],
+  auto_contingency: false,
   updated_at: '2026-07-02T11:05:00Z',
 };
 
@@ -479,12 +501,17 @@ export const nfceConfigFixture = {
   hom_current_serie: 1,
   hom_csc: 'MOCK-CSC-HOMOLOGACAO',
   hom_csc_id: 1,
+  qr_code_version: 2,
+  emission_type: 'normal',
+  emission_options: ['normal', 'offline'],
+  auto_contingency: false,
   updated_at: '2026-07-02T09:00:00Z',
 };
 
 export const cteConfigFixture = {
   ...nfeConfigFixture,
   pk: `${ORG_PK}#cte-config`,
+  emission_options: ['normal', 'svc', 'offline'],
   hom_current_number: 10,
   hom_nsu: 100000002,
 };
@@ -492,10 +519,28 @@ export const cteConfigFixture = {
 export const mdfeConfigFixture = {
   ...nfeConfigFixture,
   pk: `${ORG_PK}#mdfe-config`,
+  emission_options: ['normal', 'offline'],
   rntrc: '12345678',
   hom_current_number: 2,
   hom_nsu: 0,
   hom_last_dist_nsu_at: null,
+};
+
+
+/** `?mock=contingency`: NF-e em SVC e NFC-e offline, com o início e o motivo que a API devolve. */
+export const CONTINGENCY_SINCE = '2026-07-02T10:00:00Z';
+export const CONTINGENCY_REASON = 'SEFAZ do estado fora do ar desde as 10h';
+export const contingencyConfigOverrides: Record<string, object> = {
+  nfe: {emission_type: 'svc', contingency_since: CONTINGENCY_SINCE, contingency_reason: CONTINGENCY_REASON},
+  nfce: {emission_type: 'offline', contingency_since: CONTINGENCY_SINCE, contingency_reason: CONTINGENCY_REASON},
+};
+
+/** Corpos 422/400 da troca da forma de emissão e da emissão (`?mock=emission-422|emission-reason|qr-444|svc-uf`). */
+export const emissionProblemFixtures = {
+  invalid: {title: 'Forma de emissão inválida', detail: 'forma de emissão não aceita para este documento', code: 'emission_type_invalid'},
+  reason: {title: 'Motivo obrigatório', detail: 'justificativa de 15 a 256 caracteres obrigatória', code: 'emission_reason_required'},
+  qr444: {title: 'Requisição inválida', detail: 'emitente pessoa física (CPF) exige o QR Code versão 3; configure qr_code_version = 3 na Configuração Fiscal da NFC-e (rejeição 444)'},
+  svcUf: {title: 'Requisição inválida', detail: 'UF do emitente sem SVC designada: AC'},
 };
 
 export const nfseConfigFixture = {

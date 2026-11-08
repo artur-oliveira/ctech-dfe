@@ -29,13 +29,14 @@ const (
 
 // emissionOptions lists, per model, every emission type valid for the document
 // (docs/specs/2026-11-08-contingencia.md section 2). The first is the default.
-//   - NF-e: SVC-AN/SVC-RS by the issuer's UF (tpEmis 6/7), EPEC (4).
-//   - NFC-e: offline (9) in every UF; EPEC (4), at the UF's discretion (MOC).
+//   - NF-e: SVC-AN/SVC-RS by the issuer's UF (tpEmis 6/7). EPEC (4) is NOT offered yet: the event body exists but
+//     no route or worker issues it, and the emit would silently go out as normal.
+//   - NFC-e: offline (9) in every UF. EPEC (4) is NOT offered yet, same reason as the NF-e.
 //   - CT-e: offline (2); SVC-RS/SVC-SP by the issuer's UF (7/8). No EPEC (revoked).
 //   - MDF-e: offline (2). No SVC and no EPEC.
 var emissionOptions = map[string][]string{
-	ModelNFe:  {repositories.EmissionNormal, repositories.EmissionSVC, repositories.EmissionEPEC},
-	ModelNFCe: {repositories.EmissionNormal, repositories.EmissionOffline, repositories.EmissionEPEC},
+	ModelNFe:  {repositories.EmissionNormal, repositories.EmissionSVC},
+	ModelNFCe: {repositories.EmissionNormal, repositories.EmissionOffline},
 	ModelCTe:  {repositories.EmissionNormal, repositories.EmissionOffline, repositories.EmissionSVC},
 	ModelMDFe: {repositories.EmissionNormal, repositories.EmissionOffline},
 }

@@ -82,7 +82,7 @@ function MdfeList({orgPk, onCancel, onClose}: {
             </td>
             <td className={`${TABLE_CELL} text-gray-700 whitespace-nowrap`} data-label="Carga">{formatCurrency(mdfe.cargo_value)}</td>
             <td className={TABLE_CELL} data-label="Status">
-              <DfeStatusCell status={mdfe.status} sefazMotive={mdfe.sefaz_motive} gender="m"/>
+              <DfeStatusCell status={mdfe.status} sefazMotive={mdfe.sefaz_motive} contingencyState={mdfe.contingency_state} gender="m"/>
             </td>
             <td className={`${TABLE_CELL} text-gray-500 whitespace-nowrap text-xs`} data-label="Emissão">
               {mdfe.dh_emi ? new Date(mdfe.dh_emi).toLocaleDateString('pt-BR') : formatDate(mdfe.year, mdfe.month, mdfe.day)}

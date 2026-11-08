@@ -3,6 +3,7 @@
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
 import {apiClient, ApiError} from '@/lib/api/client';
 import {queryKeys} from '@/lib/api/query-keys';
+import {EMISSION_DOCS, type EmissionBody, type EmissionDoc, type EmissionFields, inContingency} from '@/lib/contingency';
 import type {DocVariant} from '@/lib/schemas/fiscal-configs';
 import type {CTeConfigOut, MDFeConfigOut, NFCeConfigOut, NFeConfigOut, NfseConfigOut} from '@/lib/types/api';
 
@@ -86,4 +87,30 @@ export function useFiscalConfigMutation(variant: DocVariant, pk: string | undefi
     mutationFn: (data: Record<string, unknown>) => saveConfig(variant, pk!, data),
     onSuccess: () => qc.invalidateQueries({queryKey: configQueryKey(variant, pk ?? '')}),
   });
+}
+
+/**
+ * Troca a forma de emissão do documento (`PUT /{doc}-emission`). A resposta é a configuração inteira, então ela
+ * substitui a do cache sem outra ida à API; o aviso do app e a tela de configuração leem a mesma chave.
+ */
+export function useEmissionMutation(doc: EmissionDoc, pk: string | undefined) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: EmissionBody) => apiClient.putEmission(doc, pk!, body),
+    onSuccess: (cfg) => qc.setQueryData(configQueryKey(doc, pk ?? ''), cfg),
+  });
+}
+
+/**
+ * Documentos que estão fora da forma de emissão normal. Reaproveita as quatro consultas de configuração (mesmas
+ * chaves das telas de emissão, cache de 60 s), então o aviso do app não abre requisição que a tela já não faça.
+ */
+export function useContingencyDocs(pk: string | undefined): EmissionDoc[] {
+  const configs: Record<EmissionDoc, EmissionFields | null | undefined> = {
+    nfe: useFiscalConfig('nfe', pk).config,
+    nfce: useFiscalConfig('nfce', pk).config,
+    cte: useFiscalConfig('cte', pk).config,
+    mdfe: useFiscalConfig('mdfe', pk).config,
+  };
+  return EMISSION_DOCS.filter((d) => inContingency(configs[d]));
 }

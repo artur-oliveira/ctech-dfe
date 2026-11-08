@@ -24,6 +24,10 @@ export interface MockState {
   emitPrevalidation: boolean
   /** A organização do mock passa a CRT 3 (regime normal), que libera o IBS/CBS do CT-e. */
   regimeNormal: boolean
+  /** NF-e em SVC e NFC-e offline nas configurações, para rever o aviso do app e o banner. */
+  contingency: boolean
+  /** Recusa da emissão ou da troca da forma de emissão: `invalid`, `reason`, `qr444` ou `svcUf`. */
+  emissionProblem: 'invalid' | 'reason' | 'qr444' | 'svcUf' | null
 }
 
 const SAFE_PATHS = [
@@ -40,6 +44,8 @@ const DEFAULT: MockState = {
   billing: 'pro_active',
   emitPrevalidation: false,
   regimeNormal: false,
+  contingency: false,
+  emissionProblem: null,
 };
 
 let state: MockState = {...DEFAULT};
@@ -64,6 +70,16 @@ export function initMockStateFromUrl(search: string): void {
     state = {...state, emitPrevalidation: true};
   } else if (raw === 'regime-normal') {
     state = {...state, regimeNormal: true};
+  } else if (raw === 'contingency') {
+    state = {...state, contingency: true};
+  } else if (raw === 'emission-422') {
+    state = {...state, emissionProblem: 'invalid'};
+  } else if (raw === 'emission-reason') {
+    state = {...state, emissionProblem: 'reason'};
+  } else if (raw === 'qr-444') {
+    state = {...state, emissionProblem: 'qr444'};
+  } else if (raw === 'svc-uf') {
+    state = {...state, emissionProblem: 'svcUf'};
   } else if (raw === 'ok') {
     state = {...state, mode: 'ok'};
   }

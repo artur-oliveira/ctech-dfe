@@ -10,6 +10,8 @@ import {formatCpfCnpj} from '@/lib/utils/document';
 import {formatCurrency, formatDate} from '@/lib/utils/helpers';
 import {formatDatetimeBR, triggerRemoteDownload} from '@/lib/utils/dfe';
 import {DfeStatusBadge} from '@/components/dfe/DfeStatusBadge';
+import {ContingencyBadge, ContingencyNotice} from '@/components/dfe/ContingencyNotice';
+import {CONTINGENCY_PENDING} from '@/lib/contingency';
 import {CopyableCode} from '@/components/ui/copyable-code';
 import {ApiError} from '@/lib/api/client';
 import {toast} from 'sonner';
@@ -33,6 +35,8 @@ export interface DfeDetailProps {
   downloadXml: () => Promise<SignedFileDownload>
   downloadEventXml: (eventSk: string) => Promise<SignedFileDownload>
   downloadDanfe?: () => Promise<AuxiliaryDocumentDownload>
+  /** NFC-e offline pendente ainda não tem XML autorizado, mas o DANFC-e sai do XML assinado guardado. */
+  danfeWhilePending?: boolean
   /** Doc-specific header buttons (e.g. CC-e for NF-e, Substituir for NFC-e). */
   headerActions?: (doc: NfeDetailOut) => ReactNode
   /** Doc-specific extra content/modals rendered with the loaded doc. */
@@ -42,7 +46,7 @@ export interface DfeDetailProps {
 export function DfeDetail({
                             accessKey, docLabel, destLabel = 'Destinatário', enabled,
                             detailQueryKey, eventsQueryKey, listQueryKey,
-                            fetchDoc, fetchEvents, cancelFn, downloadXml, downloadEventXml, downloadDanfe,
+                            fetchDoc, fetchEvents, cancelFn, downloadXml, downloadEventXml, downloadDanfe, danfeWhilePending,
                             headerActions, renderExtra,
                           }: DfeDetailProps) {
   const qc = useQueryClient();
@@ -118,6 +122,7 @@ export function DfeDetail({
 
   const totalDiscount = (doc.products || []).reduce((s, p) => s + parseFloat(p.discount || '0'), 0);
   const hasXml = !!doc.xml_s3_key;
+  const canDanfe = !!downloadDanfe && (hasXml || (!!danfeWhilePending && doc.contingency_state === CONTINGENCY_PENDING));
   const isOwnEmission = doc.incoming === 0;
   const canCancel = doc.status === 'authorized' && isOwnEmission;
   const isCancelled = doc.status === 'cancelled';
@@ -138,19 +143,19 @@ export function DfeDetail({
         <div className="flex items-center gap-2 flex-wrap">
           <DfeStatusBadge status={doc.status} size="md"/>
 
+          <ContingencyBadge state={doc.contingency_state} size="md"/>
+
           {hasXml && (
-            <>
-              <Button variant="outline" size="sm" onClick={handleDownloadXml} disabled={xmlLoading}
-                      className="text-brand-600 border-brand-200 hover:bg-brand-50">
-                {xmlLoading ? 'Baixando…' : 'XML'}
-              </Button>
-              {downloadDanfe && (
-                <Button variant="outline" size="sm" onClick={handleDownloadDanfe} disabled={danfeLoading}
-                        className="text-brand-600 border-brand-200 hover:bg-brand-50">
-                  {danfeLoading ? 'Gerando…' : 'DANFE'}
-                </Button>
-              )}
-            </>
+            <Button variant="outline" size="sm" onClick={handleDownloadXml} disabled={xmlLoading}
+                    className="text-brand-600 border-brand-200 hover:bg-brand-50">
+              {xmlLoading ? 'Baixando…' : 'XML'}
+            </Button>
+          )}
+          {canDanfe && (
+            <Button variant="outline" size="sm" onClick={handleDownloadDanfe} disabled={danfeLoading}
+                    className="text-brand-600 border-brand-200 hover:bg-brand-50">
+              {danfeLoading ? 'Gerando…' : 'DANFE'}
+            </Button>
           )}
 
           {headerActions?.(doc)}
@@ -167,6 +172,8 @@ export function DfeDetail({
           )}
         </div>
       </div>
+
+      <ContingencyNotice doc={doc}/>
 
       {/* SEFAZ info; full rejection/authorization motive (not truncated) */}
       {(doc.sefaz_status || doc.sefaz_motive) && (

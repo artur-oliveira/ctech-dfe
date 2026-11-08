@@ -169,7 +169,7 @@ function NfceList({orgPk, onCancel, onSubstitute}: {
               <td className={`${TABLE_CELL} text-gray-700 whitespace-nowrap`}
                   data-label="Total">{formatCurrency(nfce.total)}</td>
               <td className={TABLE_CELL} data-label="Status">
-                <DfeStatusCell status={nfce.status} sefazMotive={nfce.sefaz_motive}/>
+                <DfeStatusCell status={nfce.status} sefazMotive={nfce.sefaz_motive} contingencyState={nfce.contingency_state}/>
               </td>
               <td className={`${TABLE_CELL} text-gray-500 whitespace-nowrap text-xs`}
                   data-label="Emissão">

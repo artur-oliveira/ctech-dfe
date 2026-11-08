@@ -211,6 +211,32 @@ export default function GuideNfe() {
           ),
         },
         {
+          id: 'contingency',
+          title: 'Quando a SEFAZ está fora do ar',
+          summary:
+            'SVC e EPEC são escolhidos na Configuração Fiscal da NF-e; a lista passa a mostrar o selo de contingência.',
+          image: {
+            src: '/guide/fiscal-config-emission.webp',
+            alt: 'Aba NF-e da configuração fiscal em contingência SVC, com início e motivo',
+          },
+          body: (
+            <>
+              <p>
+                Em <b>Configuração Fiscal → NF-e</b>, escolha <b>Contingência SVC</b> (SVC-AN ou SVC-RS conforme a UF
+                do emitente) ou <b>EPEC</b> e informe o motivo. Se a UF da empresa não tem SVC designada, a emissão
+                avisa e leva à configuração: escolha EPEC ou volte para Normal. Notas emitidas em EPEC ficam com o
+                selo <b>Contingência pendente</b> até a transmissão, e o detalhe mostra o prazo.
+              </p>
+              <p>
+                Ao voltar para Normal, a data de início da contingência é apagada. Veja o passo a passo em{' '}
+                <Link href="/guide/account" className="font-medium text-primary-700 underline underline-offset-2">
+                  Configuração fiscal
+                </Link>.
+              </p>
+            </>
+          ),
+        },
+        {
           id: 'rejection',
           title: 'Quando a SEFAZ rejeita',
           summary:

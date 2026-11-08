@@ -75,7 +75,7 @@ function CteList({orgPk}: { orgPk: string }) {
             </td>
             <td className={`${TABLE_CELL} text-gray-700 whitespace-nowrap`} data-label="Frete">{formatCurrency(cte.freight_total)}</td>
             <td className={TABLE_CELL} data-label="Status">
-              <DfeStatusCell status={cte.status} sefazMotive={cte.sefaz_motive} gender="m"/>
+              <DfeStatusCell status={cte.status} sefazMotive={cte.sefaz_motive} contingencyState={cte.contingency_state} gender="m"/>
             </td>
             <td className={`${TABLE_CELL} text-gray-500 whitespace-nowrap text-xs`} data-label="Emissão">
               {formatDatetimeBR(cte.dh_emi ?? cte.created_at)}

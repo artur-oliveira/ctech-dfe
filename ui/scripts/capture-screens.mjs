@@ -36,6 +36,9 @@ const MDFE_KEY = mdfesFixture[0].sk;
 const CTE_KEY = ctesFixture[0].sk;
 const CTE_DIVERGENT_KEY = ctesFixture[4].sk;
 const CTE_OTHER_TAKER_KEY = ctesFixture[5].sk;
+// Documentos emitidos em contingência (offline): [3] NFC-e pendente; [4] CT-e pendente.
+const NFCE_PENDING_KEY = nfcesFixture[3].sk;
+const CTE_PENDING_KEY = ctesFixture[6].sk;
 const NFSE_ID = nfsesFixture[0].sk;
 
 /**
@@ -134,6 +137,7 @@ const CAPTURES = [
   // ── NFC-e ────────────────────────────────────────────────────────────────
   {slug: 'nfce-list', route: '/nfce', waitText: 'Cliente Exemplo LTDA'},
   {slug: 'nfce-emit', route: '/nfce/emit', waitText: 'Escaneie os itens'},
+  {slug: 'nfce-contingency', route: `/nfce/detail?key=${NFCE_PENDING_KEY}`, waitText: 'pendente de autorização; prazo até'},
   {slug: 'nfce-detail', route: `/nfce/detail?key=${NFCE_KEY}`, waitText: 'Mouse óptico'},
 
   // ── CT-e / MDF-e ─────────────────────────────────────────────────────────
@@ -191,6 +195,7 @@ const CAPTURES = [
     route: `/cte/detail?key=${CTE_KEY}`,
     steps: [{waitText: 'Carta de correção'}, {click: 'Carta de correção'}, {waitAt: '[role="dialog"]'}],
   },
+  {slug: 'cte-contingency', route: `/cte/detail?key=${CTE_PENDING_KEY}`, waitText: 'pendente de autorização; prazo até'},
   {slug: 'cte-detail-not-taker', route: `/cte/detail?key=${CTE_OTHER_TAKER_KEY}`, waitText: 'apenas o tomador'},
   {
     slug: 'cte-sefaz-divergence',
@@ -263,6 +268,9 @@ const CAPTURES = [
   {slug: 'toll-providers', route: '/toll-providers', waitText: 'Vale-pedágio Rodovia SP'},
   {slug: 'insurance-policies', route: '/insurance-policies', waitText: 'RCTR-C'},
   {slug: 'fiscal-config', route: '/fiscal-config', waitText: 'Ambiente ativo'},
+  // `?mock=contingency`: NF-e em SVC (banner com início e motivo) e o aviso no topo do app.
+  {slug: 'fiscal-config-emission', route: '/fiscal-config?mock=contingency', waitText: 'Em contingência desde'},
+  {slug: 'fiscal-config-nfce-qr', route: '/fiscal-config?tab=nfce', waitText: 'Versão do QR Code'},
   {slug: 'certificates', route: '/certificates', waitText: 'EMPRESA MOCK'},
 
   // ── Conta ────────────────────────────────────────────────────────────────

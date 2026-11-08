@@ -1,6 +1,7 @@
 'use client';
 
 import {StatusBadge, StatusCell} from '@/components/ui/status-badge';
+import {ContingencyBadge} from '@/components/dfe/ContingencyNotice';
 import {
   type DfeGender,
   dfeStatusClasses,
@@ -33,12 +34,14 @@ export function DfeStatusBadge({status, gender, size}: {
 }
 
 /** Badge + modal de motivo, quando o status é explicado por um motivo do SEFAZ/worker. */
-export function DfeStatusCell({status, sefazMotive, gender}: {
+export function DfeStatusCell({status, sefazMotive, gender, contingencyState}: {
   status: string
   sefazMotive: string | null
   gender?: DfeGender
+  /** `contingency_state` do documento: acrescenta o selo da contingência sob o status. */
+  contingencyState?: string | null
 }) {
-  return (
+  const cell = (
     <StatusCell
       badge={<DfeStatusBadge status={status} gender={gender}/>}
       sefazMotive={sefazMotive}
@@ -46,5 +49,12 @@ export function DfeStatusCell({status, sefazMotive, gender}: {
       // O ícone segue o tom do badge: retentativa avisa (âmbar), rejeição alarma (vermelho).
       iconClassName={dfeStatusTone(status) === 'warning' ? 'text-warning' : 'text-red-600'}
     />
+  );
+  if (!contingencyState) return cell;
+  return (
+    <div className="flex flex-col items-start gap-1">
+      {cell}
+      <ContingencyBadge state={contingencyState} male={gender === 'm'}/>
+    </div>
   );
 }

@@ -321,6 +321,30 @@ export default function GuideCteMdfe() {
           ),
         },
         {
+          id: 'contingency',
+          title: 'CT-e e MDF-e em contingência',
+          summary:
+            'Contingência offline para os dois; o CT-e também aceita SVC-RS ou SVC-SP, conforme a UF.',
+          image: {
+            src: '/guide/cte-contingency.webp',
+            alt: 'Detalhe de um CT-e pendente em contingência, com o aviso de prazo até a data limite',
+          },
+          body: (
+            <>
+              <p>
+                Escolha a forma de emissão em <b>Configuração Fiscal</b>, na aba do documento. No modo offline o
+                documento é assinado na hora e fica com o selo <b>Contingência pendente</b>; o detalhe mostra{' '}
+                <b>Emitido em contingência, pendente de autorização; prazo até</b> a data limite (168 horas). Os
+                estados finais são Autorizado após contingência, Rejeitado após contingência e Prazo da contingência
+                vencido. O DAMDFE pendente pode ser baixado; o XML só depois da autorização.
+              </p>
+              <p>
+                Se a UF da empresa não tem SVC designada, a emissão do CT-e avisa e leva à configuração.
+              </p>
+            </>
+          ),
+        },
+        {
           id: 'cte-actions',
           title: 'Cancelar, corrigir e contestar',
           summary:

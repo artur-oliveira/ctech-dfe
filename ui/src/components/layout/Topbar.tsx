@@ -4,6 +4,7 @@ import {useRouter} from 'next/navigation';
 import {Menu} from '@base-ui/react/menu';
 import {Search} from 'lucide-react';
 import {useAuth} from '@/lib/hooks/useAuth';
+import {ContingencyIndicator} from '@/components/layout/ContingencyIndicator';
 import {SettingsIcon} from '@/components/ui/icon';
 import {ROLE_LABEL, RoleName} from "@/lib/data/roles";
 
@@ -105,6 +106,8 @@ export function Topbar({onSearchClick}: TopbarProps) {
                     <span className="text-sm text-gray-400">Nenhuma organização</span>
                 )}
             </div>
+
+            <ContingencyIndicator/>
 
             {/* Busca global. No mobile ela mora na navegação inferior. */}
             <button

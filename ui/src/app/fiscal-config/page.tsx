@@ -10,6 +10,8 @@ import {useFiscalConfig} from '@/lib/hooks/useFiscalConfig';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
 import {NoOrgBanner} from '@/components/ui/no-org-banner';
+import {EmissionSection} from '@/components/fiscal-config/EmissionSection';
+import {EMISSION_DOCS, type EmissionDoc, type EmissionFields} from '@/lib/contingency';
 import {FiscalConfigForm} from '@/components/fiscal-config/FiscalConfigForm';
 import type {DocVariant} from '@/lib/schemas/fiscal-configs';
 import {Skeleton} from '@aoctech/ui';
@@ -142,7 +144,16 @@ function FiscalConfigContent() {
             
             {/* Form */}
             {!active.query.isPending && (
-              <div className="rounded-xl border border-gray-200 bg-white p-6">
+              <div className="space-y-6 rounded-xl border border-gray-200 bg-white p-4 sm:p-6">
+                {/* Sem configuração gravada o PUT de emissão não tem o que alterar (404). */}
+                {EMISSION_DOCS.includes(activeTab as EmissionDoc) && active.query.config && (
+                  <EmissionSection
+                    key={activeTab}
+                    doc={activeTab as EmissionDoc}
+                    pk={pk}
+                    config={active.query.config as EmissionFields}
+                  />
+                )}
                 <FiscalConfigForm
                   key={activeTab}
                   variant={activeTab}
