@@ -1,5 +1,6 @@
 'use client';
 
+import {nfeFormats} from '@/lib/constants/document-formats';
 import {Suspense, useState} from 'react';
 import Link from 'next/link';
 import {useSearchParams} from 'next/navigation';
@@ -102,7 +103,8 @@ function NfeDetail({accessKey}: { accessKey: string }) {
       cancelFn={(j) => apiClient.cancelNfe(accessKey, j)}
       downloadXml={() => apiClient.downloadNfeXml(accessKey)}
       downloadEventXml={(sk) => apiClient.downloadNfeEventXml(accessKey, sk)}
-      downloadDanfe={() => apiClient.downloadNfeDanfe(accessKey)}
+      downloadDanfe={(format) => apiClient.downloadNfeDanfe(accessKey, format)}
+      danfeFormats={nfeFormats(accessKey)}
       headerActions={(doc) => (
         <>
           {doc.status === 'authorized' && doc.incoming === 0 && (

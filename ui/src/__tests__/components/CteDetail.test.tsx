@@ -40,12 +40,12 @@ function renderDetail(sk: string) {
 beforeEach(() => vi.restoreAllMocks());
 
 describe('detalhe do CT-e', () => {
-  it('mostra cabeçalho, partes, frete, CFOP e eventos; sem botão de DACTE nem XML do documento', async () => {
+  it('mostra cabeçalho, partes, frete, CFOP e eventos; com Baixar DACTE e sem XML do documento', async () => {
     renderDetail(AUTH_TAKER.sk);
     expect(await screen.findByText(/CT-e 31/)).toBeInTheDocument();
     expect(screen.getByText((_, el) => el?.tagName === 'P' && el.textContent === 'CFOP 6353 · ICMS CST SN')).toBeInTheDocument();
     expect(screen.getByText('Tomador (Remetente)')).toBeInTheDocument();
-    expect(screen.queryByRole('button', {name: /DACTE/})).toBeNull();
+    expect(screen.getByRole('button', {name: 'Baixar DACTE'})).toBeInTheDocument();
     expect(await screen.findByText('Carta de Correção')).toBeInTheDocument();
     expect(screen.getByText('Prestação de serviço em desacordo')).toBeInTheDocument();
     expect(screen.getAllByRole('button', {name: /Baixar XML do evento/})).toHaveLength(3);
@@ -73,6 +73,17 @@ describe('detalhe do CT-e', () => {
     await screen.findByText(/CT-e 33/);
     expect(screen.queryByRole('region', {name: 'Ações do CT-e'})).toBeNull();
     expect(screen.queryByRole('button', {name: 'Cancelar'})).toBeNull();
+  });
+
+  it('DACTE: baixa autorizado e pendente offline; cancelado não oferece', async () => {
+    const spy = vi.spyOn(apiClient, 'downloadCteDacte').mockResolvedValue({url: 'data:application/pdf;base64,', expires_at: '', filename: 'k.pdf', content_type: 'application/pdf'});
+    const {unmount} = renderDetail(ctesFixture[6].sk);
+    fireEvent.click(await screen.findByRole('button', {name: 'Baixar DACTE'}));
+    await waitFor(() => expect(spy).toHaveBeenCalledWith(ctesFixture[6].sk));
+    unmount();
+    renderDetail(CANCELLED.sk);
+    await screen.findByText(/CT-e 33/);
+    expect(screen.queryByRole('button', {name: 'Baixar DACTE'})).toBeNull();
   });
 
   it('Consultar na SEFAZ avisa a divergência sem corrigir', async () => {

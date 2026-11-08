@@ -1,5 +1,6 @@
 'use client';
 
+import {PRINT_FORMATS} from '@/lib/constants/document-formats';
 import {Suspense, useState} from 'react';
 import Link from 'next/link';
 import {useSearchParams} from 'next/navigation';
@@ -115,7 +116,8 @@ function MdfeDetail({accessKey}: { accessKey: string }) {
             </Button>
           )}
           {(doc.status === 'authorized' || doc.status === 'closed' || doc.status === 'cancelled' || doc.contingency_state === CONTINGENCY_PENDING) && (
-            <DownloadPdfButton fetchPdf={() => apiClient.downloadMdfeDamdfe(accessKey)}
+            <DownloadPdfButton fetchPdf={(format) => apiClient.downloadMdfeDamdfe(accessKey, format)}
+                               formats={PRINT_FORMATS.mdfe}
                                label="DAMDFE" variant="outline" size="sm"
                                className="text-brand-600 border-brand-200 hover:bg-brand-50"/>
           )}

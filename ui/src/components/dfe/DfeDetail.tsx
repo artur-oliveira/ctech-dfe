@@ -13,8 +13,8 @@ import {DfeStatusBadge} from '@/components/dfe/DfeStatusBadge';
 import {ContingencyBadge, ContingencyNotice} from '@/components/dfe/ContingencyNotice';
 import {CONTINGENCY_PENDING} from '@/lib/contingency';
 import {CopyableCode} from '@/components/ui/copyable-code';
-import {ApiError} from '@/lib/api/client';
-import {toast} from 'sonner';
+import {DownloadPdfButton} from '@/components/dfe/DownloadPdfButton';
+import type {PrintFormat} from '@/lib/constants/document-formats';
 import {EVENT_TYPE_LABELS} from "@/lib/data/dfe_event";
 import {TableShell, TABLE_ROW, TABLE_CELL} from '@/components/ui/table-shell';
 
@@ -34,7 +34,9 @@ export interface DfeDetailProps {
   cancelFn: (justification: string) => Promise<unknown>
   downloadXml: () => Promise<SignedFileDownload>
   downloadEventXml: (eventSk: string) => Promise<SignedFileDownload>
-  downloadDanfe?: () => Promise<AuxiliaryDocumentDownload>
+  downloadDanfe?: (format?: string) => Promise<AuxiliaryDocumentDownload>
+  /** Seletor de formato do DANFE; omitido, só o botão. */
+  danfeFormats?: readonly PrintFormat[]
   /** NFC-e offline pendente ainda não tem XML autorizado, mas o DANFC-e sai do XML assinado guardado. */
   danfeWhilePending?: boolean
   /** Doc-specific header buttons (e.g. CC-e for NF-e, Substituir for NFC-e). */
@@ -46,14 +48,13 @@ export interface DfeDetailProps {
 export function DfeDetail({
                             accessKey, docLabel, destLabel = 'Destinatário', enabled,
                             detailQueryKey, eventsQueryKey, listQueryKey,
-                            fetchDoc, fetchEvents, cancelFn, downloadXml, downloadEventXml, downloadDanfe, danfeWhilePending,
+                            fetchDoc, fetchEvents, cancelFn, downloadXml, downloadEventXml, downloadDanfe, danfeFormats, danfeWhilePending,
                             headerActions, renderExtra,
                           }: DfeDetailProps) {
   const qc = useQueryClient();
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [justification, setJustification] = useState('');
   const [xmlLoading, setXmlLoading] = useState(false);
-  const [danfeLoading, setDanfeLoading] = useState(false);
   const [eventXmlLoading, setEventXmlLoading] = useState<string | null>(null);
 
   const {data: doc, isLoading, error} = useQuery<NfeDetailOut>({
@@ -93,18 +94,6 @@ export function DfeDetail({
       triggerRemoteDownload((await downloadEventXml(event.sk)).url);
     } finally {
       setEventXmlLoading(null);
-    }
-  };
-
-  const handleDownloadDanfe = async () => {
-    if (!downloadDanfe) return;
-    setDanfeLoading(true);
-    try {
-      triggerRemoteDownload((await downloadDanfe()).url);
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.detail : String(err));
-    } finally {
-      setDanfeLoading(false);
     }
   };
 
@@ -152,10 +141,8 @@ export function DfeDetail({
             </Button>
           )}
           {canDanfe && (
-            <Button variant="outline" size="sm" onClick={handleDownloadDanfe} disabled={danfeLoading}
-                    className="text-brand-600 border-brand-200 hover:bg-brand-50">
-              {danfeLoading ? 'Gerando…' : 'DANFE'}
-            </Button>
+            <DownloadPdfButton fetchPdf={downloadDanfe} formats={danfeFormats} label="DANFE" variant="outline"
+                               className="text-brand-600 border-brand-200 hover:bg-brand-50"/>
           )}
 
           {headerActions?.(doc)}

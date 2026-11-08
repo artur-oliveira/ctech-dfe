@@ -1,5 +1,6 @@
 import {describe, expect, it} from 'vitest';
 import {mockAdapter} from '@/lib/mock/handler';
+import {setMockState} from '@/lib/mock/state';
 import {
   nfeDetailFixture,
   nfeEventsFixture,
@@ -19,6 +20,34 @@ async function get(url: string) {
   const response = await mockAdapter({method: 'get', url, headers: {}} as InternalAxiosRequestConfig);
   return response.data as Record<string, unknown>;
 }
+
+describe('mock handler: impressos', () => {
+  const KEY = '3'.repeat(34) + '1' + '3'.repeat(9);
+  const EPEC_KEY = '3'.repeat(34) + '4' + '3'.repeat(9);
+  const print = (url: string, format?: string) =>
+    mockAdapter({method: 'get', url, params: format ? {format} : undefined, headers: {}} as unknown as InternalAxiosRequestConfig);
+
+  it('serve os quatro impressos com {chave}.pdf, inclusive o DACTE', async () => {
+    for (const path of ['nfes/' + KEY + '/danfe', 'nfces/' + KEY + '/danfce', 'mdfes/' + KEY + '/damdfe', 'ctes/' + KEY + '/dacte']) {
+      expect((await print('/v1.0/' + path)).data).toMatchObject({filename: KEY + '.pdf', content_type: 'application/pdf'});
+    }
+    expect((await print(`/v1.0/nfces/${KEY}/danfce`, 'mensagem')).status).toBe(200);
+  });
+
+  it('recusa formato fora da lista (400) e simplificado em EPEC (422)', async () => {
+    await expect(print(`/v1.0/mdfes/${KEY}/damdfe`, 'etiqueta')).rejects.toMatchObject({response: {status: 400, data: {code: 'invalid-document-format'}}});
+    await expect(print(`/v1.0/nfes/${EPEC_KEY}/danfe`, 'etiqueta')).rejects.toMatchObject({response: {status: 422, data: {code: 'document-format-not-allowed'}}});
+    expect((await print(`/v1.0/nfes/${EPEC_KEY}/danfe`, 'paisagem')).status).toBe(200);
+  });
+
+  it('?mock= força 400, 422 e 404', async () => {
+    for (const [printProblem, status] of [['invalidFormat', 400], ['notAllowed', 422], ['noXml', 404]] as const) {
+      setMockState({printProblem});
+      await expect(print(`/v1.0/ctes/${KEY}/dacte`)).rejects.toMatchObject({response: {status}});
+    }
+    setMockState({printProblem: null});
+  });
+});
 
 describe('mock handler', () => {
   it('serve o detalhe da organização com `person`', async () => {

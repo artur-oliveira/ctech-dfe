@@ -3349,6 +3349,18 @@ Em Configuração Fiscal, as abas NF-e, NFC-e, CT-e e MDF-e têm o bloco "Forma 
 - Erros: `emission_type_invalid` e `emission_reason_required` (422), rejeição 444 e "UF do emitente sem SVC designada"
   (400, por texto) viram mensagem com ação em `emitFailure`.
 
+### Formatos impressos na UI (F8)
+
+As telas de detalhe da NF-e, NFC-e e MDF-e têm, ao lado do botão do impresso, um seletor de formato
+(`DownloadPdfButton`). Sem escolha ("Formato padrão") o parâmetro `format` não é enviado e a API usa o formato do XML
+(`tpImp`). Opções numa constante só, `ui/src/lib/constants/document-formats.ts`: NF-e retrato, paisagem, simplificado
+(bobina) e etiqueta; NFC-e completo, resumido e mensagem eletrônica; MDF-e retrato e paisagem. Na NF-e em EPEC
+(`tpEmis` 4, posição 35 da chave) simplificado e etiqueta não são oferecidos. O `ApiClient` recebe `format` nos métodos
+existentes; `downloadCteDacte` baixa o DACTE A4 e o botão "Baixar DACTE" aparece no detalhe do CT-e autorizado ou
+pendente em contingência offline. Recusas: `400 invalid-document-format`, `422 document-format-not-allowed` e `404`
+(XML ainda não disponível), em texto simples. Os valores permitidos estão duplicados à mão na UI e no mock (a API não
+os lista): mudou `documents/formats.go`, muda `PRINT_FORMATS`. Mock: `?mock=format-invalid|format-not-allowed|xml-not-ready`.
+
 ## 6. ctech-dfe-worker — Async Workers
 
 **Location:** `/worker/`

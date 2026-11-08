@@ -16,6 +16,8 @@ import {
   cteConfigFixture,
   contingencyConfigOverrides,
   emissionProblemFixtures,
+  printFormatsByRoute,
+  printProblemFixtures,
   cteDeriveNotesFixture,
   ctePersonIdsFixture,
   cteDetailFixture,
@@ -351,6 +353,23 @@ function route(method: string, path: string, body: unknown, params?: Record<stri
   if (/^get \/v1\.0\/nfces\/[^/]+\/events$/.test(key)) return {data: paginated(nfceEventsFixture)};
   if (/^get \/v1\.0\/mdfes\/[^/]+\/events$/.test(key)) return {data: paginated(mdfeEventsFixture)};
   if (/^get \/v1\.0\/nfses\/[^/]+\/events$/.test(key)) return {data: paginated(nfseEventsFixture)};
+
+  // Impressos: o nome do arquivo é sempre `{chave}.pdf`; `format` fora da lista da rota é 400 e, na NF-e em EPEC
+  // (tpEmis 4, posição 35 da chave), simplificado e etiqueta são 422.
+  {
+    const printed = /^get \/v1\.0\/(?:nfes|nfces|mdfes|ctes)\/([^/]+)\/(danfe|danfce|damdfe|dacte)$/.exec(key);
+    if (printed) {
+      const [, sk, doc] = printed;
+      const forced = getMockState().printProblem;
+      if (forced) return {error: {status: printProblemFixtures[forced].status, data: printProblemFixtures[forced]}};
+      const format = params?.format as string | undefined;
+      if (format && !printFormatsByRoute[doc].includes(format)) return {error: {status: 400, data: printProblemFixtures.invalidFormat}};
+      if ((format === 'simplificado' || format === 'etiqueta') && sk[34] === '4') {
+        return {error: {status: 422, data: printProblemFixtures.notAllowed}};
+      }
+      return {data: {url: 'data:application/pdf;base64,JVBERi0xLjQK', expires_at: '2099-01-01T00:00:00Z', filename: `${sk}.pdf`, content_type: 'application/pdf', cached: false}};
+    }
+  }
 
   // Detail routes (any access key)
   {

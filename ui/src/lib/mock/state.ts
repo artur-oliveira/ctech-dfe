@@ -28,6 +28,8 @@ export interface MockState {
   contingency: boolean
   /** Recusa da emissão ou da troca da forma de emissão: `invalid`, `reason`, `qr444` ou `svcUf`. */
   emissionProblem: 'invalid' | 'reason' | 'qr444' | 'svcUf' | null
+  /** Recusa do impresso (DANFE, DANFC-e, DAMDFE, DACTE): formato inválido, não permitido ou XML ainda indisponível. */
+  printProblem: 'invalidFormat' | 'notAllowed' | 'noXml' | null
 }
 
 const SAFE_PATHS = [
@@ -46,6 +48,7 @@ const DEFAULT: MockState = {
   regimeNormal: false,
   contingency: false,
   emissionProblem: null,
+  printProblem: null,
 };
 
 let state: MockState = {...DEFAULT};
@@ -80,6 +83,12 @@ export function initMockStateFromUrl(search: string): void {
     state = {...state, emissionProblem: 'qr444'};
   } else if (raw === 'svc-uf') {
     state = {...state, emissionProblem: 'svcUf'};
+  } else if (raw === 'format-invalid') {
+    state = {...state, printProblem: 'invalidFormat'};
+  } else if (raw === 'format-not-allowed') {
+    state = {...state, printProblem: 'notAllowed'};
+  } else if (raw === 'xml-not-ready') {
+    state = {...state, printProblem: 'noXml'};
   } else if (raw === 'ok') {
     state = {...state, mode: 'ok'};
   }

@@ -118,6 +118,18 @@ export default function GuideNfce() {
           },
           body: (
             <>
+              <p>
+                O botão <b>DANFE</b> baixa o DANFC-e. O seletor ao lado escolhe o formato; sem escolha, sai o
+                formato do próprio documento:
+              </p>
+              <GuideBullets>
+                <li><b>DANFC-e Completo</b>: com a divisão de itens, o padrão do balcão.</li>
+                <li><b>DANFC-e Resumido</b>: sem a divisão de itens, para economizar bobina.</li>
+                <li>
+                  <b>Mensagem eletrônica</b>: cartão com a chave, o QR Code e o link da nota, para enviar ao
+                  cliente que dispensa o papel.
+                </li>
+              </GuideBullets>
               <GuideBullets>
                 <li>
                   <b>Cancelar</b>: a venda não aconteceu. Exige justificativa e só vale dentro do

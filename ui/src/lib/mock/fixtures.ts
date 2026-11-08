@@ -543,6 +543,21 @@ export const emissionProblemFixtures = {
   svcUf: {title: 'Requisição inválida', detail: 'UF do emitente sem SVC designada: AC'},
 };
 
+/** Corpos das recusas do impresso (`?mock=format-invalid|format-not-allowed|xml-not-ready`). */
+export const printProblemFixtures = {
+  invalidFormat: {status: 400, title: 'Requisição inválida', detail: 'formato do documento inválido: x; permitidos: paisagem, retrato', code: 'invalid-document-format'},
+  notAllowed: {status: 422, title: 'Formato não permitido', detail: 'o DANFE simplificado e a etiqueta não existem na emissão em EPEC', code: 'document-format-not-allowed'},
+  noXml: {status: 404, title: 'Não encontrado', detail: 'XML do documento ainda não disponível'},
+};
+
+/** Formatos que a API aceita no `format` de cada impresso (espelha `formats.go`); o CT-e tem formato único. */
+export const printFormatsByRoute: Record<string, string[]> = {
+  danfe: ['retrato', 'paisagem', 'simplificado', 'etiqueta'],
+  danfce: ['completo', 'resumido', 'mensagem'],
+  damdfe: ['retrato', 'paisagem'],
+  dacte: [],
+};
+
 export const nfseConfigFixture = {
   pk: `${ORG_PK}#nfse-config`,
   provider: 'nacional' as const,

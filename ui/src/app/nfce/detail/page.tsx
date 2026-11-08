@@ -1,5 +1,6 @@
 'use client';
 
+import {PRINT_FORMATS} from '@/lib/constants/document-formats';
 import {Suspense, useState} from 'react';
 import Link from 'next/link';
 import {useSearchParams} from 'next/navigation';
@@ -50,7 +51,8 @@ function NfceDetail({accessKey}: { accessKey: string }) {
       fetchEvents={() => apiClient.getNfceEvents(accessKey)}
       cancelFn={(j) => apiClient.cancelNfce(accessKey, j)}
       downloadXml={() => apiClient.downloadNfceXml(accessKey)}
-      downloadDanfe={() => apiClient.downloadNfceDanfe(accessKey)}
+      downloadDanfe={(format) => apiClient.downloadNfceDanfe(accessKey, format)}
+      danfeFormats={PRINT_FORMATS.nfce}
       danfeWhilePending
       downloadEventXml={(sk) => apiClient.downloadNfceEventXml(accessKey, sk)}
       headerActions={(doc) =>

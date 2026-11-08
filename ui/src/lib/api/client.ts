@@ -142,6 +142,8 @@ const OPEN_CNPJ_API_URL = 'https://open.cnpja.com';
 const OPEN_CNPJ_DOCUMENT_LENGTH = 14;
 const OPEN_CNPJ_CACHE_TTL_MS = 30 * 60 * 1_000;
 const AUXILIARY_DOCUMENT_TIMEOUT_MS = 12_000;
+const auxiliaryDocumentConfig = (format?: string) =>
+  ({timeout: AUXILIARY_DOCUMENT_TIMEOUT_MS, ...(format ? {params: {format}} : {})});
 
 /** The API answers fast or not at all; a request still open after this is an outage. */
 export const HTTP_TIMEOUT_MS = 5_000;
@@ -951,8 +953,9 @@ class ApiClient {
     return this.get(`/v1.0/nfes/${accessKey}/xml`);
   }
 
-  async downloadNfeDanfe(accessKey: string): Promise<AuxiliaryDocumentDownload> {
-    return this.get(`/v1.0/nfes/${accessKey}/danfe`, {timeout: AUXILIARY_DOCUMENT_TIMEOUT_MS});
+  /** `format` vazio: a API usa o formato do XML (sem `format` na URL). */
+  async downloadNfeDanfe(accessKey: string, format?: string): Promise<AuxiliaryDocumentDownload> {
+    return this.get(`/v1.0/nfes/${accessKey}/danfe`, auxiliaryDocumentConfig(format));
   }
 
   // NFC-es (modelo 65) — same record shape as NF-e, distinct routes
@@ -1000,8 +1003,8 @@ class ApiClient {
     return this.get(`/v1.0/nfces/${accessKey}/events/${encodeURIComponent(eventSk)}/xml`);
   }
 
-  async downloadNfceDanfe(accessKey: string): Promise<AuxiliaryDocumentDownload> {
-    return this.get(`/v1.0/nfces/${accessKey}/danfce`, {timeout: AUXILIARY_DOCUMENT_TIMEOUT_MS});
+  async downloadNfceDanfe(accessKey: string, format?: string): Promise<AuxiliaryDocumentDownload> {
+    return this.get(`/v1.0/nfces/${accessKey}/danfce`, auxiliaryDocumentConfig(format));
   }
 
   // CT-es (modelo 57, rodoviário) — uses Dfe-Organization-Pk header
@@ -1022,6 +1025,11 @@ class ApiClient {
     incoming?: 0 | 1
   }): Promise<PaginatedResponse<CteListOut>> {
     return this.get('/v1.0/ctes', {params});
+  }
+
+  /** DACTE A4 (formato único; sai do XML guardado, inclusive o CT-e offline pendente). */
+  async downloadCteDacte(accessKey: string): Promise<AuxiliaryDocumentDownload> {
+    return this.get(`/v1.0/ctes/${accessKey}/dacte`, auxiliaryDocumentConfig());
   }
 
   async getCte(accessKey: string): Promise<CteDetailOut> {
@@ -1122,8 +1130,8 @@ class ApiClient {
     return this.get(`/v1.0/mdfes/${accessKey}/events/${encodeURIComponent(eventSk)}/xml`);
   }
 
-  async downloadMdfeDamdfe(accessKey: string): Promise<AuxiliaryDocumentDownload> {
-    return this.get(`/v1.0/mdfes/${accessKey}/damdfe`, {timeout: AUXILIARY_DOCUMENT_TIMEOUT_MS});
+  async downloadMdfeDamdfe(accessKey: string, format?: string): Promise<AuxiliaryDocumentDownload> {
+    return this.get(`/v1.0/mdfes/${accessKey}/damdfe`, auxiliaryDocumentConfig(format));
   }
 
   // NFS-e — id é sempre o id_dps (45 chars), nunca a chave de acesso (spec §7 decisão 2)

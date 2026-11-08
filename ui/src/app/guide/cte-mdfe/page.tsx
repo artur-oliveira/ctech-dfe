@@ -126,6 +126,10 @@ export default function GuideCteMdfe() {
           },
           body: (
             <>
+              <p>
+                O botão <b>DAMDFE</b> tem um seletor de formato ao lado: <b>DAMDFE Retrato</b> (padrão) ou{' '}
+                <b>DAMDFE Paisagem</b>, quando a lista de documentos é longa e cabe melhor na horizontal.
+              </p>
               <GuideBullets>
                 <li><b>Incluir condutor</b>: troca de motorista no meio do trajeto.</li>
                 <li>
@@ -314,9 +318,10 @@ export default function GuideCteMdfe() {
           },
           body: (
             <p>
-              O topo traz o status e a chave de acesso (toque para copiar). O DACTE ainda não está
-              disponível, por isso não há botão de PDF. O XML é baixado por evento, na linha de cada
-              um.
+              O topo traz o status e a chave de acesso (toque para copiar). <b>Baixar DACTE</b> gera o
+              PDF em A4 retrato, com o CT-e autorizado ou pendente em contingência offline (o PDF sai do
+              XML guardado). Se o XML ainda não estiver pronto, o aviso pede para tentar de novo em
+              instantes. O XML é baixado por evento, na linha de cada um.
             </p>
           ),
         },

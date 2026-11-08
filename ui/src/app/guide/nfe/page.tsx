@@ -200,12 +200,25 @@ export default function GuideNfe() {
             <>
               <GuideBullets>
                 <li><b>XML</b>: o arquivo assinado e autorizado, o documento fiscal de fato.</li>
-                <li><b>DANFE</b>: o PDF de acompanhamento da mercadoria.</li>
+                <li>
+                  <b>DANFE</b>: o PDF de acompanhamento da mercadoria. O seletor ao lado do botão escolhe o
+                  formato; sem escolha, sai o formato do próprio documento.
+                </li>
                 <li><b>Carta de Correção</b> e <b>Cancelar</b>: eventos, cada um com a sua regra.</li>
               </GuideBullets>
               <p>
                 Código e protocolo de autorização são a prova de que a SEFAZ aceitou. Guarde o XML:
                 é ele, não o DANFE, que vale como documento fiscal.
+              </p>
+              <GuideBullets>
+                <li><b>DANFE Retrato A4</b>: o padrão para arquivar e entregar com a mercadoria.</li>
+                <li><b>DANFE Paisagem A4</b>: para notas com muitas colunas ou muitos itens.</li>
+                <li><b>Simplificado (bobina)</b>: cupom para impressora térmica de 80 mm, para entrega rápida.</li>
+                <li><b>Etiqueta</b>: para colar no volume, útil no envio de loja virtual.</li>
+              </GuideBullets>
+              <p>
+                O simplificado e a etiqueta não existem para NF-e emitida em EPEC, então somem da lista nesse caso.
+                Se um formato for recusado, o aviso diz o motivo e basta escolher outro.
               </p>
             </>
           ),

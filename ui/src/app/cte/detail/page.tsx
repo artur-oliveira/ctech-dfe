@@ -16,6 +16,8 @@ import {ContingencyBadge, ContingencyNotice} from '@/components/dfe/ContingencyN
 import {CopyableCode} from '@/components/ui/copyable-code';
 import {Pagination} from '@/components/ui/pagination';
 import {TableShell, TABLE_ROW, TABLE_CELL} from '@/components/ui/table-shell';
+import {DownloadPdfButton} from '@/components/dfe/DownloadPdfButton';
+import {CONTINGENCY_PENDING} from '@/lib/contingency';
 import {MdfeSefazStatus} from '@/components/mdfe/MdfeSefazStatus';
 import {useCteActions} from '@/components/cte/CteActions';
 import {CTE_EVENT, CTE_STATUS_AUTHORIZED, CTE_TAKER_LABELS} from '@/lib/constants/cte';
@@ -102,6 +104,10 @@ function CteDetail({accessKey}: { accessKey: string }) {
         <div className="flex flex-wrap items-center gap-2">
           <DfeStatusBadge status={doc.status} gender="m" size="md"/>
           <ContingencyBadge state={doc.contingency_state} male size="md"/>
+          {(authorized || doc.contingency_state === CONTINGENCY_PENDING) && (
+            <DownloadPdfButton fetchPdf={() => apiClient.downloadCteDacte(accessKey)} label="Baixar DACTE" variant="outline"
+                               className={`${ACTION_BTN} text-brand-600 border-brand-200 hover:bg-brand-50`}/>
+          )}
         </div>
       </div>
 
