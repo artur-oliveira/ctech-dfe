@@ -13,7 +13,7 @@ const REASON = 'SEFAZ do estado fora do ar desde as 10h';
 const NFE_CFG = {emission_type: 'normal' as const, emission_options: ['normal', 'svc', 'epec'] as ('normal' | 'svc' | 'epec')[], auto_contingency: false};
 
 async function pick(name: RegExp) {
-  await userEvent.click(screen.getByRole('combobox', {name: /Como a/}));
+  await userEvent.click(screen.getByRole('combobox', {name: /Forma de emissão atual de/}));
   await userEvent.click(await screen.findByRole('option', {name}));
 }
 
@@ -25,7 +25,7 @@ describe('EmissionSection', () => {
 
   it('lista só as opções de emission_options, com o SVC explicado', () => {
     render(<EmissionSection doc="nfe" pk="1" config={NFE_CFG}/>);
-    fireEvent.click(screen.getByRole('combobox', {name: /Como a/}));
+    fireEvent.click(screen.getByRole('combobox', {name: /Forma de emissão atual de/}));
     expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual([
       'Normal', 'Contingência SVC (SVC-AN ou SVC-RS conforme a UF)', 'EPEC',
     ]);

@@ -162,7 +162,7 @@ export function contingencyFailure(
   if (detail.includes(SVC_WITHOUT_UF)) {
     return {
       message: 'A UF da sua empresa não tem SVC designada para este documento. Escolha outra forma de emissão ou volte para Normal.',
-      action: {label: `Abrir configuração da ${DOC_LABELS[doc]}`, href: fiscalConfigHref(doc)},
+      action: {label: `Abrir configuração de ${DOC_LABELS[doc]}`, href: fiscalConfigHref(doc)},
     };
   }
   return null;

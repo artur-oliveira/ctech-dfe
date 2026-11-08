@@ -148,14 +148,14 @@ function FiscalConfigContent() {
                 {/* Sem configuração gravada o PUT de emissão não tem o que alterar (404). */}
                 {EMISSION_DOCS.includes(activeTab as EmissionDoc) && active.query.config && (
                   <EmissionSection
-                    key={activeTab}
+                    key={`emission-${activeTab}`}
                     doc={activeTab as EmissionDoc}
                     pk={pk}
                     config={active.query.config as EmissionFields}
                   />
                 )}
                 <FiscalConfigForm
-                  key={activeTab}
+                  key={`form-${activeTab}`}
                   variant={activeTab}
                   initialData={active.query.config ?? null}
                   onSave={async (data) => {

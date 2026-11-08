@@ -80,7 +80,7 @@ export function EmissionSection({doc, pk, config}: EmissionSectionProps) {
 
       <div>
         <label htmlFor={`${doc}-emission-type`} className="mb-1.5 block text-sm font-medium text-gray-700">
-          Como a {DOC_LABELS[doc]} é emitida agora
+          Forma de emissão atual de {DOC_LABELS[doc]}
         </label>
         <OptionsSelect
           id={`${doc}-emission-type`}
