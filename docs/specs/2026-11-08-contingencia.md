@@ -82,14 +82,89 @@ rodada é lido como `emission_type` e removido na primeira escrita nova (sem mig
 
 A SVC só funciona se a SEFAZ de origem a ativou (`107`); detecção automática (seção 4.1) usa `NfeStatusServico`.
 
-### 4.1 Detecção automática (fatia E)
+### 4.1 Detecção automática (fatia E; desenho final de 2026-11-08)
 
-Sinal: falha de transporte/timeout, ou `cStat` 108/109 (paralisado) do serviço de status/autorização do autorizador
-normal. Limiar tipo disjuntor: N falhas consecutivas (constante) numa janela curta; retornos 2xx de negócio (rejeição
-de documento) **não** contam. Ao abrir: mudar `emission_type` para a opção automática do documento (NF-e e CT-e `svc`
-se a SVC responde `107`, senão `epec`/`offline`; NFC-e e MDF-e `offline`), gravar `contingency_since`, regerar e
-emitir, alertar via go-common `alerts`. Saída: status do autorizador normal saudável em M consultas seguidas, volta a
-`normal` e `contingency_since` nulo. Só quando `auto_contingency` está ligada.
+Estado: a lógica de decisão e as guardas existem e estão testadas (`api/internal/services/autocontingency`); a troca em
+si está **desligada** pela constante `autocontingency.SwitchEnabled = false`. Nada liga por padrão: `auto_contingency`
+(padrão `false`) hoje só guarda a escolha do dono. A lista do que falta para ligar está no fim desta seção.
+
+**Configuração.** `auto_contingency` (bool) mais `auto_contingency_type` (`svc`, `epec` ou `offline`): a contingência que
+o dono escolhe para a troca automática, validada contra `emission_options` do documento (sem `normal`). Obrigatória com
+`auto_contingency` ligada (422 `auto_contingency_type_required`; 422 `auto_contingency_type_invalid` se não é uma
+contingência do documento, por exemplo `offline` na NF-e ou `svc` no MDF-e); removida da linha quando a bandeira desliga.
+O sistema nunca troca para um tipo que o dono não escolheu: se a SVC escolhida também está fora (status da SVC diferente de
+107), não há troca automática para EPEC; fica o alerta. Alvos por documento: NF-e `svc` ou `epec`; NFC-e `offline`;
+CT-e `offline` ou `svc`; MDF-e `offline`.
+
+**1. Sinais de "autorizador indisponível"** (`autocontingency.Classify`). Contam: falha de transporte ou timeout na chamada
+ao egress, status HTTP 408 ou 5xx do autorizador, falha SOAP (fault), `cStat` 108 (paralisado momentaneamente) e 109
+(paralisado sem previsão), tanto na resposta do serviço de status quanto na da autorização. **Não** contam: qualquer
+resposta de negócio, inclusive rejeição do documento (o autorizador respondeu, logo está de pé; conta como saudável), e
+429. Limiar: `FailureThreshold` = 3 falhas **consecutivas** dentro de `FailureWindow` = 2 min abrem o disjuntor; uma resposta
+saudável zera a contagem; falhas fora da janela não somam.
+
+**2. Onde a decisão roda.** Três papéis, por ordem de segurança:
+- *Detecção* (worker): é o único que vê as respostas reais do egress; alimenta o disjuntor. Uma sonda agendada (a cada
+  minuto, só para quem tem `auto_contingency` ligada) chama o serviço de status do autorizador normal (`NfeStatusServico`,
+  `CTeStatusServico`, `MDFeStatusServico`; exige o certificado da empresa, por isso é por empresa e documento).
+  O estado do disjuntor (`closed`/`open`, falhas, abertura, sequência de sondas) mora na linha de configuração do
+  documento, escrito só pelo worker, nunca por `PUT /{x}-config`.
+- *Pré-checagem na API* (**caminho principal e seguro**): `Emit` já lê a configuração. Com o disjuntor aberto, a bandeira
+  ligada, o tipo escolhido e `emission_type=normal`, a API grava `emission_type` = o tipo escolhido,
+  `contingency_since` e `contingency_auto=true` (condicional) e emite **a primeira e única vez** já na contingência
+  (nova chave, novo `cNF`, `dhCont`/`xJust`, assinatura). Nada saiu antes com `tpEmis` 1 para aquele número, logo não há
+  risco de duplicidade.
+- *Reação a emissão em voo* (worker, documento cuja tentativa normal falhou): alimenta o disjuntor e **não regera**. O
+  documento segue pelo reenvio idempotente de sempre (mesma chave; 204 reconcilia). Regerar um documento em voo é o caso
+  de risco (próximo item) e fica fora desta rodada.
+
+**3. Risco de duplicidade ao regerar um documento em voo.** A tentativa original (`tpEmis` 1) pode ter chegado à SEFAZ sem
+que a resposta voltasse. Como `tpEmis` está na chave, o regerado tem **outra chave com a mesma série e número**: os dois
+poderiam ser autorizados. Duas defesas, e nenhuma basta sozinha:
+- *Prova por consulta* (`autocontingency.ProveOriginal`/`Reissue`): antes de regerar, consulta por chave do original
+  (`NfeConsultaProtocolo` e equivalentes). Autorizado (100/150): o original **é** o documento; nada é regerado (adota-se
+  o original). Cancelado ou denegado (101/151/155/110): o número foi consumido; não regera, alerta. "Não consta" (217)
+  só prova depois de `InFlightQuarantine` = 10 min do último envio (um pedido preso em timeout pode chegar tarde à SEFAZ;
+  antes disso o 217 não vale). Qualquer outra resposta, ou a consulta falhar: **sem prova**.
+- *A regra 539 da SEFAZ* ("duplicidade de NF-e com diferença na chave", mesmo emitente, série e número com outra chave) é
+  simétrica: ela recusa o segundo documento autorizado, seja o regerado (se o original chegou primeiro) ou o original
+  tardio. Ela impede a autorização dupla, mas não impede o regerado ficar rejeitado com o original autorizado sem que o
+  sistema saiba. Por isso o regerado carrega `reissued_from` (a chave original) e uma rejeição 539 nele dispara a consulta
+  da **chave original** (hoje o worker só reconcilia o 204 pela chave do próprio documento): autorizada, o original vence e
+  o regerado é descartado. Texto e escopo da 539 por modelo: **não relidos no MOC nesta rodada (não verificado)**.
+
+**Sem prova possível (consulta também falha): opção segura.** Não regerar; o documento original permanece pendente e sai
+um alerta (go-common `alerts`). Motivo: o dano é assimétrico. Esperar atrasa uma nota, mas o reenvio idempotente do
+original continua valendo e nada fiscal é criado; regerar às cegas pode produzir duas notas válidas para o mesmo número, e
+corrigir isso exige cancelamento com prazo e efeito fiscal para o cliente.
+
+**4. Volta ao normal** (`ShouldReturn`). Só se a contingência foi aberta pela troca automática (`contingency_auto`); uma
+contingência escolhida pelo dono nunca é desfeita pelo sistema. O disjuntor aberto só considera sondas (documentos
+emitidos em contingência nada dizem sobre o autorizador normal). Histerese: depois de `CoolDown` = 5 min aberto, são
+necessárias `RecoveryProbes` = 3 sondas saudáveis **consecutivas**; uma sonda ruim zera a sequência (evita o vai e vem).
+Ao fechar: `emission_type` volta a `normal` e `contingency_since`/justificativa são removidos (mesmo caminho de
+`SetEmission`), e os documentos offline/EPEC pendentes continuam sendo reenviados pela rotina de 15 min da seção 6.
+
+**Para a UI:** campo `auto_contingency_type` no PUT e no GET da configuração; problemas 422
+`auto_contingency_type_required` e `auto_contingency_type_invalid`; `AUTO_CONTINGENCY_AVAILABLE` deve continuar falso até
+`SwitchEnabled` ligar. Previsto, ainda não gravado: `contingency_auto` (bool) e o estado do disjuntor na configuração.
+
+**O que falta para ligar (`SwitchEnabled`):** (a) escrita do disjuntor pelo worker e a sonda agendada (infra no `cdk/`,
+Scheduler a cada minuto); (b) a pré-checagem em `Emit` com a gravação condicional de `emission_type`/`contingency_auto`;
+(c) a volta ao normal pela sonda; (d) para regerar documento em voo: guardar o pedido original (S3 sob o prefixo do
+documento, só com a bandeira ligada), `reissued_from` e a reconciliação da 539 pela chave original no worker; (e) alerta
+via go-common `alerts`. Sem (d) o caminho principal (pré-checagem) já é seguro e basta para ligar.
+
+### 4.2 Decisões do dono sobre a contingência automática (2026-11-08)
+
+1. Vale só para **emissões novas**: documento em voo fica pendente, não é regerado (a regeração de documento em voo,
+   com `reissued_from` e reconciliação do 539, fica para depois e não bloqueia ligar o interruptor).
+2. Parâmetros mantidos: quarentena de 10 minutos para o 217, espera de 5 minutos e 3 sondagens saudáveis seguidas para
+   voltar ao normal, disjuntor de 3 falhas em 2 minutos.
+3. O sistema **pode** cair de SVC para EPEC sozinho (NF-e), quando o SVC também estiver indisponível: leitura de "sim"
+   do dono à pergunta "deve alguma vez cair sozinho de SVC para EPEC?". Ainda não implementado; o desenho precisa de uma
+   ordem de preferência explícita (o tipo escolhido em `auto_contingency_type` primeiro, depois o seguinte da cadeia) e
+   de um limite para não alternar entre os dois.
 
 ## 5. Modelo de dados dos documentos
 
@@ -199,13 +274,13 @@ da assinatura do XML; **não usa**. O que os documentos dizem:
 | go-dfe: SVC-AN/SVC-RS, UF para SVC, `Request.Contingency`, `dfe.SVCFor` | feito |
 | NF-e SVC: `tpEmis` 6/7, `dhCont`/`xJust`, roteamento, cancelamento na SVC de origem | feito |
 | B: modelo de configuração por documento, endpoints `*-emission`, validação, `contingency_since` | feito |
-| C: EPEC da NF-e | parcial: construtor do 110140, validação e prazo (`nfes/epec.go`), rota AN; falta serviço/rota de emissão e o tratamento no worker |
+| C: EPEC da NF-e | feito (2026-11-08): `nfe/SignOnly` no egress, emissão `tpEmis` 4 (`nfes/epec_emit.go`), evento 110140 pelo outbox, `awaiting_epec`, worker arma só com o evento registrado (135/136/573) e rejeita sem armar, pré-validação 121/228; opção `epec` ativa só na NF-e. Não verificado: textos de 121/142/228 no MOC |
 | D1: MDF-e offline (`tpEmis` 2): sem `dhCont`/`xJust` (leiaute), QR Code com `sign` (RSA SHA-1 da chave, `mdfe/SignText`), XML assinado guardado (`mdfe/SignOnly`), DAMDFE com EMISSÃO EM CONTINGÊNCIA no lugar do protocolo, prazo 168 h do MOC | feito |
 | D2: CT-e offline (`tpEmis` 2): `dhCont`/`xJust`, QR Code com `sign`, `cte/SignOnly`, 168 h, 150 fora do prazo | feito |
 | D3: CT-e SVC-RS/SVC-SP (`tpEmis` 7/8): endpoints, `dfe.SVCForCTe`, chave e `ide` sem `dhCont`/`xJust`, QR Code sem `sign`, cancelamento na mesma SVC | feito; **UF para SVC e URLs não verificadas** |
 | D4: classificação tardia: 150 do CT-e confirmado (G103); MDF-e sem cStat tardio no MOC (100 fora do prazo é sucesso; 150 do MDF-e não verificado) | feito |
 | DACTE | não há renderizador de DACTE no repositório: contingência (texto e QR com `sign`) só especificada aqui |
-| E: contingência automática | ver relatório da rodada |
+| E: contingência automática | desenho final na seção 4.1; `auto_contingency_type` (campo, validação e problemas) e a lógica de decisão (`autocontingency`: sinais, disjuntor com histerese, prova de duplicidade, `Reissue`) feitos e testados; **troca desligada** (`SwitchEnabled = false`); falta o que a seção 4.1 lista |
 | F: retransmissão (worker + cdk) | parcial: `contingency-index`, dispatcher a cada 15 min, worker com `Classify` e marcação de vencido; falta o reenvio pelo egress (depende de D) |
 | G: DANFC-e de duas vias | feito (fatia 5, seção 9.3) |
 
