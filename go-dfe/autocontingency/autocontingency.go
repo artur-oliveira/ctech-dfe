@@ -5,9 +5,9 @@
 // the re-issue. It is pure (no AWS, no clock but the one passed in) so the
 // table tests cover flapping and the duplication proof.
 //
-// The actual switch is OFF: SwitchEnabled is false. See the spec for what is
-// missing before it can be enabled (health store written by the worker, the
-// probe schedule, and the stored original request).
+// The actual switch is OFF: SwitchEnabled is false. The breaker store, the probe,
+// the API pre-check and the return to normal are wired (spec 4.1.1) and all gated by it;
+// still missing before it is enabled: owner sign-off and a run against a real authorizer.
 package autocontingency
 
 import (
@@ -17,9 +17,9 @@ import (
 )
 
 const (
-	// SwitchEnabled is the master switch of the automatic switch of the emission type. It stays false until
-	// the pieces listed in the spec (4.1, "O que falta para ligar") exist; auto_contingency on a configuration
-	// only stores the owner's choice meanwhile.
+	// SwitchEnabled is the master switch of the automatic switch of the emission type (feature flag). It stays
+	// false by default; auto_contingency on a configuration only stores the owner's choice meanwhile. Consumers
+	// (api services, worker service, dispatcher) read it through a local variable so tests can turn it on.
 	SwitchEnabled = false
 
 	// FailureThreshold consecutive unavailable answers within FailureWindow open the breaker.

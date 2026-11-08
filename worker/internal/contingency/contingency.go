@@ -49,8 +49,23 @@ const (
 // Tables are the document tables the sweep covers, without the table prefix.
 var Tables = []string{"nfes", "nfces", "mdfes", "ctes"}
 
+// Automatic contingency probe (spec 4.1): the sparse index of the fiscal configuration tables that lists the rows
+// with auto_contingency on. Mirrors api/internal/repositories (AttrAutoSweep, AutoSweepIndex).
+const (
+	AutoIndexName  = "auto-contingency-index"
+	AutoSweepAttr  = "auto_sweep"
+	AutoSweepValue = "1"
+	// KindProbe marks a Job as a health probe of a configuration row (Table is the configuration table without
+	// the prefix, PK the organization); the default kind is the retransmission of a document.
+	KindProbe = "probe"
+)
+
+// ConfigTables are the fiscal configuration tables the probe covers, without the table prefix.
+var ConfigTables = []string{"organization_nfe_configs", "organization_nfce_configs", "organization_cte_configs", "organization_mdfe_configs"}
+
 // Job is the payload the dispatcher sends to the retransmission worker.
 type Job struct {
+	Kind  string `json:"kind,omitempty"`
 	Table string `json:"table"`
 	PK    string `json:"pk"`
 	SK    string `json:"sk"`

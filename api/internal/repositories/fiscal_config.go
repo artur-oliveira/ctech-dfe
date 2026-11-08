@@ -66,6 +66,17 @@ const (
 	AttrContingencyReason   = "contingency_reason" // xJust
 	AttrContingencyMode     = "contingency_mode"   // legacy
 
+	// AttrContingencyAuto (BOOL) is true while the row is in contingency because the automatic switch put it
+	// there (only then does the breaker bring it back; a manual choice is never undone). Written by the
+	// pre-check, the worker and SetEmission only.
+	AttrContingencyAuto = "contingency_auto"
+	// AttrAutoBreaker is the circuit breaker state (autocontingency.Encode), written only by the worker.
+	AttrAutoBreaker = "auto_breaker"
+	// AttrAutoSweep marks (with "1") the rows whose auto_contingency is on: the sparse AutoSweepIndex lists them
+	// for the health probe without a Scan. Removed with the flag.
+	AttrAutoSweep  = "auto_sweep"
+	AutoSweepIndex = "auto-contingency-index"
+
 	EmissionNormal  = "normal"
 	EmissionSVC     = "svc"
 	EmissionEPEC    = "epec"
@@ -73,7 +84,7 @@ const (
 )
 
 // emissionAttrs are the fields a configuration PUT must never change.
-var emissionAttrs = []string{"emission_options", AttrEmissionType, AttrAutoContingency, AttrAutoContingencyType, AttrContingencySince, AttrContingencyReason, AttrContingencyMode}
+var emissionAttrs = []string{"emission_options", AttrEmissionType, AttrAutoContingency, AttrAutoContingencyType, AttrContingencySince, AttrContingencyReason, AttrContingencyMode, AttrContingencyAuto, AttrAutoBreaker, AttrAutoSweep}
 
 // EmissionTypeOf is the current emission type of a configuration row, reading
 // the legacy contingency_mode when emission_type is absent.
@@ -316,12 +327,16 @@ func (r *FiscalConfigRepository) SetEmission(ctx context.Context, orgPK, emissio
 		":t": &types.AttributeValueMemberS{Value: emissionType},
 		":a": &types.AttributeValueMemberBOOL{Value: auto},
 	}
-	set, remove := "#t = :t, #a = :a", "#l"
+	// A manual write ends any automatic contingency (contingency_auto is only set by the automatic switch).
+	names["#ca"], names["#as"] = AttrContingencyAuto, AttrAutoSweep
+	set, remove := "#t = :t, #a = :a", "#l, #ca"
 	if auto && autoType != "" {
-		set += ", #at = :at"
+		set += ", #at = :at, #as = :sw"
 		values[":at"] = &types.AttributeValueMemberS{Value: autoType}
+		values[":sw"] = &types.AttributeValueMemberS{Value: SweepValue}
 	} else {
-		remove += ", #at"
+		names["#ab"] = AttrAutoBreaker // unused names are rejected by DynamoDB: add it only where it is referenced
+		remove += ", #at, #as, #ab"
 	}
 	if emissionType == EmissionNormal {
 		remove += ", #s, #r"
@@ -339,4 +354,32 @@ func (r *FiscalConfigRepository) SetEmission(ctx context.Context, orgPK, emissio
 		ExpressionAttributeValues: values,
 	})
 	return err
+}
+
+// SwitchAuto is the automatic switch (API pre-check): normal -> target, only if the row is still in normal
+// emission with auto_contingency on, so two concurrent emissions switch once and a manual PUT in between wins.
+// Reports whether this call performed the switch.
+func (r *FiscalConfigRepository) SwitchAuto(ctx context.Context, orgPK, target string, since time.Time, reason string) (bool, error) {
+	_, err := r.UpdateItemRaw(ctx, &dynamodb.UpdateItemInput{
+		Key: map[string]types.AttributeValue{"pk": &types.AttributeValueMemberS{Value: orgPK}},
+		ConditionExpression: aws.String("attribute_exists(pk) AND #a = :true AND (attribute_not_exists(#t) OR #t = :normal) " +
+			"AND attribute_not_exists(#l)"),
+		UpdateExpression: aws.String("SET #t = :target, #s = :s, #r = :r, #ca = :true"),
+		ExpressionAttributeNames: map[string]string{"#t": AttrEmissionType, "#a": AttrAutoContingency, "#s": AttrContingencySince,
+			"#r": AttrContingencyReason, "#ca": AttrContingencyAuto, "#l": AttrContingencyMode},
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":true":   &types.AttributeValueMemberBOOL{Value: true},
+			":normal": &types.AttributeValueMemberS{Value: EmissionNormal},
+			":target": &types.AttributeValueMemberS{Value: target},
+			":s":      &types.AttributeValueMemberS{Value: since.UTC().Format(time.RFC3339)},
+			":r":      &types.AttributeValueMemberS{Value: reason},
+		},
+	})
+	if err != nil {
+		if IsConditionFailed(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
 }

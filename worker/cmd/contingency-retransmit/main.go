@@ -45,8 +45,11 @@ func main() {
 		Lambda: lambdaSDK.NewFromConfig(ac, func(o *lambdaSDK.Options) { o.Region = cfg.DfeEgressRegion }),
 		Dynamo: db,
 		SNS:    sns.NewFromConfig(ac),
-	}, cfg)
+	}, cfg).WithAlerter(boot.Alerts(rootCtx, "contingency-retransmit"))
 	lambda.StartWithOptions(func(ctx context.Context, j contingency.Job) error {
+		if j.Kind == contingency.KindProbe { // health probe of the automatic contingency (spec 4.1)
+			return svc.Probe(ctx, service.ProbeJob{Table: j.Table, PK: j.PK})
+		}
 		return handle(ctx, cfg.TablePrefix, db, svc, j, time.Now())
 	}, lambda.WithContext(rootCtx))
 }

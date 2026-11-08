@@ -271,6 +271,24 @@ const addSweepIndex = (table: dynamodb.TableV2) => {
 }
 
 /**
+ * Sparse probe index (`auto-contingency-index`): only the fiscal configuration rows with `auto_contingency` on
+ * carry `auto_sweep = "1"` (written with the flag by the emission endpoint, removed with it). The contingency
+ * dispatcher lists them with one Query to run the health probe of the automatic contingency, so a company that
+ * did not turn it on costs nothing. KEYS_ONLY: the probe reads the row itself.
+ * docs/specs/2026-11-08-contingencia.md section 4.1.
+ */
+const addAutoContingencyIndex = (table: dynamodb.TableV2) => {
+  table.addGlobalSecondaryIndex({
+    indexName: 'auto-contingency-index',
+    partitionKey: {name: 'auto_sweep', type: dynamodb.AttributeType.STRING},
+    projectionType: dynamodb.ProjectionType.KEYS_ONLY,
+    warmThroughput: undefined,
+    maxReadRequestUnits: 1000,
+    maxWriteRequestUnits: 1000,
+  });
+}
+
+/**
  * Sparse retransmission index (`contingency-index`): only documents issued in EPEC or
  * offline contingency and not yet reconciled carry `contingency_sweep = "1"`, so the
  * index holds the backlog (normally zero rows) and costs nothing at rest. Sorted by
@@ -713,17 +731,21 @@ export class DynamoDBStack extends cdk.Stack {
 
     const nfeConfigTable = getDfeConfigTable(this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'nfe_configs');
     addSweepIndex(nfeConfigTable);
+    addAutoContingencyIndex(nfeConfigTable);
     this.tables.set('nfe_configs', nfeConfigTable);
 
     const nfceConfigTable = getDfeConfigTable(this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'nfce_configs');
+    addAutoContingencyIndex(nfceConfigTable);
     this.tables.set('nfce_configs', nfceConfigTable);
 
     const cteConfigTable = getDfeConfigTable(this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'cte_configs');
     addSweepIndex(cteConfigTable);
+    addAutoContingencyIndex(cteConfigTable);
     this.tables.set('cte_configs', cteConfigTable);
 
     const mdfeConfigTable = getDfeConfigTable(this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'mdfe_configs');
     addSweepIndex(mdfeConfigTable);
+    addAutoContingencyIndex(mdfeConfigTable);
     this.tables.set('mdfe_configs', mdfeConfigTable);
 
     const nfseConfigTable = getDfeConfigTable(this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'nfse_configs');

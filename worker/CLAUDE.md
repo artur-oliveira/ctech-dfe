@@ -132,6 +132,20 @@ Every change that alters behavior, a contract or an operational rule updates the
 
 Delivery design, resilience table and queue drain runbook: `../docs/specs/2026-11-02-sns-lambda-worker-delivery.md`.
 
+## Automatic contingency: breaker and probe (`internal/service/breaker.go`, `probe.go`; spec 4.1)
+
+All of it is behind `autocontingency.SwitchEnabled` (`false`; `switchEnabled` in tests): off means no read, no write, no egress call.
+- `observeAuth` (called from `Process`) feeds the breaker with the real answer of a first normal authorization (`tpEmis` 1, no SVC route,
+  not an event, not NFS-e, environment equal to the config row's). `Classify` decides what counts; business answers, 429 and egress 4xx never do.
+- `Probe` (`cmd/contingency-retransmit`, payload `Job{kind:"probe"}` from the dispatcher, one per row of the sparse `auto-contingency-index`):
+  reads the row (stale index entry or flag off: nothing), skips inside the 5 min cool-down, then a burst of up to 3 status calls through the
+  egress, `ProbeGap` apart. No egress call and no write when the switch is off.
+- State: `auto_breaker` on the fiscal config row, compare-and-swap (`casBreaker`); closing the breaker also returns the row to `normal`
+  (removing `contingency_since`, `contingency_reason`, `contingency_auto`) in the same `UpdateItem`, only when `contingency_auto` is true.
+- Alerts (go-common, `WithAlerter`): when the breaker opens and when it closes; ids only. IAM: `breakerConfigTables` (GetItem/UpdateItem on
+  the config tables) and `readTables` (certificate, organization) in `cdk/lib/worker-definitions.ts`; the nfe/cte/mdfe emission workers and the
+  retransmit worker have them. No new schedule or Lambda.
+
 ## Contingency retransmission (`cmd/contingency-retransmit`)
 
 Sends the document's stored `contingency_msg` (a `WorkerMessage` whose body is `{"@signed_xml": ...}`) through

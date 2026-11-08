@@ -140,6 +140,7 @@ func (s *NfceService) Emit(ctx context.Context, orgPK string, req NfceEmitBody, 
 		return nil, err
 	}
 	// C0: ver o comentário equivalente em emit.go.
+	configItem = services.PrecheckAutoContingency(ctx, s.configRepo, services.ModelNFCe, orgPK, emitUF, configItem, time.Now())
 	mode, offline, err := resolveNFCeEmission(configItem)
 	if err != nil {
 		return nil, err

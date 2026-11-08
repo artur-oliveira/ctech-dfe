@@ -228,6 +228,7 @@ func (s *CteService) persist(ctx context.Context, orgPK string, cfg map[string]t
 	currentNumber := intAttr(cfg, envPrefix+"_current_number", 0)
 	now := time.Now()
 	// tpEmis está na chave: a forma de emissão (normal, off-line 2, SVC 7/8) vem antes dela.
+	cfg = services.PrecheckAutoContingency(ctx, s.configRepo, services.ModelCTe, orgPK, emit.Addr.UF, cfg, now)
 	em, err := resolveCTeEmission(cfg, emit.Addr.UF)
 	if err != nil {
 		return nil, err

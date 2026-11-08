@@ -75,6 +75,9 @@ func (s *fiscalConfigService) withEmission(item map[string]types.AttributeValue)
 		out[repositories.AttrAutoContingency] = &types.AttributeValueMemberBOOL{Value: false}
 	}
 	delete(out, repositories.AttrContingencyMode)
+	// Worker bookkeeping of the automatic contingency, not part of the configuration the UI edits.
+	delete(out, repositories.AttrAutoBreaker)
+	delete(out, repositories.AttrAutoSweep)
 	// The options valid for this document, so the UI lists them without a copy of the rule.
 	opts := make([]types.AttributeValue, 0, len(emissionOptions[s.emissionModel]))
 	for _, o := range emissionOptions[s.emissionModel] {

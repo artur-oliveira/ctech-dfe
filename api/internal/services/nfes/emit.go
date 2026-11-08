@@ -475,6 +475,7 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 
 	// C0: a forma de emissão é resolvida antes da chave (tpEmis está na chave).
 	// Normal, ou SVC quando a organização abriu a janela de contingência.
+	configItem = services.PrecheckAutoContingency(ctx, s.configRepo, services.ModelNFe, orgPK, emitUF, configItem, time.Now())
 	mode, svcAuthorizer, err := resolveNFeEmission(configItem, emitUF)
 	if err != nil {
 		return nil, err

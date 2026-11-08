@@ -22,6 +22,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sns"
 
 	"gopkg.aoctech.app/api-commons/alerts"
+	"gopkg.aoctech.app/dfe/go-dfe/autocontingency"
 	"gopkg.aoctech.app/dfe/worker/internal/config"
 )
 
@@ -70,6 +71,9 @@ type DfeService struct {
 	// ssm and alerter serve the CIOT path only (WithCiot); alerter defaults to the no-op publisher.
 	ssm     SSMClient
 	alerter alerts.Publisher
+	// clock and pause serve the circuit breaker and the probe (breaker.go, probe.go); nil is the real one.
+	clock func() time.Time
+	pause func(context.Context, time.Duration)
 }
 
 // New creates a new DfeService.
@@ -342,6 +346,7 @@ func (s *DfeService) Process(ctx context.Context, msg WorkerMessage) error {
 
 	lambdaResp, err := s.invokeEgress(ctx, egressPayload)
 	if err != nil {
+		s.observeAuth(ctx, msg, autocontingency.Observation{TransportErr: true})
 		cause := fmt.Errorf("sefaz call: %w", err)
 		return s.markRetryable(ctx, msg, "sefaz invocation error: "+err.Error(), cause)
 	}
@@ -349,6 +354,7 @@ func (s *DfeService) Process(ctx context.Context, msg WorkerMessage) error {
 	slog.Info("sefaz response", "status_code", lambdaResp.StatusCode, "access_key", msg.AccessKey)
 
 	if lambdaResp.StatusCode != 200 {
+		s.observeAuth(ctx, msg, autocontingency.Observation{HTTPStatus: lambdaResp.StatusCode})
 		detail := "egress error"
 		var bodyMap map[string]any
 		if json.Unmarshal([]byte(lambdaResp.Body), &bodyMap) == nil {
@@ -370,6 +376,8 @@ func (s *DfeService) Process(ctx context.Context, msg WorkerMessage) error {
 		cause := fmt.Errorf("parse lambda body: %w", err)
 		return s.markRetryable(ctx, msg, motive, cause)
 	}
+
+	s.observeAuth(ctx, msg, autocontingency.Observation{CStat: strVal(findValue(respBody, "cStat"))})
 
 	if isNfse(msg.DocType) {
 		if err := s.handleNfseResponse(ctx, msg, respBody); err != nil {

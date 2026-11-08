@@ -17,6 +17,7 @@ import (
 	lambdaSDK "github.com/aws/aws-sdk-go-v2/service/lambda"
 	lambdaTypes "github.com/aws/aws-sdk-go-v2/service/lambda/types"
 
+	"gopkg.aoctech.app/dfe/go-dfe/autocontingency"
 	"gopkg.aoctech.app/dfe/worker/internal/boot"
 	"gopkg.aoctech.app/dfe/worker/internal/ciotalert"
 	"gopkg.aoctech.app/dfe/worker/internal/config"
@@ -38,6 +39,9 @@ func main() {
 	alerter := boot.Alerts(rootCtx, "contingency-dispatcher")
 	lambda.StartWithOptions(func(ctx context.Context, _ json.RawMessage) error {
 		ciotalert.Sweep(ctx, db, alerter, cfg.TablePrefix, time.Now().UTC()) // logs its own failures; never blocks the retransmissions
+		if autocontingency.SwitchEnabled {                                   // off: the index is not even queried
+			dispatchProbes(ctx, cfg, db, lc)
+		}
 		return dispatch(ctx, cfg, db, lc)
 	}, lambda.WithContext(rootCtx))
 }
@@ -73,16 +77,54 @@ func dispatch(ctx context.Context, cfg *config.Config, db querier, inv invoker) 
 	return nil
 }
 
+// dispatchProbes invokes the retransmission worker once per configuration row with the automatic contingency on
+// (health probe, spec 4.1). The sparse auto-contingency-index lists them; nothing is queried for the others.
+func dispatchProbes(ctx context.Context, cfg *config.Config, db querier, inv invoker) {
+	for _, t := range contingency.ConfigTables {
+		rows, err := queryIndex(ctx, db, cfg.TablePrefix+"_"+t, contingency.AutoIndexName, contingency.AutoSweepAttr, contingency.AutoSweepValue)
+		if err != nil {
+			slog.Error("failed to list auto-contingency index", "table", t, "err", err)
+			continue
+		}
+		for _, r := range rows {
+			if r.PK == "" {
+				continue
+			}
+			body, _ := json.Marshal(contingency.Job{Kind: contingency.KindProbe, Table: t, PK: r.PK})
+			if _, err := inv.Invoke(ctx, &lambdaSDK.InvokeInput{
+				FunctionName: &cfg.ContingencyFunctionName, InvocationType: lambdaTypes.InvocationTypeEvent, Payload: body,
+			}); err != nil {
+				slog.Error("failed to invoke probe", "table", t, "pk", r.PK, "err", err)
+			}
+		}
+	}
+}
+
 // pending pages through the whole index (it holds only unreconciled documents,
 // so it is bounded by the contingency backlog, not by the table).
 func pending(ctx context.Context, db querier, table string) ([]contingency.Job, error) {
+	rows, err := queryIndex(ctx, db, table, contingency.IndexName, contingency.SweepAttr, contingency.SweepValue)
+	if err != nil {
+		return nil, err
+	}
+	jobs := rows[:0]
+	for _, r := range rows {
+		if r.PK != "" && r.SK != "" {
+			jobs = append(jobs, r)
+		}
+	}
+	return jobs, nil
+}
+
+// queryIndex lists the (pk, sk) of one sparse index partition; sk is empty on tables keyed by pk only.
+func queryIndex(ctx context.Context, db querier, table, index, attr, value string) ([]contingency.Job, error) {
 	var jobs []contingency.Job
 	in := &dynamodb.QueryInput{
 		TableName:                 &table,
-		IndexName:                 new(contingency.IndexName),
+		IndexName:                 &index,
 		KeyConditionExpression:    new("#s = :v"),
-		ExpressionAttributeNames:  map[string]string{"#s": contingency.SweepAttr},
-		ExpressionAttributeValues: map[string]types.AttributeValue{":v": &types.AttributeValueMemberS{Value: contingency.SweepValue}},
+		ExpressionAttributeNames:  map[string]string{"#s": attr},
+		ExpressionAttributeValues: map[string]types.AttributeValue{":v": &types.AttributeValueMemberS{Value: value}},
 	}
 	for {
 		out, err := db.Query(ctx, in)
@@ -92,9 +134,14 @@ func pending(ctx context.Context, db querier, table string) ([]contingency.Job, 
 		for _, it := range out.Items {
 			pk, _ := it["pk"].(*types.AttributeValueMemberS)
 			sk, _ := it["sk"].(*types.AttributeValueMemberS)
-			if pk != nil && sk != nil {
-				jobs = append(jobs, contingency.Job{PK: pk.Value, SK: sk.Value})
+			j := contingency.Job{}
+			if pk != nil {
+				j.PK = pk.Value
 			}
+			if sk != nil {
+				j.SK = sk.Value
+			}
+			jobs = append(jobs, j)
 		}
 		if out.LastEvaluatedKey == nil {
 			return jobs, nil

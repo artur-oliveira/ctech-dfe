@@ -24,6 +24,7 @@ document model and validators).
 ```
 go-dfe/
 ├── dfe.go                      # Call(ctx, Request) (Response, error); Implements(docType, service) bool
+├── autocontingency/            # pure decision logic of the automatic contingency (signals, breaker, state codec, duplicate proof); shared by api and worker, no AWS, no I/O
 ├── request.go                  # Request/Response/Problem — wire contract of the go-dfe-egress Lambda
 ├── schemas/                    # XSDs oficiais vendorizados (documento + eventos), README e SHA256SUMS; fonte de validate/gen
 ├── validate/                   # validador pré-SEFAZ; specs/*.json (documentos e evento_*) gerados por gen/main.go

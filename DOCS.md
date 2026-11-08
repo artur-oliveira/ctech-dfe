@@ -3386,6 +3386,17 @@ Em Configuração Fiscal, as abas NF-e, NFC-e, CT-e e MDF-e têm o bloco "Forma 
   `auto_contingency_type_invalid`); o GET devolve o campo. A troca em si está desligada no servidor
   (`autocontingency.SwitchEnabled = false`); desenho, sinais, disjuntor, prova de duplicidade e pendências em
   `docs/specs/2026-11-08-contingencia.md` seção 4.1.
+- **Contingência automática (ligação no servidor, atrás de `SwitchEnabled = false`):** o pacote de decisão agora é
+  `go-dfe/autocontingency` (compartilhado por api e worker). (1) Disjuntor por linha de configuração (empresa e documento),
+  estado em `auto_breaker`, escrito só pelo worker: alimentado pela resposta real de cada autorização `tpEmis` 1 (`DfeService.observeAuth`,
+  em `Process`) e pela sonda. (2) Sonda: o `contingency-dispatcher` (15 min, sem agendamento novo) lista o `auto-contingency-index`
+  e invoca o `contingency-retransmit` com `kind=probe`; o worker chama o status do autorizador (`NfeStatusServico`,
+  `CTeStatusServico`, `MDFeStatusServico`) pelo egress, em rajada de até 3 chamadas a 5 s (abre com 3 falhas em 2 min; fecha com 3 saudáveis
+  seguidas depois de 5 min aberto). (3) Pré-checagem na API: `services.PrecheckAutoContingency` em cada `Emit`, antes da chave:
+  disjuntor aberto, bandeira ligada, tipo escolhido e `emission_type=normal` gravam o tipo escolhido (condicional, `contingency_auto=true`,
+  xJust automático) e emitem já em contingência; SVC só se a UF tem SVC. (4) Volta ao normal na mesma escrita que fecha o disjuntor,
+  só se `contingency_auto`; `contingency_since` é removido. (5) Alertas só pelo go-common `alerts` (abre e fecha). Sem CloudWatch, sem Scan, sem NAT.
+  Regeração de documento em voo (`services.LinkReissue`, `reissued_from`) existe e é testada mas nada a chama (decisão 4.2.1 do spec).
 - **Contingência automática (UI, pronta e travada):** `EmissionSection` tem o interruptor `auto_contingency` (padrão desligado) e,
   ligado, um seletor obrigatório `auto_contingency_type` com as `emission_options` sem `normal` (uma só opção, como a NFC-e e o
   MDF-e `offline`, já vem escolhida); o corpo do PUT leva o tipo só com a flag ligada. Enquanto `AUTO_CONTINGENCY_AVAILABLE`

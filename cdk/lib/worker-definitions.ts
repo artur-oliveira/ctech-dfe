@@ -33,6 +33,13 @@ export type WorkerDefinition = {
    * alerts. Only this worker gets ssm:GetParameter and kms:Decrypt; never the egress.
    */
   readsCiotSecrets?: boolean
+  /**
+   * Fiscal configuration tables whose circuit breaker (auto_breaker) this worker feeds or probes: GetItem and
+   * UpdateItem only, plus the alerts topic. docs/specs/2026-11-08-contingencia.md section 4.1.
+   */
+  breakerConfigTables?: string[]
+  /** Tables this worker only reads (GetItem, Query), on top of dynamoTables. */
+  readTables?: string[]
   /** Marks and unlinks the CIOTs of an MDF-e (ciots and ciot_audit tables) and alerts when that fails. */
   linksCiots?: boolean
 }
@@ -47,6 +54,7 @@ export const WORKERS: WorkerDefinition[] = [
     timeoutSeconds: 300,
     memory: 128,
     dynamoTables: ['nfes', 'nfces'],
+    breakerConfigTables: ['organization_nfe_configs', 'organization_nfce_configs'],
     sefazServices: ['NFeAutorizacao'],
     environment: {},
   },
@@ -75,6 +83,7 @@ export const WORKERS: WorkerDefinition[] = [
     timeoutSeconds: 300,
     memory: 128,
     dynamoTables: ['ctes'],
+    breakerConfigTables: ['organization_cte_configs'],
     sefazServices: ['CTeRecepcaoSinc', 'CTeRecepcaoOS', 'CTeRecepcaoGTVe', 'CTeRecepcaoSimp'],
     environment: {},
   },
@@ -93,6 +102,7 @@ export const WORKERS: WorkerDefinition[] = [
     timeoutSeconds: 300,
     memory: 128,
     dynamoTables: ['mdfes', 'ciots', 'ciot_audit'],
+    breakerConfigTables: ['organization_mdfe_configs'],
     linksCiots: true,
     sefazServices: ['MDFeRecepcaoSinc'],
     environment: {},
@@ -191,6 +201,11 @@ export const WORKERS: WorkerDefinition[] = [
     // Cost: ~2,900 invocations/month of a 128 MB arm64 function, inside the free tier; no
     // reserved concurrency (it would eat the account's unreserved floor for a rare burst).
     dynamoTables: ['nfes', 'nfces', 'mdfes', 'ctes', 'nfe_events', 'nfce_events', 'cte_events', 'mdfe_events'],
+    // Health probe of the automatic contingency (spec 4.1): the dispatcher invokes this worker once per
+    // configuration row with the flag on; it reads the company's certificate and identity, calls the status
+    // service through the egress and writes the breaker (and the return to normal) on the configuration row.
+    breakerConfigTables: ['organization_nfe_configs', 'organization_nfce_configs', 'organization_cte_configs', 'organization_mdfe_configs'],
+    readTables: ['organization_certificates', 'organizations'],
     environment: {},
   },
 ]

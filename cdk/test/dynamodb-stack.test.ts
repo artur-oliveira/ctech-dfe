@@ -228,3 +228,26 @@ describe('DynamoDBStack - CIOT', () => {
         expect(audit.Properties.GlobalSecondaryIndexes).toBeUndefined();
     });
 });
+
+describe('DynamoDBStack — auto-contingency-index', () => {
+    test('as quatro configuracoes fiscais tem o GSI esparso auto-contingency-index (KEYS_ONLY, auto_sweep)', () => {
+        const template = synth();
+        for (const name of [
+            'dev_dfe_organization_nfe_configs',
+            'dev_dfe_organization_nfce_configs',
+            'dev_dfe_organization_cte_configs',
+            'dev_dfe_organization_mdfe_configs',
+        ]) {
+            template.hasResourceProperties('AWS::DynamoDB::GlobalTable', {
+                TableName: name,
+                GlobalSecondaryIndexes: Match.arrayWith([
+                    Match.objectLike({
+                        IndexName: 'auto-contingency-index',
+                        KeySchema: [{AttributeName: 'auto_sweep', KeyType: 'HASH'}],
+                        Projection: {ProjectionType: 'KEYS_ONLY'},
+                    }),
+                ]),
+            });
+        }
+    });
+});

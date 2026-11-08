@@ -84,7 +84,7 @@ A SVC só funciona se a SEFAZ de origem a ativou (`107`); detecção automática
 
 ### 4.1 Detecção automática (fatia E; desenho final de 2026-11-08)
 
-Estado: a lógica de decisão e as guardas existem e estão testadas (`api/internal/services/autocontingency`); a troca em
+Estado: a lógica de decisão e as guardas existem e estão testadas (`go-dfe/autocontingency`, movido de `api/internal/services` em 2026-11-08 para api e worker compartilharem); a troca em
 si está **desligada** pela constante `autocontingency.SwitchEnabled = false`. Nada liga por padrão: `auto_contingency`
 (padrão `false`) hoje só guarda a escolha do dono. A lista do que falta para ligar está no fim desta seção.
 
@@ -154,6 +154,29 @@ Scheduler a cada minuto); (b) a pré-checagem em `Emit` com a gravação condici
 (c) a volta ao normal pela sonda; (d) para regerar documento em voo: guardar o pedido original (S3 sob o prefixo do
 documento, só com a bandeira ligada), `reissued_from` e a reconciliação da 539 pela chave original no worker; (e) alerta
 via go-common `alerts`. Sem (d) o caminho principal (pré-checagem) já é seguro e basta para ligar.
+
+#### 4.1.1 Como ficou a ligação (2026-11-08) e o que difere do desenho acima
+
+- **Sonda a cada 15 minutos, não a cada minuto.** Reaproveita o `contingency-dispatcher` (sem agendamento novo, como pedido). Para não perder a
+  regra de 3 falhas em 2 minutos, cada execução faz uma **rajada** de até `RecoveryProbes` (3) chamadas de status a `ProbeGap` (5 s). Uma resposta
+  saudável de disjuntor fechado encerra a rajada (1 chamada). Aberto, nenhuma chamada dentro dos 5 minutos de espera; passados, 3 saudáveis na mesma rajada fecham
+  (a histerese vira "3 seguidas numa rajada", não "3 minutos distintos"); a volta ao normal leva até 15 minutos depois do restabelecimento.
+- **Disjuntor por linha de configuração** (empresa e documento, na linha, conforme o desenho), e não por autorizador/UF: cada empresa abre o seu.
+  Estado em `auto_breaker` (JSON, compare-and-swap). Só autorização `tpEmis` 1 sem rota SVC alimenta; ambiente da resposta precisa ser o da configuração.
+- **GSI esparso novo** `auto-contingency-index` (`auto_sweep`) nas quatro tabelas de configuração, gravado com a bandeira `auto_contingency`.
+  Alternativa descartada: o `sweep-index` existente (todas as empresas, KEYS_ONLY, sem NFC-e).
+- **Fechar e voltar a `normal` numa escrita** (`contingency_auto` verdadeiro). A contingência manual nunca é desfeita.
+- **Alertas:** só ao abrir e ao fechar o disjuntor (go-common). Não há alerta de "SVC também fora" (depende da pergunta 3 abaixo).
+- Sem `SwitchEnabled`: o dispatcher não consulta o índice, o worker não lê nem escreve, a API não troca.
+
+**Perguntas em aberto (padrão conservador escolhido):**
+1. Sonda por empresa custa uma invocação por empresa e documento a cada 15 min com a bandeira ligada (e até 3 chamadas ao egress só quando
+   algo está errado). Aceitável, ou prefere sonda única por UF/modelo/ambiente com o certificado de uma empresa "sentinela"? (Padrão: por empresa, como o desenho.)
+2. O NFC-e não tem `sweep-index`; o índice novo cobre. Confirmar que NFC-e `offline` deve também ser acionada pela sonda de `NfeStatusServico` (padrão: sim).
+3. Queda sozinha de SVC para EPEC (decisão 4.2.3) **não foi implementada**: falta definir a ordem de preferência, o limite anti-vai e vem, e a sonda do status da SVC
+   (`107`). Padrão: fica no tipo escolhido e só o alerta de abertura sai.
+4. Documento em voo não é regerado (decisão 4.2.1); `LinkReissue` está pronto para quando a regeração entrar, junto com a reconciliação do 539 no worker.
+5. Regra 539 e os textos de 121/142/228: ainda não relidos no MOC.
 
 ### 4.2 Decisões do dono sobre a contingência automática (2026-11-08)
 
@@ -281,6 +304,8 @@ da assinatura do XML; **não usa**. O que os documentos dizem:
 | D4: classificação tardia: 150 do CT-e confirmado (G103); MDF-e sem cStat tardio no MOC (100 fora do prazo é sucesso; 150 do MDF-e não verificado) | feito |
 | DACTE | não há renderizador de DACTE no repositório: contingência (texto e QR com `sign`) só especificada aqui |
 | E: contingência automática | desenho final na seção 4.1; `auto_contingency_type` (campo, validação e problemas) e a lógica de decisão (`autocontingency`: sinais, disjuntor com histerese, prova de duplicidade, `Reissue`) feitos e testados; **troca desligada** (`SwitchEnabled = false`); falta o que a seção 4.1 lista |
+| E (ligação): disjuntor, sonda, pré-checagem, volta ao normal, alertas | feito (2026-11-08), **atrás de `SwitchEnabled = false`**: `go-dfe/autocontingency` (`Encode`/`Decode`, `AutoReason`, `ProbeGap`); `worker/internal/service/breaker.go` (alimentado por `observeAuth` em `Process`, compare-and-swap em `auto_breaker`, fecha e volta a `normal` numa escrita só, alerta go-common ao abrir e ao fechar) e `probe.go` (status pelo egress, rajada); `contingency-dispatcher` lista o GSI esparso `auto-contingency-index` e invoca o `contingency-retransmit` com `kind=probe`; `services.PrecheckAutoContingency` em cada `Emit`; CDK: GSI nas quatro tabelas de configuração, IAM `breakerConfigTables`/`readTables`, sem agendamento, Lambda, alarme, Scan nem NAT; testes com fakes. Não verificado: nada rodou contra SEFAZ ou AWS reais |
+| E (regeração em voo): `reissued_from` | `services.LinkReissue` (original `failed` + `reissued_to`, novo com `reissued_from`, idempotente, recusa original autorizado ou cancelado) feito e testado, **nada o chama**; regerar documento em voo e a reconciliação do 539 pela chave original no worker seguem fora (decisão 4.2.1) |
 | E (UI): configuração da contingência automática | feito (2026-11-08): interruptor e seletor de `auto_contingency_type` por documento, selo `awaiting_epec`, mensagens dos 422 novos, mock e guia; **travado** por `AUTO_CONTINGENCY_AVAILABLE = false` até `SwitchEnabled` ligar |
 | F: retransmissão (worker + cdk) | parcial: `contingency-index`, dispatcher a cada 15 min, worker com `Classify` e marcação de vencido; falta o reenvio pelo egress (depende de D) |
 | G: DANFC-e de duas vias | feito (fatia 5, seção 9.3) |

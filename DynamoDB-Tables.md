@@ -252,6 +252,14 @@ cadastro requirement.
 > removido ao voltar) e `contingency_reason` (S, `xJust`). Escritos só pelos endpoints `PUT .../{nfe,nfce,cte,mdfe}-emission`;
 > o `PUT .../{x}-config` os preserva. `contingency_mode` (S, `svc`) é o atributo legado da primeira rodada: lido como
 > `emission_type` e removido na primeira escrita nova. Ver `docs/specs/2026-11-08-contingencia.md`.
+>
+> Contingência automática (spec 4.1; só age com `autocontingency.SwitchEnabled`, hoje `false`): `contingency_auto` (BOOL;
+> verdadeiro só enquanto a linha está em contingência por causa da troca automática, e só então o disjuntor devolve a
+> `normal`; removido por qualquer escrita manual), `auto_breaker` (S, JSON do estado do disjuntor: `s` closed/open, `f`
+> falhas, `o` abertura, `k` sequência de sondas; escrito só pelo worker, com compare-and-swap no valor anterior; ausente =
+> fechado) e `auto_sweep` (S `"1"`, existe só com `auto_contingency` ligada; chave do GSI esparso `auto-contingency-index`,
+> KEYS_ONLY, que lista as linhas a sondar sem Scan). Os três ficam fora do GET (exceto `contingency_auto`) e o
+> `PUT .../{x}-config` os preserva. Índice nas quatro tabelas `organization_{nfe,nfce,cte,mdfe}_configs`.
 
 Fiscal configuration per org per document type. PK only (no SK). Table names use prefix `organization_`.
 
@@ -300,6 +308,7 @@ One item per issued fiscal document. PK encodes environment + issuer CNPJ for or
 | `updated_at`   | S    | ISO-8601 UTC                                               |
 | `contingency_sweep` | S | `"1"` only on offline/EPEC documents not yet reconciled; key of the sparse `contingency-index` (NFC-e offline writes it) |
 | `contingency_state` | S | `awaiting_epec` (NF-e EPEC assinada, evento 110140 ainda não registrado; fora do índice), `pending`, `authorized`, `authorized_late`, `rejected_late`, `overdue` |
+| `reissued_from` / `reissued_to` / `reissued_at` | S | Link of a document regenerated in contingency (`services.LinkReissue`): the new document carries `reissued_from` (original key); the original becomes `failed` (terminal, never claimed again) with `reissued_to`. Not written by anything yet: the regeneration of an in-flight document is deferred (spec 4.2 item 1) |
 | `contingency_deadline` | S | RFC3339; sort key of `contingency-index`. NFC-e offline: emission + 3 days; MDF-e and CT-e offline: emission + 168 h (MOC) |
 | `contingency_msg` | S | NFC-e, MDF-e and CT-e offline and NF-e EPEC: `WorkerMessage` JSON whose body is `{"@signed_xml": signed document}`; sent by the retransmission worker; never in API responses |
 

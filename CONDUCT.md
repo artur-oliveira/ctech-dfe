@@ -1352,6 +1352,12 @@ chegou ao egress. Teste: `cdk/test/go-code.test.ts`. Qualquer dependência por `
 - Contingência automática: nunca regerar um documento em voo sem a prova por consulta da chave original
   (`autocontingency.Reissue`); sem prova (consulta falhou ou cedo demais), o original fica pendente e alerta. A constante
   `autocontingency.SwitchEnabled` é o interruptor mestre e só liga junto com os itens "o que falta para ligar" da seção 4.1 do spec.
+- Contingência automática, ligação (spec 4.1): o disjuntor só é escrito pelo worker (`auto_breaker`, compare-and-swap no valor anterior,
+  uma releitura e depois descarta a observação); a API só lê. Conta como indisponibilidade apenas o que `autocontingency.Classify` lista;
+  rejeição de negócio, 429 e 4xx do egress nunca contam. Só autorização `tpEmis` 1 sem rota SVC alimenta o disjuntor (documento em
+  contingência não diz nada do autorizador normal), e só quando o ambiente da resposta é o da configuração. A volta ao normal e o fechamento do
+  disjuntor são UMA escrita (o disjuntor nunca fecha com a linha esquecida em contingência). Tudo atrás de `SwitchEnabled`/`switchEnabled`
+  (testes viram o interruptor, produção nunca). `go-dfe/autocontingency` é o único lugar da lógica; não copiar para api nem worker.
 - NF-e EPEC: o documento só entra no `contingency-index` DEPOIS do evento 110140 registrado (o worker arma); `contingency_state=awaiting_epec` é o estado sem `contingency_sweep`. Quem mexer no fluxo mantém a ordem: assinar (SignOnly), enfileirar o evento no outbox junto do documento, armar no worker. Rejeição do evento apaga `contingency_msg` e rejeita o documento; nunca armar antes.
 - `contingency-index` (GSI esparso `contingency_sweep`/`contingency_deadline`, KEYS_ONLY) nas tabelas `nfes`, `nfces`, `mdfes`, `ctes`: só documentos EPEC/offline não conciliados carregam `contingency_sweep = "1"`. Quem grava um documento pendente deve gravá-lo; quem o concilia deve removê-lo.
 - `contingency-dispatcher` (15 min) lê o índice e invoca `contingency-retransmit-worker` de forma assíncrona; falha vai ao `dlq-processor`. Nunca Scan.

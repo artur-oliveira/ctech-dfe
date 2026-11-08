@@ -324,3 +324,36 @@ describe('ciot-operation worker', () => {
     expect(fn.Properties.Environment.Variables.ALERTS_TOPIC_ARN).toBeDefined()
   })
 })
+
+// Automatic contingency (spec 4.1): the probe reuses the 15-minute dispatcher and the retransmission worker; the
+// breaker lives on the configuration row. No new schedule, Lambda, alarm, Scan or NAT.
+test('the auto-contingency probe adds no schedule or function and reads only the sparse index', () => {
+  const template = buildTemplate()
+  template.resourcePropertiesCountIs('AWS::Scheduler::Schedule', {Name: 'dev-contingency-schedule'}, 1)
+  template.resourceCountIs('AWS::CloudWatch::Alarm', 0)
+  const role = JSON.stringify(Object.values(template.findResources('AWS::IAM::Policy')).filter((p: any) =>
+    JSON.stringify(p.Properties.PolicyName).includes('contingencydispatcherrole')))
+  for (const t of ['nfe', 'nfce', 'cte', 'mdfe']) {
+    expect(role).toContain(`organization_${t}_configs/index/auto-contingency-index`)
+  }
+  expect(role).not.toContain('dynamodb:Scan')
+  expect(JSON.stringify(template.toJSON().Resources)).not.toContain('dynamodb:Scan')
+})
+
+test('the workers that feed or probe the breaker get GetItem/UpdateItem on the config rows and the alerts topic only', () => {
+  const template = buildTemplate()
+  const feeders = WORKERS.filter(w => w.breakerConfigTables?.length)
+  expect(feeders.map(w => w.id).sort()).toEqual(['cte-emission', 'contingency-retransmit', 'mdfe-emission', 'nfe-emission'].sort())
+  for (const w of feeders) {
+    const policy = JSON.stringify(Object.values(template.findResources('AWS::IAM::Policy')).filter((p: any) =>
+      JSON.stringify(p.Properties.PolicyName).includes(w.id.replace(/-/g, '') + 'role')))
+    for (const t of w.breakerConfigTables!) expect(policy).toContain(`dev_dfe_${t}`)
+    expect(policy).toContain('sns:Publish')
+    template.hasResourceProperties('AWS::Lambda::Function', {
+      FunctionName: `dev-${w.name}`,
+      Environment: {Variables: Match.objectLike({ALERTS_TOPIC_ARN: Match.anyValue()})},
+    })
+  }
+  // the probe worker alone reads the certificate and identity of the company
+  expect(WORKERS.find(w => w.id === 'contingency-retransmit')!.readTables).toEqual(['organization_certificates', 'organizations'])
+})

@@ -519,6 +519,7 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 
 	// C0: a forma de emissão é resolvida antes da chave (tpEmis está na chave). Off-line (2) quando o
 	// dono trocou o MDF-e para ela; o MDF-e não tem SVC nem EPEC.
+	configItem = services.PrecheckAutoContingency(ctx, s.configRepo, services.ModelMDFe, orgPK, "", configItem, time.Now())
 	tpEmis, offline := resolveMDFeEmission(configItem)
 
 	docPeri, err := s.resolveDocPeri(ctx, orgPK, cargo.docs)

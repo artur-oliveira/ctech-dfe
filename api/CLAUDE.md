@@ -146,6 +146,20 @@ Run: `go test ./... -race` from `api/`.
 
 Before touching: identify risks + side effects, verify backward compatibility + regulatory impact.
 
+## Automatic contingency in the API (spec `../docs/specs/2026-11-08-contingencia.md` 4.1)
+
+Decision logic lives in `../go-dfe/autocontingency` (shared with the worker; do not copy it). The API only reads the breaker
+(`auto_breaker`, written by the worker) and never writes it.
+- `services.PrecheckAutoContingency` (`services/emission_auto.go`) runs in each `Emit` (NF-e, NFC-e, CT-e, MDF-e) right before the
+  `resolve*Emission` call, i.e. before the access key: open breaker + `auto_contingency` + chosen type + `emission_type=normal` writes the
+  chosen type with `FiscalConfigRepository.SwitchAuto` (conditional: still normal, flag on, no legacy mode; sets `contingency_auto`) and the
+  document is emitted its first and only time already in contingency. SVC is only a target when the issuer UF has a SVC. Any error or lost race
+  leaves the emission normal. Off while `autocontingency.SwitchEnabled` is `false` (`autoSwitchEnabled` in tests).
+- A manual `SetEmission` clears `contingency_auto` and, when the flag goes off, `auto_sweep` and `auto_breaker`; the config GET hides
+  `auto_breaker` and `auto_sweep`.
+- `services.LinkReissue` (`services/reissue.go`) links a regenerated document (`reissued_from`) to its original (`failed` + `reissued_to`),
+  idempotent, never over an authorized or cancelled original. Nothing calls it: the in-flight regeneration is deferred (spec 4.2.1).
+
 ---
 
 ## Completion Checklist
