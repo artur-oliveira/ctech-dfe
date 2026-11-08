@@ -20,19 +20,39 @@ import {DownloadPdfButton} from '@/components/dfe/DownloadPdfButton';
 import {CONTINGENCY_PENDING} from '@/lib/contingency';
 import {MdfeSefazStatus} from '@/components/mdfe/MdfeSefazStatus';
 import {useCteActions} from '@/components/cte/CteActions';
-import {CTE_EVENT, CTE_STATUS_AUTHORIZED, CTE_TAKER_LABELS} from '@/lib/constants/cte';
+import {CTE_EVENT, CTE_OS_SERVICES, CTE_STATUS_AUTHORIZED, CTE_TAKER_LABELS, PERMISSION_CTE_CREATE} from '@/lib/constants/cte';
+import {CteDocKindBadge} from '@/components/cte/CteKindBadge';
 import {EVENT_TYPE_LABELS} from '@/lib/data/dfe_event';
 import {formatCpfCnpj, orgTaxId} from '@/lib/utils/document';
 import {formatCurrency} from '@/lib/utils/helpers';
 import {formatDatetimeBR, triggerRemoteDownload} from '@/lib/utils/dfe';
-import {sameDoc} from '@/lib/utils/cte';
-import {ACCESS_KEY_MOD_CTE, validateAccessKey} from '@/lib/utils/access-key';
+import {cteChangeBlocker, cteKind, sameDoc} from '@/lib/utils/cte';
+import {ACCESS_KEY_MOD_CTE, ACCESS_KEY_MOD_CTE_OS, validateAccessKey} from '@/lib/utils/access-key';
 import {hasPermission} from '@/lib/utils/delivery-events';
 import type {NfeEventOut} from '@/lib/types/api';
 
 const PERMISSION_CTE_EVENTS = 'create.cte_events';
 
 const ACTION_BTN = 'min-h-11 sm:min-h-0';
+
+/** CT-e relacionados (complemento ou substituto): a api só devolve a referência do documento para o original. */
+function RelatedDocs({label, keys}: { label: string; keys: string[] }) {
+  return (
+    <section aria-label={label} className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+      <p className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-400 border-b border-gray-100">{label}</p>
+      <ul className="divide-y divide-gray-100">
+        {keys.map((k) => (
+          <li key={k}>
+            <Link href={`/cte/detail?key=${k}`}
+                  className="flex min-h-11 items-center px-4 py-2.5 font-mono text-xs text-brand-600 hover:text-brand-700 truncate sm:min-h-0">
+              {k}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
 
 function InfoCard({label, children}: { label: string; children: React.ReactNode }) {
   return (
@@ -87,12 +107,14 @@ function CteDetail({accessKey}: { accessKey: string }) {
   const authorized = doc.status === CTE_STATUS_AUTHORIZED;
   // Sem o emitente na resposta a api decide (422 not_cte_issuer); com ele, o botão some para quem não emitiu.
   const isIssuer = !doc.emit_cpf_cnpj || sameDoc(doc.emit_cpf_cnpj, orgDoc);
-  const isTaker = sameDoc(doc.taker.doc, orgDoc);
+  const isTaker = sameDoc(doc.taker?.doc, orgDoc);
+  const kind = cteKind(doc);
+  const canChange = hasPermission(selectedOrg?.permissions, PERMISSION_CTE_CREATE) && !cteChangeBlocker(doc, isIssuer);
   const target = {
     sk: accessKey, number: doc.number,
     disagreements: events.items.filter((e) => e.event_type === CTE_EVENT.DISAGREEMENT && e.status === 'success'),
     deliveries: events.items.filter((e) => (e.event_type === CTE_EVENT.DELIVERY_RECEIPT || e.event_type === CTE_EVENT.DELIVERY_FAILURE) && e.status === 'success'),
-    nfeKeys: doc.nfe_keys,
+    nfeKeys: doc.nfe_keys ?? [],
   };
   const canEvents = hasPermission(selectedOrg?.permissions, PERMISSION_CTE_EVENTS);
   const place = (p: { city: string; uf: string } | null) => (p ? `${p.city} / ${p.uf}` : '-');
@@ -108,9 +130,10 @@ function CteDetail({accessKey}: { accessKey: string }) {
           <CopyableCode value={accessKey}/>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <CteDocKindBadge doc={doc} size="md"/>
           <DfeStatusBadge status={doc.status} gender="m" size="md"/>
           <ContingencyBadge state={doc.contingency_state} male size="md"/>
-          {(authorized || doc.contingency_state === CONTINGENCY_PENDING) && (
+          {kind !== 'os' && (authorized || doc.contingency_state === CONTINGENCY_PENDING) && (
             <DownloadPdfButton fetchPdf={() => apiClient.downloadCteDacte(accessKey)} label="Baixar DACTE" variant="outline"
                                className={`${ACTION_BTN} text-brand-600 border-brand-200 hover:bg-brand-50`}/>
           )}
@@ -121,6 +144,16 @@ function CteDetail({accessKey}: { accessKey: string }) {
 
       {authorized && (
         <section aria-label="Ações do CT-e" className="flex flex-wrap gap-2">
+          {canChange && (
+            <>
+              <Button variant="outline" render={<Link href={`/cte/complement?key=${accessKey}`}/>} className={`${ACTION_BTN} text-brand-600 border-brand-200 hover:bg-brand-50`}>
+                Emitir complemento
+              </Button>
+              <Button variant="outline" render={<Link href={`/cte/substitute?key=${accessKey}`}/>} className={`${ACTION_BTN} text-brand-600 border-brand-200 hover:bg-brand-50`}>
+                Emitir substituto
+              </Button>
+            </>
+          )}
           {isIssuer && (
             <>
               <Button variant="outline" onClick={() => openCorrection(target)} className={`${ACTION_BTN} text-brand-600 border-brand-200 hover:bg-brand-50`}>
@@ -180,11 +213,22 @@ function CteDetail({accessKey}: { accessKey: string }) {
 
       <MdfeSefazStatus accessKey={accessKey} localStatus={doc.status} docType="cte"/>
 
+      {doc.complemented_keys && doc.complemented_keys.length > 0 && (
+        <RelatedDocs label="Complementa" keys={doc.complemented_keys}/>
+      )}
+      {doc.substituted_key && <RelatedDocs label="Substitui" keys={[doc.substituted_key]}/>}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <InfoCard label="Frete">
           <p className="font-medium text-gray-900">{formatCurrency(doc.freight_total)}</p>
           <p className="text-xs text-gray-500">CFOP {doc.cfop} · ICMS CST {doc.icms_cst}</p>
         </InfoCard>
+        {doc.os_service && (
+          <InfoCard label="Serviço">
+            <p className="font-medium text-gray-900">{CTE_OS_SERVICES.find((x) => x.value === doc.os_service)?.label ?? doc.os_service}</p>
+            <p className="text-xs text-gray-500">CT-e OS, modelo 67</p>
+          </InfoCard>
+        )}
         <InfoCard label="Trajeto">
           <p className="font-medium text-gray-900">{place(doc.origin)} <span className="text-gray-400 mx-1">→</span> {place(doc.destination)}</p>
           {doc.cargo && (
@@ -197,15 +241,20 @@ function CteDetail({accessKey}: { accessKey: string }) {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Party label="Remetente" p={doc.sender}/>
-        <Party label="Destinatário" p={doc.recipient}/>
-        <InfoCard label={`Tomador (${CTE_TAKER_LABELS[doc.taker.role] ?? doc.taker.role})`}>
-          <p className="font-medium text-gray-900">{doc.taker.name || '-'}</p>
-          {doc.taker.doc && <p className="text-xs text-gray-500 font-mono">{formatCpfCnpj(doc.taker.doc)}</p>}
-        </InfoCard>
+        {doc.sender && <Party label="Remetente" p={doc.sender}/>}
+        {doc.recipient && <Party label="Destinatário" p={doc.recipient}/>}
+        {doc.taker && (
+          <InfoCard label={`Tomador (${CTE_TAKER_LABELS[doc.taker.role] ?? doc.taker.role})`}>
+            <p className="font-medium text-gray-900">{doc.taker.name || '-'}</p>
+            {doc.taker.doc && <p className="text-xs text-gray-500 font-mono">{formatCpfCnpj(doc.taker.doc)}</p>}
+          </InfoCard>
+        )}
       </div>
+      {kind !== 'normal' && !doc.sender && kind !== 'os' && (
+        <p className="text-sm text-gray-500">Remetente e destinatário são os do CT-e original; este documento não os repete aqui.</p>
+      )}
 
-      {doc.nfe_keys.length > 0 && (
+      {doc.nfe_keys && doc.nfe_keys.length > 0 && (
         <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
           <p className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-400 border-b border-gray-100">
             Notas ({doc.nfe_keys.length})
@@ -269,7 +318,7 @@ function CteDetailContent() {
         </div>
         {!accessKey ? (
           <p className="text-sm text-gray-500">Chave de acesso não informada.</p>
-        ) : !validateAccessKey(accessKey, [ACCESS_KEY_MOD_CTE]).valid ? (
+        ) : !validateAccessKey(accessKey, [ACCESS_KEY_MOD_CTE, ACCESS_KEY_MOD_CTE_OS]).valid ? (
           <p role="alert" className="text-sm text-red-700">
             A chave de acesso não é de um CT-e válido; confira o link ou abra o CT-e pela lista.
           </p>

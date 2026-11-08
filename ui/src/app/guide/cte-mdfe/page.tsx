@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import {GuideBullets, GuideCallout, GuidePage, GuideTerm, GuideTerms} from '@/components/guide/GuidePage';
 
@@ -412,6 +413,90 @@ export default function GuideCteMdfe() {
                 precisa do arquivo. Escolha as pessoas do cadastro (até 10, sem repetir). Quem já é
                 parte do CT-e não entra na lista.
               </p>
+            </>
+          ),
+        },
+        {
+          id: 'cte-complement',
+          title: 'Complemento e substituto do CT-e',
+          summary:
+            'No detalhe de um CT-e autorizado e emitido pela sua empresa, Emitir complemento cobra uma diferença de valor e Emitir substituto troca o CT-e por outro corrigido.',
+          image: {
+            src: '/guide/cte-complement.webp',
+            alt: 'Tela de complemento de CT-e com a explicação de quando usar, o valor complementar, o CFOP e o imposto',
+          },
+          body: (
+            <>
+              <p>
+                Em ambos o CT-e original vem do detalhe (nunca é digitado) e remetente, destinatário,
+                percurso e tomador são lidos do XML dele. No <b>complemento</b> você informa só o{' '}
+                <b>valor complementar</b>, o CFOP e o ICMS. O original precisa ter no máximo 12 meses, e a
+                SEFAZ confere o limite de 10 complementos por original.
+              </p>
+              <p>
+                No <b>substituto</b> você informa o novo valor e, se preciso, troca o tomador: o
+                formulário oferece os papéis do original e <b>Outro</b>, escolhido no cadastro de pessoas.
+                O prazo é de 60 dias da emissão do original; até 67 dias (60 dias mais 168 horas) a decisão
+                é da SEFAZ e depois disso a emissão é recusada, com o aviso na própria tela.
+              </p>
+              <figure className="overflow-hidden rounded-xl border border-gray-200 bg-gray-50 shadow-card">
+                <Image src="/guide/cte-substitute.webp" alt="Tela de substituto de CT-e com a troca de tomador aberta" width={1280} height={800} sizes="(max-width: 1024px) 100vw, 760px" className="w-full"/>
+              </figure>
+              <GuideCallout kind="tip" title="Qual escolher">
+                Faltou cobrar uma diferença: complemento. Valor ou tomador errados no CT-e: substituto.
+                Os botões só aparecem para CT-e normal ou substituto, autorizado, da sua empresa e com a
+                permissão de emitir CT-e.
+              </GuideCallout>
+            </>
+          ),
+        },
+        {
+          id: 'cte-related',
+          title: 'Espécie e documentos relacionados',
+          summary:
+            'Lista e detalhe mostram se o CT-e é Normal, Complemento, Substituto ou CT-e OS; complemento e substituto levam ao original.',
+          image: {
+            src: '/guide/cte-detail-related.webp',
+            alt: 'Detalhe de um CT-e complementar com a lista Complementa e o link para o CT-e original',
+          },
+          body: (
+            <p>
+              No complemento aparece <b>Complementa</b> e no substituto <b>Substitui</b>, cada um com o
+              link para o CT-e original. Esses registros não repetem remetente, destinatário e notas: são
+              os do original. Do original para o complemento ainda não há link, porque a API só devolve a
+              referência no documento novo.
+            </p>
+          ),
+        },
+        {
+          id: 'cte-os',
+          title: 'CT-e OS (modelo 67)',
+          summary:
+            'Em CT-e, Emitir CT-e OS cobre transporte de pessoas, de valores e excesso de bagagem, sem notas.',
+          image: {
+            src: '/guide/cte-os-people.webp',
+            alt: 'Emissão de CT-e OS com a escolha do tipo de serviço e os blocos de tomador, percurso e transporte rodoviário',
+          },
+          body: (
+            <>
+              <p>
+                Escolha o tipo de serviço e o formulário mostra só o que ele pede. O tomador vem sempre do
+                cadastro de pessoas. <b>Pessoas</b>: origem e destino, TAF (entre UFs) ou registro
+                estadual (mesma UF), veículo e fretamento; o eventual exige data e hora da viagem, e o INSS
+                é obrigatório com tomador pessoa jurídica. <b>Valores</b>: destino e as GTV-e com seus
+                componentes, cuja soma precisa fechar com o frete (diferença de até R$ 0,10). <b>Excesso
+                de bagagem</b>: os bilhetes referenciados, por chave do BP-e ou número e data.
+              </p>
+              <figure className="overflow-hidden rounded-xl border border-gray-200 bg-gray-50 shadow-card">
+                <Image src="/guide/cte-os-values.webp" alt="Emissão de CT-e OS de transporte de valores com GTV-e e a soma dos componentes" width={1280} height={800} sizes="(max-width: 1024px) 100vw, 760px" className="w-full"/>
+              </figure>
+              <GuideCallout kind="tip" title="Nada é presumido">
+                CFOP, CST do ICMS (o CT-e OS não tem o 60) e tomador são sempre escolha sua. A numeração
+                é a mesma do CT-e comum.
+              </GuideCallout>
+              <figure className="overflow-hidden rounded-xl border border-gray-200 bg-gray-50 shadow-card">
+                <Image src="/guide/cte-os-detail.webp" alt="Detalhe de um CT-e OS autorizado" width={1280} height={800} sizes="(max-width: 1024px) 100vw, 760px" className="w-full"/>
+              </figure>
             </>
           ),
         },

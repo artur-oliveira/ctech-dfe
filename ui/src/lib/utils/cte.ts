@@ -3,21 +3,28 @@ import {ApiError} from '@/lib/api/client';
 import {emitFailure, type EmitFailure} from '@/lib/billing/notice';
 import {
   CTE_CFOP_SCOPE_INTER,
+  CTE_DOC_ERRORS,
   CTE_ERROR_RNTRC_REQUIRED,
   CTE_RNTRC_CONFIG_HREF,
   CTE_CFOP_SCOPE_INTRA,
   CTE_CST_WITH_REDUCTION,
   CTE_CST_WITHOUT_RATE,
+  CTE_MODEL_OS,
+  CTE_SUBSTITUTE_LIMIT_DAYS,
+  CTE_SUBSTITUTE_SEFAZ_DAYS,
   CTE_TAKER_NEEDS_PERSON,
   CTE_TOTAL_WITH_TAXES_FROM_YEAR,
+  type CteKind,
 } from '@/lib/constants/cte';
 import {getCfopDescription, getCfopOptionsForCte, getCfopVariants, type CfopCode} from '@/lib/data/cfop';
 import type {
+  CteChargeBody,
   CteDeriveOut,
   CteEmitBody,
   CteEmitOverrides,
   CteIbsCbs,
   CteIcmsCst,
+  CteListOut,
   CtePlace,
   CteTakerRole,
   PersonItemOut,
@@ -240,20 +247,55 @@ export function cteMissing(
   if (!role) missing.push('Escolha quem paga o frete');
   else if (CTE_TAKER_NEEDS_PERSON.has(role) && !state.takerPerson) missing.push('Escolha a pessoa que paga o frete');
 
-  const total = toCents(state.freightTotal);
-  if (total <= 0) missing.push('Informe o valor do frete');
-  else if (componentsTotal(state.components) >= total) missing.push('Componentes somam mais que o frete');
-  if (state.components.some((c) => !c.name || toCents(c.value) <= 0)) missing.push('Complete os componentes do frete');
-
-  if (!state.cfop) missing.push('Escolha o CFOP da prestação');
-  if (!state.icms.cst) missing.push('Escolha o CST do ICMS');
-  else if (!CTE_CST_WITHOUT_RATE.has(state.icms.cst) && !state.icms.p_icms) missing.push('Informe a alíquota do ICMS');
+  missing.push(...chargeMissing(state, 'frete'));
 
   if (!t.senderName) missing.push('Escolha o remetente');
   if (!t.recipientName) missing.push('Escolha o destinatário');
   if (!t.weightKg) missing.push('Informe o peso da carga');
   if (state.ibsCbs && !ibsCbsComplete(state.ibsCbs)) missing.push('Complete o IBS/CBS ou desligue o bloco');
   return missing;
+}
+
+/** Parte da emissão que o complementar, o substituto e o CT-e OS repetem: valor, CFOP e ICMS. */
+export type CteChargeState = Pick<CteFormState, 'freightTotal' | 'components' | 'icms' | 'cfop' | 'ibsCbs' | 'authorizedXml'>
+
+/** O que falta no valor, no CFOP e no ICMS; `noun` é o que o valor representa ("frete", "valor complementar"). */
+export function chargeMissing(state: CteChargeState, noun: string): string[] {
+  const missing: string[] = [];
+  const total = toCents(state.freightTotal);
+  if (total <= 0) missing.push(`Informe o valor do ${noun}`);
+  else if (componentsTotal(state.components) >= total) missing.push(`Componentes somam mais que o ${noun}`);
+  if (state.components.some((c) => !c.name || toCents(c.value) <= 0)) missing.push(`Complete os componentes do ${noun}`);
+
+  if (!state.cfop) missing.push('Escolha o CFOP da prestação');
+  if (!state.icms.cst) missing.push('Escolha o CST do ICMS');
+  else if (!CTE_CST_WITHOUT_RATE.has(state.icms.cst) && !state.icms.p_icms) missing.push('Informe a alíquota do ICMS');
+  return missing;
+}
+
+/** Valor, CFOP, ICMS, IBS/CBS e autXML no formato do corpo das rotas de emissão. */
+export function buildChargeBody(state: CteChargeState): CteChargeBody {
+  if (!state.icms.cst) throw new Error('CT-e incompleto: o ICMS é obrigatório');
+  const cst = state.icms.cst;
+  const withRate = !CTE_CST_WITHOUT_RATE.has(cst);
+  return {
+    cfop: state.cfop,
+    freight: {
+      total: fromCents(toCents(state.freightTotal)),
+      ...(state.components.length
+        ? {components: state.components.map((c) => ({name: c.name, value: fromCents(toCents(c.value))}))}
+        : {}),
+    },
+    icms: {
+      cst,
+      ...(withRate ? {p_icms: fromCents(toCents(state.icms.p_icms))} : {}),
+      ...(withRate && CTE_CST_WITH_REDUCTION.has(cst) && state.icms.p_red_bc
+        ? {p_red_bc: fromCents(toCents(state.icms.p_red_bc))}
+        : {}),
+    },
+    ...(state.ibsCbs ? {ibs_cbs: buildIbsCbs(state.ibsCbs)} : {}),
+    ...(state.authorizedXml?.length ? {authorized_xml: state.authorizedXml.map((a) => ({doc: a.doc}))} : {}),
+  };
 }
 
 /** Corpo do `POST /v1.0/ctes`: só o que o usuário decidiu ou editou; o resto o servidor deriva de novo. */
@@ -274,30 +316,13 @@ export function buildCteEmitBody(state: CteFormState, derive: CteDeriveOut | und
   if (o.origin) overrides.origin = {city_ibge: o.origin};
   if (o.destination) overrides.destination = {city_ibge: o.destination};
 
-  const cst = state.icms.cst;
-  const withRate = !CTE_CST_WITHOUT_RATE.has(cst);
   return {
     nfe_keys: state.nfeKeys,
-    cfop: state.cfop,
     taker: CTE_TAKER_NEEDS_PERSON.has(role) && state.takerPerson
       ? {role, person_id: state.takerPerson.sk}
       : {role},
-    freight: {
-      total: fromCents(toCents(state.freightTotal)),
-      ...(state.components.length
-        ? {components: state.components.map((c) => ({name: c.name, value: fromCents(toCents(c.value))}))}
-        : {}),
-    },
-    icms: {
-      cst,
-      ...(withRate ? {p_icms: fromCents(toCents(state.icms.p_icms))} : {}),
-      ...(withRate && CTE_CST_WITH_REDUCTION.has(cst) && state.icms.p_red_bc
-        ? {p_red_bc: fromCents(toCents(state.icms.p_red_bc))}
-        : {}),
-    },
+    ...buildChargeBody(state),
     ...(Object.keys(overrides).length ? {overrides} : {}),
-    ...(state.ibsCbs ? {ibs_cbs: buildIbsCbs(state.ibsCbs)} : {}),
-    ...(state.authorizedXml?.length ? {authorized_xml: state.authorizedXml.map((a) => ({doc: a.doc}))} : {}),
   };
 }
 
@@ -310,14 +335,51 @@ function buildIbsCbs(s: CteIbsCbsState): CteIbsCbs {
 }
 
 /** Falha da emissão com a saída que o usuário consegue tomar: RNTRC ausente leva à configuração. */
-export function cteEmitFailure(err: unknown): EmitFailure {
+export function cteEmitFailure(err: unknown, fallback = 'Erro ao emitir CT-e.'): EmitFailure {
   if (err instanceof ApiError && (err.raw as {code?: unknown} | undefined)?.code === CTE_ERROR_RNTRC_REQUIRED) {
     return {
       message: err.detail || 'Cadastre o RNTRC da transportadora antes de emitir CT-e.',
       action: {label: 'Cadastrar RNTRC', href: CTE_RNTRC_CONFIG_HREF},
     };
   }
-  return emitFailure(err, 'Erro ao emitir CT-e.', undefined, 'cte');
+  return emitFailure(err, fallback, undefined, 'cte');
+}
+
+/** Espécie do registro: o CT-e OS tem `model` 67; o complementar e o substituto, `cte_type`; o resto é normal. */
+export function cteKind(doc: Pick<CteListOut, 'cte_type' | 'model'>): CteKind {
+  if (doc.model === CTE_MODEL_OS) return 'os';
+  return doc.cte_type ?? 'normal';
+}
+
+/** Dias inteiros desde a emissão, para o prazo do substituto. */
+export function daysSince(iso: string | null | undefined, now: Date = new Date()): number | null {
+  const t = iso ? Date.parse(iso) : NaN;
+  return isNaN(t) ? null : Math.floor((now.getTime() - t) / 86_400_000);
+}
+
+export type SubstituteWindow = 'open' | 'sefaz' | 'expired'
+
+/** Até 60 dias: livre; de 60 a 67: a SEFAZ decide (G096); depois: o servidor recusa. */
+export function substituteWindow(days: number | null): SubstituteWindow {
+  if (days === null || days <= CTE_SUBSTITUTE_SEFAZ_DAYS) return 'open';
+  return days > CTE_SUBSTITUTE_LIMIT_DAYS ? 'expired' : 'sefaz';
+}
+
+/** Por que o CT-e não aceita complemento nem substituto, ou `null` quando aceita. */
+export function cteChangeBlocker(doc: CteListOut, isIssuer: boolean): string | null {
+  const kind = cteKind(doc);
+  if (kind === 'os') return 'O CT-e OS ainda não pode ser complementado nem substituído.';
+  if (kind === 'complement') return 'Um CT-e complementar não pode ser complementado nem substituído.';
+  if (doc.status !== 'authorized') return 'Só um CT-e autorizado pode ser complementado ou substituído.';
+  if (!isIssuer) return 'Só o emitente do CT-e pode complementá-lo ou substituí-lo.';
+  return null;
+}
+
+/** Falha do complemento, do substituto e do CT-e OS: o código do 422 vira texto de quem emite. */
+export function cteDocFailure(err: unknown, fallback: string): EmitFailure {
+  const code = err instanceof ApiError ? (err.raw as {code?: unknown} | undefined)?.code : undefined;
+  if (typeof code === 'string' && CTE_DOC_ERRORS[code]) return {message: CTE_DOC_ERRORS[code]};
+  return cteEmitFailure(err, fallback);
 }
 
 /** Falha de evento: mora em `event-failure` (sem as tabelas deste arquivo) para o menu da NF-e não carregá-las. */

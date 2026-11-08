@@ -31,12 +31,15 @@ import type {
   SignedFileDownload,
   CertificateOut,
   CTeConfigOut,
+  CteComplementBody,
   CteCorrection,
   CteDeriveOut,
   CteDetailOut,
   CteEmitBody,
   CteListOut,
+  CteOsEmitBody,
   CteSituationOut,
+  CteSubstituteBody,
   DistributionLookupOut,
   InvitationOut,
   InvitationPreview,
@@ -1032,6 +1035,21 @@ class ApiClient {
   /** 202 + registro `pending`; a autorização chega pelo WebSocket. */
   async emitCte(data: CteEmitBody): Promise<CteDetailOut> {
     return this.post('/v1.0/ctes', data);
+  }
+
+  /** Complementar (tpCTe 1) de CT-e autorizados; 202 + `pending`. Atores e tomador saem do XML do original. */
+  async complementCte(data: CteComplementBody): Promise<CteDetailOut> {
+    return this.post('/v1.0/ctes/complement', data);
+  }
+
+  /** Substituto (tpCTe 3) de um CT-e autorizado; 202 + `pending`. Carga e NF-e repetem o original. */
+  async substituteCte(data: CteSubstituteBody): Promise<CteDetailOut> {
+    return this.post('/v1.0/ctes/substitute', data);
+  }
+
+  /** CT-e OS (modelo 67); 202 + `pending`. */
+  async emitCteOs(data: CteOsEmitBody): Promise<CteDetailOut> {
+    return this.post('/v1.0/ctes/os', data);
   }
 
   async getCtes(params?: {

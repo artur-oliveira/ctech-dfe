@@ -170,10 +170,27 @@ describe('mock handler: CT-e detalhe, eventos e SEFAZ', () => {
     }
   });
 
-  it('as chaves das fixtures de CT-e passam na validação de chave modelo 57', async () => {
+  it('as chaves das fixtures de CT-e passam na validação de chave (57, e 67 no CT-e OS)', async () => {
     const {ctesFixture} = await import('@/lib/mock/fixtures');
-    const {validateAccessKey, ACCESS_KEY_MOD_CTE} = await import('@/lib/utils/access-key');
-    for (const c of ctesFixture) expect(validateAccessKey(c.sk, [ACCESS_KEY_MOD_CTE]).valid).toBe(true);
+    const {validateAccessKey, ACCESS_KEY_MOD_CTE, ACCESS_KEY_MOD_CTE_OS} = await import('@/lib/utils/access-key');
+    for (const c of ctesFixture) {
+      expect(validateAccessKey(c.sk, ['model' in c ? ACCESS_KEY_MOD_CTE_OS : ACCESS_KEY_MOD_CTE]).valid).toBe(true);
+    }
+  });
+
+  it('complemento, substituto e CT-e OS respondem 202 pending; os flags devolvem o 422 com code', async () => {
+    const post = async (path: string) => mockAdapter({method: 'post', url: path, headers: {}, data: '{}'} as never)
+      .then((r) => r, (e) => e.response ?? e);
+    for (const path of ['complement', 'substitute', 'os']) {
+      const res = await post(`/v1.0/ctes/${path}`);
+      expect(res.status).toBe(202);
+      expect((res.data as {status: string}).status).toBe('pending');
+    }
+    setMockState({cteProblem: 'window'});
+    expect((await post('/v1.0/ctes/substitute')).data).toMatchObject({code: 'substitution_window_expired'});
+    setMockState({cteProblem: 'osGtve'});
+    expect((await post('/v1.0/ctes/os')).data).toMatchObject({code: 'os_gtve_total_mismatch'});
+    setMockState({cteProblem: null});
   });
 });
 

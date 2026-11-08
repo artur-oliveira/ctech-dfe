@@ -14,20 +14,16 @@ import type {EmitFailure} from '@/lib/billing/notice';
 import {EmitConfirmModal} from '@/components/ui/emit-confirm-modal';
 import {EmitError} from '@/components/ui/emit-error';
 import {HomologationBanner} from '@/components/ui/homologation-banner';
-import {CTE_DERIVE_DEBOUNCE_MS, CTE_IBSCBS_CRT, CTE_ICMS_SN, CTE_SN_CRTS, CTE_TAKER_LABELS} from '@/lib/constants/cte';
+import {CTE_DERIVE_DEBOUNCE_MS, CTE_TAKER_LABELS} from '@/lib/constants/cte';
 import {cteEmitBodySchema} from '@/lib/schemas/cte';
 import {
   buildCteEmitBody,
-  cteCfopOptions,
   cteEmitFailure,
   cteMissing,
   cteSummary,
   cteTransport,
   effectiveTakerRole,
   type CteFormState,
-  type CteFreightLine,
-  type CteIbsCbsState,
-  type CteIcmsState,
   type CteOverrides,
 } from '@/lib/utils/cte';
 import {formatCurrency} from '@/lib/utils/helpers';
@@ -37,8 +33,7 @@ import {CteNotesPicker} from './CteNotesPicker';
 import {CteTakerChoice} from './CteTakerChoice';
 import {CteFreightFields} from './CteFreightFields';
 import {CteTransportData} from './CteTransportData';
-import {CteIbsCbsFields} from './CteIbsCbsFields';
-import {AuthorizedXmlFields, type AuthorizedXmlEntry} from '@/components/mdfe/AuthorizedXmlFields';
+import {CteChargeExtras, useCteCharge} from './CteCharge';
 
 const sameKeys = (a: string[], b: string[]) => a.length === b.length && a.every((k, i) => k === b[i]);
 
@@ -56,26 +51,9 @@ export function CteEmitForm() {
   const [nfeKeys, setNfeKeys] = useState<string[]>([]);
   const [takerRole, setTakerRole] = useState<CteTakerRole | null>(null);
   const [takerPerson, setTakerPerson] = useState<PersonItemOut | null>(null);
-  const [freightTotal, setFreightTotal] = useState('');
-  const [components, setComponents] = useState<CteFreightLine[]>([]);
-  // `null` até o usuário mexer: vale o padrão da organização (SN para CRT 1 e 2).
-  const [icmsEdit, setIcmsEdit] = useState<CteIcmsState | null>(null);
   const [overrides, setOverrides] = useState<CteOverrides>({});
-  const [cfopChoice, setCfopChoice] = useState('');
-  const [ibsCbs, setIbsCbs] = useState<CteIbsCbsState | null>(null);
-  const [authorizedXml, setAuthorizedXml] = useState<AuthorizedXmlEntry[]>([]);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [failure, setFailure] = useState<EmitFailure | null>(null);
-
-  const {data: org} = useQuery({
-    queryKey: queryKeys.organizations.detail(selectedOrg?.pk ?? ''),
-    queryFn: () => apiClient.getOrganization(selectedOrg!.pk),
-    enabled: !!selectedOrg,
-  });
-  const defaultCst = CTE_SN_CRTS.has(String(org?.person?.crt ?? '')) ? CTE_ICMS_SN : '';
-  // Só o regime normal emite IBS/CBS; Simples e MEI nem veem o bloco (422 ibscbs_regime_unsupported).
-  const showIbsCbs = String(org?.person?.crt ?? '') === CTE_IBSCBS_CRT;
-  const icms: CteIcmsState = icmsEdit ?? {cst: defaultCst, p_icms: '', p_red_bc: ''};
 
   // Derivar a cada mudança de notas, com debounce: adicionar três notas seguidas
   // faz uma chamada, não três. A resposta anterior fica na tela (esmaecida)
@@ -95,13 +73,10 @@ export function CteEmitForm() {
     : null;
 
   const transport = cteTransport(derive, overrides);
-  // Origem e destino decidem o escopo (5 ou 6); um CFOP que saiu do escopo deixa de valer.
-  const cfopOptions = cteCfopOptions(transport.origin, transport.destination);
-  const cfop = cfopOptions.some((o) => o.value === cfopChoice) ? cfopChoice : '';
-  const form: CteFormState = {
-    nfeKeys, takerRole, takerPerson, freightTotal, components, icms, cfop, overrides,
-    ibsCbs: showIbsCbs ? ibsCbs : null, authorizedXml,
-  };
+  // Origem e destino decidem o escopo do CFOP (5 ou 6).
+  const charge = useCteCharge(transport.origin, transport.destination);
+  const freightTotal = charge.freight.total;
+  const form: CteFormState = {nfeKeys, takerRole, takerPerson, overrides, ...charge.state};
   const role = effectiveTakerRole(form, derive);
   const missing = deriveError ? ['Revise as notas escolhidas'] : cteMissing(form, derive, deriving);
 
@@ -136,19 +111,12 @@ export function CteEmitForm() {
                       person={takerPerson} onRole={chooseRole} onPerson={setTakerPerson}
                       warnings={warningsFor(derive?.warnings, 'taker')}/>
 
-      <CteFreightFields total={freightTotal} onTotal={setFreightTotal}
-                        components={components} onComponents={setComponents}
-                        icms={icms} onIcms={setIcmsEdit}
-                        cfop={cfop} onCfop={setCfopChoice} cfopOptions={cfopOptions}/>
+      <CteFreightFields {...charge.freight}/>
 
       <CteTransportData derive={derive} overrides={overrides} onChange={setOverrides}
                         warnings={warningsFor(derive?.warnings, 'transport')}/>
 
-      <section className="space-y-4" aria-label="IBS e CBS e acesso ao XML">
-        {showIbsCbs && <CteIbsCbsFields value={ibsCbs} onChange={setIbsCbs} freightTotal={freightTotal}/>}
-        <AuthorizedXmlFields entries={authorizedXml} onChange={setAuthorizedXml}
-                             errors={failure?.issues?.filter((i) => i.target === 'aut_xml').map((i) => i.text)}/>
-      </section>
+      <CteChargeExtras charge={charge} xmlErrors={failure?.issues?.filter((i) => i.target === 'aut_xml').map((i) => i.text)}/>
 
       <EmitError failure={failure}/>
 

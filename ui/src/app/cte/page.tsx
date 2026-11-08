@@ -19,7 +19,9 @@ import {DistributionSkeleton, LoadingSkeleton} from '@/components/ui/loading-ske
 import type {CteListOut, NFeDistributionOut} from '@/lib/types/api';
 import {DfeStatusCell} from '@/components/dfe/DfeStatusBadge';
 import {formatCurrency} from '@/lib/utils/helpers';
-import {CTE_TAKER_LABELS} from '@/lib/constants/cte';
+import {CTE_OS_SERVICES, CTE_TAKER_LABELS} from '@/lib/constants/cte';
+import {CteDocKindBadge} from '@/components/cte/CteKindBadge';
+import {cteKind} from '@/lib/utils/cte';
 import {HomologationBanner} from '@/components/ui/homologation-banner';
 import {ConfigRequiredBanner} from '@/components/ui/config-required-banner';
 import {useFiscalConfig} from '@/lib/hooks/useFiscalConfig';
@@ -54,7 +56,7 @@ function CteList({orgPk}: { orgPk: string }) {
         ariaLabel="CT-es emitidos"
         minWidth={150}
         dimmed={isFetching}
-        headers={['Nº / Série', 'Remetente para destinatário', 'Tomador', 'Frete', 'Status', 'Emissão']}
+        headers={['Nº / Série', 'Tipo', 'Remetente para destinatário', 'Tomador', 'Frete', 'Status', 'Emissão']}
       >
         {items.map((cte) => (
           <tr key={cte.sk} className={TABLE_ROW}>
@@ -66,12 +68,23 @@ function CteList({orgPk}: { orgPk: string }) {
               </Link>
               <span className="text-gray-400 text-xs ml-1">/ {cte.serie}</span>
             </td>
+            <td className={TABLE_CELL} data-label="Tipo"><CteDocKindBadge doc={cte}/></td>
             <td className={`${TABLE_CELL} text-gray-700`} data-label="Remetente para destinatário">
-              {cte.sender.name} <span className="text-gray-400">para</span> {cte.recipient.name}
+              {cte.sender && cte.recipient ? (
+                <>{cte.sender.name} <span className="text-gray-400">para</span> {cte.recipient.name}</>
+              ) : cteKind(cte) === 'os' ? (
+                CTE_OS_SERVICES.find((x) => x.value === cte.os_service)?.label ?? 'CT-e OS'
+              ) : (
+                <span className="text-gray-400">Participantes do CT-e original</span>
+              )}
             </td>
             <td className={`${TABLE_CELL} text-gray-700`} data-label="Tomador">
-              {cte.taker.name}
-              <span className="block text-xs text-gray-400">{CTE_TAKER_LABELS[cte.taker.role] ?? cte.taker.role}</span>
+              {cte.taker ? (
+                <>
+                  {cte.taker.name}
+                  <span className="block text-xs text-gray-400">{CTE_TAKER_LABELS[cte.taker.role] ?? cte.taker.role}</span>
+                </>
+              ) : '-'}
             </td>
             <td className={`${TABLE_CELL} text-gray-700 whitespace-nowrap`} data-label="Frete">{formatCurrency(cte.freight_total)}</td>
             <td className={TABLE_CELL} data-label="Status">
@@ -249,10 +262,13 @@ function CTeContent() {
             <p className="text-gray-500 text-sm mt-0.5">Conhecimento de Transporte Eletrônico</p>
           </div>
           {selectedOrg && activeTab === 'emitidos' && (
-            <Button variant="brand" render={<Link href="/cte/emit"/>}>
-              <span className="text-base leading-none">+</span>
-              Emitir CT-e
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button variant="outline" render={<Link href="/cte/os"/>}>Emitir CT-e OS</Button>
+              <Button variant="brand" render={<Link href="/cte/emit"/>}>
+                <span className="text-base leading-none">+</span>
+                Emitir CT-e
+              </Button>
+            </div>
           )}
         </div>
         

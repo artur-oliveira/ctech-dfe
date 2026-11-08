@@ -425,9 +425,19 @@ function cteOtherTaker(status: string, number: number, day: number, freight: str
   };
 }
 
+/** Data relativa a hoje: o prazo do substituto (60 dias) só deixa o primeiro CT-e emitir substituto se ele for recente. */
+const daysAgoIso = (days: number) => new Date(Date.now() - days * 86_400_000).toISOString();
+const recent = (days: number) => ({dh_emi: daysAgoIso(days), created_at: daysAgoIso(days)});
+
+/** Registro sem participantes: complemento, substituto e CT-e OS não trazem remetente nem destinatário. */
+function cteWithoutParties(status: string, number: number, day: number, freight: string) {
+  const {sender: _sender, recipient: _recipient, ...rest} = cteList(status, number, day, 'remetente', freight); // eslint-disable-line @typescript-eslint/no-unused-vars -- descarte para montar o registro sem participantes
+  return rest;
+}
+
 export const ctesFixture = [
-  cteList('authorized', 31, 6, 'remetente', '1850.00'),
-  cteList('authorized', 30, 4, 'destinatario', '620.00'),
+  {...cteList('authorized', 31, 6, 'remetente', '1850.00'), ...recent(12)},
+  {...cteList('authorized', 30, 4, 'destinatario', '620.00'), ...recent(20)},
   cteList('pending', 32, 9, 'remetente', '410.00'),
   cteList('cancelled', 33, 3, 'remetente', '980.00'),
   // Autorizado aqui e cancelado na SEFAZ: a divergência da consulta (sem reconciliação).
@@ -437,11 +447,26 @@ export const ctesFixture = [
   // Offline (tpEmis 2, prazo de 168 h).
   {...cteList('pending', 36, 10, 'remetente', '540.00'), ...inContingency('pending', '2026-07-17T08:00:00Z')},
   {...cteList('authorized', 37, 5, 'remetente', '300.00'), ...inContingency('authorized_late', '2026-07-12T08:00:00Z')},
+  // Complemento do primeiro CT-e, substituto do segundo e um CT-e OS de pessoas: sem participantes nem notas.
+  {...cteWithoutParties('authorized', 38, 11, '150.00'), cte_type: 'complement' as const, complemented_keys: [accessKey(ORG_PK, '57', 1, 31, 31 * 17)], ...recent(5)},
+  {...cteWithoutParties('pending', 39, 12, '640.00'), cte_type: 'substitute' as const, substituted_key: accessKey(ORG_PK, '57', 1, 30, 30 * 17), ...recent(1)},
+  {
+    ...cteWithoutParties('authorized', 40, 13, '2400.00'),
+    sk: accessKey(ORG_PK, '67', 1, 40, 40 * 17), model: '67', os_service: 'people' as const, cfop: '6206',
+    taker: {role: 'outro' as const, doc: CUSTOMER_PARTY.doc, name: CUSTOMER_PARTY.name}, ...recent(3),
+  },
 ].map((c) => ({...c, emit_cpf_cnpj: ORG_PK, emit_name: 'Empresa Mock LTDA'}));
 
 /** Detalhe de um CT-e da lista: notas, trajeto e carga. */
 export function cteDetailFixture(sk: string) {
   const base = ctesFixture.find((c) => c.sk === sk) ?? ctesFixture[0];
+  if ('cte_type' in base || 'model' in base) {
+    // Sem notas nem carga; o CT-e OS de pessoas leva origem e destino.
+    return {
+      ...base, origin: {uf: 'SP', city_ibge: '3550308', city: 'São Paulo'}, destination: {uf: 'MG', city_ibge: '3106200', city: 'Belo Horizonte'},
+      cargo: null, xml_s3_key: `xml/${ORG_PK}/cte/${base.number}.xml`,
+    };
+  }
   return {
     ...base,
     nfe_keys: [nfesFixture[0].sk, nfesFixture[1].sk],
@@ -1041,6 +1066,13 @@ export const cteFiscalPrevalidationFixture = {
       params: {rule: 'G122', cstat: 899},
     },
   ],
+};
+
+/** 422 do complemento, do substituto e do CT-e OS (`?mock=cte-window` e `?mock=cte-os-invalid`). */
+const cteProblem = (code: string, detail: string) => ({type: 'about:blank', title: 'Unprocessable Entity', status: 422, code, detail});
+export const cteDocProblemFixtures = {
+  window: cteProblem('substitution_window_expired', 'o CT-e original foi emitido há mais de 60 dias mais 168 horas; o substituto não é mais aceito'),
+  osGtve: cteProblem('os_gtve_total_mismatch', 'a soma dos componentes das GTV-e (2400.00) deve fechar com o valor do frete (2300.00) (H053)'),
 };
 
 // Inutilizações de numeração (NF-e / NFC-e)

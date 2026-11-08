@@ -127,6 +127,15 @@ export const DOC_CONTEXTS: DocContext[] = [
       href: '/cte/emit', label: 'Emitir CT-e', icon: <CteIcon/>,
       keywords: ['cte', 'conhecimento de transporte', 'frete', 'tomador', 'rodoviário', 'emissão'],
     },
+    tools: [
+      {
+        href: '/cte/os', label: 'Emitir CT-e OS', icon: <CteIcon/>,
+        keywords: [
+          'cte os', 'modelo 67', 'outros serviços', 'transporte de pessoas', 'fretamento', 'passageiros',
+          'transporte de valores', 'gtv-e', 'excesso de bagagem', 'bp-e', 'taf',
+        ],
+      },
+    ],
     items: [],
   },
   {

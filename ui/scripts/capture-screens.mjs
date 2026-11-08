@@ -39,6 +39,9 @@ const CTE_OTHER_TAKER_KEY = ctesFixture[5].sk;
 // Documentos emitidos em contingência (offline): [3] NFC-e pendente; [4] CT-e pendente.
 const NFCE_PENDING_KEY = nfcesFixture[3].sk;
 const CTE_PENDING_KEY = ctesFixture[6].sk;
+// Complemento [8], substituto [9] e CT-e OS de pessoas [10] (sem participantes nem notas).
+const CTE_COMPLEMENT_KEY = ctesFixture[8].sk;
+const CTE_OS_KEY = ctesFixture[10].sk;
 const NFSE_ID = nfsesFixture[0].sk;
 // CIOT: [0] declarado (carga lotação, com aviso ao transportador).
 const CIOT_ID = ciotsFixture[0].id;
@@ -228,6 +231,34 @@ const CAPTURES = [
       {clickAt: 'details:has([data-testid="cte-ibscbs-summary"]) summary'},
       {clickAt: 'details:has([data-testid="cte-ibscbs-summary"]) input[type="checkbox"]'},
       {scrollAt: 'details:has([data-testid="cte-ibscbs-summary"])'},
+    ],
+  },
+  {slug: 'cte-complement', route: `/cte/complement?key=${CTE_KEY}`, waitText: 'Quando usar o complemento'},
+  {
+    slug: 'cte-substitute',
+    route: `/cte/substitute?key=${CTE_KEY}`,
+    steps: [
+      {waitText: 'Quando usar o substituto'},
+      {clickAt: 'section[aria-labelledby="cte-taker-change"] input[type="checkbox"]'},
+      {waitText: 'Informar outro tomador'},
+      {scrollAt: '#cte-taker-change'},
+    ],
+  },
+  {slug: 'cte-detail-related', route: `/cte/detail?key=${CTE_COMPLEMENT_KEY}`, waitText: 'Complementa'},
+  {slug: 'cte-os-detail', route: `/cte/detail?key=${CTE_OS_KEY}`, waitText: 'Transporte de pessoas'},
+  {
+    slug: 'cte-os-people',
+    route: '/cte/os',
+    steps: [{clickAt: 'input[name="cte-os-service"][value="people"]'}, {waitText: 'Tipo de fretamento'}],
+  },
+  {
+    slug: 'cte-os-values',
+    route: '/cte/os',
+    steps: [
+      {clickAt: 'input[name="cte-os-service"][value="values"]'},
+      {click: 'Adicionar GTV-e'},
+      {waitText: 'Soma das GTV-e'},
+      {scrollAt: '#cte-os-gtve'},
     ],
   },
   {slug: 'mdfe-list', route: '/mdfe', waitText: 'Detalhes'},

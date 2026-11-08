@@ -163,3 +163,137 @@ export const CTE_ERROR_AUTXML = 'autxml_invalid';
 
 /** `autXML` do CT-e: 0 a 10. */
 export const CTE_AUTHORIZED_XML_MAX = 10;
+
+// ─── complementar, substituto e CT-e OS (F6 parte 3) ────────────────────────
+
+/** Permissão das três emissões novas (mesma de `POST /v1.0/ctes`). */
+export const PERMISSION_CTE_CREATE = 'create.ctes';
+
+/** Modelo do CT-e OS na chave de acesso (posições 21 e 22). */
+export const CTE_MODEL_OS = '67';
+
+/** Espécie do documento, derivada de `cte_type` e `model` do registro. */
+export type CteKind = 'normal' | 'complement' | 'substitute' | 'os'
+
+export const CTE_KIND_LABELS: Record<CteKind, string> = {
+  normal: 'Normal',
+  complement: 'Complemento',
+  substitute: 'Substituto',
+  os: 'CT-e OS',
+};
+
+/**
+ * Prazo do substituto (OpenAPI `substitution_window_expired`): 60 dias da emissão do original mais 168 h.
+ * Entre os 60 dias e este limite a decisão é da SEFAZ (G096); depois dele o servidor recusa.
+ */
+export const CTE_SUBSTITUTE_SEFAZ_DAYS = 60;
+export const CTE_SUBSTITUTE_LIMIT_DAYS = 67;
+
+/** Papéis de tomador que o substituto oferece: a UI só conhece remetente e destinatário do original, mais `outro` do cadastro. */
+export const CTE_SUBSTITUTE_TAKER_ROLES: readonly CteTakerRole[] = ['remetente', 'destinatario', 'outro'];
+
+export const CTE_OS_SERVICES: { value: 'people' | 'values' | 'baggage'; label: string; hint: string }[] = [
+  {value: 'people', label: 'Transporte de pessoas', hint: 'Fretamento de passageiros (tpServ 6)'},
+  {value: 'values', label: 'Transporte de valores', hint: 'Malotes com GTV-e (tpServ 7)'},
+  {value: 'baggage', label: 'Excesso de bagagem', hint: 'Bagagem acima do permitido no BP-e (tpServ 8)'},
+];
+
+/** `qCarga`: o nome da quantidade muda com o serviço. */
+export const CTE_OS_QUANTITY_LABELS = {people: 'Passageiros', values: 'Malotes', baggage: 'Volumes'} as const;
+
+/** `xDescServ`: 1 a 30 caracteres. */
+export const CTE_OS_DESCRIPTION_MAX = 30;
+/** `infPercurso`: até 25 UFs. */
+export const CTE_OS_ROUTE_UFS_MAX = 25;
+export const CTE_OS_TAF_LENGTH = 12;
+export const CTE_OS_STATE_REGISTRATION_LENGTH = 25;
+export const CTE_ACCESS_KEY_LENGTH = 44;
+
+/** `tpFretamento`: 1 eventual (exige data e hora da viagem), 2 contínuo. */
+export const CTE_OS_CHARTER_TYPES = [
+  {value: '1', label: 'Eventual'},
+  {value: '2', label: 'Contínuo'},
+] as const;
+export const CTE_OS_CHARTER_EVENTUAL = '1';
+
+/** `tpComp` da GTV-e (XSD `cteTiposBasico`); 6 é "outros" e exige o nome (até 15 caracteres). */
+export const CTE_OS_GTVE_COMPONENT_TYPES = [
+  {value: '1', label: 'Custódia'},
+  {value: '2', label: 'Embarque'},
+  {value: '3', label: 'Tempo de espera'},
+  {value: '4', label: 'Malote'},
+  {value: '5', label: 'Ad valorem'},
+  {value: '6', label: 'Outros'},
+] as const;
+export const CTE_OS_GTVE_COMPONENT_OTHERS = '6';
+export const CTE_OS_GTVE_COMPONENT_NAME_MAX = 15;
+/** Tolerância da soma dos componentes da GTV-e contra o frete (H053), em centavos. */
+export const CTE_OS_GTVE_TOLERANCE_CENTS = 10;
+
+/** `infTribFed`. */
+export const CTE_OS_FEDERAL_TAXES = [
+  {key: 'pis', label: 'PIS'},
+  {key: 'cofins', label: 'COFINS'},
+  {key: 'ir', label: 'IR'},
+  {key: 'inss', label: 'INSS'},
+  {key: 'csll', label: 'CSLL'},
+] as const;
+export type CteOsFederalTaxKey = typeof CTE_OS_FEDERAL_TAXES[number]['key']
+
+/** O CT-e OS não tem o grupo ICMS60 (422 `os_icms_cst_not_allowed`). */
+export const CTE_OS_ICMS_CST_EXCLUDED = '60';
+
+/** Limite da lista de documentos referenciados e de GTV-e do leiaute. */
+export const CTE_OS_DOCS_MAX = 500;
+
+/** 422 `code` do complemento, do substituto e do CT-e OS, em linguagem de quem emite. A mensagem do servidor é o plano B. */
+export const CTE_DOC_ERRORS: Record<string, string> = {
+  original_not_found: 'O CT-e original não foi encontrado nesta organização. Abra-o pela lista de CT-e emitidos.',
+  original_not_issued_by_organization: 'Só dá para complementar ou substituir um CT-e emitido pela sua própria empresa.',
+  original_not_authorized: 'O CT-e original não está autorizado. Aguarde a autorização, ou emita um novo CT-e se ele foi rejeitado.',
+  original_xml_unavailable: 'O XML do CT-e original ainda não está disponível. Tente de novo em instantes.',
+  original_xml_invalid: 'Não foi possível ler o XML do CT-e original. Fale com o suporte informando a chave.',
+  original_type_invalid: 'Só um CT-e normal ou substituto pode ser complementado ou substituído. Um complemento não aceita outro.',
+  original_unsupported: 'Por enquanto só o CT-e rodoviário (modelo 57) pode ser complementado ou substituído.',
+  original_too_old: 'O CT-e original tem mais de 12 meses e não pode mais ser complementado.',
+  originals_mismatch: 'Os CT-e originais têm participantes, percurso ou serviço diferentes. Emita um complemento por original.',
+  emitter_ie_changed: 'A inscrição estadual do emitente mudou desde o CT-e original. Fale com o suporte antes de emitir.',
+  contingency_not_allowed: 'Neste modo de contingência (SVC) a SEFAZ não aceita este documento. Volte à emissão normal para emitir.',
+  substitution_window_expired: 'O prazo para substituir passou: são 60 dias da emissão do original, mais 168 horas. Emita um CT-e novo e cancele o original, se ainda couber.',
+  taker_change_not_requested: 'O tomador só pode ser informado quando você escolhe trocá-lo.',
+  taker_required: 'Escolha o novo tomador do serviço.',
+  taker_role_missing: 'O CT-e original não tem esse participante, então ele não pode ser o novo tomador. Escolha outro papel.',
+  taker_unchanged: 'O novo tomador é o mesmo do CT-e original. Escolha outro, ou desligue a troca de tomador.',
+  taker_base_not_in_original: 'A troca de tomador precisa de um participante que exista no CT-e original. Escolha remetente, destinatário ou outra pessoa do cadastro.',
+  taker_uf_mismatch: 'A UF do novo tomador não confere com a do participante no CT-e original. Escolha outra pessoa.',
+  taker_person_required: 'Escolha a pessoa do cadastro que será o tomador.',
+  person_not_found: 'A pessoa escolhida não está mais no cadastro. Escolha de novo.',
+  cfop_required: 'Escolha o CFOP da prestação.',
+  icms_required: 'Escolha o CST do ICMS.',
+  icms_rate_required: 'Informe a alíquota do ICMS; nenhuma é presumida.',
+  icms_sn_not_allowed: 'O CST Simples Nacional só vale para empresas do Simples. Escolha outro CST.',
+  components_exceed_total: 'Os componentes somam mais que o valor. Revise os valores.',
+  freight_total_invalid: 'O valor informado é inválido. Use um valor maior que zero, com até duas casas.',
+  autxml_invalid: 'Há um CPF ou CNPJ inválido, repetido ou que já faz parte do CT-e na lista de quem pode baixar o XML.',
+  cte_config_required: 'Falta a configuração fiscal do CT-e. Cadastre-a em Configuração fiscal antes de emitir.',
+  os_emitter_cnpj_required: 'O CT-e OS só pode ser emitido por pessoa jurídica (CNPJ).',
+  os_taker_required: 'Escolha o tomador do serviço.',
+  os_place_required: 'Informe origem e destino do transporte de pessoas, ou o destino do transporte de valores.',
+  os_place_uf_mismatch: 'O município escolhido não pertence à UF informada. Escolha o município de novo.',
+  os_road_required: 'Informe os dados do transporte rodoviário (TAF ou registro estadual).',
+  os_road_not_allowed: 'O transporte de valores não leva dados do modal rodoviário.',
+  os_state_registration_required: 'Transporte de pessoas dentro da mesma UF exige o número do registro estadual.',
+  os_taf_required: 'Transporte de pessoas entre UFs exige o TAF (Termo de Autorização de Fretamento).',
+  os_charter_required: 'Informe o tipo de fretamento do transporte de pessoas.',
+  os_trip_at_required: 'O fretamento eventual exige a data e a hora da viagem.',
+  os_trip_at_past: 'A data e a hora da viagem precisam ser depois do momento da emissão.',
+  os_doc_refs_required: 'Informe ao menos um documento referenciado do excesso de bagagem.',
+  os_doc_refs_not_allowed: 'Documentos referenciados só valem para excesso de bagagem.',
+  os_bpe_key_invalid: 'A chave do BP-e é inválida ou o bilhete tem mais de 6 meses. Confira a chave de 44 dígitos.',
+  os_gtve_required: 'Informe ao menos uma GTV-e do transporte de valores.',
+  os_gtve_not_allowed: 'GTV-e só vale para transporte de valores.',
+  os_gtve_invalid: 'Confira as GTV-e: chave repetida, com mais de 6 meses, ou componente do tipo outros sem nome.',
+  os_gtve_total_mismatch: 'A soma dos componentes das GTV-e precisa fechar com o valor do frete (diferença de até R$ 0,10).',
+  os_inss_required: 'Transporte de pessoas com tomador pessoa jurídica exige o valor do INSS nos tributos federais.',
+  os_icms_cst_not_allowed: 'O CT-e OS não tem o CST 60. Escolha outro CST do ICMS.',
+};

@@ -25,6 +25,8 @@ const STANDALONE_TITLES: Record<string, string> = {
   '/onboarding': 'Primeiros passos',
   '/terms-addendum': 'Termos de uso',
   '/unavailable': 'Fora do ar',
+  '/cte/complement': 'Complemento de CT-e',
+  '/cte/substitute': 'Substituto de CT-e',
 };
 
 /** Todos os rótulos de rota conhecidos, do mais específico para o mais genérico. */

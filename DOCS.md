@@ -3372,6 +3372,25 @@ Limites do leiaute numa fonte só, `ui/src/lib/constants/layout-limits.ts` (`LAY
 - `lib/utils/access-key.ts` espelha a api: modelo 64 (tpEmis 1 e 2) e tpEmis 1, 2, 3, 4, 5, 7 e 8 para 57 e 67.
 - **Mock**: `?mock=prevalidation` (422 G193 e G122) e `?mock=regime-normal` (CRT 3).
 
+### CT-e complementar, substituto e CT-e OS na UI (F6 parte 3)
+
+- **Rotas**: `/cte/complement?key=` e `/cte/substitute?key=` (chave do detalhe, nunca digitada; `CteOriginalGate` carrega o
+  original e recusa o que não é autorizado, do emitente, normal ou substituto) e `/cte/os` (nav: ferramenta do contexto CT-e).
+  Os botões "Emitir complemento" e "Emitir substituto" ficam nas ações do detalhe, com a permissão `create.ctes`.
+  Tudo em `components/cte/` (`CteChangeForm`, `CteOsForm`, `CteOsFields`, `CteCharge`, `CteKindBadge`); o valor, o CFOP e o
+  ICMS vêm de `useCteCharge`, que a emissão a partir de NF-e também usa.
+- **API**: `POST /v1.0/ctes/complement`, `/substitute`, `/os` (`apiClient.complementCte`, `substituteCte`, `emitCteOs`), todos 202
+  `pending`. Substituto: `change_taker` + `taker` só quando o usuário troca; a UI oferece remetente, destinatário e `outro`
+  (pessoa do cadastro), sem o papel do tomador atual. Prazo: avisa de 60 a 67 dias (SEFAZ decide) e bloqueia acima de 67.
+- **Espécie**: `cteKind(doc)` (`model` 67 = OS, `cte_type`, senão normal) e `CteKindBadge` na lista e no detalhe. O detalhe lista
+  "Complementa" e "Substitui" com link para o original; `sender`, `recipient`, `taker`, `nfe_keys` e `cargo` são opcionais nos tipos.
+  O DACTE fica oculto no CT-e OS e as ações de complemento e substituto não aparecem para ele.
+- **CT-e OS**: formulário por tipo (pessoas, valores, bagagem) espelhando o `CteOsEmitBody`; TAF ou registro estadual pelo trajeto
+  (H023, H024), fretamento, GTV-e com soma conferida contra o frete (H053), INSS obrigatório com tomador CNPJ (H057), sem CST 60.
+- **Erros**: `CTE_DOC_ERRORS` traduz os `code` 422 de `openapi/ctes.yaml`; código desconhecido mostra a mensagem do servidor.
+- **Mock**: `?mock=cte-window` (substituto fora do prazo) e `?mock=cte-os-invalid` (soma das GTV-e); fixtures de complemento,
+  substituto e CT-e OS no fim de `ctesFixture`.
+
 ### Contingência na UI
 
 Em Configuração Fiscal, as abas NF-e, NFC-e, CT-e e MDF-e têm o bloco "Forma de emissão"

@@ -26,6 +26,7 @@ import {
   cteFiscalPrevalidationFixture,
   cteSefazStatusFixture,
   ctesFixture,
+  cteDocProblemFixtures,
   distributionsFixture,
   inutilizationsFixture,
   numberGapsFixture,
@@ -343,6 +344,17 @@ function route(method: string, path: string, body: unknown, params?: Record<stri
   }
   if (key === 'post /v1.0/ctes/derive') return mockCteDerive(body);
   if (key === 'get /v1.0/ctes') return {data: paginated(ctesFixture)};
+  {
+    // Complemento, substituto e CT-e OS: 202 com o registro `pending`, ou o 422 pedido pelo `?mock=`.
+    const kinds = {complement: 8, substitute: 9, os: 10} as const;
+    const found = /^post \/v1\.0\/ctes\/(complement|substitute|os)$/.exec(key);
+    if (found) {
+      const problem = getMockState().cteProblem;
+      if (problem === 'window' && found[1] === 'substitute') return {error: {status: 422, data: cteDocProblemFixtures.window}};
+      if (problem === 'osGtve' && found[1] === 'os') return {error: {status: 422, data: cteDocProblemFixtures.osGtve}};
+      return {data: {...cteDetailFixture(ctesFixture[kinds[found[1] as keyof typeof kinds]].sk), status: 'pending'}, status: 202};
+    }
+  }
   if (key === 'post /v1.0/ctes') {
     if (getMockState().emitPrevalidation) return {error: {status: 422, data: cteFiscalPrevalidationFixture}};
     return {data: {...ctesFixture[2], nfe_keys: [], origin: null, destination: null, cargo: null, xml_s3_key: null}, status: 202};

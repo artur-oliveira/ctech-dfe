@@ -1,0 +1,235 @@
+'use client';
+
+import {useState} from 'react';
+import Link from 'next/link';
+import {useRouter} from 'next/navigation';
+import {useMutation, useQueryClient} from '@tanstack/react-query';
+import {toast} from 'sonner';
+import {apiClient} from '@/lib/api/client';
+import {useAuth} from '@/lib/hooks/useAuth';
+import {useFiscalConfig} from '@/lib/hooks/useFiscalConfig';
+import {queryKeys} from '@/lib/api/query-keys';
+import type {EmitFailure} from '@/lib/billing/notice';
+import {PersonPicker} from '@/components/persons/PersonPicker';
+import {EmitConfirmModal} from '@/components/ui/emit-confirm-modal';
+import {EmitError} from '@/components/ui/emit-error';
+import {HomologationBanner} from '@/components/ui/homologation-banner';
+import {
+  CTE_SUBSTITUTE_LIMIT_DAYS,
+  CTE_SUBSTITUTE_SEFAZ_DAYS,
+  CTE_SUBSTITUTE_TAKER_ROLES,
+  CTE_TAKER_LABELS,
+  CTE_TAKER_NEEDS_PERSON,
+} from '@/lib/constants/cte';
+import {cteComplementBodySchema, cteSubstituteBodySchema} from '@/lib/schemas/cte';
+import {buildChargeBody, chargeMissing, cteDocFailure, daysSince, ibsCbsComplete, substituteWindow} from '@/lib/utils/cte';
+import {cn} from '@/lib/utils';
+import {formatCurrency} from '@/lib/utils/helpers';
+import type {CteDetailOut, CteTakerRole, PersonItemOut} from '@/lib/types/api';
+import {CteActionBar} from './CteActionBar';
+import {CteChargeExtras, useCteCharge} from './CteCharge';
+import {CteSection} from './CteBlock';
+import {CteFreightFields} from './CteFreightFields';
+
+export type CteChangeMode = 'complement' | 'substitute'
+
+const COPY = {
+  complement: {
+    emitLabel: 'Emitir complemento',
+    docLabel: 'CT-e complementar',
+    success: 'Complemento enviado, aguardando autorização da SEFAZ.',
+    fallback: 'Erro ao emitir o complemento.',
+    freightTitle: 'Qual é o valor complementar?',
+    freightHint: 'Só a diferença a cobrar além do CT-e original, não o frete todo. Componentes são opcionais e saem do total.',
+    totalLabel: 'Valor complementar',
+    barLabel: 'Valor complementar',
+  },
+  substitute: {
+    emitLabel: 'Emitir substituto',
+    docLabel: 'CT-e substituto',
+    success: 'Substituto enviado, aguardando autorização da SEFAZ.',
+    fallback: 'Erro ao emitir o substituto.',
+    freightTitle: 'Quanto custa o frete agora?',
+    freightHint: 'O valor total do CT-e substituto, que toma o lugar do original. Componentes são opcionais e saem do total.',
+    totalLabel: 'Valor total do frete',
+    barLabel: 'Frete',
+  },
+} as const;
+
+/** Explica quando usar e manda para a outra ação, sem o usuário precisar saber a diferença de cabeça. */
+function WhenToUse({mode, original}: { mode: CteChangeMode; original: CteDetailOut }) {
+  const days = daysSince(original.dh_emi ?? original.created_at);
+  const deadline = substituteWindow(days);
+  const other = mode === 'complement' ? 'substitute' : 'complement';
+  return (
+    <section aria-label="Quando usar" className="rounded-xl border border-gray-200 bg-white p-4 md:p-5 space-y-2 text-sm text-gray-700">
+      {mode === 'complement' ? (
+        <>
+          <h2 className="text-base font-semibold text-gray-900">Quando usar o complemento</h2>
+          <p>
+            Use quando o valor cobrado no CT-e original ficou abaixo do devido e falta cobrar a diferença. O complemento
+            só soma valor: remetente, destinatário, percurso e tomador repetem os do original, lidos do XML dele.
+          </p>
+          <p className="text-gray-500">
+            O original precisa estar autorizado e ter no máximo 12 meses. A SEFAZ confere o limite de 10 complementos por original.
+          </p>
+        </>
+      ) : (
+        <>
+          <h2 className="text-base font-semibold text-gray-900">Quando usar o substituto</h2>
+          <p>
+            Use para trocar um CT-e autorizado por outro, com valor ou tributos corrigidos e, se preciso, outro tomador.
+            Carga e NF-e repetem as do original, lidas do XML dele.
+          </p>
+          <p className="text-gray-500">
+            O prazo é de {CTE_SUBSTITUTE_SEFAZ_DAYS} dias da emissão do original; até {CTE_SUBSTITUTE_LIMIT_DAYS} dias
+            (60 dias mais 168 horas) a decisão é da SEFAZ, e depois disso a emissão é recusada.
+          </p>
+          {deadline === 'sefaz' && (
+            <p role="status" className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-gray-900">
+              O original tem {days} dias. Passou dos {CTE_SUBSTITUTE_SEFAZ_DAYS} dias, então a SEFAZ decide se aceita.
+            </p>
+          )}
+          {deadline === 'expired' && (
+            <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-danger">
+              O original tem {days} dias e o prazo para substituir acabou.
+            </p>
+          )}
+        </>
+      )}
+      <p>
+        {mode === 'complement' ? 'Precisa corrigir dados em vez de cobrar mais? ' : 'Só falta cobrar uma diferença de valor? '}
+        <Link href={`/cte/${other}?key=${original.sk}`} className="font-medium text-brand-600 hover:text-brand-700">
+          {other === 'complement' ? 'Emitir complemento' : 'Emitir substituto'}
+        </Link>
+      </p>
+    </section>
+  );
+}
+
+interface TakerState {
+  change: boolean
+  role: CteTakerRole | null
+  person: PersonItemOut | null
+}
+
+/** Troca opcional do tomador (`indAlteraToma`): papel do original diferente do atual, ou outra pessoa do cadastro. */
+function TakerChange({original, value, onChange}: { original: CteDetailOut; value: TakerState; onChange: (v: TakerState) => void }) {
+  const current = original.taker?.role;
+  const names: Partial<Record<CteTakerRole, string | undefined>> = {
+    remetente: original.sender?.name, destinatario: original.recipient?.name,
+  };
+  const roles = CTE_SUBSTITUTE_TAKER_ROLES.filter((r) => r !== current);
+  return (
+    <CteSection id="cte-taker-change" title="Trocar o tomador?"
+                hint={`Hoje paga o frete: ${original.taker?.name ?? 'o tomador do original'}. Sem troca, o tomador continua o mesmo.`}>
+      <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm text-gray-800">
+        <input type="checkbox" className="size-5 accent-brand-600" checked={value.change}
+               onChange={(e) => onChange({change: e.target.checked, role: null, person: null})}/>
+        Informar outro tomador neste substituto
+      </label>
+      {value.change && (
+        <>
+          <div role="radiogroup" aria-labelledby="cte-taker-change" className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            {roles.map((r) => {
+              const checked = value.role === r;
+              return (
+                <label key={r} className={cn(
+                  'flex min-h-11 cursor-pointer flex-col justify-center rounded-lg border px-3 py-2 transition-colors',
+                  'has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50',
+                  checked ? 'border-brand-500 bg-brand-50' : 'border-gray-200 hover:border-brand-300')}>
+                  <input type="radio" name="cte-taker-change" value={r} checked={checked} className="sr-only"
+                         onChange={() => onChange({...value, role: r, person: r === value.role ? value.person : null})}/>
+                  <span className="text-sm font-medium text-gray-900">{CTE_TAKER_LABELS[r]}</span>
+                  <span className="truncate text-xs text-gray-500">
+                    {CTE_TAKER_NEEDS_PERSON.has(r) ? (checked && value.person ? value.person.name : 'Escolher do cadastro')
+                      : names[r] ?? 'Participante do original'}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+          {value.role && CTE_TAKER_NEEDS_PERSON.has(value.role) && (
+            <div className="space-y-1.5">
+              <p className="text-sm font-medium text-gray-700">Pessoa que paga o frete</p>
+              <PersonPicker value={value.person} onChange={(person) => onChange({...value, person})}
+                            placeholder="Buscar pessoa cadastrada"/>
+            </div>
+          )}
+        </>
+      )}
+    </CteSection>
+  );
+}
+
+/** Complemento (tpCTe 1) e substituto (tpCTe 3): só o que o usuário decide; o resto sai do XML do original. */
+export function CteChangeForm({mode, original}: { mode: CteChangeMode; original: CteDetailOut }) {
+  const {selectedOrg} = useAuth();
+  const router = useRouter();
+  const qc = useQueryClient();
+  const {config} = useFiscalConfig('cte', selectedOrg?.pk);
+  const copy = COPY[mode];
+  const charge = useCteCharge(original.origin ?? null, original.destination ?? null);
+  const [taker, setTaker] = useState<TakerState>({change: false, role: null, person: null});
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [failure, setFailure] = useState<EmitFailure | null>(null);
+
+  const deadline = substituteWindow(daysSince(original.dh_emi ?? original.created_at));
+  const missing = [
+    ...chargeMissing(charge.state, mode === 'complement' ? 'valor complementar' : 'frete'),
+    ...(mode === 'substitute' && taker.change && !taker.role ? ['Escolha o novo tomador'] : []),
+    ...(mode === 'substitute' && taker.role && CTE_TAKER_NEEDS_PERSON.has(taker.role) && !taker.person
+      ? ['Escolha a pessoa que paga o frete'] : []),
+    ...(mode === 'substitute' && deadline === 'expired' ? ['O prazo para substituir acabou'] : []),
+    ...(charge.state.ibsCbs && !ibsCbsComplete(charge.state.ibsCbs) ? ['Complete o IBS/CBS ou desligue o bloco'] : []),
+  ];
+
+  const emit = useMutation({
+    mutationFn: () => {
+      const base = buildChargeBody(charge.state);
+      if (mode === 'complement') {
+        return apiClient.complementCte(cteComplementBodySchema.parse({...base, original_keys: [original.sk]}));
+      }
+      return apiClient.substituteCte(cteSubstituteBodySchema.parse({
+        ...base, original_key: original.sk,
+        ...(taker.change && taker.role ? {
+          change_taker: true,
+          taker: CTE_TAKER_NEEDS_PERSON.has(taker.role) && taker.person ? {role: taker.role, person_id: taker.person.sk} : {role: taker.role},
+        } : {}),
+      }));
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({queryKey: queryKeys.ctes.lists(selectedOrg?.pk)});
+      void qc.invalidateQueries({queryKey: queryKeys.ctes.detail(original.sk)});
+      toast.success(copy.success);
+      router.push('/cte');
+    },
+    onError: (err) => setFailure(cteDocFailure(err, copy.fallback)),
+  });
+
+  return (
+    <div className="space-y-4">
+      <HomologationBanner environment={config?.environment}/>
+      <WhenToUse mode={mode} original={original}/>
+      {mode === 'substitute' && <TakerChange original={original} value={taker} onChange={setTaker}/>}
+      <CteFreightFields {...charge.freight} title={copy.freightTitle} hint={copy.freightHint} totalLabel={copy.totalLabel}/>
+      <CteChargeExtras charge={charge} xmlErrors={failure?.issues?.filter((i) => i.target === 'aut_xml').map((i) => i.text)}/>
+      <EmitError failure={failure}/>
+      <CteActionBar label={copy.barLabel} amount={charge.freight.total} missing={missing} pending={emit.isPending}
+                    buttonLabel={copy.emitLabel} onEmit={() => { setFailure(null); setConfirmOpen(true); }}/>
+      <EmitConfirmModal
+        open={confirmOpen} onClose={() => setConfirmOpen(false)}
+        onConfirm={() => { setConfirmOpen(false); emit.mutate(); }}
+        docLabel={copy.docLabel}
+        summary={[
+          {label: 'CT-e original', value: `${original.number} · série ${original.serie}`},
+          {label: copy.totalLabel, value: charge.freight.total ? formatCurrency(charge.freight.total) : '-'},
+          ...(mode === 'substitute' ? [{
+            label: 'Tomador',
+            value: taker.change && taker.role ? CTE_TAKER_LABELS[taker.role] : 'O mesmo do original',
+          }] : []),
+        ]}
+      />
+    </div>
+  );
+}

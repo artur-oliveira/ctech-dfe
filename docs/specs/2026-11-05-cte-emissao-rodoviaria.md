@@ -170,3 +170,11 @@ e regras do MOC cobertas: `CONDUCT.md`, seções "CT-e complementar e substituto
   `destination`, `route_ufs`, `road`, `doc_refs`, `gtve`, `federal_taxes`, mais os campos de valor.
 - O registro do CT-e ganha `cte_type` (`complement`, `substitute`), `complemented_keys`, `substituted_key`, e no CT-e OS
   `model` = `67` e `os_service`. A UI precisa tratar a ausência de `nfe_keys`, `sender`, `recipient` e `cargo` nesses registros.
+
+### Status da UI (F6 parte 3)
+
+Construída em `ui/`: `/cte/complement`, `/cte/substitute` e `/cte/os`, espécie na lista e no detalhe, links para o original,
+mock e guia (detalhes em `DOCS.md`, "CT-e complementar, substituto e CT-e OS na UI"). Em aberto, dependem do backend:
+link do original para os complementos e substitutos dele (a API só devolve a referência no documento novo); papéis
+expedidor e recebedor na troca de tomador (o registro não traz esses participantes); DACTE e eventos do CT-e OS; lista de
+CFOP específica do CT-e OS.

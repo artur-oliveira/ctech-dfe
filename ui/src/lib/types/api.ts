@@ -2153,19 +2153,93 @@ export interface CteListOut extends ContingencyDocFields {
   freight_total: string
   cfop: string
   icms_cst: string
-  sender: { doc: string; name: string }
-  recipient: { doc: string; name: string }
-  taker: { role: CteTakerRole; doc: string; name: string }
+  /** Ausentes no complementar, no substituto e no CT-e OS (spec, "Complemento, substituto e CT-e OS"). */
+  sender?: { doc: string; name: string }
+  recipient?: { doc: string; name: string }
+  taker?: { role: CteTakerRole; doc: string; name: string }
   dh_emi: string | null
   created_at: string
+  /** Ausente no CT-e normal. */
+  cte_type?: CteDocType
+  complemented_keys?: string[]
+  substituted_key?: string
+  /** `67` no CT-e OS; ausente no 57. */
+  model?: string
+  os_service?: CteOsServiceType
 }
 
 export interface CteDetailOut extends CteListOut {
-  nfe_keys: string[]
+  /** Ausente no complementar e no CT-e OS. */
+  nfe_keys?: string[]
   origin: CtePlace | null
   destination: CtePlace | null
   cargo: CteCargo | null
   xml_s3_key: string | null
+}
+
+export type CteDocType = 'complement' | 'substitute'
+export type CteOsServiceType = 'people' | 'values' | 'baggage'
+
+/** Valor e tributos que o complementar, o substituto e o CT-e OS repetem de `CteEmitBody`. */
+export interface CteChargeBody {
+  freight: { total: string; components?: CteFreightComponent[] }
+  icms?: CteEmitBody['icms']
+  ibs_cbs?: CteIbsCbs
+  authorized_xml?: { doc: string }[]
+  cfop: string
+  additional_info?: string
+}
+
+/** `POST /v1.0/ctes/complement`: participantes, percurso e tomador saem do XML do original. */
+export interface CteComplementBody extends CteChargeBody {
+  original_keys: string[]
+}
+
+/** `POST /v1.0/ctes/substitute`. `taker` só com `change_taker`. */
+export interface CteSubstituteBody extends CteChargeBody {
+  original_key: string
+  change_taker?: boolean
+  taker?: { role: CteTakerRole; person_id?: string }
+}
+
+export interface CteOsPlace {
+  city_ibge: string
+  city: string
+  uf: string
+}
+
+export interface CteOsGtveComponent {
+  type: number
+  value: string
+  name?: string
+}
+
+export interface CteOsDocRef {
+  bpe_key?: string
+  number?: string
+  serie?: string
+  subserie?: string
+  issued_on?: string
+  amount?: string
+}
+
+/** `POST /v1.0/ctes/os` (modelo 67). */
+export interface CteOsEmitBody extends CteChargeBody {
+  service_type: CteOsServiceType
+  taker: { person_id: string }
+  service: { description: string; quantity?: string }
+  origin?: CteOsPlace
+  destination?: CteOsPlace
+  route_ufs?: string[]
+  road?: {
+    taf?: string
+    state_registration?: string
+    vehicle?: { plate: string; renavam?: string; uf?: string }
+    charter?: { type: 1 | 2; trip_at?: string }
+  }
+  doc_refs?: CteOsDocRef[]
+  gtve?: { key: string; components: CteOsGtveComponent[] }[]
+  federal_taxes?: { pis?: string; cofins?: string; ir?: string; inss?: string; csll?: string }
 }
 
 /** Um item de `corrections[]` da carta de correção (110110). */

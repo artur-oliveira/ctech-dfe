@@ -35,6 +35,12 @@ interface Props {
   onCfop: (cfop: string) => void
   /** Já filtrados pelo escopo da prestação (mesma UF ou entre UFs). */
   cfopOptions: ComboboxOption[]
+  /** Textos do bloco; o padrão é o da emissão a partir de NF-e. */
+  title?: string
+  hint?: string
+  totalLabel?: string
+  /** CSTs oferecidos (o CT-e OS não tem o 60). */
+  cstOptions?: { value: CteIcmsCst; label: string }[]
 }
 
 const newLineId = () => `comp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -49,7 +55,11 @@ function icmsSummary(total: string, icms: CteIcmsState): string {
 }
 
 /** Bloco 3: quanto custa. Total, componentes opcionais e o ICMS calculado ao vivo. */
-export function CteFreightFields({total, onTotal, components, onComponents, icms, onIcms, cfop, onCfop, cfopOptions}: Props) {
+export function CteFreightFields({
+  total, onTotal, components, onComponents, icms, onIcms, cfop, onCfop, cfopOptions,
+  title = 'Quanto custa o frete?', hint = 'O total da prestação. Componentes são opcionais e saem do total.',
+  totalLabel = 'Valor total do frete', cstOptions = CTE_ICMS_CST_OPTIONS,
+}: Props) {
   const remainder = toCents(total) - componentsTotal(components);
   const usedNames = new Set(components.map((c) => c.name));
   const calc = computeCteIcms(total, icms);
@@ -59,10 +69,9 @@ export function CteFreightFields({total, onTotal, components, onComponents, icms
     onComponents(components.map((c) => (c.id === id ? {...c, ...patch} : c)));
 
   return (
-    <CteSection id="cte-freight" title="Quanto custa o frete?"
-                hint="O total da prestação. Componentes são opcionais e saem do total.">
+    <CteSection id="cte-freight" title={title} hint={hint}>
       <div className="space-y-1.5">
-        <Label htmlFor="cte-freight-total" className="text-sm font-medium text-gray-700">Valor total do frete</Label>
+        <Label htmlFor="cte-freight-total" className="text-sm font-medium text-gray-700">{totalLabel}</Label>
         <CurrencyInput id="cte-freight-total" value={total} onChange={onTotal} placeholder="0,00"
                        allowZero={false} className="w-full sm:max-w-xs"/>
       </div>
@@ -127,7 +136,7 @@ export function CteFreightFields({total, onTotal, components, onComponents, icms
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div className="space-y-1.5 sm:col-span-3">
               <Label htmlFor="cte-icms-cst" className="text-sm font-medium text-gray-700">Situação tributária (CST)</Label>
-              <OptionsSelect id="cte-icms-cst" value={icms.cst} options={CTE_ICMS_CST_OPTIONS}
+              <OptionsSelect id="cte-icms-cst" value={icms.cst} options={cstOptions}
                              onValueChange={(cst) => onIcms({...icms, cst: cst as CteIcmsCst | ''})}
                              placeholder="Escolha o CST" className="w-full"/>
             </div>
