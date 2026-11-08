@@ -111,4 +111,16 @@ describe('configuração de navegação', () => {
     expect(isItemActive('/mdfe', '/mdfe/unclosed')).toBe(false);
     expect(pageNameForPath('/mdfe/unclosed')).toBe('Não encerrados · MDF-e');
   });
+  it('CIOT: lista e declaração no contexto MDF-e, pesquisáveis por ANTT, RNTRC e piso mínimo, com título', () => {
+    const list = SEARCH_ENTRIES.find(e => e.href === '/ciot')!;
+    const emit = SEARCH_ENTRIES.find(e => e.href === '/ciot/emit')!;
+    expect(list.context).toBe('MDF-e');
+    expect(list.keywords).toEqual(expect.arrayContaining(['ciot', 'antt', 'rntrc', 'piso mínimo de frete']));
+    expect(emit.keywords).toEqual(expect.arrayContaining(['declarar', 'frota']));
+    expect(contextForPath('/ciot/detail')?.key).toBe('mdfe');
+    expect(isItemActive('/ciot', '/ciot/emit')).toBe(false);
+    expect(isItemActive('/ciot', '/ciot/detail')).toBe(true);
+    expect(pageNameForPath('/ciot')).toBe('CIOT · MDF-e');
+    expect(pageNameForPath('/ciot/detail')).toBe('Detalhes · CIOT · MDF-e');
+  });
 });

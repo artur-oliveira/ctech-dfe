@@ -8,6 +8,8 @@ import {useWebSocket, type WSStatus} from '@aoctech/ws-client';
 import {queryKeys} from '@/lib/api/query-keys';
 import {getAccessToken, subscribeAccessToken} from '@/lib/api/client';
 import {EVENT_TYPE_INUTILIZACAO, resolveDfeResultToast} from '@/lib/utils/dfe-result-toast';
+import {CIOT_TABLE_NAME} from '@/lib/constants/ciot';
+import {ciotIdFromSk, resolveCiotToast} from '@/lib/utils/ciot';
 
 // `next dev` rewrites do not proxy the WebSocket upgrade, so local development
 // points NEXT_PUBLIC_WS_URL straight at the API. Deployed environments now set it
@@ -38,6 +40,11 @@ interface RealtimeMessage {
   nsu?: number
   // reason carries the rejection detail on import_xml_failed.
   reason?: string
+  // CIOT: resultado da operação na ANTT.
+  operation?: string
+  ciot?: string
+  antt_message?: string
+  internal_code?: string
 }
 
 // Query-key namespaces that own list/detail/events caches, keyed by the
@@ -70,6 +77,15 @@ export function useRealtimeUpdates(): { wsStatus: WSStatus } {
   const handleMessage = useCallback((data: unknown) => {
     const msg = data as RealtimeMessage;
     if (!msg?.type || msg.type === 'ping' || msg.type === 'connected') return;
+
+    // CIOT: a mensagem traz a chave da linha (`CIOT_<id>`); a lista e o detalhe saem do cache, sem eventos de SEFAZ.
+    if (msg.type === 'dfe_result' && msg.access_key && msg.table_name === CIOT_TABLE_NAME) {
+      void qc.invalidateQueries({queryKey: queryKeys.ciots.detail(ciotIdFromSk(msg.access_key))});
+      void qc.invalidateQueries({queryKey: queryKeys.ciots.lists(selectedOrg?.pk)});
+      const {variant, message} = resolveCiotToast(msg);
+      toast[variant](message);
+      return;
+    }
 
     if (msg.type === 'dfe_result' && msg.access_key) {
       // An inutilização is not an event on a document — its access_key is

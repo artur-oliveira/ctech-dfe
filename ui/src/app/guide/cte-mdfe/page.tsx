@@ -177,6 +177,111 @@ export default function GuideCteMdfe() {
           ),
         },
         {
+          id: 'ciot-list',
+          title: 'CIOT: a lista',
+          summary:
+            'Em MDF-e → CIOT ficam os códigos da ANTT do transportador, com o status de cada um. Os filtros acima da tabela separam por status.',
+          image: {
+            src: '/guide/ciot-list.webp',
+            alt: 'Lista de CIOT com número, transportador, frete, viagem e status, e os filtros por status',
+          },
+          body: (
+            <>
+              <p>
+                O <b>CIOT</b> (Código Identificador da Operação de Transporte) é o registro do frete na ANTT. Um CIOT
+                novo nasce <b>Em processamento</b> e muda sozinho para <b>Declarado</b> ou <b>Rejeitado</b> quando a
+                ANTT responde; não é preciso recarregar. O seletor de ambiente separa produção e homologação, e a
+                tela já abre no ambiente da configuração fiscal de MDF-e.
+              </p>
+              <GuideCallout kind="tip" title="Filtro por status">
+                Os filtros agem sobre os CIOT carregados na página. Se o que você procura não aparece, use{' '}
+                <b>Próxima</b> na paginação e filtre de novo.
+              </GuideCallout>
+            </>
+          ),
+        },
+        {
+          id: 'ciot-emit',
+          title: 'Declarar um CIOT',
+          summary:
+            'Escolha o transportador e consulte a situação dele na ANTT; escolha os veículos do cadastro e confira a frota; informe viagem, carga, frete e pagamento.',
+          image: {
+            src: '/guide/ciot-emit.webp',
+            alt: 'Formulário de declaração de CIOT, com transportador, RNTRC, veículos, viagem, carga, frete e pagamento',
+          },
+          body: (
+            <>
+              <GuideTerms>
+                <GuideTerm term="Tipo de operação">
+                  Carga lotação, carga fracionada ou TAC-Agregado. O tipo muda o que é obrigatório: lotação e
+                  fracionada pedem destinatário, rota e carga; o TAC-Agregado não.
+                </GuideTerm>
+                <GuideTerm term="Transportador e RNTRC">
+                  O transportador sai da organização e das pessoas cadastradas com CPF ou CNPJ válido.{' '}
+                  <b>Consultar situação na ANTT</b> mostra a resposta da ANTT e preenche o RNTRC quando ela o traz.
+                  A resposta fica guardada por 1 hora.
+                </GuideTerm>
+                <GuideTerm term="Veículos">
+                  Até 5 do cadastro de veículos, cada um com o número de eixos. O trator conta como automotor e
+                  cavalo-trator. <b>Conferir frota na ANTT</b> pergunta se as placas pertencem ao transportador.
+                </GuideTerm>
+                <GuideTerm term="MDF-e da viagem">
+                  Opcional. Liga o CIOT a um manifesto autorizado.
+                </GuideTerm>
+              </GuideTerms>
+              <GuideCallout kind="tip" title="Piso mínimo de frete">
+                Com tipo de carga, eixos e distância informados, a tela mostra o piso mínimo de frete e avisa se o frete
+                está abaixo. Enquanto a tabela oficial da ANTT não for verificada pelo sistema, a dica diz{' '}
+                <b>indisponível</b> e a declaração segue normalmente: o piso nunca bloqueia o envio.
+              </GuideCallout>
+              <GuideCallout kind="tip" title="Se a ANTT recusar">
+                Quando o sistema recusa a declaração antes de enviar, cada regra violada aparece em uma linha, com a
+                regra e o código da ANTT. Se a ANTT estiver fora do ar na consulta, a tela avisa e deixa você seguir.
+              </GuideCallout>
+            </>
+          ),
+        },
+        {
+          id: 'ciot-detail',
+          title: 'Detalhe do CIOT: retificar, encerrar e cancelar',
+          summary:
+            'Status, aviso ao transportador, motivo da rejeição, histórico das operações e as três ações, cada uma com confirmação.',
+          image: {
+            src: '/guide/ciot-detail.webp',
+            alt: 'Detalhe de um CIOT declarado, com o aviso ao transportador, os dados da viagem e as ações Retificar, Encerrar e Cancelar',
+          },
+          body: (
+            <>
+              <GuideTerms>
+                <GuideTerm term="Aviso ao transportador">
+                  A ANTT exige mostrar o aviso ao transportador e imprimi-lo; o botão <b>Imprimir</b> fica ao lado do
+                  texto.
+                </GuideTerm>
+                <GuideTerm term="Cancelar">
+                  Vale até 24 horas depois do início da viagem. O diálogo mostra o prazo; passado o prazo você ainda
+                  pode tentar, mas a ANTT deve recusar. O motivo é obrigatório.
+                </GuideTerm>
+                <GuideTerm term="Encerrar">
+                  Na carga lotação informe o peso transportado; no TAC-Agregado, a quantidade de viagens e o trecho.
+                </GuideTerm>
+                <GuideTerm term="Retificar">
+                  Abre a declaração preenchida para você corrigir e confirmar. A carga lotação não pode ser
+                  retificada.
+                </GuideTerm>
+              </GuideTerms>
+              <p>
+                Enquanto uma operação está em andamento o detalhe mostra <b>Cancelamento em andamento</b> (ou
+                retificação, encerramento) e esconde as ações; o resultado da ANTT chega por aviso. Cancelar, encerrar
+                e retificar exigem a permissão de atualizar CIOT; sem ela o detalhe só mostra os dados.
+              </p>
+              <GuideCallout kind="tip" title="CIOT rejeitado">
+                O motivo da ANTT aparece em destaque, com o código dela e o código interno. Corrija e declare de novo:
+                um CIOT rejeitado não tem número nem ações.
+              </GuideCallout>
+            </>
+          ),
+        },
+        {
           id: 'cte-emit',
           title: 'Emitir CT-e a partir das notas',
           summary:

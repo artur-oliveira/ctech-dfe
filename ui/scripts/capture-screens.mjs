@@ -20,7 +20,7 @@ import {mkdir, writeFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
 // As chaves saem das próprias fixtures: se uma mudar, a captura acompanha em vez
 // de apontar para um documento que não existe mais.
-import {ctesFixture, mdfesFixture, nfcesFixture, nfesFixture, nfsesFixture} from '../src/lib/mock/fixtures.ts';
+import {ciotsFixture, ctesFixture, mdfesFixture, nfcesFixture, nfesFixture, nfsesFixture} from '../src/lib/mock/fixtures.ts';
 
 const ORIGIN = process.env.CAPTURE_ORIGIN || 'http://127.0.0.1:3000';
 const OUTPUT_DIR = resolve('public/guide');
@@ -40,6 +40,8 @@ const CTE_OTHER_TAKER_KEY = ctesFixture[5].sk;
 const NFCE_PENDING_KEY = nfcesFixture[3].sk;
 const CTE_PENDING_KEY = ctesFixture[6].sk;
 const NFSE_ID = nfsesFixture[0].sk;
+// CIOT: [0] declarado (carga lotação, com aviso ao transportador).
+const CIOT_ID = ciotsFixture[0].id;
 
 /**
  * Passos de preparação. Cada um é `{tipo: alvo}`:
@@ -244,6 +246,18 @@ const CAPTURES = [
     steps: [{waitText: 'Encerrar'}, {click: 'Consultar na SEFAZ'}, {waitText: 'cStat 100'}],
   },
   {slug: 'mdfe-unclosed', route: '/mdfe/unclosed', waitText: 'manifestos abertos'},
+
+  // ── CIOT (ANTT) ──────────────────────────────────────────────────────────
+  {slug: 'ciot-list', route: '/ciot', waitText: 'Detalhes'},
+  {
+    slug: 'ciot-emit',
+    route: '/ciot/emit',
+    steps: [
+      {waitAt: '[aria-label="Usar o veículo ABC1D23"]'}, {clickAt: '[aria-label="Usar o veículo ABC1D23"]'},
+      {waitText: 'Conferir frota na ANTT'}, {scrollAt: '[aria-label="Usar o veículo ABC1D23"]'},
+    ],
+  },
+  {slug: 'ciot-detail', route: `/ciot/detail?id=${CIOT_ID}`, steps: [{waitText: 'Aviso ao transportador'}, {waitText: 'Encerrar'}]},
 
   // ── NFS-e ────────────────────────────────────────────────────────────────
   {slug: 'nfse-list', route: '/nfse', waitText: 'Cliente Exemplo LTDA'},

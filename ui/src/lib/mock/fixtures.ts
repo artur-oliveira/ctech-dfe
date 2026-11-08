@@ -5,6 +5,8 @@
  */
 
 const ORG_PK = '11222333000181';
+/** CPF sintético válido do transportador de exemplo do CIOT. */
+export const CIOT_CARRIER_DOC = '52998224725';
 
 export const meFixture = {
   user_id: 'mock-user-1',
@@ -213,6 +215,22 @@ export const personsFixture = [
     },
     created_at: '2025-02-05T09:00:00Z',
     updated_at: '2025-05-30T09:00:00Z',
+  },
+  // Transportador autônomo (CPF sintético com dígitos verificadores válidos): alimenta o seletor do CIOT.
+  {
+    pk: `${ORG_PK}#person#3`,
+    sk: CIOT_CARRIER_DOC,
+    name: 'Transportador Autônomo Exemplo',
+    roles: ['carrier' as const],
+    person: {
+      fantasy_name: null,
+      crt: null,
+      state_registrations: [],
+      addresses: [],
+      contacts: {emails: [], phones: ['(11) 96666-3333']},
+    },
+    created_at: '2025-03-01T09:00:00Z',
+    updated_at: '2025-06-01T09:00:00Z',
   },
 ];
 
@@ -1542,4 +1560,113 @@ export const mdfeUnclosedEmptyFixture = {
   c_stat: '112',
   x_motivo: 'Consulta não encerrados não localizou MDF-e nessa situação',
   items: [] as {access_key: string; n_prot: string}[],
+};
+
+
+// ─── CIOT (ANTT) ────────────────────────────────────────────────────────────
+
+const ciotRow = (
+  id: string, status: string, day: number, extra: Record<string, unknown> = {},
+) => ({
+  id,
+  status,
+  environment: 'prod' as const,
+  code: id.slice(0, 12).toUpperCase(),
+  ciot: status === 'pending' || status === 'rejected' ? undefined : `${id.slice(0, 12).toUpperCase()}1234`,
+  operation_type: 1,
+  carrier_doc: CIOT_CARRIER_DOC,
+  hirer_doc: ORG_PK,
+  freight_value: '4800.00',
+  trip_start: `2026-07-${String(day).padStart(2, '0')}`,
+  trip_end: `2026-07-${String(day + 2).padStart(2, '0')}`,
+  created_at: `2026-07-${String(day).padStart(2, '0')}T09:00:00Z`,
+  updated_at: `2026-07-${String(day).padStart(2, '0')}T09:05:00Z`,
+  ...extra,
+});
+
+const CIOT_DECLARATION = {
+  operation_type: 1,
+  carrier_doc: CIOT_CARRIER_DOC,
+  carrier_rntrc: '012345678',
+  hirer_doc: ORG_PK,
+  recipient_doc: '11444777000161',
+  freight_value: '4800.00',
+  vehicles: [
+    {plate: 'ABC1D23', axles: 3, automotor: true, tractor: true},
+    {plate: 'XYZ9K87', axles: 3, automotor: false, tractor: false},
+  ],
+  routes: [{origin_ibge: '3550308', destination_ibge: '3304557', distance_km: 430}],
+  cargo: {nature: '1001', weight: '24000.00', cargo_type: 1},
+  payment: {type: 2, indicator: 0, credited_doc: CIOT_CARRIER_DOC, bank_code: '341', branch: '0001', account: '12345-6'},
+  indicators: {high_performance: false, empty_return: false, vehicle_composition: false},
+};
+
+export const ciotsFixture = [
+  ciotRow('a1b2c3d4e5f6', 'declared', 12, {
+    mdfe_access_key: mdfesFixture[0].sk,
+    carrier_warning: 'Entregue ao transportador o comprovante do CIOT impresso, com o aviso da ANTT.',
+    declaration: CIOT_DECLARATION,
+    history: [
+      {operation: 'declare', status: 'declared', at: '2026-07-12T09:05:00Z', antt_code: 110},
+    ],
+  }),
+  ciotRow('b2c3d4e5f6a1', 'pending', 14, {pending_operation: 'declare', declaration: CIOT_DECLARATION, history: []}),
+  ciotRow('c3d4e5f6a1b2', 'closed', 3, {
+    declaration: CIOT_DECLARATION,
+    history: [
+      {operation: 'declare', status: 'declared', at: '2026-07-03T09:05:00Z', antt_code: 110},
+      {operation: 'close', status: 'closed', at: '2026-07-06T18:20:00Z', antt_code: 111},
+    ],
+  }),
+  ciotRow('d4e5f6a1b2c3', 'rejected', 8, {
+    operation_type: 2,
+    declaration: {...CIOT_DECLARATION, operation_type: 2},
+    last_error: {
+      internal_code: 'CIOT_DECL_229', antt_code: 229,
+      antt_message: 'Campo obrigatório não informado: RNTRC do contratado.',
+    },
+    history: [
+      {operation: 'declare', status: 'rejected', at: '2026-07-08T09:03:00Z', antt_code: 229, internal_code: 'CIOT_DECL_229'},
+    ],
+  }),
+  ciotRow('e5f6a1b2c3d4', 'cancelled', 1, {
+    declaration: CIOT_DECLARATION,
+    history: [
+      {operation: 'declare', status: 'declared', at: '2026-07-01T09:05:00Z', antt_code: 110},
+      {operation: 'cancel', status: 'cancelled', at: '2026-07-01T15:00:00Z', antt_code: 111},
+    ],
+  }),
+];
+
+/** Resposta da ANTT repassada pela api; o formato de `body` é o do mock, não o contrato real. */
+export const ciotCarrierStatusFixture = {
+  cached: false,
+  result: {
+    codigo: 111,
+    mensagem: 'Consulta realizada com sucesso',
+    body: {RNTRC: '012345678', Situacao: 'Ativo', TipoTransportador: 'TAC', EquiparadoTAC: false},
+  },
+};
+
+export const ciotCarrierFleetFixture = {
+  cached: false,
+  result: {
+    codigo: 111,
+    mensagem: 'Consulta realizada com sucesso',
+    body: {Placas: 'ABC1D23, XYZ9K87', Resultado: 'Todas as placas pertencem ao transportador'},
+  },
+};
+
+export const ciotFloorFixture = {cents: 482000, value: '4820.00', table_version: 'mock-0'};
+
+export const ciotValidationProblemFixture = {
+  type: '/problems/unprocessable-entity',
+  title: 'Unprocessable Entity',
+  status: 422,
+  code: 'ciot_validation',
+  detail: 'A declaração não passou nas regras locais.',
+  errors: [
+    {field: 'RNTRCContratado', code: 'rule', message: 'O RNTRC do contratado deve ter 9 dígitos.', params: {rule: 'B4', antt_code: 205}},
+    {field: 'ValorFrete', code: 'rule', message: 'O valor do frete deve ser maior que zero.', params: {rule: 'B120', antt_code: 319}},
+  ],
 };

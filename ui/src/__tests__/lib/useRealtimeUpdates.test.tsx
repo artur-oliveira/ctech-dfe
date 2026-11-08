@@ -151,4 +151,34 @@ describe('useRealtimeUpdates', () => {
     expect(keys).toContainEqual(queryKeys.nfces.lists(ORG_PK));
     expect(keys).toContainEqual(queryKeys.nfces.detail('AK1'));
   });
+  // CIOT: a mensagem traz a chave da linha (`CIOT_<id>`) e a tela usa o `id`; sem evento de SEFAZ para invalidar.
+  it('invalidates the CIOT detail by id and the list, and toasts the ANTT outcome', async () => {
+    const {toast} = await import('sonner');
+    const qc = new QueryClient({defaultOptions: {queries: {retry: false}}});
+    const invalidate = vi.spyOn(qc, 'invalidateQueries').mockResolvedValue(undefined);
+    renderHook(() => useRealtimeUpdates(), {wrapper: wrapperWith(qc)});
+    const sock = FakeWebSocket.instances[0];
+    act(() => sock.onopen?.());
+
+    act(() => sock.onmessage?.({
+      data: JSON.stringify({
+        type: 'dfe_result', result_kind: 'document', access_key: 'CIOT_a1b2c3d4e5f6',
+        doc_pk: 'prod#' + ORG_PK, table_name: 'ciots', status: 'declared', operation: 'declare', ciot: 'A1B2C3D4E5F61234',
+      }),
+    }));
+
+    const keys = invalidate.mock.calls.map(([arg]) => arg?.queryKey);
+    expect(keys).toContainEqual(queryKeys.ciots.detail('a1b2c3d4e5f6'));
+    expect(keys).toContainEqual(queryKeys.ciots.lists(ORG_PK));
+    expect(keys).not.toContainEqual(queryKeys.mdfes.lists(ORG_PK));
+    expect(toast.success).toHaveBeenCalledWith('CIOT A1B2C3D4E5F61234 declarado na ANTT');
+
+    act(() => sock.onmessage?.({
+      data: JSON.stringify({
+        type: 'dfe_result', result_kind: 'document', access_key: 'CIOT_a1b2c3d4e5f6', table_name: 'ciots',
+        status: 'declared', operation: 'cancel', internal_code: 'CIOT_CANC_221', antt_message: 'Prazo vencido',
+      }),
+    }));
+    expect(toast.error).toHaveBeenCalledWith('ANTT recusou a operação do CIOT; Prazo vencido');
+  });
 });

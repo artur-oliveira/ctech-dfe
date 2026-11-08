@@ -176,3 +176,52 @@ describe('mock handler: CT-e detalhe, eventos e SEFAZ', () => {
     for (const c of ctesFixture) expect(validateAccessKey(c.sk, [ACCESS_KEY_MOD_CTE]).valid).toBe(true);
   });
 });
+
+describe('mock handler: CIOT', () => {
+  const call = (method: string, url: string, params?: object) =>
+    mockAdapter({method, url, params, headers: {}} as unknown as InternalAxiosRequestConfig);
+
+  it('lista, detalha e responde as ações com a operação em andamento', async () => {
+    const list = (await get('/v1.0/ciots')) as { items: { id: string }[] };
+    expect(list.items.length).toBeGreaterThanOrEqual(4);
+    expect(((await get(`/v1.0/ciots/${list.items[2].id}`)) as { id: string }).id).toBe(list.items[2].id);
+    const cancel = await call('post', `/v1.0/ciots/${list.items[0].id}/cancellation`);
+    expect(cancel.status).toBe(202);
+    expect((cancel.data as { pending_operation: string }).pending_operation).toBe('cancel');
+  });
+
+  it('declarar devolve 202 pendente; ?mock=ciot-invalid devolve 422 ciot_validation', async () => {
+    const ok = await call('post', '/v1.0/ciots');
+    expect(ok.status).toBe(202);
+    expect((ok.data as { status: string }).status).toBe('pending');
+    setMockState({ciotProblem: 'invalid'});
+    try {
+      await expect(call('post', '/v1.0/ciots')).rejects.toMatchObject({response: {status: 422, data: {code: 'ciot_validation'}}});
+    } finally {
+      setMockState({ciotProblem: null});
+    }
+  });
+
+  it('o piso vem 503 ciot_floor_unverified até o `?mock=floor` calcular', async () => {
+    await expect(call('get', '/v1.0/freight-floor')).rejects.toMatchObject({
+      response: {status: 503, data: {code: 'ciot_floor_unverified'}},
+    });
+    setMockState({freightFloor: true});
+    try {
+      expect((await get('/v1.0/freight-floor')).value).toBe('4820.00');
+    } finally {
+      setMockState({freightFloor: false});
+    }
+  });
+
+  it('situação e frota do transportador; ANTT fora do ar responde 503', async () => {
+    expect(((await get('/v1.0/ciot-carriers/52998224725/status')) as { result: { codigo: number } }).result.codigo).toBe(111);
+    expect((await get('/v1.0/ciot-carriers/52998224725/fleet')).cached).toBe(false);
+    setMockState({anttDown: true});
+    try {
+      await expect(call('get', '/v1.0/ciot-carriers/52998224725/status')).rejects.toMatchObject({response: {status: 503}});
+    } finally {
+      setMockState({anttDown: false});
+    }
+  });
+});

@@ -2406,3 +2406,139 @@ export interface PaginatedResponse<T> {
   previous_cursor: string | null
   has_previous: boolean
 }
+
+// ── CIOT (ANTT, Pagamento Eletrônico de Frete) — espelha api/internal/api/v1/openapi/ciots.yaml ──────────────
+
+export type CiotEnvironment = 'prod' | 'hom'
+/** `failed`: declaração que esgotou as tentativas (fila de falhas); o contrato da api ainda não a lista, mas o worker a grava. */
+export type CiotStatus = 'pending' | 'declared' | 'rectified' | 'cancelled' | 'closed' | 'rejected' | 'failed'
+export type CiotPendingOperation = 'declare' | 'cancel' | 'rectify' | 'close'
+
+export interface CiotRoute {
+  origin_ibge?: string
+  destination_ibge?: string
+  origin_cep?: string
+  destination_cep?: string
+  origin_latitude?: string
+  origin_longitude?: string
+  destination_latitude?: string
+  destination_longitude?: string
+  distance_km?: number
+}
+
+export interface CiotVehicle {
+  plate: string
+  rntrc?: string
+  axles: number
+  automotor: boolean
+  tractor: boolean
+}
+
+export interface CiotInstallment {
+  number: number
+  due_date: string
+  value: string
+}
+
+export interface CiotPayment {
+  type: number
+  indicator: number
+  bank_code?: string
+  branch?: string
+  account?: string
+  pix_key?: string
+  pix_id?: string
+  credited_doc: string
+  installments?: CiotInstallment[]
+}
+
+/** Conteúdo da declaração (`CiotOperation`); a retificação envia o mesmo corpo, sem `environment`. */
+export interface CiotOperation {
+  operation_type: number
+  carrier_doc: string
+  carrier_rntrc: string
+  hirer_doc: string
+  hirer_rntrc?: string
+  recipient_doc?: string
+  freight_value: string
+  declared_at?: string
+  contingency?: boolean
+  contingency_reason?: string
+  trip_start?: string
+  trip_end: string
+  vehicles: CiotVehicle[]
+  routes?: CiotRoute[]
+  cargo?: { nature: string; weight: string; cargo_type: number; fractional_hirer_docs?: string[] }
+  payment: CiotPayment
+  indicators?: { high_performance: boolean; empty_return: boolean; vehicle_composition: boolean }
+}
+
+export interface CiotDeclareBody extends CiotOperation {
+  environment: CiotEnvironment
+  payment_institution?: boolean
+  mdfe_access_key?: string
+}
+
+export interface CiotHistoryEntry {
+  operation: string
+  status: string
+  at: string
+  antt_code?: number
+  internal_code?: string
+}
+
+export interface CiotLastError {
+  internal_code?: string
+  antt_code?: number
+  antt_message?: string
+}
+
+export interface CiotOut {
+  id: string
+  status: CiotStatus
+  pending_operation?: CiotPendingOperation
+  environment: CiotEnvironment
+  /** Identificador de 12 caracteres. */
+  code?: string
+  /** CIOT de 16 caracteres (12 mais o verificador). */
+  ciot?: string
+  carrier_warning?: string
+  mdfe_access_key?: string
+  operation_type?: number
+  carrier_doc?: string
+  hirer_doc?: string
+  freight_value?: string
+  trip_start?: string
+  trip_end?: string
+  declaration?: Partial<CiotOperation>
+  last_error?: CiotLastError
+  history?: CiotHistoryEntry[]
+  created_at?: string
+  updated_at?: string
+}
+
+export interface CiotCloseBody {
+  closed_at?: string
+  cargo_weight?: string
+  trip_count?: number
+  routes?: CiotRoute[]
+}
+
+/** Resposta da ANTT repassada pela api (`codigo`, `mensagem`, `body`); o formato de `body` não é garantido. */
+export interface CiotAnttResult {
+  codigo?: number
+  mensagem?: string
+  protocolo?: string
+  body?: Record<string, unknown>
+}
+
+export interface CiotCarrierResult {
+  cached: boolean
+  result: CiotAnttResult
+}
+
+export interface FreightFloorOut {
+  cents: number
+  value: string
+  table_version: string
+}

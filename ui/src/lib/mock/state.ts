@@ -32,6 +32,11 @@ export interface MockState {
   printProblem: 'invalidFormat' | 'notAllowed' | 'noXml' | null
   /** Recusa dos eventos F9 (reforma, entrega, ator interessado): layout, evento não autorizado, evento inexistente ou sem certificado. */
   eventProblem: 'invalid' | 'notAuthorized' | 'notFound' | 'noCertificate' | null
+  /** CIOT: a declaração é recusada com 422 `ciot_validation` (`ciot-invalid`) ou o piso mínimo de frete vem calculado (`floor`). */
+  ciotProblem: 'invalid' | null
+  freightFloor: boolean
+  /** A ANTT fora do ar (503) nas consultas de transportador (`antt-down`). */
+  anttDown: boolean
 }
 
 const SAFE_PATHS = [
@@ -52,6 +57,9 @@ const DEFAULT: MockState = {
   emissionProblem: null,
   printProblem: null,
   eventProblem: null,
+  ciotProblem: null,
+  freightFloor: false,
+  anttDown: false,
 };
 
 let state: MockState = {...DEFAULT};
@@ -100,6 +108,12 @@ export function initMockStateFromUrl(search: string): void {
     state = {...state, eventProblem: 'notFound'};
   } else if (raw === 'no-certificate') {
     state = {...state, eventProblem: 'noCertificate'};
+  } else if (raw === 'ciot-invalid') {
+    state = {...state, ciotProblem: 'invalid'};
+  } else if (raw === 'floor') {
+    state = {...state, freightFloor: true};
+  } else if (raw === 'antt-down') {
+    state = {...state, anttDown: true};
   } else if (raw === 'ok') {
     state = {...state, mode: 'ok'};
   }

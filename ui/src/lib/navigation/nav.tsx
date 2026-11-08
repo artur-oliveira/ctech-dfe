@@ -141,6 +141,19 @@ export const DOC_CONTEXTS: DocContext[] = [
         href: '/mdfe/unclosed', label: 'Não encerrados', icon: <ClipboardIcon/>,
         keywords: ['mdfe', 'nao encerrados', 'não encerrados', 'encerrar', 'pendentes', 'encerramento', 'aberto'],
       },
+      {
+        href: '/ciot', label: 'CIOT', icon: <RouteIcon/>,
+        keywords: [
+          'ciot', 'antt', 'pef', 'pagamento eletrônico de frete', 'código identificador da operação de transporte',
+          'rntrc', 'tac', 'transportador autônomo', 'piso mínimo de frete', 'frete', 'retificar', 'encerrar', 'cancelar',
+        ],
+      },
+      {
+        href: '/ciot/emit', label: 'Declarar CIOT', icon: <RouteIcon/>,
+        keywords: [
+          'ciot', 'declarar', 'antt', 'rntrc', 'transportador', 'frota', 'veículos', 'frete', 'piso mínimo', 'contratante',
+        ],
+      },
     ],
     items: [
       {

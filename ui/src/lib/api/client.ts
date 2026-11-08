@@ -52,6 +52,13 @@ import type {
   MdfeListOut,
   MdfeSituationOut,
   MdfeUnclosedOut,
+  CiotCarrierResult,
+  CiotCloseBody,
+  CiotDeclareBody,
+  CiotEnvironment,
+  CiotOperation,
+  CiotOut,
+  FreightFloorOut,
   MeResponse,
   MunicipalParamsOut,
   NFCeConfigOut,
@@ -1077,6 +1084,51 @@ class ApiClient {
     return this.get(`/v1.0/ctes/${accessKey}/events/${encodeURIComponent(eventSk)}/xml`);
   }
 
+  // CIOT (ANTT) — declaração assíncrona: 202 e o resultado chega por WebSocket
+  async listCiots(params?: { environment?: CiotEnvironment; limit?: number; cursor?: string }): Promise<PaginatedResponse<CiotOut>> {
+    return this.get('/v1.0/ciots', {params});
+  }
+
+  async getCiot(id: string): Promise<CiotOut> {
+    return this.get(`/v1.0/ciots/${encodeURIComponent(id)}`);
+  }
+
+  async declareCiot(data: CiotDeclareBody): Promise<CiotOut> {
+    return this.post('/v1.0/ciots', data);
+  }
+
+  async cancelCiot(id: string, reason: string): Promise<CiotOut> {
+    return this.post(`/v1.0/ciots/${encodeURIComponent(id)}/cancellation`, {reason});
+  }
+
+  async rectifyCiot(id: string, data: CiotOperation): Promise<CiotOut> {
+    return this.post(`/v1.0/ciots/${encodeURIComponent(id)}/rectification`, data);
+  }
+
+  async closeCiot(id: string, data: CiotCloseBody): Promise<CiotOut> {
+    return this.post(`/v1.0/ciots/${encodeURIComponent(id)}/closure`, data);
+  }
+
+  async getCiotCarrierStatus(cpfCnpj: string, environment: CiotEnvironment): Promise<CiotCarrierResult> {
+    return this.get(`/v1.0/ciot-carriers/${cpfCnpj}/status`, {params: {environment}}, false);
+  }
+
+  async getCiotCarrierFleet(cpfCnpj: string, plates: string[], environment: CiotEnvironment): Promise<CiotCarrierResult> {
+    return this.get(`/v1.0/ciot-carriers/${cpfCnpj}/fleet`, {params: {plates: plates.join(','), environment}}, false);
+  }
+
+  /** Piso mínimo de frete. 503 `ciot_floor_unverified` enquanto a tabela oficial não foi verificada; a tela trata como "indisponível". */
+  async getFreightFloor(params: {
+    composition?: string
+    high_performance?: string
+    cargo_type?: number
+    axles?: number
+    distance_km?: number
+    empty_return?: boolean
+  }): Promise<FreightFloorOut> {
+    return this.get('/v1.0/freight-floor', {params}, false);
+  }
+
   // MDF-es (modelo 58) — uses Dfe-Organization-Pk header
   async getMdfes(params?: {
     limit?: number
@@ -1382,13 +1434,17 @@ class ApiClient {
     return this.get(`/v1.0/persons/${cpfCnpj}`);
   }
 
-  private async get<T>(path: string, config?: AxiosRequestConfig): Promise<T> {
+  /**
+   * `maintenance: false` keeps a 503 on the screen it came from. For endpoints whose 503 is a business answer,
+   * not an outage (ANTT unavailable, `ciot_floor_unverified`): the form shows it inline and never blocks.
+   */
+  private async get<T>(path: string, config?: AxiosRequestConfig, maintenance = true): Promise<T> {
     // Only reads are replayed: a POST carries an Idempotency-Key, but a fiscal
     // document is never worth an accidental duplicate.
     try {
       return (await withRetry(() => this.http.get<T>(path, config), {method: 'get', classify: classifyApiError})).data;
     } catch (error) {
-      if (error instanceof ApiError) redirectOnMaintenance(error.status);
+      if (maintenance && error instanceof ApiError) redirectOnMaintenance(error.status);
       throw error;
     }
   }

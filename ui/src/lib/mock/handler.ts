@@ -37,6 +37,11 @@ import {
   mdfeSefazStatusFixture,
   mdfeUnclosedFixture,
   mdfesFixture,
+  ciotCarrierFleetFixture,
+  ciotCarrierStatusFixture,
+  ciotFloorFixture,
+  ciotsFixture,
+  ciotValidationProblemFixture,
   meFixture,
   membersFixture,
   nfceConfigFixture,
@@ -409,6 +414,31 @@ function route(method: string, path: string, body: unknown, params?: Record<stri
   if (/^post \/v1\.0\/nfces\/.+\/(cancel|substitute)$/.test(key)) return {data: nfceDetailFixture};
   if (/^post \/v1\.0\/mdfes\/.+\/(cancel|close|include-condutor|include-dfe)$/.test(key)) return {data: mdfeDetailFixture};
   if (/^post \/v1\.0\/nfses\/.+\/(cancel|substitute|events)$/.test(key)) return {data: nfsesFixture[0]};
+
+  // CIOT (ANTT): a declaração entra `pending` e o resultado chegaria por WebSocket; o mock só devolve a linha.
+  if (key === 'get /v1.0/ciots') return {data: paginated(ciotsFixture)};
+  if (m === 'post' && path === '/v1.0/ciots') {
+    if (getMockState().ciotProblem === 'invalid') return {error: {status: 422, data: ciotValidationProblemFixture}};
+    return {data: {...ciotsFixture[1], id: 'f6a1b2c3d4e5'}, status: 202};
+  }
+  {
+    const ciot = /^get \/v1\.0\/ciots\/([^/]+)$/.exec(key);
+    if (ciot) return {data: ciotsFixture.find((c) => c.id === ciot[1]) ?? ciotsFixture[0]};
+    const op = /^post \/v1\.0\/ciots\/([^/]+)\/(cancellation|rectification|closure)$/.exec(key);
+    if (op) {
+      const pending = {cancellation: 'cancel', rectification: 'rectify', closure: 'close'}[op[2] as 'cancellation'];
+      return {data: {...(ciotsFixture.find((c) => c.id === op[1]) ?? ciotsFixture[0]), pending_operation: pending}, status: 202};
+    }
+  }
+  if (/^get \/v1\.0\/ciot-carriers\/[^/]+\/(status|fleet)$/.test(key)) {
+    if (getMockState().anttDown) return {error: {status: 503, data: {detail: 'serviço da ANTT indisponível; tente novamente', code: 'ciot_unavailable'}}};
+    return {data: key.endsWith('/fleet') ? ciotCarrierFleetFixture : ciotCarrierStatusFixture};
+  }
+  // Piso mínimo: enquanto a tabela oficial não foi verificada a api responde 503, nunca um número.
+  if (key === 'get /v1.0/freight-floor') {
+    if (getMockState().freightFloor) return {data: ciotFloorFixture};
+    return {error: {status: 503, data: {detail: 'Tabela do piso mínimo de frete ainda não verificada.', code: 'ciot_floor_unverified'}}};
+  }
 
   // Distributions
   if (key === 'get /v1.0/nfse/distributions') return {data: paginated(nfseDistributionsFixture)};

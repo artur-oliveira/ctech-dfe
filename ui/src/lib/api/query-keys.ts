@@ -113,6 +113,14 @@ export const queryKeys = {
     unclosed: (orgPk: string | undefined) => ['mdfes-unclosed', orgPk] as const,
     cargoPreview: (orgPk: string | undefined, keys: string[]) => ['mdfe-cargo-preview', orgPk, keys] as const,
   },
+  ciots: {
+    lists: (orgPk: string | undefined) => ['ciots', orgPk] as const,
+    list: (orgPk: string | undefined, params?: object) => ['ciots', orgPk, params] as const,
+    detail: (id: string) => ['ciot', id] as const,
+    carrierStatus: (env: string, doc: string) => ['ciot-carrier-status', env, doc] as const,
+    carrierFleet: (env: string, doc: string, plates: string) => ['ciot-carrier-fleet', env, doc, plates] as const,
+    floor: (params: object) => ['ciot-freight-floor', params] as const,
+  },
   ctes: {
     lists: (orgPk: string | undefined) => ['ctes', orgPk] as const,
     list: (orgPk: string | undefined, params?: object) => ['ctes', orgPk, params] as const,

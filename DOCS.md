@@ -3804,6 +3804,25 @@ ctech-account is unchanged. Row status: `pending`, `declared`, `rectified`, `can
 warning on declaration is not wired yet: it needs the verified table and the composition mapping (phase C7). The 12-character
 identifier is never produced by the API; the worker obtains it from the generator before the declaration.
 
+### CIOT UI (`ui/`)
+
+Screens `/ciot` (list, status filter chips applied client-side to the loaded page, environment select defaulting to the MDF-e
+fiscal config), `/ciot/emit` (declare; with `?rectify={id}` the same form is prefilled from `declaration` and confirms before
+`POST .../rectification`; full load is refused client-side, B121) and `/ciot/detail?id=` (status, carrier warning with print,
+`last_error`, history, cancel with the 24 h hint, close with weight (full load) or trips and route (TAC-Agregado)). Registered
+under the MDF-e context in `nav.tsx`. Permissions gate the screens and buttons (`list|get|create|update.ciots`,
+`useCiotPermissions`). Code: `ui/src/app/ciot`, `ui/src/components/ciot`, `lib/schemas/ciots.ts`, `lib/utils/ciot.ts`.
+
+- The three `GET` helpers that can answer 503 as a business answer (`ciot-carriers/*`, `freight-floor`) bypass the maintenance
+  redirect (`get(..., maintenance=false)`): a 503 there is inline text, never `/unavailable`. The floor hint says
+  "indisponivel" and never blocks the declaration; `composition` and `high_performance` are not sent until phase C7.
+- The ANTT `result.body` shape is not fixed by the contract: the UI shows scalar fields as received and reads an RNTRC only
+  from a key matching `rntrc`; it never states eligibility the ANTT did not say (110/111 only).
+- Realtime: `dfe_result` with `table_name=ciots` invalidates `ciots` list and detail (`access_key` is `CIOT_{id}`) and toasts via
+  `resolveCiotToast`; a lifecycle rejection arrives with the old status plus `internal_code`.
+- Mock flags: `?mock=floor` (floor computed), `?mock=ciot-invalid` (422 `ciot_validation`), `?mock=antt-down` (503 on carrier
+  queries). Guide: three sections in `/guide/cte-mdfe`, captures `ciot-list|emit|detail`.
+
 ### CIOT worker
 
 `ciot-operation` (`${env}-ciot-operation-worker`, SNS filter on the four CIOT operation names, tables `ciots` + `ciot_audit`).
