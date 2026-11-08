@@ -499,3 +499,36 @@ Menor caminho para valor: Fases 0, 1, 2 e 3 (CT-e rodoviário completo e validad
 
 Feitos: 110180, 110181, 110190, 110191 (`api/internal/services/ctes/delivery_events.go`). Pendentes: 110160, 110300/110301, 211110.
 MDF-e: o MOC lista como eventos do emitente apenas 110111, 110112, 110114, 110115, 110116, 110117 e 110118, todos já implementados.
+
+## Status F6 parte 3 (complemento, substituto, CT-e OS), 2026-11-08
+
+Feitos: CT-e complementar (tpCTe 1), substituto (tpCTe 3) e o núcleo do CT-e OS; contratos em
+`docs/specs/2026-11-05-cte-emissao-rodoviaria.md` e regras provadas localmente em `CONDUCT.md`. Correção de numeração: no
+MOC publicado as regras do complemento são G017 e G160 a G177 e as da substituição G076 a G101 (G078 a G096 são da
+substituição). tpCTe 2 (anulação) não existe no 4.00.
+
+### GTV-e, modelo 64 (`TGTVe` em cteTiposBasico_v4.00.xsd; só spec, sem código)
+
+Raiz `<GTVe versao>` com `infCte (Id, versao)` e `infCTeSupl/qrCodCTe`. Ordem: `ide`, `compl`, `emit`, `rem`, `dest`,
+`origem`, `destino`, `detGTV`, `autXML`, `infRespTec`. `ide`: cUF, cCT, CFOP, natOp, `mod`=64, serie, nCT, dhEmi, tpImp,
+`tpEmis` 1|2 (só normal e off-line), cDV, tpAmb, `tpCTe`=4 (TFinGTVe), verProc, cMunEnv/xMunEnv/UFEnv, `modal` 01|06
+(rodoviário ou aéreo), `tpServ`=9, indIEToma, `dhSaidaOrig`, `dhChegadaDest`, um choice de tomador (`toma`/`tomaTerceiro`) e
+`dhCont`/`xJust` opcionais. `emit` só CNPJ. `rem` e `dest` com CNPJ|CPF, IE, xNome, fone, ender, email (dest tem ISUF).
+`origem` e `destino` são endereços TEndeEmi (UF sem EX). `detGTV`: `infEspecie` (1..n), `qCarga` (11,4), `infVeiculo`
+(1..n). Não há `vPrest`, `imp` nem `infDoc`. Regras: I01 a I75 (ambiente, série 890-899, chave modelo 64, tomador I13 a
+I15, emissão atrasada mais de 30 dias I17, emitente I18 a I26, remetente I27 a I34, destinatário I35 a I43, tomador I45 a
+I53, duplicidade e cancelamento I54 a I56, município I57 a I62, autXML I63 a I66, responsável técnico I67 a I69, QR Code I70
+a I75). Serviço `CTeRecepcaoGTVe` (`CTeRecepcaoGTVeV4`); assinatura em `infCte` (a config traz `infGTVe`, ver CONDUCT.md).
+O CT-e OS de valores referencia a GTV-e por `infGTVe` (H045a, H046 a H053).
+
+### CT-e Simplificado (`TCTeSimp` em cteSimp_v4.00.xsd; só spec, sem código)
+
+Raiz `<CTeSimp versao>`, modelo 57, serviço `CTeRecepcaoSimp` (`CTeSimplificadoV4`). `ide`: como o 57 com `tpCTe` 5
+(simplificado) ou 6 (substituição do simplificado), `tpEmis` 1|2|3|4|7|8, `procEmi` 0|3|4, `modal` 01|02|03, `tpServ`
+0|1|2, UFIni e UFFim (sem municípios), `retira`. O tomador é o grupo `toma` (código 0 a 4, `indIEToma`, CNPJ|CPF, IE,
+xNome, ender), sem rem/dest/exped/receb. Estrutura: `ide`, `compl`, `emit`, `toma`, `infCarga`, `det` (1..999, `@nItem`, com
+documentos, `vPrest`, `vPrestLiq`, `vRec`, `Comp` e `IBSCBS` por item), `infModal`, `cobr`, `infCteSub` (`chCte`,
+`indAlteraToma`), `imp`, `pgtoVinc`, `total` (`vTPrest`, `vTPrestLiq`, `vTRec`, `IBSCBSTot`, `vTotDFe`), `autXML`,
+`infRespTec`, `infSolicNFF`, `infPAA`. Regras: seção 3.3 do MOC, ids G001 a G111c com numeração própria (125 linhas, não
+confundir com as do CT-e 57), mais PAA01 a PAA05 e as seções de IBS/CBS. O gate de pré-validação precisa de catálogo
+separado (`cte_simp`) porque os ids colidem com os do CT-e 57. Assinatura em `infCte`.

@@ -422,6 +422,7 @@ func (s *DfeService) handleSefazResponse(ctx context.Context, msg WorkerMessage,
 	}
 	isCancellation := isCancellationEvent(msg.DocType, msg.EventType)
 	isClose := isCloseEvent(msg.DocType, msg.EventType)
+	isEPEC := isSefazEvent && isEPECEvent(msg.DocType, msg.EventType)
 
 	var xmlS3Key *string
 	var eventStatus string
@@ -452,15 +453,28 @@ func (s *DfeService) handleSefazResponse(ctx context.Context, msg WorkerMessage,
 			}, true); err != nil {
 				return err
 			}
+		} else if isEPEC {
+			if err := s.armEPEC(ctx, msg); err != nil {
+				return err
+			}
 		}
 
 	case cStat != nil && isSefazEvent && !isClose && !isCancellation && isDuplicateEvent(msg.DocType, *cStat):
 		// Evento já registrado (573 NF-e/NFC-e, 631 CT-e/MDF-e): o resultado pedido já vale, é sucesso.
 		eventStatus = EventStatusSuccess
+		if isEPEC {
+			if err := s.armEPEC(ctx, msg); err != nil {
+				return err
+			}
+		}
 
 	case cStat != nil:
 		eventStatus = StatusRejected
-		if isClose || isCancellation {
+		if isEPEC {
+			if err := s.rejectEPEC(ctx, msg, cStat, xMotivo); err != nil {
+				return err
+			}
+		} else if isClose || isCancellation {
 			// Evento rejeitado: duplicidade ou "já cancelado/encerrado" confirma o
 			// estado pedido; o resto devolve o documento a autorizado.
 			status := rejectedEventDocStatus(msg.DocType, *cStat, isClose)
@@ -529,6 +543,12 @@ func (s *DfeService) failTerminal(ctx context.Context, msg WorkerMessage, motive
 	isCancellation := isCancellationEvent(msg.DocType, msg.EventType)
 	isClose := isCloseEvent(msg.DocType, msg.EventType)
 
+	if isSefazEvent && isEPECEvent(msg.DocType, msg.EventType) {
+		// The EPEC event cannot be completed (engine validation failure): the note is not covered, never arm it.
+		if err := s.rejectEPEC(ctx, msg, nil, &motive); err != nil {
+			return err
+		}
+	}
 	if isCancellation || isClose {
 		if err := s.updateStatus(ctx, msg.DocPK, msg.AccessKey, msg.TableName, StatusAuthorized, updateAttrs{}, false); err != nil {
 			return err

@@ -137,8 +137,6 @@ func (s *CteService) Emit(ctx context.Context, orgPK string, req CteEmitBody, us
 	if err != nil {
 		return nil, err
 	}
-	envPrefix := services.EnvToPrefix(environment)
-
 	d, err := s.derive(ctx, orgPK, environment, req.NFeKeys)
 	if err != nil {
 		return nil, err
@@ -153,29 +151,10 @@ func (s *CteService) Emit(ctx context.Context, orgPK string, req CteEmitBody, us
 		return nil, unprocessable(CodeCFOPRequired, "informe o CFOP da prestação do serviço de transporte")
 	}
 
-	orgItem, err := s.orgRepo.GetOrganization(ctx, orgPK)
+	emit, emitDoc, crt, err := s.issuer(ctx, orgPK)
 	if err != nil {
 		return nil, err
 	}
-	if orgItem == nil {
-		return nil, problem.NotFound("organização não encontrada")
-	}
-	emitDoc, isPJ := services.IssuerDocAV(orgItem, orgPK)
-	if emitDoc == "" {
-		return nil, problem.BadRequest("documento do emitente não encontrado")
-	}
-	orgPerson := personMap(orgItem)
-	emit := personActor(emitDoc, strAttr(orgItem, "name"), orgPerson)
-	emit.CNPJ, emit.CPF = "", ""
-	if isPJ {
-		emit.CNPJ = emitDoc
-	} else {
-		emit.CPF = emitDoc
-	}
-	if emit.Addr.UF == "" {
-		return nil, problem.BadRequest("UF do emitente não configurada")
-	}
-	crt := anyInt(orgPerson, "crt", 1)
 
 	in, err := s.resolveInputs(ctx, orgPK, req, d)
 	if err != nil {
@@ -214,6 +193,28 @@ func (s *CteService) Emit(ctx context.Context, orgPK string, req CteEmitBody, us
 		return nil, unprocessable(CodeRNTRCRequired, "cadastre o RNTRC da transportadora em Configuração Fiscal, aba MDF-e, antes de emitir CT-e")
 	}
 
+	cst := cstSN
+	if req.ICMS != nil {
+		cst = req.ICMS.CST
+	}
+	p := buildParams{
+		cfop: *req.CFOP, emit: emit, crt: crt,
+		rem: in.rem, dest: in.dest, exped: in.exped, receb: in.receb, takerRole: req.Taker.Role, toma4: in.toma4,
+		origin: in.origin, destination: in.destination,
+		vTPrest: vTPrest, comps: comps, icms: icms, ibscbs: ibscbs, autXML: autXML,
+		vCarga: in.vCarga, proPred: in.proPred, weight: in.weight, volumes: in.volumes, nfeKeys: req.NFeKeys,
+		rntrc: rntrc, addInfo: valueOr(req.AdditionalInfo),
+	}
+	return s.persist(ctx, orgPK, cfg, environment, emitDoc, p, cst, userID, userName)
+}
+
+// persist numera, monta, valida (portão) e grava o CT-e pending com o outbox na mesma transação da numeração.
+// É o fim comum da emissão normal, do complemento e do substituto: p chega com os dados do documento e recebe aqui
+// chave, série, número, hora e forma de emissão.
+func (s *CteService) persist(ctx context.Context, orgPK string, cfg map[string]types.AttributeValue, environment int, emitDoc string,
+	p buildParams, cst, userID, userName string) (map[string]types.AttributeValue, error) {
+	envPrefix := services.EnvToPrefix(environment)
+	emit := p.emit
 	certs, err := s.certRepo.List(ctx, orgPK)
 	if err != nil {
 		return nil, err
@@ -231,7 +232,14 @@ func (s *CteService) Emit(ctx context.Context, orgPK string, req CteEmitBody, us
 	if err != nil {
 		return nil, err
 	}
-	accessKey := services.GenerateAccessKey(emit.Addr.UF, emitDoc, services.ModelCTe, serie, currentNumber, now, em.tpEmis)
+	if err := checkEmissionForType(p.tpCTe, em); err != nil {
+		return nil, err
+	}
+	model, sefazService := services.ModelCTe, sefazServiceAutorizacao
+	if p.os != nil {
+		model, sefazService = ModelCTeOS, sefazServiceAutorizacaoOS
+	}
+	accessKey := services.GenerateAccessKey(emit.Addr.UF, emitDoc, model, serie, currentNumber, now, em.tpEmis)
 	if accessKey == "" {
 		return nil, problem.BadRequest("UF do emitente inválida: " + emit.Addr.UF)
 	}
@@ -242,28 +250,31 @@ func (s *CteService) Emit(ctx context.Context, orgPK string, req CteEmitBody, us
 		}
 	}
 
-	p := buildParams{
-		accessKey: accessKey, serie: serie, number: currentNumber, environment: environment, now: now,
-		tpEmis: em.tpEmis, contingencyAt: em.since, justification: em.reason, qrSign: qrSign, cfop: *req.CFOP, emit: emit, crt: crt,
-		rem: in.rem, dest: in.dest, exped: in.exped, receb: in.receb, takerRole: req.Taker.Role, toma4: in.toma4,
-		origin: in.origin, destination: in.destination,
-		vTPrest: vTPrest, comps: comps, icms: icms, ibscbs: ibscbs, autXML: autXML,
-		vCarga: in.vCarga, proPred: in.proPred, weight: in.weight, volumes: in.volumes, nfeKeys: req.NFeKeys,
-		rntrc: rntrc, addInfo: valueOr(req.AdditionalInfo), tech: s.tech,
-		csrtID: strAttr(cfg, "csrt_id"), csrt: strAttr(cfg, "csrt"),
-	}
+	p.accessKey, p.serie, p.number, p.environment, p.now = accessKey, serie, currentNumber, environment, now
+	p.tpEmis, p.contingencyAt, p.justification, p.qrSign = em.tpEmis, em.since, em.reason, qrSign
+	p.tech, p.csrtID, p.csrt = s.tech, strAttr(cfg, "csrt_id"), strAttr(cfg, "csrt")
 	body := BuildCTe(p)
-	dfecheck.ShadowCTe(accessKey, body)
+	if p.os != nil {
+		dfecheck.ShadowCTeOS(accessKey, body)
+	} else {
+		dfecheck.ShadowCTe(accessKey, body)
+	}
 	if err := gateCTe(body); err != nil {
 		return nil, err
 	}
 
 	pk := envPrefix + "#" + orgPK
-	cst := cstSN
-	if req.ICMS != nil {
-		cst = req.ICMS.CST
+	rec := buildRecord(pk, p, cst, userID, userName)
+	if p.os != nil {
+		rec = osRecord(pk, p, cst, userID, userName)
 	}
-	encoded, err := repositories.EncodeItem(buildRecord(pk, p, cst, userID, userName))
+	switch p.tpCTe {
+	case tpCTeComplement:
+		complementRecord(rec, p)
+	case tpCTeSubstitute:
+		substituteRecord(rec, p)
+	}
+	encoded, err := repositories.EncodeItem(rec)
 	if err != nil {
 		return nil, problem.InternalServer("failed to encode CT-e record")
 	}
@@ -275,7 +286,7 @@ func (s *CteService) Emit(ctx context.Context, orgPK string, req CteEmitBody, us
 		DocPK: pk, AccessKey: accessKey, TableName: tableCtes, S3Prefix: s3PrefixCte, ExpectedFileName: accessKey,
 		CNPJ: emitDoc, UF: emit.Addr.UF, SefazEnvironment: sefazEnvFor(environment),
 		CertS3Key: strAttr(cert, "s3_key"), CertPassword: strAttr(cert, "password"),
-		DocType: s3PrefixCte, SefazService: sefazServiceAutorizacao, Contingency: em.svc, Body: body,
+		DocType: s3PrefixCte, SefazService: sefazService, Contingency: em.svc, Body: body,
 		BillingOrganizationID: reservation.OrganizationID, BillingPeriod: reservation.Period,
 		BillingSubscriptionID: reservation.SubscriptionID, BillingPriceID: reservation.PriceID,
 		BillingMeter: reservation.Meter, BillingExempt: reservation.Exempt,
@@ -309,6 +320,33 @@ func (s *CteService) Emit(ctx context.Context, orgPK string, req CteEmitBody, us
 		return nil, err
 	}
 	return encoded, nil
+}
+
+// issuer resolve o emitente (a organização), o documento dele e o CRT.
+func (s *CteService) issuer(ctx context.Context, orgPK string) (emit actor, emitDoc string, crt int, err error) {
+	orgItem, err := s.orgRepo.GetOrganization(ctx, orgPK)
+	if err != nil {
+		return actor{}, "", 0, err
+	}
+	if orgItem == nil {
+		return actor{}, "", 0, problem.NotFound("organização não encontrada")
+	}
+	emitDoc, isPJ := services.IssuerDocAV(orgItem, orgPK)
+	if emitDoc == "" {
+		return actor{}, "", 0, problem.BadRequest("documento do emitente não encontrado")
+	}
+	orgPerson := personMap(orgItem)
+	emit = personActor(emitDoc, strAttr(orgItem, "name"), orgPerson)
+	emit.CNPJ, emit.CPF = "", ""
+	if isPJ {
+		emit.CNPJ = emitDoc
+	} else {
+		emit.CPF = emitDoc
+	}
+	if emit.Addr.UF == "" {
+		return actor{}, "", 0, problem.BadRequest("UF do emitente não configurada")
+	}
+	return emit, emitDoc, anyInt(orgPerson, "crt", 1), nil
 }
 
 // emitInputs são remetente, destinatário, expedidor, recebedor, tomador, percurso e carga já resolvidos.

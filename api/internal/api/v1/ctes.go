@@ -6,8 +6,23 @@ import (
 	"gopkg.aoctech.app/dfe/api/internal/services"
 	ctesvc "gopkg.aoctech.app/dfe/api/internal/services/ctes"
 
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/gofiber/fiber/v3"
 )
+
+// acceptedCte responde 202 com o registro pending de uma emissão de CT-e (complemento, substituto), ou o problema.
+func acceptedCte(c fiber.Ctx) func(map[string]types.AttributeValue, error) error {
+	return func(cte map[string]types.AttributeValue, err error) error {
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		m, err := unmarshal(cte)
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		return c.Status(fiber.StatusAccepted).JSON(m)
+	}
+}
 
 // RegisterCTes mounts the /ctes routes (CT-e rodoviário a partir de NF-e).
 func RegisterCTes(router fiber.Router, svc *ctesvc.CteService, userSvc *services.UserService, authMw fiber.Handler, perm *middleware.PermChecker) {
@@ -42,6 +57,36 @@ func RegisterCTes(router fiber.Router, svc *ctesvc.CteService, userSvc *services
 			return sendProblem(c, err)
 		}
 		return c.Status(fiber.StatusAccepted).JSON(m)
+	})
+
+	// POST /ctes/complement: CT-e complementar de valores (tpCTe 1) de CT-e autorizados da organização
+	g.Post("/complement", perm.Require("create.ctes"), func(c fiber.Ctx) error {
+		var body ctesvc.CteComplementBody
+		if p := bindJSON(c, &body); p != nil {
+			return sendProblem(c, p)
+		}
+		userID, userName := resolveActor(c, userSvc)
+		return acceptedCte(c)(svc.Complement(c.Context(), middleware.GetOrgPK(c), body, userID, userName))
+	})
+
+	// POST /ctes/substitute: CT-e substituto (tpCTe 3) de um CT-e autorizado da organização
+	g.Post("/substitute", perm.Require("create.ctes"), func(c fiber.Ctx) error {
+		var body ctesvc.CteSubstituteBody
+		if p := bindJSON(c, &body); p != nil {
+			return sendProblem(c, p)
+		}
+		userID, userName := resolveActor(c, userSvc)
+		return acceptedCte(c)(svc.Substitute(c.Context(), middleware.GetOrgPK(c), body, userID, userName))
+	})
+
+	// POST /ctes/os: CT-e OS (modelo 67: pessoas, valores ou excesso de bagagem)
+	g.Post("/os", perm.Require("create.ctes"), func(c fiber.Ctx) error {
+		var body ctesvc.CteOsEmitBody
+		if p := bindJSON(c, &body); p != nil {
+			return sendProblem(c, p)
+		}
+		userID, userName := resolveActor(c, userSvc)
+		return acceptedCte(c)(svc.CteOsEmit(c.Context(), middleware.GetOrgPK(c), body, userID, userName))
 	})
 
 	// GET /ctes

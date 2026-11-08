@@ -9,7 +9,7 @@ paths:
       tags: [ Fiscal Configs ]
       summary: Define a forma de emissão corrente da NF-e e a contingência automática
       description: |
-        Tipos válidos para este documento: `normal`, `svc` (SVC-AN ou SVC-RS pela UF do emitente, `tpEmis` 6 ou 7) e `epec` (`tpEmis` 4). Qualquer outro devolve 422
+        Tipos válidos para este documento: `normal`, `svc` (SVC-AN ou SVC-RS pela UF do emitente, `tpEmis` 6 ou 7) e `epec` (`tpEmis` 4: assinada sem transmitir, evento 110140 ao Ambiente Nacional, e o reenvio só é armado depois do evento registrado; `contingency_state=awaiting_epec` até lá; 422 `epec_uf_refused` para PR e PB, `epec_dhemi_stale`, `epec_invalid`). Qualquer outro devolve 422
         `emission_type_invalid`. Sair de `normal` exige `justification` (15 a 256 caracteres,
         vira `xJust`; 422 `emission_reason_required`) e grava `contingency_since` (`dhCont`),
         mantido enquanto a empresa continua em contingência; ao voltar a `normal` o
@@ -353,6 +353,14 @@ components:
       properties:
         emission_type: { type: string, enum: [ normal, svc, epec, offline ] }
         auto_contingency: { type: boolean, default: false }
+        auto_contingency_type:
+          type: string
+          enum: [ svc, epec, offline ]
+          description: |
+            Contingência usada na troca automática; obrigatória com `auto_contingency` ligada (422
+            `auto_contingency_type_required`) e uma das `emission_options` do documento além de `normal`
+            (422 `auto_contingency_type_invalid`). Removida quando `auto_contingency` desliga. A troca
+            automática em si ainda está desligada no servidor (`autocontingency.SwitchEnabled`).
         justification:
           type: string
           minLength: 15

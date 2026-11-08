@@ -25,17 +25,21 @@ const (
 	CodeEmissionTypeInvalid = "emission_type_invalid"
 	// CodeEmissionReasonRequired: leaving normal emission needs the justification.
 	CodeEmissionReasonRequired = "emission_reason_required"
+	// CodeAutoContingencyTypeRequired: auto_contingency on needs the contingency to switch to.
+	CodeAutoContingencyTypeRequired = "auto_contingency_type_required"
+	// CodeAutoContingencyTypeInvalid: the chosen automatic contingency is not a contingency of the document.
+	CodeAutoContingencyTypeInvalid = "auto_contingency_type_invalid"
 )
 
 // emissionOptions lists, per model, every emission type valid for the document
 // (docs/specs/2026-11-08-contingencia.md section 2). The first is the default.
-//   - NF-e: SVC-AN/SVC-RS by the issuer's UF (tpEmis 6/7). EPEC (4) is NOT offered yet: the event body exists but
-//     no route or worker issues it, and the emit would silently go out as normal.
-//   - NFC-e: offline (9) in every UF. EPEC (4) is NOT offered yet, same reason as the NF-e.
+//   - NF-e: SVC-AN/SVC-RS by the issuer's UF (tpEmis 6/7) and EPEC (4): sign-only, event 110140 to the Ambiente
+//     Nacional, retransmission armed by the worker once the event is registered (nfes/epec_emit.go).
+//   - NFC-e: offline (9) in every UF. No EPEC (the MOC does not accept the NFC-e in the EPEC event).
 //   - CT-e: offline (2); SVC-RS/SVC-SP by the issuer's UF (7/8). No EPEC (revoked).
 //   - MDF-e: offline (2). No SVC and no EPEC.
 var emissionOptions = map[string][]string{
-	ModelNFe:  {repositories.EmissionNormal, repositories.EmissionSVC},
+	ModelNFe:  {repositories.EmissionNormal, repositories.EmissionSVC, repositories.EmissionEPEC},
 	ModelNFCe: {repositories.EmissionNormal, repositories.EmissionOffline},
 	ModelCTe:  {repositories.EmissionNormal, repositories.EmissionOffline, repositories.EmissionSVC},
 	ModelMDFe: {repositories.EmissionNormal, repositories.EmissionOffline},
@@ -49,6 +53,9 @@ type EmissionUpdate struct {
 	Type   string
 	Auto   bool
 	Reason string
+	// AutoType is the contingency the automatic switch uses (emission_options minus normal); required with Auto,
+	// ignored (and removed from the row) without it.
+	AutoType string
 }
 
 // SetEmission validates and stores the emission type of the document and the
@@ -58,6 +65,14 @@ type EmissionUpdate struct {
 func (s *fiscalConfigService) SetEmission(ctx context.Context, orgPK string, u EmissionUpdate) (map[string]types.AttributeValue, error) {
 	if !slices.Contains(emissionOptions[s.emissionModel], u.Type) {
 		return nil, problem.UnprocessableEntity("tipo de emissão inválido para este documento: " + u.Type).WithCode(CodeEmissionTypeInvalid)
+	}
+	if u.Auto {
+		if u.AutoType == "" {
+			return nil, problem.UnprocessableEntity("escolha a contingência usada na troca automática").WithCode(CodeAutoContingencyTypeRequired)
+		}
+		if u.AutoType == repositories.EmissionNormal || !slices.Contains(emissionOptions[s.emissionModel], u.AutoType) {
+			return nil, problem.UnprocessableEntity("contingência automática inválida para este documento: " + u.AutoType).WithCode(CodeAutoContingencyTypeInvalid)
+		}
 	}
 	cur, err := s.Get(ctx, orgPK)
 	if err != nil {
@@ -78,7 +93,7 @@ func (s *fiscalConfigService) SetEmission(ctx context.Context, orgPK string, u E
 			return nil, problem.UnprocessableEntity("justificativa de 15 a 256 caracteres é obrigatória para sair da emissão normal").WithCode(CodeEmissionReasonRequired)
 		}
 	}
-	if err := s.repo.SetEmission(ctx, orgPK, u.Type, u.Auto, since, reason); err != nil {
+	if err := s.repo.SetEmission(ctx, orgPK, u.Type, u.Auto, u.AutoType, since, reason); err != nil {
 		return nil, err
 	}
 	slog.InfoContext(ctx, "emission type changed", "org_pk", orgPK, "model", s.emissionModel, "emission_type", u.Type, "auto", u.Auto)

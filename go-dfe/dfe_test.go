@@ -291,8 +291,32 @@ func TestCallSignOnlyMDFeCTe(t *testing.T) {
 			t.Fatalf("%s: unexpected signed xml: %s", c.docType, x)
 		}
 	}
-	// NF-e has no SignOnly; NFC-e still does.
-	if Implements(constants.DocTypeNFE, constants.ServiceSignOnly) {
-		t.Error("nfe must not offer SignOnly")
+}
+
+// SignOnly for the NF-e (EPEC tpEmis 4): signed before the event, transmitted later with @signed_xml.
+func TestCallSignOnlyNFe(t *testing.T) {
+	req := Request{
+		DocType: constants.DocTypeNFE, Service: constants.ServiceSignOnly, UF: "SP", Environment: "hom",
+		CertificateB64: buildTestPFX(t, "pw"), CertificatePassword: "pw",
+		Body: map[string]any{"enviNFe": map[string]any{
+			"@versao": "4.00", "idLote": "1", "indSinc": "1",
+			"NFe": map[string]any{
+				"infNFe": map[string]any{"@Id": "NFe35200514200166000187550010000000014000000018", "@versao": "4.00", "ide": map[string]any{"cUF": "35"}},
+			},
+		}},
+	}
+	if !Implements(req.DocType, req.Service) {
+		t.Fatal("SignOnly must be in the nfe allowlist")
+	}
+	resp, err := Call(context.Background(), req)
+	if err != nil || resp.StatusCode != 200 {
+		t.Fatalf("Call: %v %+v", err, resp)
+	}
+	var out map[string]string
+	if err := json.Unmarshal([]byte(resp.Body), &out); err != nil {
+		t.Fatal(err)
+	}
+	if x := out[constants.BodyKeyXML]; !strings.Contains(x, "<Signature") || !strings.Contains(x, "<DigestValue>") {
+		t.Fatalf("unexpected signed xml: %s", x)
 	}
 }

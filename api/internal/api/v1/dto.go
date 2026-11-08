@@ -1392,7 +1392,9 @@ type FiscalConfigBody struct {
 type EmissionBody struct {
 	EmissionType    string `json:"emission_type" validate:"required,oneof=normal svc epec offline"`
 	AutoContingency bool   `json:"auto_contingency"`
-	Justification   string `json:"justification" validate:"omitempty,max=256"`
+	// AutoContingencyType: contingency used by the automatic switch; required with auto_contingency.
+	AutoContingencyType string `json:"auto_contingency_type" validate:"omitempty,oneof=svc epec offline"`
+	Justification       string `json:"justification" validate:"omitempty,max=256"`
 }
 
 // NfeContingencyBody is the legacy body of PUT /…/nfe-contingency (first round):

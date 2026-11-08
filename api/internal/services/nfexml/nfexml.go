@@ -228,3 +228,89 @@ func parseParty(node *Node, enderTag string) Party {
 		},
 	}
 }
+
+// ErrNotCTe: o XML não traz infCte.
+var ErrNotCTe = errors.New("nfexml: infCte ausente")
+
+// CTeActor é um participante do CT-e lido do XML autorizado (rem, exped, receb, dest ou toma4). Party.Addr.Phone
+// vem de fone do próprio participante (no CT-e o fone fica fora do endereço).
+type CTeActor = Party
+
+// CTeInfQ é um infCarga/infQ.
+type CTeInfQ struct{ CUnid, TpMed, QCarga string }
+
+// CTe é o que os CT-e derivados (complemento e substituto) leem do CT-e original autorizado. Os participantes
+// ausentes no XML ficam nil.
+type CTe struct {
+	TpCTe, TpServ, Modal, Mod, TpEmis string
+	CFOP                              string
+	UFIni, UFFim                      string
+	CMunIni, XMunIni                  string
+	CMunFim, XMunFim                  string
+	CMunEnv, XMunEnv, UFEnv           string
+	EmitCNPJ, EmitIE                  string
+	Rem, Exped, Receb, Dest           *CTeActor
+	// Toma3 é o código de toma3/toma (0 a 3) e Toma4 o participante de toma4; só um dos dois vem preenchido.
+	Toma3 string
+	Toma4 *CTeActor
+	// Carga e documentos (infCTeNorm): vazios no CT-e complementar.
+	VCarga, ProPred string
+	InfQ            []CTeInfQ
+	NFeKeys         []string
+	// OtherDocs é verdadeiro quando infDoc traz infNF ou infOutros (fora do escopo de derivação).
+	OtherDocs bool
+	// Subs é a chave do CT-e que este substituiu (infCteSub/chCte), quando houver.
+	Subs string
+}
+
+// ParseCTe lê um CT-e (ou cteProc) autorizado.
+func ParseCTe(data []byte) (*CTe, error) {
+	root, err := Parse(data)
+	if err != nil {
+		return nil, err
+	}
+	inf := root.FirstDeep("infCte")
+	if inf == nil {
+		return nil, ErrNotCTe
+	}
+	ide, emit := inf.Child("ide"), inf.Child("emit")
+	out := &CTe{
+		TpCTe: ide.Txt("tpCTe"), TpServ: ide.Txt("tpServ"), Modal: ide.Txt("modal"), Mod: ide.Txt("mod"), TpEmis: ide.Txt("tpEmis"),
+		CFOP: ide.Txt("CFOP"), UFIni: ide.Txt("UFIni"), UFFim: ide.Txt("UFFim"),
+		CMunIni: ide.Txt("cMunIni"), XMunIni: ide.Txt("xMunIni"), CMunFim: ide.Txt("cMunFim"), XMunFim: ide.Txt("xMunFim"),
+		CMunEnv: ide.Txt("cMunEnv"), XMunEnv: ide.Txt("xMunEnv"), UFEnv: ide.Txt("UFEnv"),
+		EmitCNPJ: emit.Txt("CNPJ"), EmitIE: emit.Txt("IE"),
+		Rem: parseCTeActor(inf.Child("rem"), "enderReme"), Exped: parseCTeActor(inf.Child("exped"), "enderExped"),
+		Receb: parseCTeActor(inf.Child("receb"), "enderReceb"), Dest: parseCTeActor(inf.Child("dest"), "enderDest"),
+	}
+	if t3 := ide.Child("toma3"); t3 != nil {
+		out.Toma3 = t3.Txt("toma")
+	}
+	if t4 := ide.Child("toma4"); t4 != nil {
+		out.Toma4 = parseCTeActor(t4, "enderToma")
+	}
+	if norm := inf.Child("infCTeNorm"); norm != nil {
+		carga := norm.Child("infCarga")
+		out.VCarga, out.ProPred = carga.Txt("vCarga"), carga.Txt("proPred")
+		for _, q := range carga.AllDeep("infQ") {
+			out.InfQ = append(out.InfQ, CTeInfQ{CUnid: q.Txt("cUnid"), TpMed: q.Txt("tpMed"), QCarga: q.Txt("qCarga")})
+		}
+		for _, n := range norm.Child("infDoc").AllDeep("infNFe") {
+			out.NFeKeys = append(out.NFeKeys, n.Txt("chave"))
+		}
+		doc := norm.Child("infDoc")
+		out.OtherDocs = doc.Child("infNF") != nil || doc.Child("infOutros") != nil
+		out.Subs = norm.Child("infCteSub").Txt("chCte")
+	}
+	return out, nil
+}
+
+// parseCTeActor lê um participante do CT-e; nil quando o grupo não existe.
+func parseCTeActor(node *Node, enderTag string) *CTeActor {
+	if node == nil {
+		return nil
+	}
+	p := parseParty(node, enderTag)
+	p.Addr.Phone = node.Txt("fone")
+	return &p
+}

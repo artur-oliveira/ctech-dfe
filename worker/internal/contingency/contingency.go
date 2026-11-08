@@ -16,7 +16,10 @@ const (
 	// MsgAttr holds the WorkerMessage JSON (signed XML as body) the resend sends.
 	MsgAttr = "contingency_msg"
 
-	StatePending        = "pending"
+	StatePending = "pending"
+	// StateAwaitingEPEC: NF-e EPEC signed and stored, EPEC event not registered yet. Not in the sweep
+	// (no SweepAttr); the worker arms it (StatePending + SweepAttr) when the event is registered.
+	StateAwaitingEPEC   = "awaiting_epec"
 	StateAuthorized     = "authorized"
 	StateAuthorizedLate = "authorized_late"
 	StateRejectedLate   = "rejected_late"
@@ -39,6 +42,8 @@ const (
 	// OfflineWindowHours is the MOC window of an offline MDF-e and CT-e (168 h); the API computes the
 	// deadline (services.OfflineWindowMDFe/CTe), the worker only reads it.
 	OfflineWindowHours = 168
+	// EPECWindowHours is the NF-e EPEC window (MOC: 168 h from the event registration).
+	EPECWindowHours = 168
 )
 
 // Tables are the document tables the sweep covers, without the table prefix.

@@ -85,6 +85,7 @@ type NfeService struct {
 	clients             *awsclient.Clients
 	workerSvc           *services.WorkerService
 	extSvc              *services.ExternalService
+	egress              services.EgressCaller // test override of extSvc for the local EPEC operations
 	billingSvc          *services.BillingService
 	documentSvc         *documents.Service
 	bucketDocs          string

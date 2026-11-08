@@ -20,6 +20,15 @@ func autoOn(item map[string]types.AttributeValue) bool {
 	return ok && v.Value
 }
 
+// autoTypeOf reads the auto_contingency_type of a configuration row.
+func autoTypeOf(item map[string]types.AttributeValue) string {
+	v, _ := item[repositories.AttrAutoContingencyType].(*types.AttributeValueMemberS)
+	if v == nil {
+		return ""
+	}
+	return v.Value
+}
+
 // OrgHandlers bundles services needed by organization routes.
 type OrgHandlers struct {
 	OrgSvc      *services.OrganizationService
@@ -275,7 +284,7 @@ func RegisterOrganizations(router fiber.Router, h OrgHandlers, authMw fiber.Hand
 		if err != nil {
 			return sendProblem(c, err)
 		}
-		u := services.EmissionUpdate{Type: repositories.EmissionNormal, Auto: autoOn(cur)}
+		u := services.EmissionUpdate{Type: repositories.EmissionNormal, Auto: autoOn(cur), AutoType: autoTypeOf(cur)}
 		if body.Enabled {
 			u.Type, u.Reason = repositories.EmissionSVC, body.Justification
 		}
@@ -291,7 +300,7 @@ func RegisterOrganizations(router fiber.Router, h OrgHandlers, authMw fiber.Hand
 			if p := bindJSON(c, &body); p != nil {
 				return sendProblem(c, p)
 			}
-			item, err := set(c.Context(), middleware.GetOrgPK(c), services.EmissionUpdate{Type: body.EmissionType, Auto: body.AutoContingency, Reason: body.Justification})
+			item, err := set(c.Context(), middleware.GetOrgPK(c), services.EmissionUpdate{Type: body.EmissionType, Auto: body.AutoContingency, AutoType: body.AutoContingencyType, Reason: body.Justification})
 			if err != nil {
 				return sendProblem(c, err)
 			}

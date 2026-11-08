@@ -1894,6 +1894,19 @@ compartilhado em `api/internal/services/contingency_offline.go` (`SignTextViaEgr
   O cancelamento de um CT-e autorizado na SVC vai à mesma SVC (`Contingency` pela chave); os demais eventos vão à origem.
   `Request.Contingency` aceita `SVC-RS` e `SVC-SP` para `cte`. **Não verificado:** a UF atendida por cada SVC e as URLs (o MOC remete
   ao Portal Nacional; ver `go-dfe/internal/endpoints/table.go`, `cteSVCByUF` e `cteSVCRegistry`).
+- **NF-e EPEC** (evento 110140, `tpEmis` 4; `nfes/epec_emit.go`, `worker/internal/service/epec.go`): com `emission_type=epec`
+  a NF-e é montada com `tpEmis` 4, `dhCont` e `xJust`; o egress assina sem transmitir (`nfe/SignOnly`, mesmo caminho do
+  `NFeAutorizacao`); o evento 110140 (Ambiente Nacional, `cOrgao` 91, UF `AN` como a manifestação) vai pelo outbox **na mesma
+  transação** do documento. O documento fica `status=pending`, `contingency_state=awaiting_epec` com o XML assinado em
+  `contingency_msg`, **sem** `contingency_sweep`. Só quando o worker vê o evento registrado (cStat 135/136 ou a duplicidade 573)
+  ele grava `contingency_sweep=1`, `contingency_state=pending` e `contingency_deadline` = registro + 168 h (`armEPEC`,
+  condicional ao estado e idempotente); o `contingency-retransmit` então envia o XML assinado pela autorização normal
+  (autorizada fora do prazo é sucesso). Evento rejeitado (142, 121, 228...) ou falha terminal do egress: o worker remove
+  `contingency_msg`/estado, marca o documento `rejected` com cStat e motivo e publica o resultado com os campos de cobrança (a
+  cota volta). Pré-validação local (422): `epec_uf_refused` (PR e PB, rejeição 121), `epec_dhemi_stale` (dhEmi com mais de 1
+  dia, 228), `epec_invalid` (chave sem `tpEmis` 4 ou resumo incompleto). A 142 (ambiente EPEC bloqueado por EPEC pendente há
+  mais de 168 h) só se conhece pela rejeição. NFC-e fora do EPEC. Cancelamento e demais eventos da NF-e EPEC autorizada vão à
+  SEFAZ de origem (não é SVC). **Não verificado:** os textos das rejeições 121/142/228 na página do MOC (vieram do relatório F9).
 
 **Grupo `emit` — derivado do cadastro, nunca do request:**
 
@@ -2063,6 +2076,9 @@ Escopo: tpCTe 0, tpServ 0, modal 01, emitido a partir de NF-e do cadastro (emiti
 |--------|------------------------------|----------------------------------------------------------------------|
 | POST   | `/v1.0/ctes/derive`          | Lê as notas e devolve a derivação (não grava; `Idempotency-Key` opcional, fora do bloqueio por assinatura) |
 | POST   | `/v1.0/ctes`                 | Emite: 202 + registro `pending`, outbox para o worker `cte-emission` |
+| POST   | `/v1.0/ctes/complement`      | CT-e complementar de valores (tpCTe 1) de 1 a 10 CT-e autorizados da organização: `original_keys`, `freight`, `icms`, `cfop`; participantes, percurso e tomador vêm do XML do original no S3; 202 + `pending` com `cte_type=complement` |
+| POST   | `/v1.0/ctes/substitute`      | CT-e substituto (tpCTe 3): `original_key`, `change_taker` + `taker` opcionais (indAlteraToma), `freight`, `icms`, `cfop`; o resto repete o original; 202 + `pending` com `cte_type=substitute` |
+| POST   | `/v1.0/ctes/os`              | CT-e OS (modelo 67, rodoviário; pessoas, valores ou excesso de bagagem): `service_type`, `taker.person_id`, `service`, `origin`/`destination`, `road`, `doc_refs`/`gtve`, `freight`, `icms`, `cfop`; serviço `CTeRecepcaoOS`; 202 + `pending` com `model=67` |
 | GET    | `/v1.0/ctes`                 | Lista (filtros `incoming`, número e data, como NF-e)                 |
 | GET    | `/v1.0/ctes/{access_key}`    | Detalhe (procura em produção e homologação)                          |
 | GET    | `/v1.0/ctes/{access_key}/sefaz-status` | Situação na SEFAZ (`CTeConsulta` pelo egress): `status` authorized, cancelled ou not_found, protocolo e eventos; outro cStat é 400 `sefaz-rejection` |
@@ -3362,7 +3378,12 @@ Em Configuração Fiscal, as abas NF-e, NFC-e, CT-e e MDF-e têm o bloco "Forma 
 `PUT /v1.0/organizations/{org}/{nfe,nfce,cte,mdfe}-emission` (`apiClient.putEmission`).
 
 - O seletor lista só `emission_options`; `justification` (15 a 256) só aparece e só vai fora de `normal`; voltar a
-  `normal` não envia justificativa e zera `contingency_since`. O EPEC não é oferecido até existir rota que o emita.
+  `normal` não envia justificativa e zera `contingency_since`. O EPEC da NF-e é oferecido em `emission_options` (a NFC-e não); o selo do documento ganha o estado `awaiting_epec`.
+- **Contingência automática (servidor):** `PUT .../{x}-emission` aceita `auto_contingency_type` (`svc`, `epec`, `offline`),
+  obrigatório com `auto_contingency` ligada (422 `auto_contingency_type_required`) e válido para o documento (422
+  `auto_contingency_type_invalid`); o GET devolve o campo. A troca em si está desligada no servidor
+  (`autocontingency.SwitchEnabled = false`); desenho, sinais, disjuntor, prova de duplicidade e pendências em
+  `docs/specs/2026-11-08-contingencia.md` seção 4.1.
 - `auto_contingency` aparece desabilitado ("Disponível em breve") enquanto `AUTO_CONTINGENCY_AVAILABLE`
   (`lib/contingency.ts`) for falso: a troca automática ainda não existe na API.
 - `ContingencyIndicator` (Topbar) avisa enquanto qualquer documento estiver fora de `normal`.

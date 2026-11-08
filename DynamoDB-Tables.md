@@ -248,7 +248,7 @@ cadastro requirement.
 ## 7–10. `organization_{nfe,nfce,cte,mdfe}_configs`
 
 > Forma de emissão (as quatro tabelas): `emission_type` (S: `normal`, `svc`, `epec`, `offline`; ausente = `normal`),
-> `auto_contingency` (BOOL, padrão `false`), `contingency_since` (S, RFC3339, `dhCont`; existe só fora de `normal`,
+> `auto_contingency` (BOOL, padrão `false`), `auto_contingency_type` (S: `svc`, `epec` ou `offline`; só com `auto_contingency` ligada, validada contra as opções do documento), `contingency_since` (S, RFC3339, `dhCont`; existe só fora de `normal`,
 > removido ao voltar) e `contingency_reason` (S, `xJust`). Escritos só pelos endpoints `PUT .../{nfe,nfce,cte,mdfe}-emission`;
 > o `PUT .../{x}-config` os preserva. `contingency_mode` (S, `svc`) é o atributo legado da primeira rodada: lido como
 > `emission_type` e removido na primeira escrita nova. Ver `docs/specs/2026-11-08-contingencia.md`.
@@ -299,9 +299,9 @@ One item per issued fiscal document. PK encodes environment + issuer CNPJ for or
 | `created_at`   | S    | ISO-8601 UTC                                               |
 | `updated_at`   | S    | ISO-8601 UTC                                               |
 | `contingency_sweep` | S | `"1"` only on offline/EPEC documents not yet reconciled; key of the sparse `contingency-index` (NFC-e offline writes it) |
-| `contingency_state` | S | `pending`, `authorized`, `authorized_late`, `rejected_late`, `overdue` |
+| `contingency_state` | S | `awaiting_epec` (NF-e EPEC assinada, evento 110140 ainda não registrado; fora do índice), `pending`, `authorized`, `authorized_late`, `rejected_late`, `overdue` |
 | `contingency_deadline` | S | RFC3339; sort key of `contingency-index`. NFC-e offline: emission + 3 days; MDF-e and CT-e offline: emission + 168 h (MOC) |
-| `contingency_msg` | S | NFC-e, MDF-e and CT-e offline: `WorkerMessage` JSON whose body is `{"@signed_xml": signed document}`; sent by the retransmission worker; never in API responses |
+| `contingency_msg` | S | NFC-e, MDF-e and CT-e offline and NF-e EPEC: `WorkerMessage` JSON whose body is `{"@signed_xml": signed document}`; sent by the retransmission worker; never in API responses |
 
 CT-e emitido pela API (`POST /v1.0/ctes`, `incoming = 0`) grava também: `emit_cpf_cnpj`, `emit_name`,
 `dest_cpf_cnpj`, `dest_name`, `dh_emi`, `total` e `freight_total` (vTPrest, S, 2 casas), `cfop`, `icms_cst`
@@ -309,6 +309,11 @@ CT-e emitido pela API (`POST /v1.0/ctes`, `incoming = 0`) grava também: `emit_c
 `origin`/`destination` (M `{uf, city_ibge, city}`), `cargo` (M `{total_value, total_weight_kg, volumes,
 predominant_product}`), `operation_id`, `user_id`, `user_name`. Os CT-e recebidos por distribuição continuam
 com o formato do worker (`emit_*`, `dest_*`, `total`).
+CT-e complementar (`POST /v1.0/ctes/complement`) e substituto (`POST /v1.0/ctes/substitute`) usam o mesmo registro e
+acrescentam `cte_type` (`complement` ou `substitute`; ausente no CT-e normal) e `complemented_keys` (L de S, só no
+complementar) ou `substituted_key` (S, só no substituto). `nfe_keys` do complementar é vazio; do substituto repete o original.
+CT-e OS (`POST /v1.0/ctes/os`) usa o mesmo registro com `model = "67"`, `os_service` (`people`, `values`, `baggage`), o tomador em `taker`
+(`role = tomador`) e em `dest_cpf_cnpj`/`dest_name`, `nfe_keys` vazio e sem `sender`/`recipient`/`cargo`.
 
 **GSIs:**
 

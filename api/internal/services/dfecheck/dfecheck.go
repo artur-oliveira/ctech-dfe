@@ -174,3 +174,45 @@ func ShadowCTe(accessKey string, body map[string]any) {
 		Shadow(SpecCTe+"_rodo", "cte_rodo", accessKey, rodo)
 	}
 }
+
+// Esquemas do CT-e OS (modelo 67) e do seu modal rodoviário. Não há catálogo de regras do MOC para o CT-e OS
+// (H001 a H133 não estão em go-dfe/validate): o shadow e o portão valem só o esquema (cteOS_v4.00.xsd).
+const (
+	SpecCTeOS     = "cteos"
+	SpecCTeRodoOS = "cte_rodoos"
+)
+
+// CTeOSModal separa o CTeOS e o rodoOS do corpo do builder.
+func CTeOSModal(body map[string]any) (cte, rodoOS map[string]any) {
+	cte, _ = body["CTeOS"].(map[string]any)
+	inf, _ := cte["infCte"].(map[string]any)
+	norm, _ := inf["infCTeNorm"].(map[string]any)
+	modal, _ := norm["infModal"].(map[string]any)
+	rodoOS, _ = modal["rodoOS"].(map[string]any)
+	return cte, rodoOS
+}
+
+// ShadowCTeOS valida o CTeOS do corpo do builder e o rodoOS (infModal é xs:any no XSD).
+func ShadowCTeOS(accessKey string, body map[string]any) {
+	cte, rodo := CTeOSModal(body)
+	if cte == nil {
+		return
+	}
+	Shadow(SpecCTeOS, "cteos", accessKey, cte)
+	if rodo != nil {
+		Shadow(SpecCTeRodoOS, "cte_rodoos", accessKey, rodo)
+	}
+}
+
+// GateCTeOS é o Gate do CTeOS: só os tamanhos do leiaute (sem regras block, ver acima).
+func GateCTeOS(body map[string]any) []validate.Violation {
+	cte, rodo := CTeOSModal(body)
+	if cte == nil {
+		return nil
+	}
+	found := Gate(SpecCTeOS, "cteos", cte, nil)
+	if rodo != nil {
+		found = append(found, Gate(SpecCTeRodoOS, "cte_rodoos", rodo, nil)...)
+	}
+	return found
+}

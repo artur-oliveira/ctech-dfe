@@ -33,10 +33,25 @@ func (r *DocumentEventRepository) CreateEvent(
 	sefazStatus, sefazMotive, xmlS3Key *string,
 	userID, userName string,
 ) (map[string]types.AttributeValue, error) {
+	item := newEventItem(accessKey, eventType, sequenceNumber, status, userID, userName)
+	setNullableStr(item, "sefaz_status", sefazStatus)
+	setNullableStr(item, "sefaz_motive", sefazMotive)
+	setNullableStr(item, "xml_s3_key", xmlS3Key)
+	return item, r.PutItem(ctx, item)
+}
+
+// EventPutTx is the CreateEvent write as a transaction item, for an event that must be committed together
+// with the document that needs it (the NF-e EPEC event, created with the document). Returns the event sk.
+func (r *DocumentEventRepository) EventPutTx(accessKey, eventType string, sequenceNumber int, status, userID, userName string) (types.TransactWriteItem, string) {
+	item := newEventItem(accessKey, eventType, sequenceNumber, status, userID, userName)
+	sk := item["sk"].(*types.AttributeValueMemberS).Value
+	return types.TransactWriteItem{Put: &types.Put{TableName: &r.TableName, Item: item}}, sk
+}
+
+func newEventItem(accessKey, eventType string, sequenceNumber int, status, userID, userName string) map[string]types.AttributeValue {
 	id := GenerateID()
 	now := NowStr()
-
-	item := map[string]types.AttributeValue{
+	return map[string]types.AttributeValue{
 		"pk":              &types.AttributeValueMemberS{Value: accessKey},
 		"sk":              &types.AttributeValueMemberS{Value: id},
 		"access_key":      &types.AttributeValueMemberS{Value: accessKey},
@@ -49,11 +64,6 @@ func (r *DocumentEventRepository) CreateEvent(
 		"created_at":      &types.AttributeValueMemberS{Value: now},
 		"updated_at":      &types.AttributeValueMemberS{Value: now},
 	}
-	setNullableStr(item, "sefaz_status", sefazStatus)
-	setNullableStr(item, "sefaz_motive", sefazMotive)
-	setNullableStr(item, "xml_s3_key", xmlS3Key)
-
-	return item, r.PutItem(ctx, item)
 }
 
 // InutilizationRecord is a number-inutilization request stored in the events

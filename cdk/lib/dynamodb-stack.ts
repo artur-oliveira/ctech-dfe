@@ -41,11 +41,13 @@ export type TableName = (
   'nfces' |
   'ctes' |
   'mdfes' |
+  'ciots' |
   'nfses' |
   'nfe_events' |
   'nfce_events' |
   'cte_events' |
   'mdfe_events' |
+  'ciot_audit' |
   'nfse_events' |
   'nfe_distributions' |
   'cte_distributions' |
@@ -760,6 +762,63 @@ export class DynamoDBStack extends cdk.Stack {
     const mdfesTable = getDfeTable(this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'mdfes');
     this.tables.set('mdfes', mdfesTable);
     addContingencyIndex(mdfesTable);
+
+    // ============== CIOT (ANTT) ==============
+    // ciots: pk = {env}#{org_pk}, sk = CIOT_{request id}. The 12-char code only exists after the generator runs in
+    // the worker, so it is an attribute with its own GSI (code-index), as is the MDF-e access key (mdfe-index).
+    // The same table holds the carrier-status cache (pk CARRIER_STATUS#{env}#{cpf_cnpj}, public RNTRC data, never
+    // org rows) and expires by TTL (`expires_at`, epoch seconds, 1 h). Cost: on-demand, volume of the TAC MDF-e
+    // (dozens to hundreds of rows per organization per month), no TTL on CIOT rows, PITR in prod.
+    const ciotsTable = new dynamodb.TableV2(this, `${tablePrefix}_ciots`, {
+      tableName: `${tablePrefix}_ciots`,
+      partitionKey: {name: 'pk', type: dynamodb.AttributeType.STRING},
+      sortKey: {name: 'sk', type: dynamodb.AttributeType.STRING},
+      billing: Billing.onDemand({
+        maxReadRequestUnits: 1000,
+        maxWriteRequestUnits: 1000,
+      }),
+      timeToLiveAttribute: 'expires_at',
+      removalPolicy,
+      pointInTimeRecoverySpecification,
+      encryption: dynamodb.TableEncryptionV2.dynamoOwnedKey(),
+    });
+    ciotsTable.addGlobalSecondaryIndex({
+      indexName: 'code-index',
+      partitionKey: {name: 'pk', type: dynamodb.AttributeType.STRING},
+      sortKey: {name: 'code', type: dynamodb.AttributeType.STRING},
+      projectionType: dynamodb.ProjectionType.ALL,
+      warmThroughput: undefined,
+      maxReadRequestUnits: 1000,
+      maxWriteRequestUnits: 1000,
+    });
+    ciotsTable.addGlobalSecondaryIndex({
+      indexName: 'mdfe-index',
+      partitionKey: {name: 'pk', type: dynamodb.AttributeType.STRING},
+      sortKey: {name: 'mdfe_access_key', type: dynamodb.AttributeType.STRING},
+      projectionType: dynamodb.ProjectionType.ALL,
+      warmThroughput: undefined,
+      maxReadRequestUnits: 1000,
+      maxWriteRequestUnits: 1000,
+    });
+    this.tables.set('ciots', ciotsTable);
+
+    // ciot_audit: append-only proof of what was sent to the ANTT and what came back. pk = the CIOT row's sk,
+    // sk = {RFC3339 nano}#{operation}. Items hold the sealed body, the response and the body hash; written
+    // with attribute_not_exists, never updated or deleted by the services (only LGPD erasure removes them).
+    // Cost: on-demand, 1 to 3 small items per CIOT operation, no TTL (compliance evidence), PITR in prod.
+    const ciotAuditTable = new dynamodb.TableV2(this, `${tablePrefix}_ciot_audit`, {
+      tableName: `${tablePrefix}_ciot_audit`,
+      partitionKey: {name: 'pk', type: dynamodb.AttributeType.STRING},
+      sortKey: {name: 'sk', type: dynamodb.AttributeType.STRING},
+      billing: Billing.onDemand({
+        maxReadRequestUnits: 1000,
+        maxWriteRequestUnits: 1000,
+      }),
+      removalPolicy,
+      pointInTimeRecoverySpecification,
+      encryption: dynamodb.TableEncryptionV2.dynamoOwnedKey(),
+    });
+    this.tables.set('ciot_audit', ciotAuditTable);
 
     // nfses reutiliza getDfeTable (number-index-v2 + dfe-index) e acrescenta
     // access-key-index: a SK é o id_dps, porque a chave de acesso de 50

@@ -93,11 +93,21 @@ func svcAuthorizerForKey(accessKey string) string {
 }
 
 // resolveNFeEmission picks the form of emission of an NF-e from the
-// organization's contingency window: normal unless the window is open, SVC-AN
+// organization's contingency window: normal unless the window is open, EPEC (4), SVC-AN
 // or SVC-RS by the issuer's UF otherwise. The second result is the egress
 // authorizer ("" for normal).
 func resolveNFeEmission(config map[string]types.AttributeValue, uf string) (EmissionMode, string, error) {
 	mode := NormalEmission(nfModel55)
+	if repositories.EmissionTypeOf(config) == repositories.EmissionEPEC {
+		since, err := time.Parse(time.RFC3339, strAttr(config, repositories.AttrContingencySince))
+		if err != nil {
+			return mode, "", problem.InternalServer("janela de contingência sem data de início válida")
+		}
+		mode.TpEmis = TpEmisEPEC
+		mode.ContingencyAt = since
+		mode.Justification = strAttr(config, repositories.AttrContingencyReason)
+		return mode, "", nil // no SVC authorizer: the EPEC note is sent to the UF's own SEFAZ
+	}
 	if repositories.EmissionTypeOf(config) != repositories.EmissionSVC {
 		return mode, "", nil
 	}

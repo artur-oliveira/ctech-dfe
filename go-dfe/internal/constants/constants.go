@@ -318,6 +318,7 @@ const (
 // SignOnlyBaseService is, per doc type, the signed service whose build and signature SignOnly
 // reproduces. A doc type absent here has no SignOnly.
 var SignOnlyBaseService = map[string]string{
+	DocTypeNFE:  "NFeAutorizacao", // NF-e EPEC (tpEmis 4): signed first, transmitted after the EPEC event
 	DocTypeNFCE: "NFeAutorizacao",
 	DocTypeMDFE: "MDFeRecepcaoSinc",
 	DocTypeCTE:  "CTeRecepcaoSinc",

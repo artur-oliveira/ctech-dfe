@@ -45,6 +45,8 @@ var implemented = map[string]map[string]bool{
 		"NFeAutorizacao":  true,
 		"RecepcaoEvento":  true,
 		"NfeInutilizacao": true,
+		// Sign without transmitting (NF-e EPEC tpEmis 4); same code path as NFeAutorizacao.
+		constants.ServiceSignOnly: true,
 	},
 	constants.DocTypeNFCE: {
 		"NfeStatusServico": true,

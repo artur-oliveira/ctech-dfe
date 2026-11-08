@@ -57,11 +57,14 @@ const AttrConfigEnvironment = "environment"
 // attribute of the first round (value "svc"); it is read as emission_type and
 // removed on the next emission write.
 const (
-	AttrEmissionType      = "emission_type"      // EmissionNormal, EmissionSVC, EmissionEPEC, EmissionOffline
-	AttrAutoContingency   = "auto_contingency"   // BOOL, default false
-	AttrContingencySince  = "contingency_since"  // RFC3339 (dhCont); absent in normal emission
-	AttrContingencyReason = "contingency_reason" // xJust
-	AttrContingencyMode   = "contingency_mode"   // legacy
+	AttrEmissionType    = "emission_type"    // EmissionNormal, EmissionSVC, EmissionEPEC, EmissionOffline
+	AttrAutoContingency = "auto_contingency" // BOOL, default false
+	// AttrAutoContingencyType is the contingency the owner chose for the automatic switch (EmissionSVC, EmissionEPEC
+	// or EmissionOffline, validated against the document type's emission_options); present only with auto_contingency.
+	AttrAutoContingencyType = "auto_contingency_type"
+	AttrContingencySince    = "contingency_since"  // RFC3339 (dhCont); absent in normal emission
+	AttrContingencyReason   = "contingency_reason" // xJust
+	AttrContingencyMode     = "contingency_mode"   // legacy
 
 	EmissionNormal  = "normal"
 	EmissionSVC     = "svc"
@@ -70,7 +73,7 @@ const (
 )
 
 // emissionAttrs are the fields a configuration PUT must never change.
-var emissionAttrs = []string{"emission_options", AttrEmissionType, AttrAutoContingency, AttrContingencySince, AttrContingencyReason, AttrContingencyMode}
+var emissionAttrs = []string{"emission_options", AttrEmissionType, AttrAutoContingency, AttrAutoContingencyType, AttrContingencySince, AttrContingencyReason, AttrContingencyMode}
 
 // EmissionTypeOf is the current emission type of a configuration row, reading
 // the legacy contingency_mode when emission_type is absent.
@@ -307,20 +310,27 @@ func (r *FiscalConfigRepository) ResetConsQuota(ctx context.Context, orgPK, envP
 // (emissionType != EmissionNormal) since and reason are written; back to normal
 // they are removed (the timestamp returns to null). The legacy contingency_mode
 // is always removed. The row must exist (a configured company).
-func (r *FiscalConfigRepository) SetEmission(ctx context.Context, orgPK, emissionType string, auto bool, since time.Time, reason string) error {
-	names := map[string]string{"#t": AttrEmissionType, "#a": AttrAutoContingency, "#s": AttrContingencySince, "#r": AttrContingencyReason, "#l": AttrContingencyMode}
+func (r *FiscalConfigRepository) SetEmission(ctx context.Context, orgPK, emissionType string, auto bool, autoType string, since time.Time, reason string) error {
+	names := map[string]string{"#t": AttrEmissionType, "#a": AttrAutoContingency, "#s": AttrContingencySince, "#r": AttrContingencyReason, "#l": AttrContingencyMode, "#at": AttrAutoContingencyType}
 	values := map[string]types.AttributeValue{
 		":t": &types.AttributeValueMemberS{Value: emissionType},
 		":a": &types.AttributeValueMemberBOOL{Value: auto},
 	}
-	expr := "SET #t = :t, #a = :a REMOVE #l"
-	if emissionType == EmissionNormal {
-		expr += ", #s, #r"
+	set, remove := "#t = :t, #a = :a", "#l"
+	if auto && autoType != "" {
+		set += ", #at = :at"
+		values[":at"] = &types.AttributeValueMemberS{Value: autoType}
 	} else {
-		expr = "SET #t = :t, #a = :a, #s = :s, #r = :r REMOVE #l"
+		remove += ", #at"
+	}
+	if emissionType == EmissionNormal {
+		remove += ", #s, #r"
+	} else {
+		set += ", #s = :s, #r = :r"
 		values[":s"] = &types.AttributeValueMemberS{Value: since.UTC().Format(time.RFC3339)}
 		values[":r"] = &types.AttributeValueMemberS{Value: reason}
 	}
+	expr := "SET " + set + " REMOVE " + remove
 	_, err := r.UpdateItemRaw(ctx, &dynamodb.UpdateItemInput{
 		Key:                       map[string]types.AttributeValue{"pk": &types.AttributeValueMemberS{Value: orgPK}},
 		ConditionExpression:       aws.String("attribute_exists(pk)"),

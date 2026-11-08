@@ -17,6 +17,8 @@ const (
 
 	// Valores fixos do escopo da spec (CT-e normal, serviço normal, rodoviário).
 	tpCTeNormal     = "0"
+	tpCTeComplement = "1"
+	tpCTeSubstitute = "3"
 	tpServNormal    = "0"
 	modalRodoviario = "01"
 	tpImpRetrato    = "1"
@@ -38,6 +40,9 @@ const (
 	toma3Recebedor    = "2"
 	toma3Destinatario = "3"
 	toma4Outros       = "4"
+
+	// infCteSub/indAlteraToma: única opção do leiaute (1 = troca de tomador).
+	indAlteraTomaSim = "1"
 
 	// compFreteValor é o nome do componente principal do frete (vPrest/Comp/xNome).
 	compFreteValor = "FRETE VALOR"
@@ -132,13 +137,32 @@ type buildParams struct {
 	rntrc   string
 	addInfo string
 
+	// tpCTe vazio é o CT-e normal. Complemento (1): complementKeys leva os infCteComp e não há infCTeNorm.
+	// Substituto (3): sub leva o infCteSub dentro do infCTeNorm.
+	tpCTe          string
+	complementKeys []string
+	sub            *subGroup
+	// serviceType é o ide/tpServ; vazio é o serviço normal. Complemento e substituto herdam o do original (G176, G095).
+	serviceType string
+	// os não é nil no CT-e OS (modelo 67): BuildCTeOS, osRecord e o serviço CTeRecepcaoOS no lugar dos do CT-e 57.
+	os *osData
+
 	tech         TechData
 	csrtID, csrt string
+}
+
+// subGroup é o infCteSub: chave do CT-e substituído e, na troca de tomador, indAlteraToma.
+type subGroup struct {
+	chCte          string
+	alterTakerFlag bool
 }
 
 // BuildCTe monta o dicionário do CT-e para o CTeRecepcaoSinc. Na autorização síncrona do CT-e 4.00 o
 // <CTe> é a raiz (sem enviCTe), como no MDF-e; a ordem dos filhos vem da tabela xsdorder do go-dfe.
 func BuildCTe(p buildParams) map[string]any {
+	if p.os != nil {
+		return BuildCTeOS(p)
+	}
 	cUF, cCT, cDV := p.accessKey[0:2], p.accessKey[35:43], string(p.accessKey[43])
 	homolog := p.environment != 1
 
@@ -154,8 +178,16 @@ func BuildCTe(p buildParams) map[string]any {
 			"vRec":    q2(p.vTPrest),
 			"Comp":    p.comps,
 		},
-		"imp":        p.buildImp(),
-		"infCTeNorm": p.buildInfCTeNorm(),
+		"imp": p.buildImp(),
+	}
+	if p.tpCTe == tpCTeComplement {
+		comp := make([]map[string]any, 0, len(p.complementKeys))
+		for _, k := range p.complementKeys {
+			comp = append(comp, map[string]any{"chCTe": k})
+		}
+		inf["infCteComp"] = comp
+	} else {
+		inf["infCTeNorm"] = p.buildInfCTeNorm()
 	}
 	if p.exped != nil {
 		inf["exped"] = actorNode(*p.exped, "enderExped", homolog)
@@ -206,14 +238,14 @@ func (p buildParams) buildIde(cUF, cCT, cDV string) map[string]any {
 		"tpEmis":  p.tpEmis,
 		"cDV":     cDV,
 		"tpAmb":   fmt.Sprintf("%d", p.environment),
-		"tpCTe":   tpCTeNormal,
+		"tpCTe":   strOr(p.tpCTe, tpCTeNormal),
 		"procEmi": procEmiOwn,
 		"verProc": verProc(p.tech),
 		"cMunEnv": p.emit.Addr.CityIBGE,
 		"xMunEnv": p.emit.Addr.City,
 		"UFEnv":   p.emit.Addr.UF,
 		"modal":   modalRodoviario,
-		"tpServ":  tpServNormal,
+		"tpServ":  strOr(p.serviceType, tpServNormal),
 		"cMunIni": p.origin.CityIBGE,
 		"xMunIni": p.origin.City,
 		"UFIni":   p.origin.UF,
@@ -276,11 +308,19 @@ func (p buildParams) buildInfCTeNorm() map[string]any {
 	for _, k := range p.nfeKeys {
 		nfes = append(nfes, map[string]any{"chave": k})
 	}
-	return map[string]any{
+	norm := map[string]any{
 		"infCarga": map[string]any{"vCarga": q2(p.vCarga), "proPred": p.proPred, "infQ": infQ},
 		"infDoc":   map[string]any{"infNFe": nfes},
 		"infModal": map[string]any{"@versaoModal": cteVersao, "rodo": map[string]any{"RNTRC": p.rntrc}},
 	}
+	if p.sub != nil {
+		g := map[string]any{"chCte": p.sub.chCte}
+		if p.sub.alterTakerFlag {
+			g["indAlteraToma"] = indAlteraTomaSim
+		}
+		norm["infCteSub"] = g
+	}
+	return norm
 }
 
 // actorNode monta rem/exped/receb/dest (choice CNPJ|CPF, IE, xNome, fone, ender*, email).

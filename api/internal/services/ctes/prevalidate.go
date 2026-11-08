@@ -20,6 +20,10 @@ var blockRules = validate.Modes{
 	"G015": validate.ModeBlock, "G007": validate.ModeBlock, "G013": validate.ModeBlock, "G014": validate.ModeBlock,
 	// Grupo do tipo de CT-e: normal exige infCTeNorm (G016).
 	"G016": validate.ModeBlock,
+	// Complemento (tpCTe 1): grupo infCteComp (G017), chaves válidas (G161) e sem repetição (G177).
+	"G017": validate.ModeBlock, "G161": validate.ModeBlock, "G177": validate.ModeBlock,
+	// Substituto (tpCTe 3): emissão normal (G076), grupo infCteSub (G077) e chave do substituído válida (G078).
+	"G076": validate.ModeBlock, "G077": validate.ModeBlock, "G078": validate.ModeBlock,
 	// CNPJ e CPF com dígito verificador (alfanumérico incluso): emitente, PAA, responsável técnico, autXML e atores.
 	"G104": validate.ModeBlock, "PAA01": validate.ModeBlock, "G210": validate.ModeBlock,
 	"G193": validate.ModeBlock, "G194": validate.ModeBlock,
@@ -31,6 +35,9 @@ var blockRules = validate.Modes{
 // gateCTe recusa o CT-e montado com regra bloqueante ou tamanho fora do leiaute, nomeando cada achado.
 func gateCTe(body map[string]any) error {
 	found := dfecheck.GateCTe(body, blockRules)
+	if _, os := body["CTeOS"]; os {
+		found = dfecheck.GateCTeOS(body)
+	}
 	if len(found) == 0 {
 		return nil
 	}

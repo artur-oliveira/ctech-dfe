@@ -795,9 +795,22 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 		BillingSubscriptionID: reservation.SubscriptionID, BillingPriceID: reservation.PriceID,
 		BillingMeter: reservation.Meter, BillingExempt: reservation.Exempt,
 	}
-	outboxTx, operationID, err := s.workerSvc.BuildOutboxTx(workerMsg)
-	if err != nil {
-		return nil, err
+	// EPEC: sign now, queue the EPEC event (not the authorization) and keep the document unarmed until the
+	// worker sees the event registered. Any other mode queues the authorization as always.
+	var docTx []types.TransactWriteItem
+	var operationID string
+	if mode.TpEmis == TpEmisEPEC {
+		stage, err := s.stageEPEC(ctx, nfeEncoded, enviNFe, workerMsg, orgPK, environment, userID, userName, now)
+		if err != nil {
+			return nil, err
+		}
+		docTx, operationID = stage.Tx, stage.OperationID
+	} else {
+		outboxTx, opID, err := s.workerSvc.BuildOutboxTx(workerMsg)
+		if err != nil {
+			return nil, err
+		}
+		docTx, operationID = []types.TransactWriteItem{outboxTx}, opID
 	}
 	nfeEncoded["operation_id"] = &types.AttributeValueMemberS{Value: operationID}
 
@@ -808,7 +821,7 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 	// has spent a slot; the worker gives it back on a terminal rejection.
 	// O encerrante avança na MESMA transação da emissão: gravar depois deixaria
 	// a próxima venda partir de uma leitura antiga se o processo caísse aqui.
-	txItems := append([]types.TransactWriteItem{outboxTx}, encerranteTx(s.fuelPumpRepo, orgPK, pumpReadings)...)
+	txItems := append(docTx, encerranteTx(s.fuelPumpRepo, orgPK, pumpReadings)...)
 	if reservation.Tx != nil {
 		txItems = append(txItems, *reservation.Tx)
 	}

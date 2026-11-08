@@ -14,7 +14,7 @@ import (
 // rejeição 215 da SEFAZ. Compara cada grupo do esquema com a tabela, para NF-e, MDF-e e CT-e.
 func TestXSDOrderMatchesSpecs(t *testing.T) {
 	var problems []string
-	for _, name := range []string{"nfe", "mdfe", "cte"} {
+	for _, name := range []string{"nfe", "mdfe", "cte", "cteos", "cte_rodoos"} {
 		sp, err := Load(name)
 		if err != nil {
 			t.Fatal(err)

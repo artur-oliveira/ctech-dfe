@@ -571,6 +571,33 @@ var envicte = map[string][]string{
 	"infCTeNorm:infModal:rodo": {"RNTRC", "occ"},
 	"occ":                      {"serie", "nOcc", "dEmi", "emiOcc"},
 	"emiOcc":                   {"CNPJ", "cInt", "IE", "UF", "fone"},
+
+	// ── CT-e OS (mod 67, cteOS_v4.00.xsd): chaves com escopo "CTeOS:" porque a ordem difere da do CT-e 57 ──
+	"CTeOS":        {"infCte", "infCTeSupl", "Signature"},
+	"CTeOS:infCte": {"ide", "compl", "emit", "toma", "vPrest", "imp", "pgtoVinc", "infCTeNorm", "infCteComp", "autXML", "infRespTec"},
+	"CTeOS:infCte:ide": {
+		"cUF", "cCT", "CFOP", "natOp", "mod", "serie", "nCT", "dhEmi", "tpImp", "tpEmis", "cDV", "tpAmb", "tpCTe",
+		"procEmi", "verProc", "cMunEnv", "xMunEnv", "UFEnv", "modal", "tpServ", "indIEToma",
+		"cMunIni", "xMunIni", "UFIni", "cMunFim", "xMunFim", "UFFim", "infPercurso",
+		"dhCont", "xJust", "gCompraGov", "tpPagAnt", "gPagAntecipado", "gMultaJuros",
+	},
+	"CTeOS:infCte:compl":                {"xCaracAd", "xCaracSer", "xEmi", "xObs", "ObsCont", "ObsFisco"},
+	"CTeOS:infCte:toma":                 {"CNPJ", "CPF", "IE", "xNome", "xFant", "fone", "enderToma", "email"},
+	"CTeOS:infCte:imp":                  {"ICMS", "vTotTrib", "infAdFisco", "ICMSUFFim", "infTribFed", "IBSCBS", "vTotDFe"},
+	"infTribFed":                        {"vPIS", "vCOFINS", "vIR", "vINSS", "vCSLL"},
+	"CTeOS:infCte:infCTeNorm":           {"infServico", "infDocRef", "seg", "infModal", "infCteSub", "refCTeCanc", "cobr", "infGTVe"},
+	"infServico":                        {"xDescServ", "infQ"},
+	"infServico:infQ":                   {"qCarga"},
+	"infDocRef":                         {"nDoc", "serie", "subserie", "dEmi", "vDoc", "chBPe"},
+	"CTeOS:infCte:infCTeNorm:seg":       {"respSeg", "xSeg", "nApol"},
+	"CTeOS:infCte:infCTeNorm:infCteSub": {"chCte"},
+	"infGTVe":                           {"chCTe", "Comp"},
+	"infGTVe:Comp":                      {"tpComp", "vComp", "xComp"},
+	// Modal rodoviário do CT-e OS (cteModalRodoviarioOS_v4.00.xsd).
+	"rodoOS":           {"TAF", "NroRegEstadual", "veic", "infFretamento"},
+	"rodoOS:veic":      {"placa", "RENAVAM", "prop", "UF"},
+	"rodoOS:veic:prop": {"CPF", "CNPJ", "TAF", "NroRegEstadual", "xNome", "IE", "UF", "tpProp"},
+	"infFretamento":    {"tpFretamento", "dhViagem"},
 }
 
 // cteEndereco é a sequência de TEndereco do CT-e (tomador, remetente, expedidor, recebedor, destinatário).

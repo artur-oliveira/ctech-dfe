@@ -1238,6 +1238,61 @@ SP próprios; o resto SVRS), a mesma para produção e homologação: conferir n
   (soma IBS e CBS só a partir de 2027; o texto do Leiaute diz sempre vTPrest + IBS + CBS, divergência a
   confirmar). A ordem do XML já estava na tabela `xsdorder` (a paridade estrita com o XSD cobre `imp/IBSCBS`).
 
+## CT-e complementar (tpCTe 1) e substituto (tpCTe 3)
+
+`POST /v1.0/ctes/complement` e `POST /v1.0/ctes/substitute` (`ctes/complement.go`, `substitute.go`, `original.go`).
+**Os participantes (rem, exped, receb, dest, tomador), o percurso, o tipo de serviço e, no substituto, a carga e as NF-e
+vêm do XML autorizado do CT-e original (`xml_s3_key`), lido por `nfexml.ParseCTe`; nunca do cadastro de pessoas.**
+O original tem de ser da própria organização, do mesmo ambiente, `authorized`, tipo normal ou substituto e rodoviário.
+No MOC publicado as regras são: complemento G017 e G160 a G177, substituição G076 a G096 e troca de tomador G097 a
+G101 (a numeração G078 a G096 que circulou para o complemento é a da substituição).
+
+- O XSD 4.00 do complemento só pede `infCteComp/chCTe` (1 a 10); não existe `vPresComp`. O valor complementar vai em
+  `vPrest`/`Comp` e o imposto em `imp`; os atores e o tomador repetem o original (G168 a G175). `infCteSub` fica dentro
+  de `infCTeNorm`. tpCTe 2 (anulação) não existe no 4.00 e não foi construído.
+- **422 local (provado só com o original):** G160 `original_not_issued_by_organization`; G162/G165 (só o que o registro
+  prova) `original_not_found`, `original_not_authorized`; XML ausente ou ilegível `original_xml_unavailable`,
+  `original_xml_invalid`; G164/G085 `original_type_invalid`; escopo `original_unsupported`; G161a `original_too_old`
+  (chave com mais de 12 meses); G168 a G176 entre os vários originais `originals_mismatch`; G173/G091 `emitter_ie_changed`;
+  G012 e G076 `contingency_not_allowed` (SVC não aceita complemento nem substituto; o substituto só em emissão normal,
+  o complemento aceita o off-line); G177, G161, G017, G076, G077 e G078 entram no portão (`blockRules`); G096
+  `substitution_window_expired` só além de 60 dias + 168 h da emissão (o registro não guarda `dhAut`); troca de tomador:
+  G099 `taker_base_not_in_original`, G100 `taker_uf_mismatch`, G101 `taker_unchanged`, `taker_role_missing`,
+  `taker_required`, `taker_change_not_requested`. Sem troca, o tomador é o do original (G097, G098 por construção).
+- **Fica com a SEFAZ (precisa de estado dela):** existência e chave divergente do original (G079, G080, G162, G163),
+  cancelado ou já substituído/complementado (G081 a G083, G166), limite de 10 complementos (G167), o prazo exato de 60
+  dias contado da autorização (G096) e o evento 610110 do tomador no original (G084, 739): o evento é registrado pelo
+  tomador, que pode ser outra empresa, então o que há em `cte_events` não prova ausência.
+- `persist` (`emit.go`) é o fim comum da emissão normal, do complemento e do substituto (numeração, chave, portão,
+  outbox/offline). O QR Code, o responsável técnico e o `shadow` são os mesmos.
+
+## CT-e OS (modelo 67)
+
+`POST /v1.0/ctes/os` (`ctes/os.go`): tpCTe 0, modal rodoviário, três serviços (6 pessoas, 7 valores, 8 excesso de
+bagagem). Leiaute: `cteOS_v4.00.xsd`; regras: MOC H001 a H133 (as de GTV-e são I01 a I75). Caminho próprio no DTO e no
+builder (`BuildCTeOS`, raiz `<CTeOS versao="4.00">`), mas o fim da emissão é o `persist` do CT-e 57.
+
+- **Assinatura:** o `Id` está em `infCte`, não em `infCTeOS`: `go-dfe/internal/services/config.go`
+  (`SignIDXPath["CTeRecepcaoOS"]`) era `infCTeOS` (tag que não existe no XSD) e passou a `infCte`, com teste. O mesmo
+  defeito está em `CTeRecepcaoGTVe` (`infGTVe`; o XSD tem `infCte`) e fica para quando a GTV-e for construída.
+  Signer e C14N não foram tocados. Serviço no egress: `CTeRecepcaoOS` (`CTeRecepcaoOSV4`), já na allowlist `implemented`.
+- **xsdorder:** entradas com escopo `CTeOS:` e `rodoOS:` em `table.go`; a paridade com o XSD (`xsdorder_parity_test.go`)
+  agora cobre `cteos` e `cte_rodoos` e é estrita.
+- **Numeração:** o CT-e OS usa o mesmo contador e a mesma série da Configuração Fiscal do CT-e 57 (chave com modelo 67).
+  Cada modelo vê lacunas de número; o CT-e não tem inutilização. Contador próprio exigiria atributo novo em
+  `organization_cte_configs` e está em aberto.
+- **Nada presumido:** CFOP e ICMS do usuário (sem CST 60, que o CT-e OS não tem); tomador sempre informado (o
+  `indIEToma` do `ide` é obrigatório e o MOC só dispensa o `toma` no excesso de bagagem); município com nome e UF vindos
+  do picker (sem tabela IBGE na API).
+- **422 local (provado só com o corpo):** H015, H018, H019, H020, H020a, H023 a H028, H029, H029a, H045, H045a, H046a,
+  H051 a H053, H057, o CNPJ do emitente (XSD) e UF x município (H117, H119). O portão do CT-e OS recusa só tamanhos do
+  esquema: não há catálogo de regras H em `go-dfe/validate` (shadow só do esquema).
+- **Fica com a SEFAZ:** existência dos documentos referenciados (BP-e, GTV-e), IE e cadastros, percurso (H021), registro
+  estadual (H044), QR Code (H128 a H133), duplicidade, CT-e OS complementar e substituto (H059 a H075, H101 a H114).
+- **Fora do núcleo (não construído):** tpCTe 1 e 3 do CT-e OS, `seg`, `cobr`, `refCTeCanc` (H037 a H043), `pgtoVinc`,
+  `gCompraGov`, antecipação de pagamento, outros modais. GTV-e (modelo 64) e CT-e Simplificado: só spec
+  (`docs/specs/2026-11-04-moc-gap-cte.md`, seção 7).
+
 ## MDF-e: portão do MOC, chaves e CNPJ alfanumérico
 
 - **Portão:** `mdfes/prevalidate.go` lista as regras do catálogo do MDF-e que recusam a emissão (422
@@ -1294,6 +1349,10 @@ chegou ao egress. Teste: `cdk/test/go-code.test.ts`. Qualquer dependência por `
 
 ## Retransmissão de contingência
 
+- Contingência automática: nunca regerar um documento em voo sem a prova por consulta da chave original
+  (`autocontingency.Reissue`); sem prova (consulta falhou ou cedo demais), o original fica pendente e alerta. A constante
+  `autocontingency.SwitchEnabled` é o interruptor mestre e só liga junto com os itens "o que falta para ligar" da seção 4.1 do spec.
+- NF-e EPEC: o documento só entra no `contingency-index` DEPOIS do evento 110140 registrado (o worker arma); `contingency_state=awaiting_epec` é o estado sem `contingency_sweep`. Quem mexer no fluxo mantém a ordem: assinar (SignOnly), enfileirar o evento no outbox junto do documento, armar no worker. Rejeição do evento apaga `contingency_msg` e rejeita o documento; nunca armar antes.
 - `contingency-index` (GSI esparso `contingency_sweep`/`contingency_deadline`, KEYS_ONLY) nas tabelas `nfes`, `nfces`, `mdfes`, `ctes`: só documentos EPEC/offline não conciliados carregam `contingency_sweep = "1"`. Quem grava um documento pendente deve gravá-lo; quem o concilia deve removê-lo.
 - `contingency-dispatcher` (15 min) lê o índice e invoca `contingency-retransmit-worker` de forma assíncrona; falha vai ao `dlq-processor`. Nunca Scan.
 - Autorização fora do prazo (cStat 150, ou 100 após o `contingency_deadline`) é sucesso (`authorized_late`). Reenvio mantém chave e `cNF`.
@@ -1324,7 +1383,7 @@ NFC-e. Na SVC do CT-e (7/8) **não** se informa `dhCont`/`xJust` nem `sign` (o o
 - **Layouts sem XSD no repositório.** Só NF-e 110130, 110131, 110150 e 110300 seguem sem XSD (o portal devolve zip vazio para
   `Evento_AtorInteressado_PL_v1.01.zip` e não publica pacote de comprovante de entrega); valem as tabelas do MOC.
 - **Fora desta rodada:** 112120 e 112130 (o MOC nomeia tags de forma contraditória ou sem nome), 211120 (removido pela LC
-  227/2026), 412120 e 412130 (autor é o Fisco). O EPEC segue sem rota: a opção `epec` continua fora de `emission.go`.
+  227/2026), 412120 e 412130 (autor é o Fisco). O EPEC da NF-e tem rota (ver abaixo, 2026-11-08) e a opção `epec` está em `emission.go` só para a NF-e.
 
 ## XSDs de evento
 

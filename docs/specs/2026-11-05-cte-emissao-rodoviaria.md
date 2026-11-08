@@ -155,3 +155,18 @@ Regras do `ui/CLAUDE.md` valem: loading e skeleton, debounce de busca, guia (`/g
 `nav.tsx` com a rota e `keywords` (cte, conhecimento de transporte, frete, tomador), fixtures no mock,
 `npm run lint` zerado, testes (Vitest), sem travessão em texto visível, sem eyebrow acima de título, sem cards
 iguais de ícone com texto, `ClearButton` nos selects opcionais.
+
+## Complemento, substituto e CT-e OS (F6 parte 3)
+
+Rotas novas, mesmo padrão de `POST /v1.0/ctes` (202 + `pending`, outbox, permissão `create.ctes`, 422 com `code`). Códigos
+e regras do MOC cobertas: `CONDUCT.md`, seções "CT-e complementar e substituto" e "CT-e OS". OpenAPI: `openapi/ctes.yaml`.
+
+- `POST /v1.0/ctes/complement`: `original_keys` (1 a 10 chaves de CT-e autorizados da organização), `freight`, `icms`,
+  `ibs_cbs`, `authorized_xml`, `cfop`, `additional_info`. Participantes, percurso, tipo de serviço e tomador vêm do XML do
+  original (`xml_s3_key`), lido por `nfexml.ParseCTe`; nunca do cadastro de pessoas.
+- `POST /v1.0/ctes/substitute`: `original_key`, `change_taker` (indAlteraToma), `taker` (só com `change_taker`:
+  papel que existe no original ou `outro` com `person_id`), mais os campos de valor acima. Carga e NF-e repetem o original.
+- `POST /v1.0/ctes/os`: `service_type` (`people`, `values`, `baggage`), `taker.person_id`, `service`, `origin`,
+  `destination`, `route_ufs`, `road`, `doc_refs`, `gtve`, `federal_taxes`, mais os campos de valor.
+- O registro do CT-e ganha `cte_type` (`complement`, `substitute`), `complemented_keys`, `substituted_key`, e no CT-e OS
+  `model` = `67` e `os_service`. A UI precisa tratar a ausência de `nfe_keys`, `sender`, `recipient` e `cargo` nesses registros.

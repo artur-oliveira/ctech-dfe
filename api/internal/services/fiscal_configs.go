@@ -31,7 +31,7 @@ type fiscalConfigRepo interface {
 	Get(ctx context.Context, orgPK string) (map[string]types.AttributeValue, error)
 	BuildUpsertTxItem(orgPK string, fields map[string]types.AttributeValue, existing map[string]types.AttributeValue) (types.TransactWriteItem, map[string]types.AttributeValue, error)
 	TransactWrite(ctx context.Context, items []types.TransactWriteItem) error
-	SetEmission(ctx context.Context, orgPK, emissionType string, auto bool, since time.Time, reason string) error
+	SetEmission(ctx context.Context, orgPK, emissionType string, auto bool, autoType string, since time.Time, reason string) error
 }
 
 // fiscalConfigService implementa Get/Upsert para qualquer config fiscal

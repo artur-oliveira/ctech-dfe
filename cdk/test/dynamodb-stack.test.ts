@@ -184,3 +184,31 @@ describe('DynamoDBStack — encryption', () => {
         }
     });
 });
+
+describe('DynamoDBStack - CIOT', () => {
+    test('ciots tem code-index, mdfe-index e TTL expires_at', () => {
+        synth().hasResourceProperties('AWS::DynamoDB::GlobalTable', {
+            TableName: 'dev_dfe_ciots',
+            TimeToLiveSpecification: {AttributeName: 'expires_at', Enabled: true},
+            GlobalSecondaryIndexes: Match.arrayWith([
+                Match.objectLike({IndexName: 'code-index'}),
+                Match.objectLike({IndexName: 'mdfe-index'}),
+            ]),
+        });
+    });
+
+    test('ciot_audit e pk/sk sem indices e sem TTL', () => {
+        const t = synth();
+        t.hasResourceProperties('AWS::DynamoDB::GlobalTable', {
+            TableName: 'dev_dfe_ciot_audit',
+            KeySchema: Match.arrayWith([
+                Match.objectLike({AttributeName: 'pk', KeyType: 'HASH'}),
+                Match.objectLike({AttributeName: 'sk', KeyType: 'RANGE'}),
+            ]),
+        });
+        const res = Object.values(t.findResources('AWS::DynamoDB::GlobalTable')) as any[];
+        const audit = res.find((r) => r.Properties.TableName === 'dev_dfe_ciot_audit');
+        expect(audit.Properties.TimeToLiveSpecification).toBeUndefined();
+        expect(audit.Properties.GlobalSecondaryIndexes).toBeUndefined();
+    });
+});

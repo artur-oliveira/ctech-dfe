@@ -70,6 +70,7 @@ func TestResendAndClassify(t *testing.T) {
 		{"no answer in time stays pending", row(future, contingency.StatePending), "", 1, ""},
 		{"no answer past the deadline is overdue", row(past, contingency.StatePending), "", 1, contingency.StateOverdue},
 		{"already reconciled is skipped (idempotent)", row(past, contingency.StateAuthorized), "100", 0, ""},
+		{"NF-e EPEC awaiting its event is never sent", row(future, contingency.StateAwaitingEPEC), "100", 0, ""},
 		{"gone", nil, "", 0, ""},
 	} {
 		st := &fakeStore{item: c.item}

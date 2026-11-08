@@ -591,7 +591,7 @@ func TestTableKeyCount(t *testing.T) {
 	// (emissão rodoviária, mesma paridade, agora estrita para o CT-e) + 4 dos eventos do CT-e
 	// (evCCeCTe, infCorrecao, evPrestDesacordo, evCancPrestDesacordo) + 10 dos eventos da reforma tributária da NF-e
 	// + 5 dos eventos de entrega do CT-e (evCECTe, evCancCECTe, evIECTe, evCancIECTe, infEntrega) + (detEvento:gCredPresOper e filhos, gImobilizacao, gConsumoComb, gPerecimento, gItemNaoFornecido, gCredito, gPgto, gControleEstoque).
-	const wantKeys = 307
+	const wantKeys = 326
 	if got := len(Table); got != wantKeys {
 		t.Errorf("Table has %d keys, want %d", got, wantKeys)
 	}

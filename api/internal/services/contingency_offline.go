@@ -33,6 +33,9 @@ const (
 	AttrContingencyMsg      = "contingency_msg"
 	ContingencySweepValue   = "1"
 	ContingencyPending      = "pending"
+	// ContingencyAwaitingEPEC: the NF-e EPEC is signed and stored, but the EPEC event is not registered yet.
+	// The row stays out of the sweep (no contingency_sweep); the worker arms it when the event succeeds.
+	ContingencyAwaitingEPEC = "awaiting_epec"
 
 	// OfflineWindowNFCe is the retransmission window of an offline NFC-e (owner decision 4; varies
 	// by UF, hence a constant). MDF-e and CT-e use the MOC value: 168 hours counted from the offline
@@ -107,16 +110,36 @@ func SignOnlyViaEgress(ctx context.Context, e EgressCaller, orgPK, issuerDoc, uf
 // retransmission sends later through the normal authorization service. msg.SefazService must be the
 // document's authorization service. contingency_msg never leaves the API (api/v1/helpers.go).
 func MarkContingencyPending(item map[string]types.AttributeValue, msg WorkerMessage, signedXML string, now time.Time, window time.Duration) error {
-	msg.Body = map[string]any{EgressBodySignedXML: signedXML}
-	raw, err := json.Marshal(msg)
+	raw, err := contingencyMsgJSON(msg, signedXML)
 	if err != nil {
-		return problem.InternalServer("failed to encode contingency message")
+		return err
 	}
 	item[AttrContingencySweep] = &types.AttributeValueMemberS{Value: ContingencySweepValue}
 	item[AttrContingencyState] = &types.AttributeValueMemberS{Value: ContingencyPending}
 	item[AttrContingencyDeadline] = &types.AttributeValueMemberS{Value: now.UTC().Add(window).Format(time.RFC3339)}
-	item[AttrContingencyMsg] = &types.AttributeValueMemberS{Value: string(raw)}
+	item[AttrContingencyMsg] = &types.AttributeValueMemberS{Value: raw}
 	return nil
+}
+
+// MarkContingencyAwaitingEvent stores the signed document and its resend message but does NOT arm the sweep:
+// the NF-e EPEC may only be retransmitted after the EPEC event is registered (worker, on event success).
+func MarkContingencyAwaitingEvent(item map[string]types.AttributeValue, msg WorkerMessage, signedXML string) error {
+	raw, err := contingencyMsgJSON(msg, signedXML)
+	if err != nil {
+		return err
+	}
+	item[AttrContingencyState] = &types.AttributeValueMemberS{Value: ContingencyAwaitingEPEC}
+	item[AttrContingencyMsg] = &types.AttributeValueMemberS{Value: raw}
+	return nil
+}
+
+func contingencyMsgJSON(msg WorkerMessage, signedXML string) (string, error) {
+	msg.Body = map[string]any{EgressBodySignedXML: signedXML}
+	raw, err := json.Marshal(msg)
+	if err != nil {
+		return "", problem.InternalServer("failed to encode contingency message")
+	}
+	return string(raw), nil
 }
 
 // ContingencySignedXML returns the signed document stored in contingency_msg, or "".

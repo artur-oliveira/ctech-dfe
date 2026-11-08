@@ -91,7 +91,7 @@ var (
 		},
 		SignIDXPath: map[string]string{
 			"CTeRecepcaoSinc":   "infCte",
-			"CTeRecepcaoOS":     "infCTeOS",
+			"CTeRecepcaoOS":     "infCte",
 			"CTeRecepcaoGTVe":   "infGTVe",
 			"CTeRecepcaoSimp":   "infCte",
 			"CTeRecepcaoEvento": "infEvento",

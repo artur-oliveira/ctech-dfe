@@ -34,6 +34,121 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '422': { $ref: '#/components/responses/ValidationError' }
 
+  /v1.0/ctes/complement:
+    post:
+      tags: [ CT-e ]
+      summary: Emite um CT-e complementar de valores (tpCTe 1)
+      description: |
+        Complementa de 1 a 10 CT-e autorizados da própria organização (mesmo ambiente). Participantes, percurso, tipo
+        de serviço e tomador saem do XML autorizado de cada original no S3 (nunca do cadastro de pessoas); o corpo
+        traz só o valor complementar (`freight`), o ICMS, o CFOP e o que for opcional. O XSD 4.00 não tem
+        `vPresComp`: o valor complementar vai em `vPrest`/`Comp` e o imposto em `imp`. Resposta 202 com o registro
+        `pending` (`cte_type` = `complement`, `complemented_keys`).
+
+        422 com `code`: `original_not_found`, `original_not_issued_by_organization`, `original_not_authorized`,
+        `original_xml_unavailable`, `original_xml_invalid`, `original_type_invalid` (só normal ou substituto),
+        `original_unsupported` (só rodoviário), `original_too_old` (chave com mais de 12 meses, G161a),
+        `originals_mismatch` (originais com participantes, percurso ou serviço diferentes, G168 a G176),
+        `emitter_ie_changed` (G173), `contingency_not_allowed` (SVC não aceita complemento, G012), mais os da
+        emissão normal: `cfop_required`, `icms_required`, `icms_rate_required`, `icms_sn_not_allowed`,
+        `components_exceed_total`, `freight_total_invalid`, `autxml_invalid`, `cte_config_required`. As regras que
+        dependem do estado na SEFAZ (G162 a G167, limite de 10 complementos por original) são da SEFAZ.
+      operationId: complementCte
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CteComplementBody' }
+      responses:
+        '202':
+          description: CT-e complementar registrado e enfileirado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CteDocument' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/ctes/substitute:
+    post:
+      tags: [ CT-e ]
+      summary: Emite um CT-e substituto (tpCTe 3)
+      description: |
+        Substitui um CT-e autorizado da própria organização. Participantes, percurso, tipo de serviço, carga e as
+        NF-e saem do XML autorizado do original no S3 (G086 a G095); o corpo traz o valor, os tributos e, com
+        `change_taker`, o novo tomador (`indAlteraToma`, G097 a G101). Sem `change_taker` o tomador é o do original.
+        Só emissão normal (G076). Resposta 202 com o registro `pending` (`cte_type` = `substitute`, `substituted_key`).
+
+        422 com `code`: os de `original_*` e `emitter_ie_changed` do complemento (exceto `originals_mismatch`),
+        `substitution_window_expired` (emitido há mais de 60 dias mais 168 h; entre 60 e 67 dias a SEFAZ decide, G096),
+        `contingency_not_allowed`, `rntrc_required`, `taker_change_not_requested` (`taker` sem `change_taker`),
+        `taker_required`, `taker_role_missing`, `taker_unchanged` (G101), `taker_base_not_in_original` (G099),
+        `taker_uf_mismatch` (G100), `taker_person_required`, `person_not_found`, mais os da emissão normal.
+        Ficam com a SEFAZ: existência e situação do original (G079 a G083), o evento de prestação em desacordo do
+        tomador no original (G084, 739) e o prazo exato de 60 dias da autorização (G096).
+      operationId: substituteCte
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CteSubstituteBody' }
+      responses:
+        '202':
+          description: CT-e substituto registrado e enfileirado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CteDocument' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/ctes/os:
+    post:
+      tags: [ CT-e ]
+      summary: Emite um CT-e OS (modelo 67, rodoviário)
+      description: |
+        CT-e OS de transporte de pessoas (`people`, tpServ 6), de valores (`values`, 7) ou excesso de bagagem
+        (`baggage`, 8), tpCTe 0. Serviço `CTeRecepcaoOS`; chave com modelo 67; numeração e série compartilhadas com o
+        CT-e 57 do mesmo ambiente (mesmo contador da Configuração Fiscal do CT-e). Sem notas: o corpo traz o serviço,
+        o tomador (pessoa do cadastro, sempre), o percurso e os dados do tipo. Resposta 202 com o registro `pending`
+        (`model` = `67`, `os_service`). CFOP, ICMS e tomador nunca são presumidos. Não há catálogo de regras H do MOC no
+        portão: valem o esquema `cteOS_v4.00.xsd` (tamanhos) e as validações abaixo.
+
+        422 com `code`: `os_emitter_cnpj_required`, `os_place_required` (H019, H020, H020a), `os_place_uf_mismatch`,
+        `os_road_required` (H015), `os_road_not_allowed` (H018, valores), `os_state_registration_required` (H023),
+        `os_taf_required` (H024), `os_charter_required` (H025), `os_trip_at_required` (H026), `os_trip_at_past` (H027),
+        `os_doc_refs_required` (H028), `os_doc_refs_not_allowed`, `os_bpe_key_invalid` (H029, H029a),
+        `os_gtve_required` (H045a), `os_gtve_not_allowed` (H045), `os_gtve_invalid` (H046a, H051, H052),
+        `os_gtve_total_mismatch` (H053, tolerância 0,10), `os_inss_required` (H057), `os_icms_cst_not_allowed` (o CT-e
+        OS não tem ICMS60), `person_not_found` e os de valor/tributo da emissão normal.
+      operationId: emitCteOs
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CteOsEmitBody' }
+      responses:
+        '202':
+          description: CT-e OS registrado e enfileirado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CteDocument' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
   /v1.0/ctes:
     post:
       tags: [ CT-e ]
@@ -674,6 +789,132 @@ components:
                 city_ibge: { $ref: '#/components/schemas/Ibge' }
         additional_info: { type: [ string, 'null' ], maxLength: 2000 }
 
+    CteChargeProps:
+      type: object
+      description: Valor e tributos do complemento e do substituto (mesmos campos de `CteEmitBody`).
+      properties:
+        freight: { $ref: '#/components/schemas/CteEmitBody/properties/freight' }
+        icms: { $ref: '#/components/schemas/CteEmitBody/properties/icms' }
+        ibs_cbs: { $ref: '#/components/schemas/CteEmitBody/properties/ibs_cbs' }
+        authorized_xml: { $ref: '#/components/schemas/CteEmitBody/properties/authorized_xml' }
+        cfop: { $ref: '#/components/schemas/CteEmitBody/properties/cfop' }
+        additional_info: { $ref: '#/components/schemas/CteEmitBody/properties/additional_info' }
+
+    CteComplementBody:
+      allOf:
+        - $ref: '#/components/schemas/CteChargeProps'
+        - type: object
+          required: [ original_keys, freight ]
+          properties:
+            original_keys:
+              type: array
+              minItems: 1
+              maxItems: 10
+              uniqueItems: true
+              items: { type: string, pattern: '^\d{44}$' }
+              description: Chaves dos CT-e autorizados da organização a complementar (infCteComp/chCTe).
+
+    CteSubstituteBody:
+      allOf:
+        - $ref: '#/components/schemas/CteChargeProps'
+        - type: object
+          required: [ original_key, freight ]
+          properties:
+            original_key: { type: string, pattern: '^\d{44}$', description: Chave do CT-e substituído (infCteSub/chCte). }
+            change_taker: { type: boolean, description: 'Liga indAlteraToma=1. Sem ele, o tomador é o do original.' }
+            taker:
+              type: [ object, 'null' ]
+              description: Só com `change_taker`. toma3 (papel existente no original e diferente do atual) ou `outro` com `person_id` (toma4).
+              required: [ role ]
+              properties:
+                role: { type: string, enum: [ remetente, destinatario, expedidor, recebedor, outro ] }
+                person_id: { type: [ string, 'null' ] }
+
+    CteOsPlace:
+      type: object
+      required: [ city_ibge, city, uf ]
+      properties:
+        city_ibge: { $ref: '#/components/schemas/Ibge' }
+        city: { type: string, minLength: 2, maxLength: 60 }
+        uf: { type: string, minLength: 2, maxLength: 2 }
+
+    CteOsEmitBody:
+      allOf:
+        - $ref: '#/components/schemas/CteChargeProps'
+        - type: object
+          required: [ service_type, taker, service, freight ]
+          properties:
+            service_type: { type: string, enum: [ people, values, baggage ] }
+            taker:
+              type: object
+              required: [ person_id ]
+              properties: { person_id: { type: string } }
+            service:
+              type: object
+              required: [ description ]
+              properties:
+                description: { type: string, maxLength: 30, description: xDescServ }
+                quantity: { type: [ string, 'null' ], description: 'qCarga: passageiros, volumes ou malotes' }
+            origin: { oneOf: [ { $ref: '#/components/schemas/CteOsPlace' }, { type: 'null' } ] }
+            destination: { oneOf: [ { $ref: '#/components/schemas/CteOsPlace' }, { type: 'null' } ] }
+            route_ufs: { type: array, maxItems: 25, items: { type: string, minLength: 2, maxLength: 2 } }
+            road:
+              type: [ object, 'null' ]
+              description: rodoOS. Obrigatório em people e baggage; proibido em values.
+              properties:
+                taf: { type: [ string, 'null' ], description: '12 dígitos; interestadual de pessoas' }
+                state_registration: { type: [ string, 'null' ], description: '25 dígitos; interna de pessoas' }
+                vehicle:
+                  type: [ object, 'null' ]
+                  properties:
+                    plate: { type: string }
+                    renavam: { type: [ string, 'null' ] }
+                    uf: { type: [ string, 'null' ] }
+                charter:
+                  type: [ object, 'null' ]
+                  description: infFretamento. Obrigatório em people.
+                  properties:
+                    type: { type: integer, enum: [ 1, 2 ], description: '1 eventual (exige trip_at), 2 contínuo' }
+                    trip_at: { type: [ string, 'null' ], format: date-time }
+            doc_refs:
+              type: array
+              description: infDocRef. Obrigatório em baggage; proibido nos outros.
+              items:
+                type: object
+                properties:
+                  bpe_key: { type: [ string, 'null' ] }
+                  number: { type: [ string, 'null' ] }
+                  serie: { type: [ string, 'null' ] }
+                  subserie: { type: [ string, 'null' ] }
+                  issued_on: { type: [ string, 'null' ], format: date }
+                  amount: { type: [ string, 'null' ] }
+            gtve:
+              type: array
+              description: infGTVe. Obrigatório em values; proibido nos outros.
+              items:
+                type: object
+                required: [ key, components ]
+                properties:
+                  key: { type: string, pattern: '^\d{44}$' }
+                  components:
+                    type: array
+                    items:
+                      type: object
+                      required: [ type, value ]
+                      properties:
+                        type: { type: integer, minimum: 1, maximum: 6, description: '6 = outros (exige name)' }
+                        value: { type: string }
+                        name: { type: [ string, 'null' ], maxLength: 15 }
+            federal_taxes:
+              type: [ object, 'null' ]
+              description: infTribFed. `inss` é obrigatório em people com tomador pessoa jurídica (H057).
+              properties:
+                pis: { type: [ string, 'null' ] }
+                cofins: { type: [ string, 'null' ] }
+                ir: { type: [ string, 'null' ] }
+                inss: { type: [ string, 'null' ] }
+                csll: { type: [ string, 'null' ] }
+
     CteDocument:
       allOf:
         - $ref: '#/components/schemas/FiscalDocument'
@@ -682,6 +923,11 @@ components:
             freight_total: { type: string }
             cfop: { type: string }
             icms_cst: { type: string }
+            model: { type: string, description: '`67` no CT-e OS; ausente no CT-e 57.' }
+            os_service: { type: string, enum: [ people, values, baggage ] }
+            cte_type: { type: string, enum: [ complement, substitute ], description: Ausente no CT-e normal. }
+            complemented_keys: { type: array, items: { type: string } }
+            substituted_key: { type: string }
             sender: { type: object, properties: { doc: { type: string }, name: { type: string } } }
             recipient: { type: object, properties: { doc: { type: string }, name: { type: string } } }
             taker:
