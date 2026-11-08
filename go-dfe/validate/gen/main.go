@@ -5,7 +5,7 @@
 //
 //	go run gen/main.go
 //
-// Saída: specs/{nfe,mdfe,cte,cteos,ctesimp}.json, embutidos pelo pacote validate. As saídas são
+// Saída: specs/{nfe,mdfe,cte,cteos,ctesimp}.json e specs/evento_*.json, embutidos pelo pacote validate. As saídas são
 // versionadas; este programa não roda em produção nem no CI (o CI só confere que o JSON
 // versionado carrega e que os testes de paridade passam).
 package main
@@ -149,6 +149,49 @@ func load(dir string) (*registry, error) {
 		}
 	}
 	return r, nil
+}
+
+// loadFile carrega um XSD e, recursivamente, os que ele inclui (xs:include). Os XSDs de evento
+// repetem o nome do elemento raiz (detEvento em todos os eNNNNNN), então não podem entrar no registro
+// do diretório inteiro: cada evento tem o seu próprio registro.
+func loadFile(path string) (*registry, *el, error) {
+	r := &registry{map[string]*el{}, map[string]*el{}, map[string]*el{}}
+	seen := map[string]bool{}
+	var first *el
+	var visit func(p string, top bool) error
+	visit = func(p string, top bool) error {
+		if seen[p] {
+			return nil
+		}
+		seen[p] = true
+		root, err := parseXSD(p)
+		if err != nil || root == nil {
+			return fmt.Errorf("%s: %v", p, err)
+		}
+		for _, k := range root.Kids {
+			name := k.Attrs["name"]
+			switch k.Name {
+			case "include":
+				if err := visit(filepath.Join(filepath.Dir(p), k.Attrs["schemaLocation"]), false); err != nil {
+					return err
+				}
+			case "complexType":
+				r.complexTypes[name] = k
+			case "simpleType":
+				r.simpleTypes[name] = k
+			case "element":
+				r.elements[name] = k
+				if top && first == nil {
+					first = k
+				}
+			}
+		}
+		return nil
+	}
+	if err := visit(path, true); err != nil {
+		return nil, nil, err
+	}
+	return r, first, nil
 }
 
 // ---- tipos simples ----------------------------------------------------------
@@ -388,6 +431,7 @@ func main() {
 		{"../schemas/cte/PL_CTe_400_NT2026.005_SN_1.00", "multimodal", "specs/cte_multimodal.json"},
 	}
 	_ = os.MkdirAll("specs", 0o755)
+	genEvents()
 	for _, t := range targets {
 		r, err := load(t.pkg)
 		if err != nil {
@@ -438,5 +482,44 @@ func checkPatterns(n *Node) {
 	}
 	for _, k := range n.Children {
 		checkPatterns(k)
+	}
+}
+
+// eventPkgs: pacotes com XSDs de evento. Um spec por evento: raiz = primeiro elemento do arquivo
+// (detEvento na NF-e; evCancCTe, evCCeCTe... no CT-e e no MDF-e), mais o envelope do evento.
+var eventPkgs = []struct {
+	doc, pkg, glob, envelope, envelopeRoot string
+}{
+	{"nfe", "../schemas/nfe/PL_010e_v1.02", "e[0-9][0-9][0-9][0-9][0-9][0-9]_v*.xsd", "envEvento_v1.00.xsd", "envEvento"},
+	{"cte", "../schemas/cte/PL_CTe_400_NT2026.005_SN_1.00", "ev[A-Z]*_v*.xsd", "eventoCTe_v4.00.xsd", "eventoCTe"},
+	{"mdfe", "../schemas/mdfe/PL_MDFe_300b_NT012025_1.05", "ev[A-Z]*_v*.xsd", "eventoMDFe_v3.00.xsd", "eventoMDFe"},
+}
+
+func genEvents() {
+	for _, p := range eventPkgs {
+		files, _ := filepath.Glob(filepath.Join(p.pkg, p.glob))
+		sort.Strings(files)
+		files = append(files, filepath.Join(p.pkg, p.envelope))
+		for _, f := range files {
+			r, first, err := loadFile(f)
+			if err != nil || first == nil {
+				fmt.Fprintf(os.Stderr, "%s: %v\n", f, err)
+				os.Exit(1)
+			}
+			base := filepath.Base(f)
+			name := p.doc + "_" + first.Attrs["name"]
+			if p.doc == "nfe" && base != p.envelope {
+				name = p.doc + "_" + base[1:7]
+			}
+			out := "specs/evento_" + name + ".json"
+			w := &walker{r: r, stack: map[string]bool{}}
+			root := w.element(first)
+			checkPatterns(root)
+			b, _ := json.MarshalIndent(root, "", " ")
+			if err := os.WriteFile(out, append(b, '\n'), 0o644); err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				os.Exit(1)
+			}
+		}
 	}
 }

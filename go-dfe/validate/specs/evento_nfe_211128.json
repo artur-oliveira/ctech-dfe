@@ -1,0 +1,102 @@
+{
+ "n": "detEvento",
+ "min": 1,
+ "max": 1,
+ "a": [
+  {
+   "n": "versao",
+   "s": {
+    "base": "string",
+    "enum": [
+     "1.00"
+    ]
+   }
+  }
+ ],
+ "c": [
+  {
+   "n": "descEvento",
+   "min": 1,
+   "max": 1,
+   "s": {
+    "base": "string",
+    "enum": [
+     "Aceite de débito na apuração por emissão de nota de crédito"
+    ]
+   }
+  },
+  {
+   "n": "cOrgaoAutor",
+   "min": 1,
+   "max": 1,
+   "s": {
+    "base": "string",
+    "enum": [
+     "11",
+     "12",
+     "13",
+     "14",
+     "15",
+     "16",
+     "17",
+     "21",
+     "22",
+     "23",
+     "24",
+     "25",
+     "26",
+     "27",
+     "28",
+     "29",
+     "31",
+     "32",
+     "33",
+     "35",
+     "41",
+     "42",
+     "43",
+     "50",
+     "51",
+     "52",
+     "53"
+    ]
+   }
+  },
+  {
+   "n": "tpAutor",
+   "min": 1,
+   "max": 1,
+   "s": {
+    "base": "string",
+    "enum": [
+     "2"
+    ]
+   }
+  },
+  {
+   "n": "verAplic",
+   "min": 1,
+   "max": 1,
+   "s": {
+    "base": "string",
+    "pattern": [
+     "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+    ],
+    "minLen": 1,
+    "maxLen": 20
+   }
+  },
+  {
+   "n": "indAceitacao",
+   "min": 1,
+   "max": 1,
+   "s": {
+    "base": "string",
+    "enum": [
+     "0",
+     "1"
+    ]
+   }
+  }
+ ]
+}

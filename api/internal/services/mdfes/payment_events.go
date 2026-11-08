@@ -178,6 +178,25 @@ func buildInfBanc(b MdfePaymentBank, idx int) (map[string]any, error) {
 		"pagamento %d: informe PIX, CNPJ da instituição de pagamento ou banco + agência", idx))
 }
 
+func payTransportDet(nProt string, trips MdfePaymentTrips, infPag []map[string]any) map[string]any {
+	return map[string]any{"evPagtoOperMDFe": map[string]any{
+		"descEvento": descEventoPagtoOper,
+		"nProt":      nProt,
+		"infViagens": map[string]any{"qtdViagens": trips.Total, "nroViagem": trips.Number},
+		"infPag":     infPag,
+	}}
+}
+
+func confirmServiceDet(nProt string) map[string]any {
+	return map[string]any{"evConfirmaServMDFe": map[string]any{"descEvento": descEventoConfirmaServ, "nProt": nProt}}
+}
+
+func changePaymentDet(nProt string, infPag []map[string]any) map[string]any {
+	return map[string]any{"evAlteracaoPagtoServMDFe": map[string]any{
+		"descEvento": descEventoAlteracaoPagt, "nProt": nProt, "infPag": infPag,
+	}}
+}
+
 // PayTransportOperation dispatches evPagtoOperMDFe (110116): declares the
 // payment made to the carrier for one trip of an authorized MDF-e.
 func (s *MdfeService) PayTransportOperation(
@@ -192,14 +211,7 @@ func (s *MdfeService) PayTransportOperation(
 	if err != nil {
 		return nil, err
 	}
-	body := s.buildEventEnvelope(ec, accessKey, TpEventoPagamentoOper, seq, map[string]any{
-		"evPagtoOperMDFe": map[string]any{
-			"descEvento": descEventoPagtoOper,
-			"nProt":      nProt,
-			"infViagens": map[string]any{"qtdViagens": trips.Total, "nroViagem": trips.Number},
-			"infPag":     infPag,
-		},
-	})
+	body := s.buildEventEnvelope(ec, accessKey, TpEventoPagamentoOper, seq, payTransportDet(nProt, trips, infPag))
 	return s.dispatchEvent(ctx, ec, accessKey, TpEventoPagamentoOper, seq, body, "", userID, userName)
 }
 
@@ -212,12 +224,7 @@ func (s *MdfeService) ConfirmService(
 	if err != nil {
 		return nil, err
 	}
-	body := s.buildEventEnvelope(ec, accessKey, TpEventoConfirmaServico, seq, map[string]any{
-		"evConfirmaServMDFe": map[string]any{
-			"descEvento": descEventoConfirmaServ,
-			"nProt":      nProt,
-		},
-	})
+	body := s.buildEventEnvelope(ec, accessKey, TpEventoConfirmaServico, seq, confirmServiceDet(nProt))
 	return s.dispatchEvent(ctx, ec, accessKey, TpEventoConfirmaServico, seq, body, "", userID, userName)
 }
 
@@ -235,13 +242,7 @@ func (s *MdfeService) ChangeServicePayment(
 	if err != nil {
 		return nil, err
 	}
-	body := s.buildEventEnvelope(ec, accessKey, TpEventoAlteracaoPagto, seq, map[string]any{
-		"evAlteracaoPagtoServMDFe": map[string]any{
-			"descEvento": descEventoAlteracaoPagt,
-			"nProt":      nProt,
-			"infPag":     infPag,
-		},
-	})
+	body := s.buildEventEnvelope(ec, accessKey, TpEventoAlteracaoPagto, seq, changePaymentDet(nProt, infPag))
 	return s.dispatchEvent(ctx, ec, accessKey, TpEventoAlteracaoPagto, seq, body, "", userID, userName)
 }
 

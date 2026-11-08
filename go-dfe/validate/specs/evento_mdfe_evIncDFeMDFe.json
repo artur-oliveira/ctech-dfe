@@ -1,0 +1,97 @@
+{
+ "n": "evIncDFeMDFe",
+ "min": 1,
+ "max": 1,
+ "c": [
+  {
+   "n": "descEvento",
+   "min": 1,
+   "max": 1,
+   "s": {
+    "base": "string",
+    "enum": [
+     "Inclusão DF-e",
+     "Inclusao DF-e"
+    ]
+   }
+  },
+  {
+   "n": "nProt",
+   "min": 1,
+   "max": 1,
+   "s": {
+    "base": "string",
+    "pattern": [
+     "[0-9]{15}"
+    ]
+   }
+  },
+  {
+   "n": "cMunCarrega",
+   "min": 1,
+   "max": 1,
+   "s": {
+    "base": "string",
+    "pattern": [
+     "[0-9]{7}"
+    ]
+   }
+  },
+  {
+   "n": "xMunCarrega",
+   "min": 1,
+   "max": 1,
+   "s": {
+    "base": "string",
+    "pattern": [
+     "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+    ],
+    "minLen": 2,
+    "maxLen": 60
+   }
+  },
+  {
+   "n": "infDoc",
+   "min": 1,
+   "max": -1,
+   "c": [
+    {
+     "n": "cMunDescarga",
+     "min": 1,
+     "max": 1,
+     "s": {
+      "base": "string",
+      "pattern": [
+       "[0-9]{7}"
+      ]
+     }
+    },
+    {
+     "n": "xMunDescarga",
+     "min": 1,
+     "max": 1,
+     "s": {
+      "base": "string",
+      "pattern": [
+       "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+      ],
+      "minLen": 2,
+      "maxLen": 60
+     }
+    },
+    {
+     "n": "chNFe",
+     "min": 1,
+     "max": 1,
+     "s": {
+      "base": "string",
+      "pattern": [
+       "[0-9]{6}[A-Z0-9]{12}[0-9]{26}"
+      ],
+      "maxLen": 44
+     }
+    }
+   ]
+  }
+ ]
+}

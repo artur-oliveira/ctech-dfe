@@ -29,7 +29,7 @@ type EPECSummary struct {
 	AccessKey string    // chave da nota com tpEmis=4
 	IssuedAt  time.Time // dhEmi
 	TpNF      string    // 0 entrada, 1 saída
-	IE        string    // IE do emitente (opcional no leiaute, P25 0-1)
+	IE        string    // IE do emitente (obrigatória no e110140 do pacote 010e)
 	DestUF    string    // UF do destinatário ("EX" no exterior)
 	DestTag   string    // "CNPJ", "CPF" ou "idEstrangeiro"
 	DestDoc   string
@@ -46,7 +46,7 @@ func (e EPECSummary) Validate() error {
 	case len(e.AccessKey) != accessKeyLen || e.AccessKey[accessKeyTpEmisPos:accessKeyTpEmisPos+1] != TpEmisEPEC:
 		return problem.UnprocessableEntity("a chave do EPEC deve ser de uma NF-e com tpEmis 4").WithCode(CodeEPECInvalid)
 	case e.IssuedAt.IsZero(), e.TpNF != "0" && e.TpNF != "1", e.DestUF == "", e.DestDoc == "",
-		e.VNF == "", e.VICMS == "", e.VST == "", e.VerAplic == "":
+		e.IE == "", e.VNF == "", e.VICMS == "", e.VST == "", e.VerAplic == "":
 		return problem.UnprocessableEntity("resumo do EPEC incompleto").WithCode(CodeEPECInvalid)
 	}
 	return nil
@@ -57,7 +57,9 @@ func EPECDeadline(registeredAt time.Time) time.Time { return registeredAt.Add(ep
 
 // buildEPECBody monta o envEvento do 110140 para a chave com tpEmis=4.
 func buildEPECBody(docTag, cnpj string, environment int, e EPECSummary, seq int) map[string]any {
-	dest := map[string]any{"UF": e.DestUF, e.DestTag: e.DestDoc}
+	// e110140 do pacote 010e: UF, documento, IE e os totais (vNF, vICMS, vST) ficam dentro de dest; vNF e vICMS
+	// voltam a aparecer em detEvento depois de dest. IE do emitente é obrigatório.
+	dest := map[string]any{"UF": e.DestUF, e.DestTag: e.DestDoc, "vNF": e.VNF, "vICMS": e.VICMS, "vST": e.VST}
 	if e.DestIE != "" {
 		dest["IE"] = e.DestIE
 	}
@@ -70,14 +72,10 @@ func buildEPECBody(docTag, cnpj string, environment int, e EPECSummary, seq int)
 		"verAplic":    e.VerAplic,
 		"dhEmi":       fmtDhEmi(e.IssuedAt),
 		"tpNF":        e.TpNF,
+		"IE":          e.IE,
 		"dest":        dest,
-		// vNF, vICMS e vST são filhos de detEvento, depois de dest (MOC EPEC P32 a P34).
-		"vNF":   e.VNF,
-		"vICMS": e.VICMS,
-		"vST":   e.VST,
-	}
-	if e.IE != "" {
-		det["IE"] = e.IE
+		"vNF":         e.VNF,
+		"vICMS":       e.VICMS,
 	}
 	return map[string]any{
 		"envEvento": map[string]any{

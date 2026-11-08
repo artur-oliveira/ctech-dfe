@@ -6,11 +6,12 @@ import (
 )
 
 func TestReformEventDescLengthsMatchMOC(t *testing.T) {
-	// "Tam." column of the MOC (8.x P19): the literal descEvento length.
+	// "Tam." column of the MOC (8.x P19): the literal descEvento length. 212110 and 212120 follow the XSD
+	// (e212110/e212120 enumeration, "em Operação de Sucessão"), which is shorter than the MOC column.
 	want := map[string]int{
 		TpEventoPagamentoIntegral: 85, TpEventoNaoFornecido: 51, TpEventoPrevEntrega: 42, TpEventoCredPresumido: 47,
 		TpEventoPerecimentoAdq: 82, TpEventoCredCombustivel: 52, TpEventoCredAdquirente: 98,
-		TpEventoSucessaoIBS: 85, TpEventoSucessaoCBS: 82,
+		TpEventoSucessaoIBS: 84, TpEventoSucessaoCBS: 84,
 	}
 	for code, n := range want {
 		if got := len([]rune(reformEvents[code].desc)); got != n {

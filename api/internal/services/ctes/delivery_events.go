@@ -26,8 +26,8 @@ const (
 	TpEventoInsucessoEntrega       = "110190"
 	TpEventoCancInsucessoEntrega   = "110191"
 
-	descComprovanteEntrega     = "Comprovante de Entrega do CTe"
-	descCancComprovanteEntrega = "Cancelamento do Comprovante de Entrega do CTe"
+	descComprovanteEntrega     = "Comprovante de Entrega do CT-e"
+	descCancComprovanteEntrega = "Cancelamento do Comprovante de Entrega do CT-e"
 	descInsucessoEntrega       = "Insucesso na Entrega do CT-e"
 	descCancInsucessoEntrega   = "Cancelamento do Insucesso de Entrega do CT-e"
 
@@ -110,6 +110,27 @@ func (p DeliveryProof) detail(det map[string]any, hashTag, hashAtTag string) map
 	return det
 }
 
+func receiptDet(r DeliveryReceipt, nProt string) map[string]any {
+	return r.detail(map[string]any{
+		"descEvento": descComprovanteEntrega, "nProt": nProt, "dhEntrega": r.OccurredAt.Format(layoutDateTimeTZ),
+		"nDoc": r.DocNumber, "xNome": r.Name,
+	}, "hashEntrega", "dhHashEntrega")
+}
+
+func failureDet(f DeliveryFailure, nProt, just string) map[string]any {
+	det := map[string]any{
+		"descEvento": descInsucessoEntrega, "nProt": nProt, "dhTentativaEntrega": f.OccurredAt.Format(layoutDateTimeTZ),
+		"tpMotivo": fmt.Sprintf("%d", f.ReasonType),
+	}
+	if f.Attempt > 0 {
+		det["nTentativa"] = fmt.Sprintf("%03d", f.Attempt)
+	}
+	if just != "" {
+		det["xJustMotivo"] = just
+	}
+	return f.detail(det, "hashTentativaEntrega", "dhHashTentativaEntrega")
+}
+
 // RegisterDeliveryReceipt registers the comprovante de entrega (110180). O05 (complementar) and the NF-e checks
 // (O11 to O17) are left to the SEFAZ.
 func (s *CteService) RegisterDeliveryReceipt(ctx context.Context, orgPK, accessKey string, r DeliveryReceipt, seq int, userID, userName string) (map[string]types.AttributeValue, error) {
@@ -127,11 +148,7 @@ func (s *CteService) RegisterDeliveryReceipt(ctx context.Context, orgPK, accessK
 	if seq, err = s.nextSequence(ctx, accessKey, TpEventoComprovanteEntrega, seq); err != nil {
 		return nil, err
 	}
-	det := r.detail(map[string]any{
-		"descEvento": descComprovanteEntrega, "nProt": nProt, "dhEntrega": r.OccurredAt.Format(layoutDateTimeTZ),
-		"nDoc": r.DocNumber, "xNome": r.Name,
-	}, "hashEntrega", "dhHashEntrega")
-	body := buildEventEnvelope(ec, accessKey, TpEventoComprovanteEntrega, seq, "evCECTe", det)
+	body := buildEventEnvelope(ec, accessKey, TpEventoComprovanteEntrega, seq, "evCECTe", receiptDet(r, nProt))
 	return s.dispatchEvent(ctx, ec, accessKey, TpEventoComprovanteEntrega, seq, body, "", userID, userName)
 }
 
@@ -154,17 +171,7 @@ func (s *CteService) RegisterDeliveryFailure(ctx context.Context, orgPK, accessK
 	if seq, err = s.nextSequence(ctx, accessKey, TpEventoInsucessoEntrega, seq); err != nil {
 		return nil, err
 	}
-	det := map[string]any{
-		"descEvento": descInsucessoEntrega, "nProt": nProt, "dhTentativaEntrega": f.OccurredAt.Format(layoutDateTimeTZ),
-		"tpMotivo": fmt.Sprintf("%d", f.ReasonType),
-	}
-	if f.Attempt > 0 {
-		det["nTentativa"] = fmt.Sprintf("%d", f.Attempt)
-	}
-	if just != "" {
-		det["xJustMotivo"] = just
-	}
-	body := buildEventEnvelope(ec, accessKey, TpEventoInsucessoEntrega, seq, "evIECTe", f.detail(det, "hashTentativaEntrega", "dhHashTentativaEntrega"))
+	body := buildEventEnvelope(ec, accessKey, TpEventoInsucessoEntrega, seq, "evIECTe", failureDet(f, nProt, just))
 	return s.dispatchEvent(ctx, ec, accessKey, TpEventoInsucessoEntrega, seq, body, "", userID, userName)
 }
 

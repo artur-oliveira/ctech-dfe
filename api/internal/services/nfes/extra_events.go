@@ -20,6 +20,7 @@ import (
 
 	"gopkg.aoctech.app/api-commons/problem"
 	"gopkg.aoctech.app/dfe/api/internal/services"
+	"gopkg.aoctech.app/dfe/api/internal/services/dfecheck"
 	dfe "gopkg.aoctech.app/dfe/go-dfe"
 )
 
@@ -82,18 +83,7 @@ func (s *NfeService) RequestProrrogation(
 		return nil, err
 	}
 
-	itemPedido := make([]map[string]any, 0, len(items))
-	for _, it := range items {
-		itemPedido = append(itemPedido, map[string]any{
-			"@numItem": fmt.Sprintf("%d", it.ItemNumber),
-			"qtdeItem": it.Quantity,
-		})
-	}
-	body := buildDetEventoBody(accessKey, ectx, eventType, seq, map[string]any{
-		"descEvento": descProrrogacao,
-		"nProt":      nProt,
-		"itemPedido": itemPedido,
-	})
+	body := buildDetEventoBody(accessKey, ectx, eventType, seq, prorrogationDet(nProt, items))
 	return s.dispatchExtraEvent(ctx, ectx, nfe, ectx.emitUF, accessKey, eventType, seq, body, userID, userName)
 }
 
@@ -114,11 +104,7 @@ func (s *NfeService) CancelProrrogation(
 	if err != nil {
 		return nil, err
 	}
-	body := buildDetEventoBody(accessKey, ectx, eventType, seq, map[string]any{
-		"descEvento":        descCancProrrogacao,
-		"idPedidoCancelado": requestID,
-		"nProt":             nProt,
-	})
+	body := buildDetEventoBody(accessKey, ectx, eventType, seq, cancProrrogationDet(requestID, nProt))
 	return s.dispatchExtraEvent(ctx, ectx, nfe, ectx.emitUF, accessKey, eventType, seq, body, userID, userName)
 }
 
@@ -140,19 +126,39 @@ func (s *NfeService) CancelEvent(
 	if err != nil {
 		return nil, err
 	}
-	body := buildDetEventoBody(accessKey, ectx, TpEventoCancelamentoEvento, seq, map[string]any{
-		"descEvento":  descCancEvento,
-		"cOrgaoAutor": accessKey[:2],
-		"verAplic":    s.tech.Version,
-		"tpEventoAut": cancelledEventType,
-		"nProtEvento": cancelledProtocol,
-	})
+	body := buildDetEventoBody(accessKey, ectx, TpEventoCancelamentoEvento, seq,
+		cancEventDet(accessKey, s.tech.Version, cancelledEventType, cancelledProtocol))
 	// Os eventos cancelaveis sao todos da reforma tributaria, autorizados na SVRS (MOC, Eventos apuracao do IBS e da CBS 8.1).
 	return s.dispatchExtraEvent(ctx, ectx, nfe, dfe.EventAuthorizerSVRS, accessKey, TpEventoCancelamentoEvento, seq, body, userID, userName)
 }
 
 // resolveAuthorizedEvent loads an authorized NF-e plus its event context and
 // authorization protocol — the preamble every event here shares.
+func prorrogationDet(nProt string, items []ProrrogationItem) map[string]any {
+	itemPedido := make([]map[string]any, 0, len(items))
+	for _, it := range items {
+		itemPedido = append(itemPedido, map[string]any{
+			"@numItem": fmt.Sprintf("%d", it.ItemNumber),
+			"qtdeItem": it.Quantity,
+		})
+	}
+	return map[string]any{"descEvento": descProrrogacao, "nProt": nProt, "itemPedido": itemPedido}
+}
+
+func cancProrrogationDet(requestID, nProt string) map[string]any {
+	return map[string]any{"descEvento": descCancProrrogacao, "idPedidoCancelado": requestID, "nProt": nProt}
+}
+
+func cancEventDet(accessKey, verAplic, cancelledEventType, cancelledProtocol string) map[string]any {
+	return map[string]any{
+		"descEvento":  descCancEvento,
+		"cOrgaoAutor": accessKey[:2],
+		"verAplic":    verAplic,
+		"tpEventoAut": cancelledEventType,
+		"nProtEvento": cancelledProtocol,
+	}
+}
+
 func (s *NfeService) resolveAuthorizedEvent(ctx context.Context, orgPK, accessKey string) (
 	map[string]types.AttributeValue, *nfeEventContext, string, error,
 ) {
@@ -211,6 +217,7 @@ func (s *NfeService) dispatchExtraEvent(
 	ctx context.Context, ectx *nfeEventContext, nfe map[string]types.AttributeValue, uf string,
 	accessKey, eventType string, seq int, body map[string]any, userID, userName string,
 ) (map[string]types.AttributeValue, error) {
+	shadowNFeEvent(accessKey, body)
 	event, err := s.eventRepo.CreateEvent(ctx, accessKey, eventType, seq, StatusPending, nil, nil, nil, userID, userName)
 	if err != nil {
 		return nil, err
@@ -232,4 +239,10 @@ func (s *NfeService) dispatchExtraEvent(
 		return nil, err
 	}
 	return nfe, nil
+}
+
+// shadowNFeEvent confere o corpo do evento contra o XSD e só registra (nunca bloqueia); devolve o corpo.
+func shadowNFeEvent(accessKey string, body map[string]any) map[string]any {
+	dfecheck.ShadowEvent("nfe", accessKey, body)
+	return body
 }

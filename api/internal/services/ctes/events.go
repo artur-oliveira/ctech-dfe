@@ -8,6 +8,7 @@ package ctes
 import (
 	"context"
 	"fmt"
+	"gopkg.aoctech.app/dfe/api/internal/services/dfecheck"
 	"regexp"
 	"strings"
 	"time"
@@ -189,6 +190,7 @@ func (s *CteService) nextSequence(ctx context.Context, accessKey, eventType stri
 // dispatchEvent grava o evento pendente, muda o status do CT-e quando pedido e publica para o worker.
 func (s *CteService) dispatchEvent(ctx context.Context, ec *eventContext, accessKey, eventType string, seq int,
 	body map[string]any, newDocStatus, userID, userName string) (map[string]types.AttributeValue, error) {
+	dfecheck.ShadowEvent("cte", accessKey, body)
 	event, err := s.eventRepo.CreateEvent(ctx, accessKey, eventType, seq, eventStatusPending, nil, nil, nil, userID, userName)
 	if err != nil {
 		return nil, err
@@ -234,9 +236,7 @@ func (s *CteService) Cancel(ctx context.Context, orgPK, accessKey, justification
 	if err != nil {
 		return nil, err
 	}
-	body := buildEventEnvelope(ec, accessKey, TpEventoCancelamento, 1, "evCancCTe", map[string]any{
-		"descEvento": descCancelamento, "nProt": nProt, "xJust": strings.TrimSpace(justification),
-	})
+	body := buildEventEnvelope(ec, accessKey, TpEventoCancelamento, 1, "evCancCTe", cancelDet(nProt, justification))
 	return s.dispatchEvent(ctx, ec, accessKey, TpEventoCancelamento, 1, body, StatusCancelPending, userID, userName)
 }
 
@@ -267,19 +267,16 @@ func (s *CteService) CorrectionLetter(ctx context.Context, orgPK, accessKey stri
 	if seq, err = s.nextSequence(ctx, accessKey, TpEventoCCe, seq); err != nil {
 		return nil, err
 	}
-	body := buildEventEnvelope(ec, accessKey, TpEventoCCe, seq, "evCCeCTe", map[string]any{
-		"descEvento": descCCe, "infCorrecao": infCorrecao, "xCondUso": xCondUsoCCe,
-	})
+	body := buildEventEnvelope(ec, accessKey, TpEventoCCe, seq, "evCCeCTe", cceDet(infCorrecao))
 	return s.dispatchEvent(ctx, ec, accessKey, TpEventoCCe, seq, body, "", userID, userName)
 }
 
-// ServiceDisagreement registra a prestação de serviço em desacordo (610110), evento do tomador. obs é opcional.
+// ServiceDisagreement registra a prestação de serviço em desacordo (610110), evento do tomador. obs é obrigatória (xObs, 15 a 255).
 func (s *CteService) ServiceDisagreement(ctx context.Context, orgPK, accessKey, obs string, seq int, userID, userName string) (map[string]types.AttributeValue, error) {
 	obs = strings.TrimSpace(obs)
-	if obs != "" {
-		if n := len([]rune(obs)); n < minObs || n > maxObs {
-			return nil, unprocessable(CodeEventInvalid, fmt.Sprintf("as observações vão de %d a %d caracteres", minObs, maxObs))
-		}
+	// evPrestDesacordo/xObs é obrigatório no XSD (15 a 255 caracteres).
+	if n := len([]rune(obs)); n < minObs || n > maxObs {
+		return nil, unprocessable(CodeEventInvalid, fmt.Sprintf("as observações vão de %d a %d caracteres", minObs, maxObs))
 	}
 	ec, err := s.resolveEventContext(ctx, orgPK, accessKey)
 	if err != nil {
@@ -291,11 +288,7 @@ func (s *CteService) ServiceDisagreement(ctx context.Context, orgPK, accessKey, 
 	if seq, err = s.nextSequence(ctx, accessKey, TpEventoDesacordo, seq); err != nil {
 		return nil, err
 	}
-	det := map[string]any{"descEvento": descDesacordo, "indDesacordoOper": indDesacordoOper}
-	if obs != "" {
-		det["xObs"] = obs
-	}
-	body := buildEventEnvelope(ec, accessKey, TpEventoDesacordo, seq, "evPrestDesacordo", det)
+	body := buildEventEnvelope(ec, accessKey, TpEventoDesacordo, seq, "evPrestDesacordo", disagreementDet(obs))
 	return s.dispatchEvent(ctx, ec, accessKey, TpEventoDesacordo, seq, body, "", userID, userName)
 }
 
@@ -323,17 +316,35 @@ func (s *CteService) CancelServiceDisagreement(ctx context.Context, orgPK, acces
 	if seq, err = s.nextSequence(ctx, accessKey, TpEventoCancDesacordo, seq); err != nil {
 		return nil, err
 	}
-	body := buildEventEnvelope(ec, accessKey, TpEventoCancDesacordo, seq, "evCancPrestDesacordo", map[string]any{
-		"descEvento": descCancDesacordo, "nProtEvPrestDes": nProt,
-	})
+	body := buildEventEnvelope(ec, accessKey, TpEventoCancDesacordo, seq, "evCancPrestDesacordo", cancDisagreementDet(nProt))
 	return s.dispatchEvent(ctx, ec, accessKey, TpEventoCancDesacordo, seq, body, "", userID, userName)
 }
 
+func cancelDet(nProt, justification string) map[string]any {
+	return map[string]any{"descEvento": descCancelamento, "nProt": nProt, "xJust": strings.TrimSpace(justification)}
+}
+
+func cceDet(infCorrecao []map[string]any) map[string]any {
+	return map[string]any{"descEvento": descCCe, "infCorrecao": infCorrecao, "xCondUso": xCondUsoCCe}
+}
+
+func disagreementDet(obs string) map[string]any {
+	det := map[string]any{"descEvento": descDesacordo, "indDesacordoOper": indDesacordoOper}
+	if obs != "" {
+		det["xObs"] = obs
+	}
+	return det
+}
+
+func cancDisagreementDet(nProt string) map[string]any {
+	return map[string]any{"descEvento": descCancDesacordo, "nProtEvPrestDes": nProt}
+}
+
 // buildEventEnvelope monta o eventoCTe em volta do detalhe (rootTag é o grupo do evento dentro de detEvento).
-// Id = "ID" + tpEvento + chCTe + nSeqEvento com 2 dígitos (N06, rejeição 628). cOrgao é a UF da chave.
+// Id = "ID" + tpEvento + chCTe + nSeqEvento com 3 dígitos (padrão do XSD, eventoCTeTiposBasico; N06, rejeição 628). cOrgao é a UF da chave.
 func buildEventEnvelope(ec *eventContext, accessKey, tpEvento string, seq int, rootTag string, det map[string]any) map[string]any {
 	infEvento := map[string]any{
-		"@Id":        fmt.Sprintf("ID%s%s%02d", tpEvento, accessKey, seq),
+		"@Id":        fmt.Sprintf("ID%s%s%03d", tpEvento, accessKey, seq),
 		"cOrgao":     accessKey[0:2],
 		"tpAmb":      fmt.Sprintf("%d", ec.environment),
 		"chCTe":      accessKey,

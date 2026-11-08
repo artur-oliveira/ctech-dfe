@@ -1,0 +1,44 @@
+{
+ "n": "evRegMultimodal",
+ "min": 1,
+ "max": 1,
+ "c": [
+  {
+   "n": "descEvento",
+   "min": 1,
+   "max": 1,
+   "s": {
+    "base": "string",
+    "enum": [
+     "Registro Multimodal"
+    ]
+   }
+  },
+  {
+   "n": "xRegistro",
+   "min": 1,
+   "max": 1,
+   "s": {
+    "base": "string",
+    "pattern": [
+     "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+    ],
+    "minLen": 15,
+    "maxLen": 1000
+   }
+  },
+  {
+   "n": "nDoc",
+   "min": 0,
+   "max": 1,
+   "s": {
+    "base": "string",
+    "pattern": [
+     "[0-9]{1,44}"
+    ],
+    "minLen": 1,
+    "maxLen": 44
+   }
+  }
+ ]
+}

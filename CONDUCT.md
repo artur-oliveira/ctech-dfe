@@ -1220,8 +1220,8 @@ SP próprios; o resto SVRS), a mesma para produção e homologação: conferir n
   MOC não fecha e estão por confirmar na homologação: literal `xCondUso` com "Art. 58-B" (o MOC mostra "58- B",
   tratado como quebra de linha), valor de `indDesacordoOper` ("1") e nome da raiz do 610111 (`evCancPrestDesacordo`;
   o MOC repete `evPrestDesacordo`), `cOrgao` = UF da chave (regra N02, rejeição 677). A tabela dos campos que a
-  CC-e não pode alterar (681) não está catalogada: fica com a SEFAZ. O XSD dos eventos não está vendorizado, a
-  ordem dos filhos está em `go-dfe/internal/xmlops/xsdorder` (testada).
+  CC-e não pode alterar (681) não está catalogada: fica com a SEFAZ. Os XSDs dos eventos estão vendorizados (ver
+  "XSDs de evento" abaixo); o `Id` do evento do CT-e usa nSeqEvento com 3 dígitos (padrão do XSD) e `xObs` do 610110 é obrigatório.
 
 - **Distribuição do CT-e e do MDF-e:** o `distDFeInt` de `CTeDistribuicaoDFe` e de `MDFeDistribuicaoDFe` só tem
   `distNSU` e `consNSU` (MOC); `consChNFe` existe só na NF-e. O worker descarta o job `cons_ch_nfe` de `cte` e
@@ -1321,8 +1321,24 @@ NFC-e. Na SVC do CT-e (7/8) **não** se informa `dhCont`/`xJust` nem `sign` (o o
 - **Evento já registrado é sucesso.** O worker trata 573 (NF-e/NFC-e) e 631 (CT-e/MDF-e) como sucesso do evento quando ele
   não é cancelamento nem encerramento (esses seguem `rejectedEventDocStatus`). Antes, o 573 de uma manifestação ou CC-e
   ficava `rejected`.
-- **Layouts sem XSD no repositório.** Só os XSDs dos documentos estão em `go-dfe/schemas`; os de evento (`e112110`,
-  `evCECTe`, ...) não. Layout e ordem de `xsdorder` vêm das tabelas do MOC e valem até alguém colar os XSDs de evento
-  (lembrar: o teste de paridade não cobre evento). `descEvento` das 11 reformas foi conferido pelo tamanho da coluna "Tam.".
+- **Layouts sem XSD no repositório.** Só NF-e 110130, 110131, 110150 e 110300 seguem sem XSD (o portal devolve zip vazio para
+  `Evento_AtorInteressado_PL_v1.01.zip` e não publica pacote de comprovante de entrega); valem as tabelas do MOC.
 - **Fora desta rodada:** 112120 e 112130 (o MOC nomeia tags de forma contraditória ou sem nome), 211120 (removido pela LC
   227/2026), 412120 e 412130 (autor é o Fisco). O EPEC segue sem rota: a opção `epec` continua fora de `emission.go`.
+
+## XSDs de evento
+
+- Vendorizados em `go-dfe/schemas/{nfe,cte,mdfe}/<pacote>` junto dos XSDs do documento (README e `SHA256SUMS` em
+  `go-dfe/schemas`; `validate/schemas_hash_test.go` falha se um XSD sumir, aparecer sem registro ou mudar). Pacotes: NF-e
+  `PL_010e_v1.02`; CT-e `PL_CTe_400_NT2026.005 RTC SN_1.00` (portal, 15/10/2026); MDF-e `PL_MDFe_300b_NT012025_1.04.zip`
+  do portal (pasta interna 1.05). Atualizar um pacote: copiar, regerar `SHA256SUMS`, `go run gen/main.go`, rodar os testes.
+- Os specs de evento são gerados por `gen/main.go` (um por evento; `detEvento` repete o nome de elemento em todo
+  `eNNNNNN`, por isso cada evento carrega o próprio registro de tipos). `xsdorder` é conferido contra eles; evento que
+  nenhum builder emite fica em `notBuilt` no teste e ganha tabela quando alguém criar o builder.
+- Correções que o XSD impôs sobre a leitura das tabelas do MOC: 211110 `gIBSCredPres`/`gCBSCredPres` só têm
+  `pCredPres` e `vCredPres` (o `cCredPres` é do item); `descEvento` do 212110 e 212120 é "... em Operação de Sucessão"
+  (CBS: "Crédito de CBS"); EPEC 110140: `IE` do emitente obrigatório, `vNF`/`vICMS`/`vST` dentro de `dest` e `vNF`/`vICMS`
+  também depois de `dest` (e110140 do pacote 010e; o pacote avulso do portal não tem os dois últimos); CT-e: `Id` com
+  3 dígitos de sequência, `descEvento` "do CT-e" nos comprovantes de entrega, `nTentativa` com 3 dígitos, `xObs` do 610110
+  obrigatório; MDF-e: o encerramento (110112) agora leva o grupo `evEncMDFe` dentro de `detEvento` (antes os campos iam
+  soltos) e `dtEnc` usa a data de Brasília.

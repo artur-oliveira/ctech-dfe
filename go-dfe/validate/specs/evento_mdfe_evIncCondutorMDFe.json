@@ -1,0 +1,49 @@
+{
+ "n": "evIncCondutorMDFe",
+ "min": 1,
+ "max": 1,
+ "c": [
+  {
+   "n": "descEvento",
+   "min": 1,
+   "max": 1,
+   "s": {
+    "base": "string",
+    "enum": [
+     "Inclusao Condutor"
+    ]
+   }
+  },
+  {
+   "n": "condutor",
+   "min": 1,
+   "max": 1,
+   "c": [
+    {
+     "n": "xNome",
+     "min": 1,
+     "max": 1,
+     "s": {
+      "base": "string",
+      "pattern": [
+       "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+      ],
+      "minLen": 2,
+      "maxLen": 60
+     }
+    },
+    {
+     "n": "CPF",
+     "min": 1,
+     "max": 1,
+     "s": {
+      "base": "string",
+      "pattern": [
+       "[0-9]{11}"
+      ]
+     }
+    }
+   ]
+  }
+ ]
+}

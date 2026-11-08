@@ -42,8 +42,8 @@ func inOrder(t *testing.T, xml string, tags ...string) {
 func TestEventEnvelopesFollowXSDOrder(t *testing.T) {
 	x := eventXML(t, TpEventoCancelamento, 1, "evCancCTe", map[string]any{"descEvento": descCancelamento, "nProt": "135250000000001", "xJust": "justificativa de teste"})
 	inOrder(t, x, "<cOrgao>", "<tpAmb>", "<CNPJ>", "<chCTe>", "<dhEvento>", "<tpEvento>", "<nSeqEvento>", "<detEvento", "<evCancCTe>", "<descEvento>", "<nProt>", "<xJust>")
-	if !strings.Contains(x, `Id="ID110111`+eventKey+`01"`) {
-		t.Fatalf("Id deve ser ID+tpEvento+chCTe+nSeq(2): %s", x)
+	if !strings.Contains(x, `Id="ID110111`+eventKey+`001"`) {
+		t.Fatalf("Id deve ser ID+tpEvento+chCTe+nSeq(3): %s", x)
 	}
 
 	x = eventXML(t, TpEventoCCe, 2, "evCCeCTe", map[string]any{

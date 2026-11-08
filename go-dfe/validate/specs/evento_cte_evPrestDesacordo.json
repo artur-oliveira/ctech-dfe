@@ -1,0 +1,43 @@
+{
+ "n": "evPrestDesacordo",
+ "min": 1,
+ "max": 1,
+ "c": [
+  {
+   "n": "descEvento",
+   "min": 1,
+   "max": 1,
+   "s": {
+    "base": "string",
+    "enum": [
+     "Prestação do Serviço em Desacordo",
+     "Prestacao do Servico em Desacordo"
+    ]
+   }
+  },
+  {
+   "n": "indDesacordoOper",
+   "min": 1,
+   "max": 1,
+   "s": {
+    "base": "string",
+    "enum": [
+     "1"
+    ]
+   }
+  },
+  {
+   "n": "xObs",
+   "min": 1,
+   "max": 1,
+   "s": {
+    "base": "string",
+    "pattern": [
+     "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+    ],
+    "minLen": 15,
+    "maxLen": 255
+   }
+  }
+ ]
+}

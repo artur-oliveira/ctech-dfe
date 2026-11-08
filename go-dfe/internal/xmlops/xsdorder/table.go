@@ -413,7 +413,7 @@ var envEventoNfe = map[string][]string{
 		"cOrgaoAutor", "tpAutor", "verAplic", // cancel-subst (110112), EPEC (110140), cancel-evento (110001), comprovante, reforma
 		"tpEventoAut", "nProtEvento", // cancel-evento (110001), cancelamento do comprovante (110131)
 		"dhEmi", "tpNF", "IE", "dest", // EPEC (110140)
-		"vNF", "vICMS", "vST", // EPEC (110140): filhos diretos de detEvento (MOC P32 a P34)
+		"vNF", "vICMS", "vST", // EPEC (110140): vNF e vICMS depois de dest; vST só dentro de dest (e110140 do pacote 010e)
 		"idPedidoCancelado", // cancel-prorrogação (111502/111503)
 		"nProt",             // cancel, prorrogação, cancel-prorrogação, vinculação de pagamento (110300)
 		"xJust",             // cancel, desconhecimento, op. não realizada
@@ -430,8 +430,8 @@ var envEventoNfe = map[string][]string{
 
 	// Reforma tributária: grupos de item dos eventos 1121xx/2111xx (MOC "Eventos apuração do IBS e da CBS")
 	"detEvento:gCredPresOper":              {"vBCCredPres", "cCredPres", "gIBSCredPres", "gCBSCredPres"},
-	"detEvento:gCredPresOper:gIBSCredPres": {"cCredPres", "pCredPres", "vCredPres"},
-	"detEvento:gCredPresOper:gCBSCredPres": {"cCredPres", "pCredPres", "vCredPres"},
+	"detEvento:gCredPresOper:gIBSCredPres": {"pCredPres", "vCredPres"},
+	"detEvento:gCredPresOper:gCBSCredPres": {"pCredPres", "vCredPres"},
 	"detEvento:gImobilizacao":              {"vIBS", "vCBS", "gControleEstoque"},
 	"detEvento:gConsumoComb":               {"vIBS", "vCBS", "gControleEstoque"},
 	"detEvento:gPerecimento":               {"vIBS", "vCBS", "gControleEstoque"},
@@ -441,7 +441,7 @@ var envEventoNfe = map[string][]string{
 	"gControleEstoque":                     {"qImobilizado", "uImobilizado", "qComb", "uComb", "qPerecimento", "uPerecimento", "qNaoFornecida", "uNaoFornecida"},
 
 	// EPEC (110140) — dest dentro de detEvento
-	"detEvento:dest": {"UF", "CNPJ", "CPF", "idEstrangeiro", "IE"},
+	"detEvento:dest": {"UF", "CNPJ", "CPF", "idEstrangeiro", "IE", "vNF", "vICMS", "vST"},
 
 	// Prorrogação (111500/111501) — item do pedido
 	"itemPedido": {"qtdeItem"},
@@ -592,7 +592,7 @@ var servicosCte = map[string][]string{
 	"eventoCTe:infEvento": {
 		"cOrgao", "tpAmb", "CNPJ", "CPF",
 		"chCTe", "dhEvento", "tpEvento", "nSeqEvento",
-		"detEvento",
+		"detEvento", "infSolicNFF", "infPAA",
 	},
 
 	// Cancelamento CT-e (evCancCTe)

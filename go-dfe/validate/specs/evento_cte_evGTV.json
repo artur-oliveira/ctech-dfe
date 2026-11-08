@@ -1,0 +1,409 @@
+{
+ "n": "evGTV",
+ "min": 1,
+ "max": 1,
+ "c": [
+  {
+   "n": "descEvento",
+   "min": 1,
+   "max": 1,
+   "s": {
+    "base": "string",
+    "enum": [
+     "Informações da GTV",
+     "Informacoes da GTV"
+    ]
+   }
+  },
+  {
+   "n": "infGTV",
+   "min": 1,
+   "max": -1,
+   "c": [
+    {
+     "n": "nDoc",
+     "min": 1,
+     "max": 1,
+     "s": {
+      "base": "string",
+      "pattern": [
+       "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+      ],
+      "minLen": 1,
+      "maxLen": 20
+     }
+    },
+    {
+     "n": "id",
+     "min": 1,
+     "max": 1,
+     "s": {
+      "base": "string",
+      "pattern": [
+       "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+      ],
+      "minLen": 1,
+      "maxLen": 20
+     }
+    },
+    {
+     "n": "serie",
+     "min": 0,
+     "max": 1,
+     "s": {
+      "base": "string",
+      "pattern": [
+       "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+      ],
+      "minLen": 1,
+      "maxLen": 3
+     }
+    },
+    {
+     "n": "subserie",
+     "min": 0,
+     "max": 1,
+     "s": {
+      "base": "string",
+      "pattern": [
+       "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+      ],
+      "minLen": 1,
+      "maxLen": 3
+     }
+    },
+    {
+     "n": "dEmi",
+     "min": 1,
+     "max": 1,
+     "s": {
+      "base": "string",
+      "pattern": [
+       "(((20(([02468][048])|([13579][26]))-02-29))|(20[0-9][0-9])-((((0[1-9])|(1[0-2]))-((0[1-9])|(1\\d)|(2[0-8])))|((((0[13578])|(1[02]))-31)|(((0[1,3-9])|(1[0-2]))-(29|30)))))"
+      ]
+     }
+    },
+    {
+     "n": "nDV",
+     "min": 1,
+     "max": 1,
+     "s": {
+      "base": "string",
+      "pattern": [
+       "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+      ],
+      "minLen": 1,
+      "maxLen": 1
+     }
+    },
+    {
+     "n": "qCarga",
+     "min": 1,
+     "max": 1,
+     "s": {
+      "base": "string",
+      "pattern": [
+       "0|0\\.[0-9]{4}|[1-9]{1}[0-9]{0,10}(\\.[0-9]{4})?"
+      ]
+     }
+    },
+    {
+     "n": "infEspecie",
+     "min": 1,
+     "max": -1,
+     "c": [
+      {
+       "n": "tpEspecie",
+       "min": 1,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "enum": [
+         "1",
+         "2",
+         "3",
+         "4"
+        ]
+       }
+      },
+      {
+       "n": "vEspecie",
+       "min": 0,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "0|0\\.[0-9]{2}|[1-9]{1}[0-9]{0,12}(\\.[0-9]{2})?"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "n": "rem",
+     "min": 1,
+     "max": 1,
+     "c": [
+      {
+       "n": "CNPJ",
+       "min": 1,
+       "max": 1,
+       "choice": 1,
+       "arm": 1,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "[0-9]{0}|[A-Z0-9]{12}[0-9]{2}"
+        ]
+       }
+      },
+      {
+       "n": "CPF",
+       "min": 1,
+       "max": 1,
+       "choice": 1,
+       "arm": 2,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "[0-9]{11}"
+        ]
+       }
+      },
+      {
+       "n": "IE",
+       "min": 0,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "[0-9]{0,14}|ISENTO"
+        ],
+        "maxLen": 14
+       }
+      },
+      {
+       "n": "UF",
+       "min": 1,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "enum": [
+         "AC",
+         "AL",
+         "AM",
+         "AP",
+         "BA",
+         "CE",
+         "DF",
+         "ES",
+         "GO",
+         "MA",
+         "MG",
+         "MS",
+         "MT",
+         "PA",
+         "PB",
+         "PE",
+         "PI",
+         "PR",
+         "RJ",
+         "RN",
+         "RO",
+         "RR",
+         "RS",
+         "SC",
+         "SE",
+         "SP",
+         "TO",
+         "EX"
+        ]
+       }
+      },
+      {
+       "n": "xNome",
+       "min": 1,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+        ],
+        "minLen": 2,
+        "maxLen": 60
+       }
+      }
+     ],
+     "choices": [
+      {
+       "id": 1,
+       "min": 1
+      }
+     ]
+    },
+    {
+     "n": "dest",
+     "min": 1,
+     "max": 1,
+     "c": [
+      {
+       "n": "CNPJ",
+       "min": 1,
+       "max": 1,
+       "choice": 2,
+       "arm": 1,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "[0-9]{0}|[A-Z0-9]{12}[0-9]{2}"
+        ]
+       }
+      },
+      {
+       "n": "CPF",
+       "min": 1,
+       "max": 1,
+       "choice": 2,
+       "arm": 2,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "[0-9]{11}"
+        ]
+       }
+      },
+      {
+       "n": "IE",
+       "min": 0,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "[0-9]{0,14}|ISENTO"
+        ],
+        "maxLen": 14
+       }
+      },
+      {
+       "n": "UF",
+       "min": 1,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "enum": [
+         "AC",
+         "AL",
+         "AM",
+         "AP",
+         "BA",
+         "CE",
+         "DF",
+         "ES",
+         "GO",
+         "MA",
+         "MG",
+         "MS",
+         "MT",
+         "PA",
+         "PB",
+         "PE",
+         "PI",
+         "PR",
+         "RJ",
+         "RN",
+         "RO",
+         "RR",
+         "RS",
+         "SC",
+         "SE",
+         "SP",
+         "TO",
+         "EX"
+        ]
+       }
+      },
+      {
+       "n": "xNome",
+       "min": 1,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+        ],
+        "minLen": 2,
+        "maxLen": 60
+       }
+      }
+     ],
+     "choices": [
+      {
+       "id": 2,
+       "min": 1
+      }
+     ]
+    },
+    {
+     "n": "placa",
+     "min": 0,
+     "max": 1,
+     "s": {
+      "base": "string",
+      "pattern": [
+       "[A-Z]{2,3}[0-9]{4}|[A-Z]{3,4}[0-9]{3}|[A-Z0-9]{7}"
+      ]
+     }
+    },
+    {
+     "n": "UF",
+     "min": 0,
+     "max": 1,
+     "s": {
+      "base": "string",
+      "enum": [
+       "AC",
+       "AL",
+       "AM",
+       "AP",
+       "BA",
+       "CE",
+       "DF",
+       "ES",
+       "GO",
+       "MA",
+       "MG",
+       "MS",
+       "MT",
+       "PA",
+       "PB",
+       "PE",
+       "PI",
+       "PR",
+       "RJ",
+       "RN",
+       "RO",
+       "RR",
+       "RS",
+       "SC",
+       "SE",
+       "SP",
+       "TO",
+       "EX"
+      ]
+     }
+    },
+    {
+     "n": "RNTRC",
+     "min": 0,
+     "max": 1,
+     "s": {
+      "base": "string",
+      "pattern": [
+       "[0-9]{8}|ISENTO"
+      ]
+     }
+    }
+   ]
+  }
+ ]
+}

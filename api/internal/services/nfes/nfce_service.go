@@ -134,7 +134,7 @@ func (s *NfceService) Cancel(ctx context.Context, orgPK, accessKey, justificatio
 	}
 
 	if err := s.publishEvent(ctx, ectx, accessKey, TpEventoCancelamento, sequenceNumber, strAttr(event, "sk"),
-		buildCancelBody(accessKey, ectx.docTag, ectx.cnpj, ectx.environment, sefazProtocol, justification, sequenceNumber),
+		shadowNFeEvent(accessKey, buildCancelBody(accessKey, ectx.docTag, ectx.cnpj, ectx.environment, sefazProtocol, justification, sequenceNumber)),
 	); err != nil {
 		return nil, err
 	}
@@ -185,7 +185,7 @@ func (s *NfceService) Substitute(ctx context.Context, orgPK, accessKey, substitu
 	}
 
 	if err := s.publishEvent(ctx, ectx, accessKey, TpEventoCancelamentoSubst, sequenceNumber, strAttr(event, "sk"),
-		buildSubstituteBody(accessKey, ectx.docTag, ectx.cnpj, ectx.environment, sefazProtocol, substituteKey, justification, sequenceNumber, s.tech.Version),
+		shadowNFeEvent(accessKey, buildSubstituteBody(accessKey, ectx.docTag, ectx.cnpj, ectx.environment, sefazProtocol, substituteKey, justification, sequenceNumber, s.tech.Version)),
 	); err != nil {
 		return nil, err
 	}

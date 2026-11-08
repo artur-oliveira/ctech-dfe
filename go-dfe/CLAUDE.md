@@ -25,6 +25,8 @@ document model and validators).
 go-dfe/
 ├── dfe.go                      # Call(ctx, Request) (Response, error); Implements(docType, service) bool
 ├── request.go                  # Request/Response/Problem — wire contract of the go-dfe-egress Lambda
+├── schemas/                    # XSDs oficiais vendorizados (documento + eventos), README e SHA256SUMS; fonte de validate/gen
+├── validate/                   # validador pré-SEFAZ; specs/*.json (documentos e evento_*) gerados por gen/main.go
 ├── internal/
 │   ├── certificate/manager.go  # PKCS12 → tls.Certificate + http.Client (mTLS, InsecureSkipVerify — deliberate)
 │   ├── xmlops/

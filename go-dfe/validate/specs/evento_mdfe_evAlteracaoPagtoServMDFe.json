@@ -1,0 +1,312 @@
+{
+ "n": "evAlteracaoPagtoServMDFe",
+ "min": 1,
+ "max": 1,
+ "c": [
+  {
+   "n": "descEvento",
+   "min": 1,
+   "max": 1,
+   "s": {
+    "base": "string",
+    "enum": [
+     "Alteração Pagamento Serviço MDFe",
+     "Alteracao Pagamento Servico MDFe"
+    ]
+   }
+  },
+  {
+   "n": "nProt",
+   "min": 1,
+   "max": 1,
+   "s": {
+    "base": "string",
+    "pattern": [
+     "[0-9]{15}"
+    ]
+   }
+  },
+  {
+   "n": "infPag",
+   "min": 1,
+   "max": -1,
+   "c": [
+    {
+     "n": "xNome",
+     "min": 0,
+     "max": 1,
+     "s": {
+      "base": "string",
+      "pattern": [
+       "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+      ],
+      "minLen": 2,
+      "maxLen": 60
+     }
+    },
+    {
+     "n": "CPF",
+     "min": 1,
+     "max": 1,
+     "choice": 1,
+     "arm": 1,
+     "s": {
+      "base": "string",
+      "pattern": [
+       "[0-9]{11}"
+      ]
+     }
+    },
+    {
+     "n": "CNPJ",
+     "min": 1,
+     "max": 1,
+     "choice": 1,
+     "arm": 2,
+     "s": {
+      "base": "string",
+      "pattern": [
+       "[0-9]{0}|[A-Z0-9]{12}[0-9]{2}"
+      ]
+     }
+    },
+    {
+     "n": "idEstrangeiro",
+     "min": 1,
+     "max": 1,
+     "choice": 1,
+     "arm": 3,
+     "s": {
+      "base": "string",
+      "pattern": [
+       "([!-ÿ]{0}|[!-ÿ]{5,20})?"
+      ],
+      "minLen": 2,
+      "maxLen": 20
+     }
+    },
+    {
+     "n": "Comp",
+     "min": 1,
+     "max": -1,
+     "c": [
+      {
+       "n": "tpComp",
+       "min": 1,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "enum": [
+         "01",
+         "02",
+         "03",
+         "04",
+         "99"
+        ]
+       }
+      },
+      {
+       "n": "vComp",
+       "min": 1,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "0|0\\.[0-9]{2}|[1-9]{1}[0-9]{0,12}(\\.[0-9]{2})?"
+        ]
+       }
+      },
+      {
+       "n": "xComp",
+       "min": 0,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+        ],
+        "minLen": 2,
+        "maxLen": 60
+       }
+      }
+     ]
+    },
+    {
+     "n": "vContrato",
+     "min": 1,
+     "max": 1,
+     "s": {
+      "base": "string",
+      "pattern": [
+       "0|0\\.[0-9]{2}|[1-9]{1}[0-9]{0,12}(\\.[0-9]{2})?"
+      ]
+     }
+    },
+    {
+     "n": "indPag",
+     "min": 1,
+     "max": 1,
+     "s": {
+      "base": "string",
+      "enum": [
+       "0",
+       "1"
+      ]
+     }
+    },
+    {
+     "n": "vAdiant",
+     "min": 0,
+     "max": 1,
+     "s": {
+      "base": "string",
+      "pattern": [
+       "0|0\\.[0-9]{2}|[1-9]{1}[0-9]{0,12}(\\.[0-9]{2})?"
+      ]
+     }
+    },
+    {
+     "n": "indAntecipaAdiant",
+     "min": 0,
+     "max": 1,
+     "s": {
+      "base": "string",
+      "enum": [
+       "1"
+      ]
+     }
+    },
+    {
+     "n": "infPrazo",
+     "min": 0,
+     "max": -1,
+     "c": [
+      {
+       "n": "nParcela",
+       "min": 1,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "[0-9]{3}"
+        ]
+       }
+      },
+      {
+       "n": "dVenc",
+       "min": 1,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "(((20(([02468][048])|([13579][26]))-02-29))|(20[0-9][0-9])-((((0[1-9])|(1[0-2]))-((0[1-9])|(1\\d)|(2[0-8])))|((((0[13578])|(1[02]))-31)|(((0[1,3-9])|(1[0-2]))-(29|30)))))"
+        ]
+       }
+      },
+      {
+       "n": "vParcela",
+       "min": 1,
+       "max": 1,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "0\\.[0-9]{1}[1-9]{1}|0\\.[1-9]{1}[0-9]{1}|[1-9]{1}[0-9]{0,12}(\\.[0-9]{2})?"
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "n": "tpAntecip",
+     "min": 0,
+     "max": 1,
+     "s": {
+      "base": "string",
+      "enum": [
+       "0",
+       "1",
+       "2"
+      ]
+     }
+    },
+    {
+     "n": "infBanc",
+     "min": 1,
+     "max": 1,
+     "c": [
+      {
+       "n": "codBanco",
+       "min": 1,
+       "max": 1,
+       "choice": 2,
+       "arm": 1,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+        ],
+        "minLen": 3,
+        "maxLen": 5
+       }
+      },
+      {
+       "n": "codAgencia",
+       "min": 1,
+       "max": 1,
+       "choice": 2,
+       "arm": 1,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+        ],
+        "minLen": 1,
+        "maxLen": 10
+       }
+      },
+      {
+       "n": "CNPJIPEF",
+       "min": 1,
+       "max": 1,
+       "choice": 2,
+       "arm": 2,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "[0-9]{0}|[A-Z0-9]{12}[0-9]{2}"
+        ]
+       }
+      },
+      {
+       "n": "PIX",
+       "min": 1,
+       "max": 1,
+       "choice": 2,
+       "arm": 3,
+       "s": {
+        "base": "string",
+        "pattern": [
+         "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+        ],
+        "minLen": 2,
+        "maxLen": 60
+       }
+      }
+     ],
+     "choices": [
+      {
+       "id": 2,
+       "min": 1
+      }
+     ]
+    }
+   ],
+   "choices": [
+    {
+     "id": 1,
+     "min": 1
+    }
+   ]
+  }
+ ]
+}

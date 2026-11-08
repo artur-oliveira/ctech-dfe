@@ -1,0 +1,40 @@
+{
+ "n": "evCancIECTe",
+ "min": 1,
+ "max": 1,
+ "c": [
+  {
+   "n": "descEvento",
+   "min": 1,
+   "max": 1,
+   "s": {
+    "base": "string",
+    "enum": [
+     "Cancelamento do Insucesso de Entrega do CT-e"
+    ]
+   }
+  },
+  {
+   "n": "nProt",
+   "min": 1,
+   "max": 1,
+   "s": {
+    "base": "string",
+    "pattern": [
+     "[0-9]{15}"
+    ]
+   }
+  },
+  {
+   "n": "nProtIE",
+   "min": 1,
+   "max": 1,
+   "s": {
+    "base": "string",
+    "pattern": [
+     "[0-9]{15}"
+    ]
+   }
+  }
+ ]
+}

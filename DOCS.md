@@ -2594,6 +2594,13 @@ Pacote `go-dfe/validate` valida o dicionário que os builders produzem antes de 
 - `validate/overlay.go` acrescenta ao schema do NF-e os campos das NT 2026.005/008 que o XSD vendorizado (PL_010e)
   não tem (`tpRegimeIBSCBS`, `vUnComLiq`, `vProdLiq`, `cAtivSN`, `gTribSN`, `vProdLiqTot`). Todo nó do overlay é
   opcional; a obrigatoriedade condicional é regra de negócio. Remover a entrada ao vendorizar o XSD que a contém.
+- **Eventos**: `go run gen/main.go` também gera um spec por evento (`specs/evento_nfe_<tpEvento>.json`, raiz `detEvento`;
+  `specs/evento_{cte,mdfe}_<grupo>.json`, raiz `evXxx`) e o envelope (`evento_nfe_envEvento`, `evento_cte_eventoCTe`,
+  `evento_mdfe_eventoMDFe`), a partir dos XSDs de evento vendorizados em `go-dfe/schemas` (README e `SHA256SUMS` lá).
+  `base64Binary` conta bytes decodificados (hash SHA-1 de 28 caracteres = 20 bytes). `dfecheck.EventFindings`/`ShadowEvent`
+  validam envelope e detEvento do corpo que o builder produz (shadow nos despachos de evento de NF-e, CT-e e MDF-e; nunca
+  bloqueia). Testes de paridade: `events_parity_test.go` em `api/internal/services/{nfes,ctes,mdfes}` e
+  `TestXSDOrderMatchesEventSpecs` em `go-dfe/validate`. Eventos sem XSD vendorizado: NF-e 110130, 110131, 110150, 110300.
 - **Integração (shadow)**: `api/internal/services/dfecheck` valida o documento no emit de NF-e, NFC-e e MDF-e e só
   registra no log (`dfecheck: achado pré-SEFAZ`); nunca bloqueia nem devolve erro. **Portão (block)**:
   `dfecheck.Gate`/`GateEnviNFe`/`GateMDFe` devolve só as regras que o chamador promove a `block` (listas em

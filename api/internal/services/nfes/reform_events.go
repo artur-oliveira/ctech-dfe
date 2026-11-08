@@ -165,9 +165,9 @@ func presumed(p *PresumedCredit) (map[string]any, error) {
 	if !reTwoDig.MatchString(p.Code) || !rePct.MatchString(p.Percent) || !reDecimal2.MatchString(p.Value) {
 		return nil, fmt.Errorf("crédito presumido: code com 2 dígitos, percent 3v2-4 e value com 2 casas")
 	}
-	// ponytail: cCredPres first in the group follows the IBS group; the CBS group is described with a
-	// copy-paste error in the MOC (P31 vCredPres "Código de Classificação"), read here as cCredPres.
-	return map[string]any{"cCredPres": p.Code, "pCredPres": p.Percent, "vCredPres": p.Value}, nil
+	// e211110 (pacote 010e): gIBSCredPres/gCBSCredPres têm só pCredPres e vCredPres; o cCredPres é do item
+	// (gCredPresOper), então p.Code não vai ao XML.
+	return map[string]any{"pCredPres": p.Percent, "vCredPres": p.Value}, nil
 }
 
 func indicator(tag string, onlyOn bool) func(ReformEventRequest) (map[string]any, error) {
@@ -229,8 +229,8 @@ var reformEvents = map[string]reformSpec{
 		}
 		return map[string]any{"gCredito": items}, nil
 	}},
-	TpEventoSucessaoIBS: {"Manifestação sobre Pedido de Transferência de Crédito de IBS em Operações de Sucessão", []string{TpAutorSucessora}, indicator("indAceitacao", false)},
-	TpEventoSucessaoCBS: {"Manifestação sobre Pedido de Transferência de Crédito CBS em Operações de Sucessão", []string{TpAutorSucessora}, indicator("indAceitacao", false)},
+	TpEventoSucessaoIBS: {"Manifestação sobre Pedido de Transferência de Crédito de IBS em Operação de Sucessão", []string{TpAutorSucessora}, indicator("indAceitacao", false)},
+	TpEventoSucessaoCBS: {"Manifestação sobre Pedido de Transferência de Crédito de CBS em Operação de Sucessão", []string{TpAutorSucessora}, indicator("indAceitacao", false)},
 }
 
 // vinculoPagamento: 110300, author is always the emitente (rule P21-10 / 466).
@@ -279,12 +279,17 @@ func (s *NfeService) ReformEvent(
 			return nil, problem.UnprocessableEntity(err.Error()).WithCode(CodeEventInvalid)
 		}
 	}
-	det["descEvento"] = desc
-	det["cOrgaoAutor"] = authorUFCode(accessKey, ectx.emitUF, tpAutor)
-	det["tpAutor"] = tpAutor
-	det["verAplic"] = s.tech.Version
+	completeReformDet(det, desc, authorUFCode(accessKey, ectx.emitUF, tpAutor), tpAutor, s.tech.Version)
 	body := buildDetEventoBody(accessKey, ectx, r.EventType, seq, det)
 	return s.dispatchExtraEvent(ctx, ectx, nfe, dfe.EventAuthorizerSVRS, accessKey, r.EventType, seq, body, userID, userName)
+}
+
+// completeReformDet adds the fields every reform event carries ahead of its own group.
+func completeReformDet(det map[string]any, desc, cOrgaoAutor, tpAutor, verAplic string) {
+	det["descEvento"] = desc
+	det["cOrgaoAutor"] = cOrgaoAutor
+	det["tpAutor"] = tpAutor
+	det["verAplic"] = verAplic
 }
 
 // resolveEventTarget loads the NF-e for an event. The emitente author needs an authorized NF-e and its

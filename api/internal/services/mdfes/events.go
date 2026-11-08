@@ -3,6 +3,7 @@ package mdfes
 import (
 	"context"
 	"fmt"
+	"gopkg.aoctech.app/dfe/api/internal/services/dfecheck"
 	"time"
 
 	"gopkg.aoctech.app/api-commons/problem"
@@ -96,6 +97,7 @@ func (s *MdfeService) dispatchEvent(
 	ctx context.Context, ec *eventContext, accessKey, eventType string, seq int,
 	body map[string]any, newDocStatus string, userID, userName string,
 ) (map[string]types.AttributeValue, error) {
+	dfecheck.ShadowEvent("mdfe", accessKey, body)
 	event, err := s.eventRepo.CreateEvent(ctx, accessKey, eventType, seq, StatusPending, nil, nil, nil, userID, userName)
 	if err != nil {
 		return nil, err
@@ -152,13 +154,7 @@ func (s *MdfeService) Cancel(ctx context.Context, orgPK, accessKey, justificatio
 	if nProt == "" {
 		return nil, problem.BadRequest("protocolo de autorização não encontrado no MDF-e")
 	}
-	body := s.buildEventEnvelope(ec, accessKey, TpEventoCancelamento, seq, map[string]any{
-		"evCancMDFe": map[string]any{
-			"descEvento": "Cancelamento",
-			"nProt":      nProt,
-			"xJust":      justification,
-		},
-	})
+	body := s.buildEventEnvelope(ec, accessKey, TpEventoCancelamento, seq, cancelDet(nProt, justification))
 	return s.dispatchEvent(ctx, ec, accessKey, TpEventoCancelamento, seq, body, StatusCancelPending, userID, userName)
 }
 
@@ -183,19 +179,7 @@ func (s *MdfeService) Close(ctx context.Context, orgPK, accessKey, cMun, uf stri
 	if cMun == "" {
 		return nil, problem.BadRequest("informe o município de encerramento (cMun)")
 	}
-	evEnc := map[string]any{
-		"descEvento": "Encerramento",
-		"nProt":      nProt,
-		"dtEnc":      time.Now().Format("2006-01-02"), // placeholder; overridden below
-		"cUF":        cUF,
-		"cMun":       cMun,
-	}
-	// indEncPorTerceiro só existe com valor "1": o XSD tem um único enumeration.
-	// Ausente = encerrado pelo próprio emitente.
-	if byThirdParty {
-		evEnc["indEncPorTerceiro"] = indEncPorTerceiroSim
-	}
-	body := s.buildEventEnvelope(ec, accessKey, TpEventoEncerramento, seq, evEnc)
+	body := s.buildEventEnvelope(ec, accessKey, TpEventoEncerramento, seq, closeDet(nProt, cUF, cMun, byThirdParty, time.Now()))
 	return s.dispatchEvent(ctx, ec, accessKey, TpEventoEncerramento, seq, body, StatusClosePending, userID, userName)
 }
 
@@ -208,12 +192,7 @@ func (s *MdfeService) IncludeCondutor(ctx context.Context, orgPK, accessKey, nam
 	if err != nil {
 		return nil, err
 	}
-	body := s.buildEventEnvelope(ec, accessKey, TpEventoInclusaoCond, seq, map[string]any{
-		"evIncCondutorMDFe": map[string]any{
-			"descEvento": "Inclusao Condutor",
-			"condutor":   map[string]any{"xNome": name, "CPF": onlyDigits(cpf)},
-		},
-	})
+	body := s.buildEventEnvelope(ec, accessKey, TpEventoInclusaoCond, seq, includeCondutorDet(name, cpf))
 	return s.dispatchEvent(ctx, ec, accessKey, TpEventoInclusaoCond, seq, body, "", userID, userName)
 }
 
@@ -234,27 +213,51 @@ func (s *MdfeService) IncludeDFe(ctx context.Context, orgPK, accessKey, cMunCarr
 	if nProt == "" {
 		return nil, problem.BadRequest("protocolo de autorização não encontrado no MDF-e")
 	}
-	infDoc := make([]map[string]any, 0, len(docs))
 	for _, d := range docs {
 		if len(d.ChNFe) != 44 {
 			return nil, problem.BadRequest("chave de NF-e inválida: " + d.ChNFe)
 		}
-		infDoc = append(infDoc, map[string]any{
-			"cMunDescarga": d.CMunDescarga,
-			"xMunDescarga": d.XMunDescarga,
-			"chNFe":        d.ChNFe,
-		})
 	}
-	body := s.buildEventEnvelope(ec, accessKey, TpEventoInclusaoDFe, seq, map[string]any{
-		"evIncDFeMDFe": map[string]any{
-			"descEvento":  "Inclusão DF-e",
-			"nProt":       nProt,
-			"cMunCarrega": cMunCarrega,
-			"xMunCarrega": xMunCarrega,
-			"infDoc":      infDoc,
-		},
-	})
+	body := s.buildEventEnvelope(ec, accessKey, TpEventoInclusaoDFe, seq, includeDFeDet(nProt, cMunCarrega, xMunCarrega, docs))
 	return s.dispatchEvent(ctx, ec, accessKey, TpEventoInclusaoDFe, seq, body, "", userID, userName)
+}
+
+func cancelDet(nProt, justification string) map[string]any {
+	return map[string]any{"evCancMDFe": map[string]any{"descEvento": "Cancelamento", "nProt": nProt, "xJust": justification}}
+}
+
+// closeDet: evEncMDFe. dtEnc é a data no fuso de Brasília (a Lambda roda em UTC).
+func closeDet(nProt, cUF, cMun string, byThirdParty bool, now time.Time) map[string]any {
+	ev := map[string]any{
+		"descEvento": "Encerramento",
+		"nProt":      nProt,
+		"dtEnc":      now.In(time.FixedZone("BRT", -3*60*60)).Format("2006-01-02"),
+		"cUF":        cUF,
+		"cMun":       cMun,
+	}
+	// indEncPorTerceiro só existe com valor "1": o XSD tem um único enumeration.
+	// Ausente = encerrado pelo próprio emitente.
+	if byThirdParty {
+		ev["indEncPorTerceiro"] = indEncPorTerceiroSim
+	}
+	return map[string]any{"evEncMDFe": ev}
+}
+
+func includeCondutorDet(name, cpf string) map[string]any {
+	return map[string]any{"evIncCondutorMDFe": map[string]any{
+		"descEvento": "Inclusao Condutor",
+		"condutor":   map[string]any{"xNome": name, "CPF": onlyDigits(cpf)},
+	}}
+}
+
+func includeDFeDet(nProt, cMunCarrega, xMunCarrega string, docs []IncludeDFeDoc) map[string]any {
+	infDoc := make([]map[string]any, 0, len(docs))
+	for _, d := range docs {
+		infDoc = append(infDoc, map[string]any{"cMunDescarga": d.CMunDescarga, "xMunDescarga": d.XMunDescarga, "chNFe": d.ChNFe})
+	}
+	return map[string]any{"evIncDFeMDFe": map[string]any{
+		"descEvento": "Inclusão DF-e", "nProt": nProt, "cMunCarrega": cMunCarrega, "xMunCarrega": xMunCarrega, "infDoc": infDoc,
+	}}
 }
 
 // IncludeDFeDoc is one document added by an inclusão de DF-e event.

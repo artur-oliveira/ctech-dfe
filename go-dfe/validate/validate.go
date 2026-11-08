@@ -8,6 +8,7 @@ package validate
 
 import (
 	"embed"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"regexp"
@@ -394,6 +395,14 @@ func (v *validator) simpleValue(sp *simple, s, path string, sev Severity) {
 		return
 	}
 	n := utf8.RuneCountInString(s)
+	if sp.Base == "base64Binary" {
+		// xs:base64Binary: length/minLength/maxLength contam bytes decodificados (SHA-1 em Base64 são 28 caracteres, 20 bytes).
+		if raw, err := base64.StdEncoding.DecodeString(s); err == nil {
+			n = len(raw)
+		} else {
+			v.add(path, CodePattern, sev, "%q não é Base64 válido", short(s))
+		}
+	}
 	sized := func(code string, limit int, format string) {
 		v.add(path, code, sev, format, short(s), limit, n)
 		v.out[len(v.out)-1].Limit, v.out[len(v.out)-1].Got = limit, n

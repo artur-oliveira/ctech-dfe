@@ -1,0 +1,131 @@
+{
+ "n": "detEvento",
+ "min": 1,
+ "max": 1,
+ "a": [
+  {
+   "n": "versao",
+   "s": {
+    "base": "string",
+    "enum": [
+     "1.00"
+    ]
+   }
+  }
+ ],
+ "c": [
+  {
+   "n": "descEvento",
+   "min": 1,
+   "max": 1,
+   "s": {
+    "base": "string",
+    "enum": [
+     "Solicitação de Apropriação de Crédito para bens e serviços que dependem de atividade do adquirente"
+    ]
+   }
+  },
+  {
+   "n": "cOrgaoAutor",
+   "min": 1,
+   "max": 1,
+   "s": {
+    "base": "string",
+    "enum": [
+     "11",
+     "12",
+     "13",
+     "14",
+     "15",
+     "16",
+     "17",
+     "21",
+     "22",
+     "23",
+     "24",
+     "25",
+     "26",
+     "27",
+     "28",
+     "29",
+     "31",
+     "32",
+     "33",
+     "35",
+     "41",
+     "42",
+     "43",
+     "50",
+     "51",
+     "52",
+     "53"
+    ]
+   }
+  },
+  {
+   "n": "tpAutor",
+   "min": 1,
+   "max": 1,
+   "s": {
+    "base": "string",
+    "enum": [
+     "2"
+    ]
+   }
+  },
+  {
+   "n": "verAplic",
+   "min": 1,
+   "max": 1,
+   "s": {
+    "base": "string",
+    "pattern": [
+     "[!-ÿ]{1}[ -ÿ]{0,}[!-ÿ]{1}|[!-ÿ]{1}"
+    ],
+    "minLen": 1,
+    "maxLen": 20
+   }
+  },
+  {
+   "n": "gCredito",
+   "min": 1,
+   "max": 990,
+   "a": [
+    {
+     "n": "nItem",
+     "req": true,
+     "s": {
+      "base": "string",
+      "pattern": [
+       "[1-9]{1}[0-9]{0,1}|[1-8]{1}[0-9]{2}|[9]{1}[0-8]{1}[0-9]{1}|[9]{1}[9]{1}[0]{1}"
+      ]
+     }
+    }
+   ],
+   "c": [
+    {
+     "n": "vCredIBS",
+     "min": 1,
+     "max": 1,
+     "s": {
+      "base": "string",
+      "pattern": [
+       "0|0\\.[0-9]{2}|[1-9]{1}[0-9]{0,12}(\\.[0-9]{2})?"
+      ]
+     }
+    },
+    {
+     "n": "vCredCBS",
+     "min": 1,
+     "max": 1,
+     "s": {
+      "base": "string",
+      "pattern": [
+       "0|0\\.[0-9]{2}|[1-9]{1}[0-9]{0,12}(\\.[0-9]{2})?"
+      ]
+     }
+    }
+   ]
+  }
+ ]
+}

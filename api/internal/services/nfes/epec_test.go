@@ -36,8 +36,11 @@ func TestBuildEPECBodyShape(t *testing.T) {
 	}
 	det := inf["detEvento"].(map[string]any)
 	dest := det["dest"].(map[string]any)
-	if _, inDest := dest["vNF"]; inDest || det["vNF"] != "10.00" || det["vST"] != "0.00" {
-		t.Fatalf("vNF, vICMS e vST ficam em detEvento (MOC P32 a P34): %v", det)
+	if dest["vNF"] != "10.00" || dest["vST"] != "0.00" || det["vNF"] != "10.00" || det["vICMS"] != "1.80" {
+		t.Fatalf("e110140 (010e): vNF, vICMS e vST dentro de dest; vNF e vICMS também em detEvento: %v", det)
+	}
+	if _, ok := det["vST"]; ok {
+		t.Fatalf("vST só existe dentro de dest: %v", det)
 	}
 	if det["tpAutor"] != "1" || dest["CNPJ"] != "11222333000181" {
 		t.Fatalf("%v", det)
