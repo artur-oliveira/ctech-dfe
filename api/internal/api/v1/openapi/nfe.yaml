@@ -364,6 +364,155 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '422': { $ref: '#/components/responses/ValidationError' }
 
+  /v1.0/nfes/{access_key}/ibscbs-events:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/AccessKey'
+    post:
+      tags: [ NF-e ]
+      summary: Eventos da reforma tributária e vinculação de pagamento (112110, 112140, 112150, 211110, 211124, 211128, 211130, 211140, 211150, 212110, 212120, 110300)
+      description: |
+        Autorizados na SVRS (NT 2026.006). `author_type` só vale para o 211110 (1 emitente, 2 destinatário);
+        os demais têm autor fixo. `indicator` é o `indQuitacao` (deve ser 1) ou o `indAceitacao` (0 ou 1).
+        `items` traz os campos do evento (`ibs`, `cbs`, `quantity`, `unit`, `credit_ibs`, `credit_cbs`, `base_value`,
+        `presumed_credit_code`, `ibs_presumed_credit`, `cbs_presumed_credit`); `payment` é o grupo do 110300.
+        Rejeição de layout devolve 422 com `code` `event_invalid`.
+      operationId: requestNfeIbsCbsEvent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ event_type ]
+              properties:
+                event_type: { type: string, enum: [ '112110', '112140', '112150', '211110', '211124', '211128', '211130', '211140', '211150', '212110', '212120', '110300' ] }
+                sequence_number: { type: integer, minimum: 1, maximum: 20 }
+                author_type: { type: string, enum: [ '1', '2' ] }
+                indicator: { type: integer, enum: [ 0, 1 ] }
+                delivery_forecast: { type: string, format: date }
+                items: { type: array, maxItems: 990, items: { type: object } }
+                payment: { type: object }
+      responses:
+        '200':
+          description: Evento registrado e enfileirado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NfeDocument' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/nfes/{access_key}/delivery-receipt:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/AccessKey'
+    post:
+      tags: [ NF-e ]
+      summary: Comprovante de entrega da NF-e (evento 110130, Ambiente Nacional)
+      description: |
+        Só o emitente, com a NF-e autorizada. `receipt_hash` é o SHA-1 em Base64 (28 caracteres).
+      operationId: registerNfeDeliveryReceipt
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ delivered_at, doc_number, name, receipt_hash ]
+              properties:
+                delivered_at: { type: string, format: date-time }
+                doc_number: { type: string, minLength: 2, maxLength: 20 }
+                name: { type: string, minLength: 2, maxLength: 60 }
+                latitude: { type: string }
+                longitude: { type: string }
+                receipt_hash: { type: string, minLength: 28, maxLength: 28 }
+                hash_at: { type: string, format: date-time }
+                sequence_number: { type: integer, minimum: 1, maximum: 20 }
+      responses:
+        '200':
+          description: Evento registrado e enfileirado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NfeDocument' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/nfes/{access_key}/delivery-receipt-cancel:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/AccessKey'
+    post:
+      tags: [ NF-e ]
+      summary: Cancelamento do comprovante de entrega (evento 110131, Ambiente Nacional)
+      description: |
+        `delivery_protocol` é o protocolo (15 dígitos) do 110130 a cancelar.
+      operationId: cancelNfeDeliveryReceipt
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ delivery_protocol ]
+              properties:
+                delivery_protocol: { type: string, minLength: 15, maxLength: 15 }
+                sequence_number: { type: integer, minimum: 1, maximum: 20 }
+      responses:
+        '200':
+          description: Evento registrado e enfileirado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NfeDocument' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/nfes/{access_key}/interested-actor:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/AccessKey'
+    post:
+      tags: [ NF-e ]
+      summary: Ator interessado na NF-e, transportador (evento 110150)
+      description: |
+        Informe `cnpj` ou `cpf`. `allow_subcontracts` envia `tpAutorizacao` 1 com a condição de uso.
+      operationId: registerNfeInterestedActor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                cnpj: { type: string, minLength: 14, maxLength: 14 }
+                cpf: { type: string, minLength: 11, maxLength: 11 }
+                allow_subcontracts: { type: boolean }
+                author_type: { type: string, enum: [ '1', '2' ] }
+                sequence_number: { type: integer, minimum: 1, maximum: 20 }
+      responses:
+        '200':
+          description: Evento registrado e enfileirado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NfeDocument' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
   /v1.0/nfes/{access_key}/cancel-event:
     parameters:
       - $ref: '#/components/parameters/OrgHeader'

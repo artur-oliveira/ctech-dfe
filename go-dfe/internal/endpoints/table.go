@@ -213,6 +213,8 @@ var nfeRegistry = registry{
 // selects one of these only to redirect the URL. NF-e only: the MOC states
 // that NFC-e is not authorized on the SVC (B22-70, 783).
 const (
+	// AuthorizerSVRS is passed as the UF to reach the SVRS registry directly (NF-e reform events, NT 2026.006).
+	AuthorizerSVRS  = "SVRS"
 	AuthorizerSVCAN = "SVC-AN"
 	AuthorizerSVCRS = "SVC-RS"
 	// AuthorizerSVCSP serves CT-e only (tpEmis 8).
@@ -665,7 +667,7 @@ func Resolve(docType, uf, environment, service string) (string, error) {
 			return "", fmt.Errorf("endpoint not found: doc_type=%q has no contingency authorizer %q", docType, uf)
 		}
 		table = docTypeTable{reg: svcRegistries[docType]}
-	} else if uf != "AN" {
+	} else if uf != "AN" && uf != AuthorizerSVRS {
 		authorizer, ok = table.ufAuth[uf]
 		if !ok {
 			return "", fmt.Errorf("endpoint not found: doc_type=%q uf=%q (no authorizer mapping)", docType, uf)

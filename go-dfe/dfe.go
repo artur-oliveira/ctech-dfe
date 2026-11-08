@@ -279,3 +279,7 @@ func SVCFor(uf string) (string, bool) { return endpoints.SVCFor(uf) }
 // SVCForCTe returns the SVC (SVC-RS or SVC-SP) that serves uf for CT-e. UNVERIFIED mapping, see
 // endpoints.cteSVCByUF.
 func SVCForCTe(uf string) (string, bool) { return endpoints.SVCForCTe(uf) }
+
+// EventAuthorizerSVRS is the UF value that sends an NF-e event to the SVRS authorizer
+// (reform events of NT 2026.006 are authorized there, MOC "Eventos apuração do IBS e da CBS" 8.1).
+const EventAuthorizerSVRS = endpoints.AuthorizerSVRS

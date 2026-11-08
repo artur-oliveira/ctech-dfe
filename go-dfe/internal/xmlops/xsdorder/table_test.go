@@ -589,8 +589,9 @@ func TestTableKeyCount(t *testing.T) {
 	// (gTribSN, gIBSSN, gCBSSN, IBSCBSTot:gTribSN) + impostoDevol, DFeReferenciado e
 	// RSAKeyValue, que o paridade com o XSD (validate/xsdorder_parity_test.go) apontou + 34 do CT-e 4.00
 	// (emissão rodoviária, mesma paridade, agora estrita para o CT-e) + 4 dos eventos do CT-e
-	// (evCCeCTe, infCorrecao, evPrestDesacordo, evCancPrestDesacordo).
-	const wantKeys = 292
+	// (evCCeCTe, infCorrecao, evPrestDesacordo, evCancPrestDesacordo) + 10 dos eventos da reforma tributária da NF-e
+	// + 5 dos eventos de entrega do CT-e (evCECTe, evCancCECTe, evIECTe, evCancIECTe, infEntrega) + (detEvento:gCredPresOper e filhos, gImobilizacao, gConsumoComb, gPerecimento, gItemNaoFornecido, gCredito, gPgto, gControleEstoque).
+	const wantKeys = 307
 	if got := len(Table); got != wantKeys {
 		t.Errorf("Table has %d keys, want %d", got, wantKeys)
 	}

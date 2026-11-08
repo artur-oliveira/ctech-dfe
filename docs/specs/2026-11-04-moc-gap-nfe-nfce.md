@@ -677,3 +677,10 @@ Total aproximado: **25 semanas de uma pessoa** para chegar a cerca de 80% das re
 - Validação atual: `api/internal/validation/*.go`, `api/internal/api/v1/dto.go`.
 - MOC (cópia estática): `http://moc.sped.fazenda.pr.gov.br/NFe_NFCe/` (`VisaoGeral`, `Leiaute`, `RegrasDeValidação`,
   `Contingencia_NFe`, `ContingenciaNFCe`, `DanfeCodigoBarras`, `DanfeQrCodeNFCe`, `HistoricoDeImpla`, `Recepcao*`, `NFe*`).
+
+## Status F9 (eventos), 2026-11-07
+
+Feitos: 110130, 110131, 110150, 110300 e os eventos da reforma 112110, 112140, 112150, 211110, 211124, 211128, 211130,
+211140, 211150, 212110, 212120 (rotas em `DOCS.md`; autorizador e riscos em `CONDUCT.md`, "Eventos restantes (F9)").
+Corrigido o corpo do EPEC (110140): `vNF`, `vICMS` e `vST` são filhos de `detEvento`, não de `dest` (MOC P32 a P34), e `IE` é opcional.
+Não feitos: rota de emissão do EPEC (a opção `epec` segue fora de `emission.go`), 112120, 112130, 211120 (removido), 412120 e 412130 (Fisco).

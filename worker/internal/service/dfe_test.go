@@ -580,7 +580,7 @@ func TestProcess_EventAuthorized_OnlyEventUpdated(t *testing.T) {
 
 func TestProcess_EventRejected_DocumentNotUpdated(t *testing.T) {
 	dynm := &mockDynamo{}
-	svc := newSvc(certS3(), &mockLambda{payload: invokeResp("573", "Rejeição", "")}, dynm)
+	svc := newSvc(certS3(), &mockLambda{payload: invokeResp("494", "Rejeição", "")}, dynm)
 
 	if err := svc.Process(context.Background(), eventMsg); err != nil {
 		t.Fatalf("Process: %v", err)
@@ -590,6 +590,19 @@ func TestProcess_EventRejected_DocumentNotUpdated(t *testing.T) {
 	}
 	if dynm.updates[0].status != StatusRejected {
 		t.Errorf("event status = %q, want rejected", dynm.updates[0].status)
+	}
+}
+
+// A non-cancellation event already registered (573) is a success and does not touch the document.
+func TestProcess_DuplicateEvent573_IsSuccess(t *testing.T) {
+	dynm := &mockDynamo{}
+	svc := newSvc(certS3(), &mockLambda{payload: invokeResp("573", "Rejeicao: Duplicidade de evento", "")}, dynm)
+
+	if err := svc.Process(context.Background(), eventMsg); err != nil {
+		t.Fatalf("Process: %v", err)
+	}
+	if len(dynm.updates) != 1 || dynm.updates[0].status != EventStatusSuccess {
+		t.Fatalf("want one event update with success, got %+v", dynm.updates)
 	}
 }
 

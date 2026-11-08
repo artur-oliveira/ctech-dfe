@@ -454,6 +454,10 @@ func (s *DfeService) handleSefazResponse(ctx context.Context, msg WorkerMessage,
 			}
 		}
 
+	case cStat != nil && isSefazEvent && !isClose && !isCancellation && isDuplicateEvent(msg.DocType, *cStat):
+		// Evento já registrado (573 NF-e/NFC-e, 631 CT-e/MDF-e): o resultado pedido já vale, é sucesso.
+		eventStatus = EventStatusSuccess
+
 	case cStat != nil:
 		eventStatus = StatusRejected
 		if isClose || isCancellation {

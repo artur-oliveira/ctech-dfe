@@ -409,20 +409,39 @@ var envEventoNfe = map[string][]string{
 	"detEvento:descEvento": {}, // leaf — sem filhos próprios
 	"detEvento": {
 		"descEvento",
-		"xCorrecao", "xCondUso", // CC-e (110110)
-		"cOrgaoAutor", "tpAutor", "verAplic", // cancel-subst (110112), EPEC (110140), cancel-evento (110001)
-		"tpEventoAut", "nProtEvento", // cancel-evento (110001)
+		"xCorrecao",                          // CC-e (110110)
+		"cOrgaoAutor", "tpAutor", "verAplic", // cancel-subst (110112), EPEC (110140), cancel-evento (110001), comprovante, reforma
+		"tpEventoAut", "nProtEvento", // cancel-evento (110001), cancelamento do comprovante (110131)
 		"dhEmi", "tpNF", "IE", "dest", // EPEC (110140)
-		"vNF", "vICMS", // EPEC (110140) — filhos diretos de detEvento
+		"vNF", "vICMS", "vST", // EPEC (110140): filhos diretos de detEvento (MOC P32 a P34)
 		"idPedidoCancelado", // cancel-prorrogação (111502/111503)
-		"nProt",             // cancel, prorrogação, cancel-prorrogação
+		"nProt",             // cancel, prorrogação, cancel-prorrogação, vinculação de pagamento (110300)
 		"xJust",             // cancel, desconhecimento, op. não realizada
 		"chNFeRef",          // cancel-subst (110112)
 		"itemPedido",        // prorrogação (111500/111501)
+		// Comprovante de entrega (110130)
+		"dhEntrega", "nDoc", "xNome", "latGPS", "longGPS", "hashComprovante", "dhHashComprovante",
+		// Eventos da reforma tributária (NT 2026.006) e vinculação de pagamento (110300)
+		"indQuitacao", "indAceitacao", "dPrevEntrega",
+		"gCredPresOper", "gImobilizacao", "gConsumoComb", "gCredito", "gPerecimento", "gItemNaoFornecido", "gPgto",
+		// Ator interessado (110150): autXML, tpAutorizacao, xCondUso; na CC-e (110110) o xCondUso vem depois do xCorrecao
+		"autXML", "tpAutorizacao", "xCondUso",
 	},
 
+	// Reforma tributária: grupos de item dos eventos 1121xx/2111xx (MOC "Eventos apuração do IBS e da CBS")
+	"detEvento:gCredPresOper":              {"vBCCredPres", "cCredPres", "gIBSCredPres", "gCBSCredPres"},
+	"detEvento:gCredPresOper:gIBSCredPres": {"cCredPres", "pCredPres", "vCredPres"},
+	"detEvento:gCredPresOper:gCBSCredPres": {"cCredPres", "pCredPres", "vCredPres"},
+	"detEvento:gImobilizacao":              {"vIBS", "vCBS", "gControleEstoque"},
+	"detEvento:gConsumoComb":               {"vIBS", "vCBS", "gControleEstoque"},
+	"detEvento:gPerecimento":               {"vIBS", "vCBS", "gControleEstoque"},
+	"detEvento:gItemNaoFornecido":          {"vIBS", "vCBS", "gControleEstoque"},
+	"detEvento:gCredito":                   {"vCredIBS", "vCredCBS"},
+	"detEvento:gPgto":                      {"tpMeioPgto", "CNPJReceb", "CNPJBasePSP"},
+	"gControleEstoque":                     {"qImobilizado", "uImobilizado", "qComb", "uComb", "qPerecimento", "uPerecimento", "qNaoFornecida", "uNaoFornecida"},
+
 	// EPEC (110140) — dest dentro de detEvento
-	"detEvento:dest": {"UF", "CNPJ", "CPF", "idEstrangeiro", "IE", "vNF", "vICMS", "vST"},
+	"detEvento:dest": {"UF", "CNPJ", "CPF", "idEstrangeiro", "IE"},
 
 	// Prorrogação (111500/111501) — item do pedido
 	"itemPedido": {"qtdeItem"},
@@ -586,6 +605,13 @@ var servicosCte = map[string][]string{
 	// Prestação do serviço em desacordo CT-e (evPrestDesacordo — 610110) e seu cancelamento (610111).
 	"evPrestDesacordo":     {"descEvento", "indDesacordoOper", "xObs"},
 	"evCancPrestDesacordo": {"descEvento", "nProtEvPrestDes"},
+
+	// Comprovante de entrega (evCECTe 110180) e insucesso na entrega (evIECTe 110190) do CT-e, com seus cancelamentos.
+	"evCECTe":     {"descEvento", "nProt", "dhEntrega", "nDoc", "xNome", "latitude", "longitude", "hashEntrega", "dhHashEntrega", "infEntrega"},
+	"evCancCECTe": {"descEvento", "nProt", "nProtCE"},
+	"evIECTe":     {"descEvento", "nProt", "dhTentativaEntrega", "nTentativa", "tpMotivo", "xJustMotivo", "latitude", "longitude", "hashTentativaEntrega", "dhHashTentativaEntrega", "infEntrega"},
+	"evCancIECTe": {"descEvento", "nProt", "nProtIE"},
+	"infEntrega":  {"chNFe"},
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

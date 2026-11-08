@@ -1309,3 +1309,20 @@ remove o atributo em todo desfecho terminal.
 MDF-e e CT-e off-line (`tpEmis=2`) seguem a mesma regra (`mdfe`/`cte` `SignText` e `SignOnly`); prazo de 168 h (MOC), não os 3 dias da
 NFC-e. Na SVC do CT-e (7/8) **não** se informa `dhCont`/`xJust` nem `sign` (o oposto da NF-e): copiar o desenho da NF-e aqui
 é rejeição 586. A UF para SVC-RS/SVC-SP e as URLs da SVC do CT-e estão não verificadas (Portal Nacional bloqueia robôs).
+
+## Eventos restantes (F9): autorizador, idempotência e o que não foi verificado
+
+- **Autorizador por evento da NF-e.** Reforma tributária (112110, 112140, 112150, 211110, 211124, 211128, 211130, 211140,
+  211150, 212110, 212120) e o cancelamento 110001 vão à SVRS (`WorkerMessage.UF = "SVRS"`, `dfe.EventAuthorizerSVRS`;
+  o `Resolve` do go-dfe aceita "SVRS" como "AN", direto no registro). Comprovante de entrega (110130/110131) e EPEC (110140)
+  só existem no Ambiente Nacional (`UF = "AN"`, `cOrgao 91`). O ator interessado (110150) vai à UF do emitente. O endereço
+  exato do serviço de eventos da reforma na SVRS não está no MOC ("Portal Nacional, Relação de Serviços Web"): foi assumido
+  o `recepcaoevento4.asmx` da SVRS e precisa ser conferido em homologação.
+- **Evento já registrado é sucesso.** O worker trata 573 (NF-e/NFC-e) e 631 (CT-e/MDF-e) como sucesso do evento quando ele
+  não é cancelamento nem encerramento (esses seguem `rejectedEventDocStatus`). Antes, o 573 de uma manifestação ou CC-e
+  ficava `rejected`.
+- **Layouts sem XSD no repositório.** Só os XSDs dos documentos estão em `go-dfe/schemas`; os de evento (`e112110`,
+  `evCECTe`, ...) não. Layout e ordem de `xsdorder` vêm das tabelas do MOC e valem até alguém colar os XSDs de evento
+  (lembrar: o teste de paridade não cobre evento). `descEvento` das 11 reformas foi conferido pelo tamanho da coluna "Tam.".
+- **Fora desta rodada:** 112120 e 112130 (o MOC nomeia tags de forma contraditória ou sem nome), 211120 (removido pela LC
+  227/2026), 412120 e 412130 (autor é o Fisco). O EPEC segue sem rota: a opção `epec` continua fora de `emission.go`.

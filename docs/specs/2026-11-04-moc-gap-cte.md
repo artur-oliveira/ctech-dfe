@@ -494,3 +494,8 @@ Menor caminho para valor: Fases 0, 1, 2 e 3 (CT-e rodoviário completo e validad
 - `worker/internal/service/{dfe,distribution,distribution_parser}.go`, `cdk/lib/worker-definitions.ts`
 - `ui/src/app/cte/page.tsx`, `ui/src/components/layout/MobileNav.tsx`
 - `docs/plans/2026-08-26-cobertura-total-tags-nfe-mdfe.md`, `docs/plans/2026-08-26-contingencia-e-inutilizacao-dfe.md`
+
+## Status F9 (eventos), 2026-11-07
+
+Feitos: 110180, 110181, 110190, 110191 (`api/internal/services/ctes/delivery_events.go`). Pendentes: 110160, 110300/110301, 211110.
+MDF-e: o MOC lista como eventos do emitente apenas 110111, 110112, 110114, 110115, 110116, 110117 e 110118, todos já implementados.

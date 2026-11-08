@@ -36,7 +36,10 @@ func TestBuildEPECBodyShape(t *testing.T) {
 	}
 	det := inf["detEvento"].(map[string]any)
 	dest := det["dest"].(map[string]any)
-	if det["tpAutor"] != "1" || dest["vNF"] != "10.00" || dest["CNPJ"] != "11222333000181" {
+	if _, inDest := dest["vNF"]; inDest || det["vNF"] != "10.00" || det["vST"] != "0.00" {
+		t.Fatalf("vNF, vICMS e vST ficam em detEvento (MOC P32 a P34): %v", det)
+	}
+	if det["tpAutor"] != "1" || dest["CNPJ"] != "11222333000181" {
 		t.Fatalf("%v", det)
 	}
 	if got := EPECDeadline(time.Unix(0, 0)); got.Sub(time.Unix(0, 0)) != 168*time.Hour {

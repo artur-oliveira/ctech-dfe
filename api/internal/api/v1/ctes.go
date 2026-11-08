@@ -160,6 +160,58 @@ func RegisterCTes(router fiber.Router, svc *ctesvc.CteService, userSvc *services
 		return sendItem(c, cte)
 	})
 
+	// POST /ctes/:access_key/delivery-receipt: comprovante de entrega (110180)
+	g.Post("/:access_key/delivery-receipt", perm.Require("create.cte_events"), func(c fiber.Ctx) error {
+		var body struct {
+			ctesvc.DeliveryReceipt
+			SequenceNumber int `json:"sequence_number" validate:"omitempty,gte=1,lte=20"`
+		}
+		if p := bindJSON(c, &body); p != nil {
+			return sendProblem(c, p)
+		}
+		userID, userName := resolveActor(c, userSvc)
+		cte, err := svc.RegisterDeliveryReceipt(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"), body.DeliveryReceipt, body.SequenceNumber, userID, userName)
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		return sendItem(c, cte)
+	})
+
+	// POST /ctes/:access_key/delivery-failure: insucesso na entrega (110190)
+	g.Post("/:access_key/delivery-failure", perm.Require("create.cte_events"), func(c fiber.Ctx) error {
+		var body struct {
+			ctesvc.DeliveryFailure
+			SequenceNumber int `json:"sequence_number" validate:"omitempty,gte=1,lte=20"`
+		}
+		if p := bindJSON(c, &body); p != nil {
+			return sendProblem(c, p)
+		}
+		userID, userName := resolveActor(c, userSvc)
+		cte, err := svc.RegisterDeliveryFailure(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"), body.DeliveryFailure, body.SequenceNumber, userID, userName)
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		return sendItem(c, cte)
+	})
+
+	// POST /ctes/:access_key/delivery-cancel: cancela um 110180 (kind=receipt) ou um 110190 (kind=failure)
+	g.Post("/:access_key/delivery-cancel", perm.Require("create.cte_events"), func(c fiber.Ctx) error {
+		var body struct {
+			Kind           string `json:"kind" validate:"required,oneof=receipt failure"`
+			EventSK        string `json:"event_sk" validate:"required"`
+			SequenceNumber int    `json:"sequence_number" validate:"omitempty,gte=1,lte=20"`
+		}
+		if p := bindJSON(c, &body); p != nil {
+			return sendProblem(c, p)
+		}
+		userID, userName := resolveActor(c, userSvc)
+		cte, err := svc.CancelDeliveryEvent(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"), body.EventSK, body.Kind == "failure", body.SequenceNumber, userID, userName)
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		return sendItem(c, cte)
+	})
+
 	// GET /ctes/:access_key/events
 	g.Get("/:access_key/events", perm.Require("get.cte_events"), func(c fiber.Ctx) error {
 		cursor := c.Query("cursor")

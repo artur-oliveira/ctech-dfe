@@ -244,6 +244,74 @@ func RegisterNFes(router fiber.Router, svc *nfesvc.NfeService, userSvc *services
 		return sendItem(c, nfe)
 	})
 
+	// POST /nfes/:access_key/ibscbs-events: reform events (NT 2026.006) and payment link (110300), SVRS
+	g.Post("/:access_key/ibscbs-events", perm.Require("create.nfe_events"), func(c fiber.Ctx) error {
+		var body nfesvc.ReformEventRequest
+		if p := bindJSON(c, &body); p != nil {
+			return sendProblem(c, p)
+		}
+		userID, userName := resolveActor(c, userSvc)
+		nfe, err := svc.ReformEvent(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"), body, userID, userName)
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		return sendItem(c, nfe)
+	})
+
+	// POST /nfes/:access_key/delivery-receipt: comprovante de entrega (110130, Ambiente Nacional)
+	g.Post("/:access_key/delivery-receipt", perm.Require("create.nfe_events"), func(c fiber.Ctx) error {
+		var body struct {
+			nfesvc.DeliveryReceipt
+			SequenceNumber int `json:"sequence_number" validate:"omitempty,gte=1,lte=20"`
+		}
+		if p := bindJSON(c, &body); p != nil {
+			return sendProblem(c, p)
+		}
+		userID, userName := resolveActor(c, userSvc)
+		nfe, err := svc.RegisterDeliveryReceipt(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"),
+			body.DeliveryReceipt, defaultSeq(body.SequenceNumber), userID, userName)
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		return sendItem(c, nfe)
+	})
+
+	// POST /nfes/:access_key/delivery-receipt-cancel: cancelamento do comprovante (110131)
+	g.Post("/:access_key/delivery-receipt-cancel", perm.Require("create.nfe_events"), func(c fiber.Ctx) error {
+		var body struct {
+			DeliveryProtocol string `json:"delivery_protocol" validate:"required,len=15,numeric"`
+			SequenceNumber   int    `json:"sequence_number" validate:"omitempty,gte=1,lte=20"`
+		}
+		if p := bindJSON(c, &body); p != nil {
+			return sendProblem(c, p)
+		}
+		userID, userName := resolveActor(c, userSvc)
+		nfe, err := svc.CancelDeliveryReceipt(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"),
+			body.DeliveryProtocol, defaultSeq(body.SequenceNumber), userID, userName)
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		return sendItem(c, nfe)
+	})
+
+	// POST /nfes/:access_key/interested-actor: ator interessado, transportador (110150)
+	g.Post("/:access_key/interested-actor", perm.Require("create.nfe_events"), func(c fiber.Ctx) error {
+		var body struct {
+			nfesvc.InterestedActor
+			SequenceNumber int `json:"sequence_number" validate:"omitempty,gte=1,lte=20"`
+		}
+		if p := bindJSON(c, &body); p != nil {
+			return sendProblem(c, p)
+		}
+		userID, userName := resolveActor(c, userSvc)
+		nfe, err := svc.RegisterInterestedActor(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"),
+			body.InterestedActor, defaultSeq(body.SequenceNumber), userID, userName)
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		return sendItem(c, nfe)
+	})
+
 	// GET /nfes/:access_key/events
 	g.Get("/:access_key/events", perm.Require("get.nfe_events"), func(c fiber.Ctx) error {
 		cursor := c.Query("cursor")

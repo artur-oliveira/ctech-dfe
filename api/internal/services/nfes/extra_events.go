@@ -20,6 +20,7 @@ import (
 
 	"gopkg.aoctech.app/api-commons/problem"
 	"gopkg.aoctech.app/dfe/api/internal/services"
+	dfe "gopkg.aoctech.app/dfe/go-dfe"
 )
 
 const (
@@ -93,7 +94,7 @@ func (s *NfeService) RequestProrrogation(
 		"nProt":      nProt,
 		"itemPedido": itemPedido,
 	})
-	return s.dispatchExtraEvent(ctx, ectx, nfe, accessKey, eventType, seq, body, userID, userName)
+	return s.dispatchExtraEvent(ctx, ectx, nfe, ectx.emitUF, accessKey, eventType, seq, body, userID, userName)
 }
 
 // CancelProrrogation dispatches a Cancelamento de Pedido de Prorrogação
@@ -118,7 +119,7 @@ func (s *NfeService) CancelProrrogation(
 		"idPedidoCancelado": requestID,
 		"nProt":             nProt,
 	})
-	return s.dispatchExtraEvent(ctx, ectx, nfe, accessKey, eventType, seq, body, userID, userName)
+	return s.dispatchExtraEvent(ctx, ectx, nfe, ectx.emitUF, accessKey, eventType, seq, body, userID, userName)
 }
 
 // CancelEvent dispatches a Cancelamento de Evento (110001). `tpEventoAut` is the
@@ -146,7 +147,8 @@ func (s *NfeService) CancelEvent(
 		"tpEventoAut": cancelledEventType,
 		"nProtEvento": cancelledProtocol,
 	})
-	return s.dispatchExtraEvent(ctx, ectx, nfe, accessKey, TpEventoCancelamentoEvento, seq, body, userID, userName)
+	// Os eventos cancelaveis sao todos da reforma tributaria, autorizados na SVRS (MOC, Eventos apuracao do IBS e da CBS 8.1).
+	return s.dispatchExtraEvent(ctx, ectx, nfe, dfe.EventAuthorizerSVRS, accessKey, TpEventoCancelamentoEvento, seq, body, userID, userName)
 }
 
 // resolveAuthorizedEvent loads an authorized NF-e plus its event context and
@@ -206,7 +208,7 @@ func buildDetEventoBody(accessKey string, ectx *nfeEventContext, eventType strin
 // dispatchExtraEvent records the event and publishes it to the SEFAZ worker.
 // These events never change the document status.
 func (s *NfeService) dispatchExtraEvent(
-	ctx context.Context, ectx *nfeEventContext, nfe map[string]types.AttributeValue,
+	ctx context.Context, ectx *nfeEventContext, nfe map[string]types.AttributeValue, uf string,
 	accessKey, eventType string, seq int, body map[string]any, userID, userName string,
 ) (map[string]types.AttributeValue, error) {
 	event, err := s.eventRepo.CreateEvent(ctx, accessKey, eventType, seq, StatusPending, nil, nil, nil, userID, userName)
@@ -217,7 +219,7 @@ func (s *NfeService) dispatchExtraEvent(
 		DocPK: ectx.pk, AccessKey: accessKey,
 		TableName: "nfes", S3Prefix: "nfe",
 		ExpectedFileName: fmt.Sprintf("%s_%s_%03d", accessKey, eventType, seq),
-		CNPJ:             ectx.cnpj, UF: ectx.emitUF,
+		CNPJ:             ectx.cnpj, UF: uf,
 		SefazEnvironment: ectx.sefazEnv,
 		CertS3Key:        ectx.cert.s3Key, CertPassword: ectx.cert.password,
 		DocType: "nfe", SefazService: "RecepcaoEvento",

@@ -29,7 +29,7 @@ type EPECSummary struct {
 	AccessKey string    // chave da nota com tpEmis=4
 	IssuedAt  time.Time // dhEmi
 	TpNF      string    // 0 entrada, 1 saída
-	IE        string    // IE do emitente
+	IE        string    // IE do emitente (opcional no leiaute, P25 0-1)
 	DestUF    string    // UF do destinatário ("EX" no exterior)
 	DestTag   string    // "CNPJ", "CPF" ou "idEstrangeiro"
 	DestDoc   string
@@ -45,7 +45,7 @@ func (e EPECSummary) Validate() error {
 	switch {
 	case len(e.AccessKey) != accessKeyLen || e.AccessKey[accessKeyTpEmisPos:accessKeyTpEmisPos+1] != TpEmisEPEC:
 		return problem.UnprocessableEntity("a chave do EPEC deve ser de uma NF-e com tpEmis 4").WithCode(CodeEPECInvalid)
-	case e.IssuedAt.IsZero(), e.TpNF != "0" && e.TpNF != "1", e.IE == "", e.DestUF == "", e.DestDoc == "",
+	case e.IssuedAt.IsZero(), e.TpNF != "0" && e.TpNF != "1", e.DestUF == "", e.DestDoc == "",
 		e.VNF == "", e.VICMS == "", e.VST == "", e.VerAplic == "":
 		return problem.UnprocessableEntity("resumo do EPEC incompleto").WithCode(CodeEPECInvalid)
 	}
@@ -61,7 +61,24 @@ func buildEPECBody(docTag, cnpj string, environment int, e EPECSummary, seq int)
 	if e.DestIE != "" {
 		dest["IE"] = e.DestIE
 	}
-	dest["vNF"], dest["vICMS"], dest["vST"] = e.VNF, e.VICMS, e.VST
+	det := map[string]any{
+		"@versao":     "1.00",
+		"@xmlns":      nfeXMLNS,
+		"descEvento":  descEPEC,
+		"cOrgaoAutor": e.AccessKey[:2],
+		"tpAutor":     tpAutorEmit,
+		"verAplic":    e.VerAplic,
+		"dhEmi":       fmtDhEmi(e.IssuedAt),
+		"tpNF":        e.TpNF,
+		"dest":        dest,
+		// vNF, vICMS e vST são filhos de detEvento, depois de dest (MOC EPEC P32 a P34).
+		"vNF":   e.VNF,
+		"vICMS": e.VICMS,
+		"vST":   e.VST,
+	}
+	if e.IE != "" {
+		det["IE"] = e.IE
+	}
 	return map[string]any{
 		"envEvento": map[string]any{
 			"@versao": "1.00",
@@ -79,18 +96,7 @@ func buildEPECBody(docTag, cnpj string, environment int, e EPECSummary, seq int)
 					"tpEvento":   TpEventoEPEC,
 					"nSeqEvento": fmt.Sprintf("%d", seq),
 					"verEvento":  "1.00",
-					"detEvento": map[string]any{
-						"@versao":     "1.00",
-						"@xmlns":      nfeXMLNS,
-						"descEvento":  descEPEC,
-						"cOrgaoAutor": e.AccessKey[:2],
-						"tpAutor":     tpAutorEmit,
-						"verAplic":    e.VerAplic,
-						"dhEmi":       fmtDhEmi(e.IssuedAt),
-						"tpNF":        e.TpNF,
-						"IE":          e.IE,
-						"dest":        dest,
-					},
+					"detEvento":  det,
 				},
 			},
 		},

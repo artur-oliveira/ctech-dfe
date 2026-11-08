@@ -76,6 +76,15 @@ const (
 	mdfeAlreadyClosedStat    = "609"
 )
 
+// isDuplicateEvent reports whether cStat is the "duplicidade de evento" of the document type.
+// Cancellation and closing events handle it through rejectedEventDocStatus instead.
+func isDuplicateEvent(docType, cStat string) bool {
+	if docType == docTypeMDFe || docType == docTypeCTe {
+		return cStat == mdfeDuplicatedEventError
+	}
+	return cStat == DuplicatedEventError
+}
+
 // rejectedEventDocStatus diz em que situação o documento está depois que a SEFAZ
 // rejeitou o evento de cancelamento/encerramento: duplicidade ou "já cancelado/
 // encerrado" significam que o estado pedido já vale; qualquer outra rejeição

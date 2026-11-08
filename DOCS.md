@@ -1599,6 +1599,10 @@ O CFOP do item é `[escopo][cfop_suffix]`, onde o escopo vem de `services.Resolv
 | POST   | `/v1.0/nfes/{access_key}/prorrogation`    | Pedido de prorrogação do ICMS suspenso (111500/111501) |
 | POST   | `/v1.0/nfes/{access_key}/prorrogation-cancel` | Cancela o pedido de prorrogação (111502/111503) |
 | POST   | `/v1.0/nfes/{access_key}/cancel-event`    | Cancelamento de evento (110001)             |
+| POST   | `/v1.0/nfes/{access_key}/ibscbs-events`   | Eventos da reforma (112110, 112140, 112150, 211110, 211124, 211128, 211130, 211140, 211150, 212110, 212120) e vinculação de pagamento (110300), autorizados na SVRS; permissão `create.nfe_events` |
+| POST   | `/v1.0/nfes/{access_key}/delivery-receipt` | Comprovante de entrega (110130, Ambiente Nacional) |
+| POST   | `/v1.0/nfes/{access_key}/delivery-receipt-cancel` | Cancelamento do comprovante de entrega (110131, Ambiente Nacional) |
+| POST   | `/v1.0/nfes/{access_key}/interested-actor` | Ator interessado, transportador (110150) |
 | GET    | `/v1.0/nfes/{access_key}/xml`             | Presigned S3 XML URL                        |
 | GET    | `/v1.0/nfes/{access_key}/danfe?format=`   | Presigned cached DANFE PDF URL; `format` = `retrato`, `paisagem`, `simplificado`, `etiqueta` (empty: from `tpImp`) |
 | GET    | `/v1.0/nfes/{access_key}/events`          | List events                                 |
@@ -2057,6 +2061,9 @@ Escopo: tpCTe 0, tpServ 0, modal 01, emitido a partir de NF-e do cadastro (emiti
 | POST   | `/v1.0/ctes/{access_key}/correction-letter` | Carta de correção (110110): `corrections[]` (`group`, `field`, `value`, `item_number`), `sequence_number` opcional 1 a 20 |
 | POST   | `/v1.0/ctes/{access_key}/service-disagreement` | Prestação em desacordo (610110), evento do tomador: `notes` opcional (15 a 255) |
 | POST   | `/v1.0/ctes/{access_key}/service-disagreement-cancel` | Cancela o desacordo (610111): `event_sk` do 610110 com status `success` |
+| POST   | `/v1.0/ctes/{access_key}/delivery-receipt` | Comprovante de entrega (110180); `create.cte_events` |
+| POST   | `/v1.0/ctes/{access_key}/delivery-failure` | Insucesso na entrega (110190); `reason_type` 4 exige `justification` de 25 a 250 |
+| POST   | `/v1.0/ctes/{access_key}/delivery-cancel` | Cancela o comprovante (110181, `kind` receipt) ou o insucesso (110191, `kind` failure) por `event_sk` |
 | GET    | `/v1.0/ctes/{access_key}/dacte` | URL assinada do DACTE em PDF (A4 retrato; CT-e offline pendente sai do XML assinado guardado, com a legenda de contingência), permissão `get.ctes` |
 | GET    | `/v1.0/ctes/{access_key}/events` | Eventos (`cte_events`), permissão `get.cte_events` (escrita: `create.cte_events`) |
 | GET    | `/v1.0/ctes/{access_key}/events/{event_sk}/xml` | URL assinada do XML do evento |

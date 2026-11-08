@@ -271,6 +271,118 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '422': { $ref: '#/components/responses/ValidationError' }
 
+  /v1.0/ctes/{access_key}/delivery-receipt:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/AccessKey'
+    post:
+      tags: [ CT-e ]
+      summary: Comprovante de entrega do CT-e (evento 110180)
+      description: |
+        Evento do emitente, CT-e autorizado. `nfe_keys` só para serviço Normal (`infEntrega`). Retorno 135.
+      operationId: registerCteDeliveryReceipt
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ occurred_at, hash_at, hash, doc_number, name ]
+              properties:
+                occurred_at: { type: string, format: date-time }
+                hash_at: { type: string, format: date-time }
+                hash: { type: string, minLength: 28, maxLength: 28, description: SHA-1 em Base64 }
+                latitude: { type: string }
+                longitude: { type: string }
+                nfe_keys: { type: array, maxItems: 2000, items: { type: string, minLength: 44, maxLength: 44 } }
+                sequence_number: { type: integer, minimum: 1, maximum: 20 }
+                doc_number: { type: string, minLength: 2, maxLength: 20 }
+                name: { type: string, minLength: 2, maxLength: 60 }
+      responses:
+        '200':
+          description: Evento registrado e enfileirado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CteDocument' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/ctes/{access_key}/delivery-failure:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/AccessKey'
+    post:
+      tags: [ CT-e ]
+      summary: Insucesso na entrega do CT-e (evento 110190)
+      description: |
+        Evento do emitente. `reason_type` 1 a 4; `justification` (25 a 250) só e obrigatória no 4.
+      operationId: registerCteDeliveryFailure
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ occurred_at, hash_at, hash, reason_type ]
+              properties:
+                occurred_at: { type: string, format: date-time }
+                hash_at: { type: string, format: date-time }
+                hash: { type: string, minLength: 28, maxLength: 28, description: SHA-1 em Base64 }
+                latitude: { type: string }
+                longitude: { type: string }
+                nfe_keys: { type: array, maxItems: 2000, items: { type: string, minLength: 44, maxLength: 44 } }
+                sequence_number: { type: integer, minimum: 1, maximum: 20 }
+                attempt: { type: integer, minimum: 1, maximum: 999 }
+                reason_type: { type: integer, enum: [ 1, 2, 3, 4 ] }
+                justification: { type: string, minLength: 25, maxLength: 250 }
+      responses:
+        '200':
+          description: Evento registrado e enfileirado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CteDocument' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/ctes/{access_key}/delivery-cancel:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/AccessKey'
+    post:
+      tags: [ CT-e ]
+      summary: Cancela o comprovante de entrega (110181) ou o insucesso (110191)
+      description: |
+        `kind` `receipt` ou `failure`; o evento a cancelar é escolhido por `event_sk` (precisa estar `success`); o protocolo vem do registro.
+      operationId: cancelCteDeliveryEvent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ kind, event_sk ]
+              properties:
+                kind: { type: string, enum: [ receipt, failure ] }
+                event_sk: { type: string }
+                sequence_number: { type: integer, minimum: 1, maximum: 20 }
+      responses:
+        '200':
+          description: Evento registrado e enfileirado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CteDocument' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
   /v1.0/ctes/{access_key}/events:
     parameters:
       - $ref: '#/components/parameters/OrgHeader'

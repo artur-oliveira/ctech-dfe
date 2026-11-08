@@ -264,3 +264,10 @@ func TestCTeSVC(t *testing.T) {
 		t.Error("distribution must not resolve on the SVC")
 	}
 }
+
+func TestResolveNFeEventSVRS(t *testing.T) {
+	url, err := Resolve("nfe", AuthorizerSVRS, "hom", "RecepcaoEvento")
+	if err != nil || url != "https://nfe-homologacao.svrs.rs.gov.br/ws/recepcaoevento/recepcaoevento4.asmx" {
+		t.Fatalf("got %q, %v", url, err)
+	}
+}
