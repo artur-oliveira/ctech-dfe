@@ -3778,6 +3778,40 @@ Permissions: "action.resource"
 
 ---
 
+## CIOT (ANTT) API
+
+Spec: `docs/specs/2026-11-04-ciot-antt-pef-integracao.md`. Code: `api/internal/services/ciots`, `api/internal/api/v1/ciots.go`,
+`api/internal/repositories/ciots.go`, OpenAPI `openapi/ciots.yaml`. Tables `ciots` and `ciot_audit` (`DynamoDB-Tables.md`).
+
+| Method and path | Permission | Notes |
+|---|---|---|
+| `POST /v1.0/ciots` | `create.ciots` | 202; row `pending`, outbox to the `ciot-operation` worker. `Idempotency-Key` required (middleware). Body `environment` (`prod`/`hom`) plus the declaration (snake_case, see OpenAPI `CiotDeclareBody`) |
+| `GET /v1.0/ciots?environment=&limit=&cursor=` | `list.ciots` | newest first, cursor pagination |
+| `GET /v1.0/ciots/{id}` | `get.ciots` | row with `history` and `declaration`; other organization's id is 404 |
+| `POST /v1.0/ciots/{id}/cancellation` `{reason}` | `update.ciots` | 202; 24 h deadline (B35) checked locally |
+| `POST /v1.0/ciots/{id}/rectification` | `update.ciots` | 202; body as the declaration; forbidden for full load (B121) |
+| `POST /v1.0/ciots/{id}/closure` `{closed_at, cargo_weight, routes, trip_count}` | `update.ciots` | 202 |
+| `GET /v1.0/ciot-carriers/{cpfCnpj}/status?environment=` | `get.ciots` | sync through the egress; 1 h DynamoDB TTL cache (`cached`) |
+| `GET /v1.0/ciot-carriers/{cpfCnpj}/fleet?plates=A,B&environment=` | `get.ciots` | sync, no cache, 1 to 7 plates |
+| `GET /v1.0/freight-floor` | public | 503 `ciot_floor_unverified` while the table is unverified, never a number |
+
+The `ciots` RBAC resource is also covered by the `dfe:mdfes` OAuth scope family (`middleware/scopes.go`); the scope catalog in
+ctech-account is unchanged. Row status: `pending`, `declared`, `rectified`, `cancelled`, `closed`, `rejected`;
+`pending_operation` (`declare|cancel|rectify|close`) is set while a command is in flight and blocks a second one (409
+`ciot_invalid_state`). Pre-flight before the outbox: certificate (`ciot.CheckCertificate`, 422 `ciot_certificate`),
+`ciot.Validate` (422 `ciot_validation`, one `errors[]` item per rule with `params.rule` and `params.antt_code`) and
+`ciot.ValidateLifecycle`. On rectification the declaration-date windows (B6, B11, B96, B19) are not checked locally. The floor
+warning on declaration is not wired yet: it needs the verified table and the composition mapping (phase C7). The 12-character
+identifier is never produced by the API; the worker obtains it from the generator before the declaration.
+
+### CIOT worker
+
+`ciot-operation` (`${env}-ciot-operation-worker`, SNS filter on the four CIOT operation names, tables `ciots` + `ciot_audit`).
+Behaviour, outcome mapping and what is not built: `worker/CLAUDE.md`, section "CIOT". IAM: the only worker role with
+`ssm:GetParameter` on `parameter/ctech-dfe/*/ciot/*`, `kms:Decrypt` via SSM with the parameter ARN encryption context, and
+`sns:Publish` on the shared alerts topic (`ALERTS_TOPIC_ARN`). `.github/workflows/worker.yml` updates the function with the shared
+`worker` zip like the other SNS workers.
+
 ## 11. Observability
 
 The Go API uses `api-commons/observability` and `api-commons/observability/fiber`. The shared middleware preserves or

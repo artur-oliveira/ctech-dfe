@@ -67,6 +67,7 @@ var actions = []string{actionList, actionGet, actionCreate, actionUpdate, action
 var resources = []string{
 	"ctes", "cte_distributions", "cte_events",
 	"mdfes", "mdfe_distributions", "mdfe_events",
+	"ciots",
 	"nfces", "nfce_events",
 	"nfes", "nfe_distributions", "nfe_events",
 	"nfses", "nfse_distributions", "nfse_events",

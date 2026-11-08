@@ -99,6 +99,7 @@ jobs:
             "${ENV}-mdfe-event-worker"
             "${ENV}-nfse-emission-worker"
             "${ENV}-nfse-event-worker"
+            "${ENV}-ciot-operation-worker"
           )
           for fn in "${FUNCTIONS[@]}"; do
             aws lambda update-function-code \
@@ -172,6 +173,7 @@ jobs:
             "${ENV}-mdfe-event-worker"
             "${ENV}-nfse-emission-worker"
             "${ENV}-nfse-event-worker"
+            "${ENV}-ciot-operation-worker"
             "${ENV}-distribution-worker"
             "${ENV}-dfe-dlq-processor"
             "${ENV}-distribution-dispatcher"

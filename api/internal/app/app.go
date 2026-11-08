@@ -31,6 +31,7 @@ import (
 	"gopkg.aoctech.app/dfe/api/internal/consumer"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"
+	ciotsvc "gopkg.aoctech.app/dfe/api/internal/services/ciots"
 	ctesvc "gopkg.aoctech.app/dfe/api/internal/services/ctes"
 	"gopkg.aoctech.app/dfe/api/internal/services/documents"
 	mdfesvc "gopkg.aoctech.app/dfe/api/internal/services/mdfes"
@@ -92,6 +93,8 @@ var Module = fx.Options(
 		repositories.NewNfceRepository,
 		repositories.NewCteRepository,
 		repositories.NewMdfeRepository,
+		repositories.NewCiotRepository,
+		repositories.NewCiotAuditRepository,
 		repositories.NewNfseRepository,
 		repositories.NewNfseDistributionRepository,
 		newNfeEventRepository,
@@ -128,6 +131,7 @@ var Module = fx.Options(
 		newVehicleSetService,
 		newPersonService,
 		newVehicleService,
+		ciotsvc.NewService,
 		services.NewNfeConfigService,
 		services.NewNfceConfigService,
 		services.NewCteConfigService,
@@ -615,6 +619,7 @@ type Services struct {
 	NfeSvc          *nfesvc.NfeService
 	NfceSvc         *nfesvc.NfceService
 	MdfeSvc         *mdfesvc.MdfeService
+	CiotSvc         *ciotsvc.Service
 	CteSvc          *ctesvc.CteService
 	NfseSvc         *nfsesvc.NfseService
 	NfeConf         *services.NfeConfigService
@@ -666,6 +671,7 @@ func registerRoutes(app *fiber.App, svcs Services) {
 		NFe:             svcs.NfeSvc,
 		NFCe:            svcs.NfceSvc,
 		MDFe:            svcs.MdfeSvc,
+		CIOT:            svcs.CiotSvc,
 		CTe:             svcs.CteSvc,
 		Nfse:            svcs.NfseSvc,
 		NfeConfig:       svcs.NfeConf,

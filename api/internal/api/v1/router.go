@@ -11,6 +11,7 @@ import (
 	"gopkg.aoctech.app/dfe/api/internal/oauthresource"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"
+	ciotsvc "gopkg.aoctech.app/dfe/api/internal/services/ciots"
 	ctesvc "gopkg.aoctech.app/dfe/api/internal/services/ctes"
 	mdfesvc "gopkg.aoctech.app/dfe/api/internal/services/mdfes"
 	nfesvc "gopkg.aoctech.app/dfe/api/internal/services/nfes"
@@ -46,6 +47,7 @@ type Services struct {
 	NFe             *nfesvc.NfeService
 	NFCe            *nfesvc.NfceService
 	MDFe            *mdfesvc.MdfeService
+	CIOT            *ciotsvc.Service
 	CTe             *ctesvc.CteService
 	Nfse            *nfsesvc.NfseService
 	NfeConfig       *services.NfeConfigService
@@ -144,6 +146,7 @@ func Register(app *fiber.App, cacheBackend cache.Backend, cfg *config.Config, ws
 	RegisterNFes(v1, svcs.NFe, svcs.User, authMw, perm)
 	RegisterNFCes(v1, svcs.NFCe, svcs.User, authMw, perm)
 	RegisterMDFes(v1, svcs.MDFe, svcs.User, authMw, perm)
+	RegisterCIOTs(v1, svcs.CIOT, svcs.User, authMw, perm)
 	RegisterCTes(v1, svcs.CTe, svcs.User, authMw, perm)
 	RegisterNfses(v1, svcs.Nfse, svcs.User, authMw, perm)
 	RegisterDistributions(v1, svcs.Distribution, authMw, perm)

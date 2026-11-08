@@ -99,6 +99,8 @@ tags:
     description: Nota Fiscal de Consumidor Eletrônica (modelo 65).
   - name: MDF-e
     description: Manifesto Eletrônico de Documentos Fiscais.
+  - name: CIOT
+    description: Código Identificador da Operação de Transporte (ANTT), declaração, retificação, cancelamento e encerramento.
   - name: CT-e
     description: Conhecimento de Transporte Eletrônico (modelo 57), rodoviário a partir de NF-e.
   - name: NFS-e

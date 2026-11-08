@@ -269,6 +269,8 @@ regras B57, B58, B63 a B67 e B69 não implementadas (a spec não define seu cont
 seção 5 (OrigemDestino, DadosCarga, banco, tipo de veículo, corpos das consultas, cancelamento, encerramento) são
 [prática] não verificados; integração com `go-dfe/validate` adiada.
 
+**Status C3 e C4 (2026-11-08):** implementados. API: tabelas `ciots` e `ciot_audit` (CDK), repositório, endpoints, permissões `create|list|get|update.ciots`, OpenAPI `ciots.yaml`, pré-voo de certificado, regras e prazos. Worker `ciot-operation`: gerador por SSM, declaração, 219, 222/251, alertas de credencial, auditoria, DLQ. Pendências: aviso de piso na declaração (tabela não verificada, C7); alertas proativos de certificado vencendo e de prazo de 24 h (exigem varredura agendada, ver `worker/CLAUDE.md`); nenhum teste de ponta a ponta contra a ANTT (nem homologação); `kms:EncryptionContext:PARAMETER_ARN` e o mapeamento 222/251 por operação não verificados em ambiente real.
+
 Total de 8 semanas. Testes de integração só contra um servidor falso que imita os 8 serviços, o gerador, uma rejeição por
 grupo, timeout e 5xx; a ANTT real (inclusive homologação) só em uma passada manual antes de produção.
 

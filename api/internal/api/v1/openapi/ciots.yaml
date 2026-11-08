@@ -1,0 +1,379 @@
+paths:
+
+  # ── CIOT (ANTT) ────────────────────────────────────────────────────────────
+
+  /v1.0/ciots:
+    post:
+      tags: [ CIOT ]
+      summary: Declara um CIOT
+      description: |
+        Valida o certificado da organização, as regras locais da declaração (422 com `code` `ciot_validation` e um
+        item em `errors[]` por regra, com `params.rule` e `params.antt_code`) e grava o pedido com o outbox. O
+        identificador de 12 caracteres é gerado pelo worker no gerador da ANTT, nunca localmente. A resposta é 202:
+        o CIOT nasce `pending` e o resultado chega por WebSocket (`declared` com `ciot` de 16 caracteres, ou
+        `rejected` com o código interno e a referência da ANTT). `Idempotency-Key` é obrigatório.
+      operationId: declareCiot
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CiotDeclareBody' }
+      responses:
+        '202':
+          description: Declaração enfileirada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ciot' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    get:
+      tags: [ CIOT ]
+      summary: Lista CIOTs
+      operationId: listCiots
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - name: environment
+          in: query
+          description: Ambiente da lista.
+          schema: { type: string, enum: [ prod, hom ], default: prod }
+      responses:
+        '200':
+          description: Página de CIOTs, do mais novo para o mais antigo
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: '#/components/schemas/Ciot' } }
+                  next_cursor: { type: string, nullable: true }
+                  has_next: { type: boolean }
+                  previous_cursor: { type: string, nullable: true }
+                  has_previous: { type: boolean }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /v1.0/ciots/{id}:
+    get:
+      tags: [ CIOT ]
+      summary: Detalha um CIOT com o histórico de transições
+      description: CIOT de outra organização responde 404.
+      operationId: getCiot
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: O CIOT
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ciot' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1.0/ciots/{id}/cancellation:
+    post:
+      tags: [ CIOT ]
+      summary: Cancela um CIOT
+      description: Até 24 h depois do início da viagem (B35). 202; o resultado chega por WebSocket.
+      operationId: cancelCiot
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ reason ]
+              properties:
+                reason: { type: string, maxLength: 500 }
+      responses:
+        '202':
+          description: Cancelamento enfileirado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ciot' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/ciots/{id}/rectification:
+    post:
+      tags: [ CIOT ]
+      summary: Retifica um CIOT
+      description: Corpo igual ao da declaração, sem `environment`. Proibido em carga lotação (B121).
+      operationId: rectifyCiot
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CiotOperation' }
+      responses:
+        '202':
+          description: Retificação enfileirada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ciot' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/ciots/{id}/closure:
+    post:
+      tags: [ CIOT ]
+      summary: Encerra um CIOT
+      description: Lotação informa `cargo_weight` (B65); TAC-Agregado informa `routes` e `trip_count` (B43).
+      operationId: closeCiot
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                closed_at: { type: string, format: date }
+                cargo_weight: { type: string }
+                trip_count: { type: integer, minimum: 0 }
+                routes: { type: array, items: { $ref: '#/components/schemas/CiotRoute' } }
+      responses:
+        '202':
+          description: Encerramento enfileirado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ciot' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/ciot-carriers/{cpfCnpj}/status:
+    get:
+      tags: [ CIOT ]
+      summary: Situação do transportador na ANTT
+      description: Consulta síncrona pelo egress, com cache de 1 hora por ambiente e documento (`cached`).
+      operationId: getCiotCarrierStatus
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+        - name: cpfCnpj
+          in: path
+          required: true
+          schema: { type: string }
+        - name: environment
+          in: query
+          schema: { type: string, enum: [ prod, hom ], default: prod }
+      responses:
+        '200':
+          description: Resposta da ANTT
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CiotCarrierResult' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '503':
+          description: ANTT indisponível; tente novamente.
+
+  /v1.0/ciot-carriers/{cpfCnpj}/fleet:
+    get:
+      tags: [ CIOT ]
+      summary: Frota do transportador na ANTT
+      description: Consulta ao vivo (sem cache) de 1 a 7 placas.
+      operationId: getCiotCarrierFleet
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+        - name: cpfCnpj
+          in: path
+          required: true
+          schema: { type: string }
+        - name: plates
+          in: query
+          required: true
+          description: Placas separadas por vírgula (até 7).
+          schema: { type: string }
+        - name: environment
+          in: query
+          schema: { type: string, enum: [ prod, hom ], default: prod }
+      responses:
+        '200':
+          description: Resposta da ANTT
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CiotCarrierResult' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '503':
+          description: ANTT indisponível; tente novamente.
+
+  /v1.0/freight-floor:
+    get:
+      tags: [ CIOT ]
+      summary: Piso mínimo de frete (público)
+      description: |
+        Sem autenticação e sem estado. Enquanto a tabela do piso não for verificada contra a publicação oficial da
+        ANTT responde 503 com `code` `ciot_floor_unverified`; nunca devolve um número não verificado.
+      operationId: getFreightFloor
+      security: []
+      parameters:
+        - { name: composition, in: query, schema: { type: string } }
+        - { name: high_performance, in: query, schema: { type: string } }
+        - { name: cargo_type, in: query, schema: { type: integer, minimum: 1, maximum: 12 } }
+        - { name: axles, in: query, schema: { type: integer } }
+        - { name: distance_km, in: query, schema: { type: integer } }
+        - { name: empty_return, in: query, schema: { type: boolean } }
+      responses:
+        '200':
+          description: Piso calculado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  cents: { type: integer }
+                  value: { type: string }
+                  table_version: { type: string }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '503':
+          description: Tabela do piso não verificada.
+
+components:
+  schemas:
+    CiotRoute:
+      type: object
+      properties:
+        origin_ibge: { type: string }
+        destination_ibge: { type: string }
+        origin_cep: { type: string }
+        destination_cep: { type: string }
+        origin_latitude: { type: string }
+        origin_longitude: { type: string }
+        destination_latitude: { type: string }
+        destination_longitude: { type: string }
+        distance_km: { type: integer }
+    CiotOperation:
+      type: object
+      description: Conteúdo da declaração. Campos obrigatórios ausentes são 422 `ciot_validation`.
+      properties:
+        operation_type: { type: integer, enum: [ 1, 2, 3 ], description: 1 lotação, 2 fracionada, 3 TAC-Agregado }
+        carrier_doc: { type: string, description: CPF ou CNPJ do contratado (transportador). }
+        carrier_rntrc: { type: string }
+        hirer_doc: { type: string, description: CPF ou CNPJ do contratante. }
+        hirer_rntrc: { type: string }
+        recipient_doc: { type: string }
+        freight_value: { type: string, example: '1500.00' }
+        declared_at: { type: string, format: date-time }
+        contingency: { type: boolean }
+        contingency_reason: { type: string, maxLength: 255 }
+        trip_start: { type: string, format: date }
+        trip_end: { type: string, format: date }
+        vehicles:
+          type: array
+          maxItems: 5
+          items:
+            type: object
+            properties:
+              plate: { type: string }
+              rntrc: { type: string }
+              axles: { type: integer }
+              automotor: { type: boolean }
+              tractor: { type: boolean }
+        routes: { type: array, items: { $ref: '#/components/schemas/CiotRoute' } }
+        cargo:
+          type: object
+          properties:
+            nature: { type: string, description: 4 primeiros dígitos do NCM. }
+            weight: { type: string }
+            cargo_type: { type: integer, minimum: 1, maximum: 12 }
+            fractional_hirer_docs: { type: array, items: { type: string } }
+        payment:
+          type: object
+          properties:
+            type: { type: integer, enum: [ 1, 2, 3, 4, 5, 6 ] }
+            indicator: { type: integer, enum: [ 0, 1 ] }
+            bank_code: { type: string }
+            branch: { type: string }
+            account: { type: string }
+            pix_key: { type: string }
+            pix_id: { type: string }
+            credited_doc: { type: string }
+            installments:
+              type: array
+              items:
+                type: object
+                properties:
+                  number: { type: integer }
+                  due_date: { type: string, format: date }
+                  value: { type: string }
+        indicators:
+          type: object
+          properties:
+            high_performance: { type: boolean }
+            empty_return: { type: boolean }
+            vehicle_composition: { type: boolean }
+    CiotDeclareBody:
+      allOf:
+        - $ref: '#/components/schemas/CiotOperation'
+        - type: object
+          required: [ environment ]
+          properties:
+            environment: { type: string, enum: [ prod, hom ] }
+            payment_institution: { type: boolean }
+            mdfe_access_key: { type: string, minLength: 44, maxLength: 44 }
+    Ciot:
+      type: object
+      properties:
+        id: { type: string }
+        status: { type: string, enum: [ pending, declared, rectified, cancelled, closed, rejected ] }
+        pending_operation: { type: string, enum: [ declare, cancel, rectify, close ], description: Presente enquanto há operação em andamento. }
+        environment: { type: string, enum: [ prod, hom ] }
+        code: { type: string, description: Identificador de 12 caracteres (após o gerador). }
+        ciot: { type: string, description: CIOT de 16 caracteres (12 mais o verificador). }
+        carrier_warning: { type: string, description: AvisoTransportador; mostrar ao transportador e imprimir é obrigatório. }
+        mdfe_access_key: { type: string }
+        operation_type: { type: integer }
+        carrier_doc: { type: string }
+        hirer_doc: { type: string }
+        freight_value: { type: string }
+        trip_start: { type: string }
+        trip_end: { type: string }
+        declaration: { type: object }
+        last_error: { type: object, description: 'internal_code, antt_code, antt_message da última rejeição.' }
+        history:
+          type: array
+          items:
+            type: object
+            properties:
+              operation: { type: string }
+              status: { type: string }
+              at: { type: string }
+              antt_code: { type: integer }
+              internal_code: { type: string }
+        created_at: { type: string }
+        updated_at: { type: string }
+    CiotCarrierResult:
+      type: object
+      properties:
+        cached: { type: boolean }
+        result: { type: object, description: 'Resposta da ANTT (codigo, mensagem, body).' }

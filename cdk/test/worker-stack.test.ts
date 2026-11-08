@@ -265,3 +265,45 @@ test('the contingency worker has the shared worker env vars and egress/S3/SNS/Dy
   expect(role).toContain('dynamodb:Query')
   expect(role).toContain('dev_dfe_nfce_events')
 })
+
+describe('ciot-operation worker', () => {
+  const policyStatements = (template: Template) =>
+    (Object.values(template.toJSON().Resources) as any[])
+      .filter(r => r.Type === 'AWS::IAM::Policy')
+      .flatMap(p => p.Properties.PolicyDocument.Statement as any[])
+  const actionsOf = (st: any) => (Array.isArray(st.Action) ? st.Action : [st.Action])
+
+  test('is subscribed only to the four CIOT operations and has its function and role', () => {
+    const template = buildTemplate()
+    template.hasResourceProperties('AWS::Lambda::Function', {FunctionName: 'dev-ciot-operation-worker'})
+    template.hasResourceProperties('AWS::IAM::Role', {RoleName: 'dev-ciot-operation-worker-role'})
+    const def = WORKERS.find(w => w.id === 'ciot-operation')!
+    expect(def.sefazServices.sort()).toEqual([
+      'CancelamentoOperacaoTransporte', 'DeclaracaoOperacaoTransporte',
+      'EncerramentoOperacaoTransporte', 'RetificacaoOperacaoTransporte',
+    ])
+  })
+
+  test('only this worker reads the CIOT SSM parameters and decrypts them via SSM', () => {
+    const statements = policyStatements(buildTemplate())
+    const ssmReads = statements.filter(st => actionsOf(st).includes('ssm:GetParameter'))
+    expect(ssmReads).toHaveLength(1)
+    expect(JSON.stringify(ssmReads[0].Resource)).toContain('parameter/ctech-dfe/*/ciot/*')
+    const decrypts = statements.filter(st => actionsOf(st).includes('kms:Decrypt'))
+    expect(decrypts).toHaveLength(1)
+    expect(JSON.stringify(decrypts[0].Condition.StringEquals['kms:ViaService'])).toContain('ssm.')
+    expect(JSON.stringify(decrypts[0].Condition.StringLike)).toContain('/ctech-dfe/*/ciot/*')
+  })
+
+  test('has access to the ciots tables and indexes and gets the alerts topic', () => {
+    const template = buildTemplate()
+    const statements = policyStatements(template)
+    const tableStatement = statements.find(st =>
+      actionsOf(st).includes('dynamodb:UpdateItem') && JSON.stringify(st.Resource).includes('dev_dfe_ciots/index/*'))
+    expect(tableStatement).toBeDefined()
+    expect(JSON.stringify(tableStatement!.Resource)).toContain('dev_dfe_ciot_audit')
+    const fn = (Object.values(template.toJSON().Resources) as any[])
+      .find(r => r.Type === 'AWS::Lambda::Function' && r.Properties.FunctionName === 'dev-ciot-operation-worker')
+    expect(fn.Properties.Environment.Variables.ALERTS_TOPIC_ARN).toBeDefined()
+  })
+})

@@ -11,6 +11,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/lambda v1.114.0
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.114.6
 	github.com/aws/aws-sdk-go-v2/service/sns v1.47.7
+	github.com/aws/aws-sdk-go-v2/service/ssm v1.79.3
 	github.com/oklog/ulid/v2 v2.1.2
 	gopkg.aoctech.app/api-commons v1.40.0
 	gopkg.aoctech.app/dfe/go-dfe v0.0.0-20261103000408-1385342d542d

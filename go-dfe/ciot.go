@@ -93,9 +93,9 @@ func ciotGenerate(ctx context.Context, req Request, env string, client *ciot.Cli
 }
 
 func ciotService(ctx context.Context, req Request, client *ciot.Client) (any, error) {
-	var in any = req.Body
+	in := ciotPayload(req.Body)
 	if req.Service == ciot.ServiceDeclaracao {
-		raw, _ := json.Marshal(req.Body)
+		raw, _ := json.Marshal(in)
 		var d ciot.Declaracao
 		if err := json.Unmarshal(raw, &d); err != nil {
 			return nil, &ciotConfigError{err}
@@ -122,4 +122,18 @@ func ciotError(err error) (Response, error) {
 		return problemResponse(400, constants.ErrCodeValidation, ce.Error())
 	}
 	return problemResponse(statusUnavailable, constants.ErrCodeSOAPRequest, err.Error())
+}
+
+// ciotPayload is the Body without the keys that steer the egress (certificate preflight, generator secrets): they
+// must never reach the ANTT.
+func ciotPayload(body map[string]any) map[string]any {
+	out := make(map[string]any, len(body))
+	for k, v := range body {
+		switch k {
+		case bodyKeyCarrierDoc, bodyKeyPaymentInst, bodyKeyGenAPIKey, bodyKeyGenFallback, bodyKeyGenDoc:
+		default:
+			out[k] = v
+		}
+	}
+	return out
 }

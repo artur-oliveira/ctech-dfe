@@ -28,7 +28,15 @@ export type WorkerDefinition = {
   dynamoTransactionTables?: string[]
   /** sefaz_service values this worker handles — used as SNS subscription filter */
   sefazServices: string[]
+  /**
+   * Reads the ANTT CIOT generator parameters from SSM (SecureString key + fallback URL) and publishes operator
+   * alerts. Only this worker gets ssm:GetParameter and kms:Decrypt; never the egress.
+   */
+  readsCiotSecrets?: boolean
 }
+
+/** SSM path of the CIOT generator parameters, per CIOT environment (prod, hom). */
+export const CIOT_SSM_PARAMETER_PATH = '/ctech-dfe/*/ciot/*'
 
 export const WORKERS: WorkerDefinition[] = [
   {
@@ -93,6 +101,24 @@ export const WORKERS: WorkerDefinition[] = [
     memory: 128,
     dynamoTables: ['mdfes', 'mdfe_events'],
     sefazServices: ['MDFeRecepcaoEvento'],
+    environment: {},
+  },
+  {
+    // ANTT CIOT (declare, cancel, rectify, close). Cost: ~1 invocation per CIOT operation, 128 MB arm64, plus the
+    // 1-minute keep-warm ping shared by every worker; no reserved concurrency.
+    id: 'ciot-operation',
+    name: 'ciot-operation-worker',
+    timeoutSeconds: SEFAZ_CALL_TIMEOUT_SECONDS,
+    memory: 128,
+    // ciots: the row and the carrier-status cache; ciot_audit: the append-only response evidence.
+    dynamoTables: ['ciots', 'ciot_audit'],
+    sefazServices: [
+      'DeclaracaoOperacaoTransporte',
+      'CancelamentoOperacaoTransporte',
+      'RetificacaoOperacaoTransporte',
+      'EncerramentoOperacaoTransporte',
+    ],
+    readsCiotSecrets: true,
     environment: {},
   },
   {

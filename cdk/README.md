@@ -51,6 +51,7 @@ handler `bootstrap`; every one is memory 128 except `distribution`):
 | mdfe-event | `${env}-mdfe-event-worker` | worker | 150 | MDFeRecepcaoEvento |
 | nfse-emission | `${env}-nfse-emission-worker` | worker | 300 | NFSeRecepcao |
 | nfse-event | `${env}-nfse-event-worker` | worker | 150 | NFSeEvento |
+| ciot-operation | `${env}-ciot-operation-worker` | worker | 150 | DeclaracaoOperacaoTransporte, CancelamentoOperacaoTransporte, RetificacaoOperacaoTransporte, EncerramentoOperacaoTransporte |
 | distribution | `${env}-distribution-worker` | distribution-worker (mem 256) | 300 | — (SQS direct) |
 
 Event-type workers use 150 s (`SEFAZ_CALL_TIMEOUT_SECONDS`) so they outlive the egress Lambda (120 s).

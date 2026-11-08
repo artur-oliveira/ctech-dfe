@@ -77,6 +77,10 @@ func terminalUpdateTarget(msg service.WorkerMessage) (table, pk, sk, status stri
 // this write and the result publication must succeed; either failure is
 // returned so Lambda retries the invoke.
 func writeTerminalStatus(ctx context.Context, msg service.WorkerMessage) error {
+	if msg.DocType == "ciot" {
+		_, err := service.CiotDLQ(ctx, dynamoClient, tablePrefix, msg, dlqFailureMotive)
+		return err
+	}
 	table, pk, sk, status := terminalUpdateTarget(msg)
 	_, err := dynamoClient.UpdateItem(ctx, &dynamodb.UpdateItemInput{
 		TableName: aws.String(table),
@@ -203,6 +207,13 @@ func handleWorkerMessage(ctx context.Context, id string, msg service.WorkerMessa
 		"billing_price_id":        msg.BillingPriceID,
 		"billing_meter":           msg.BillingMeter,
 		"billing_exempt":          msg.BillingExempt,
+	}
+	if msg.DocType == "ciot" {
+		result["access_key"] = msg.EventSK
+		if msg.EventType != nil && *msg.EventType != "declare" {
+			result["status"] = "operation_failed"
+		}
+		result["operation"] = msg.EventType
 	}
 	if msg.EventsTableName != nil {
 		result["result_kind"] = "event"

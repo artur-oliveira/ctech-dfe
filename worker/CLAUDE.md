@@ -137,3 +137,34 @@ Delivery design, resilience table and queue drain runbook: `../docs/specs/2026-1
 Sends the document's stored `contingency_msg` (a `WorkerMessage` whose body is `{"@signed_xml": ...}`) through
 `DfeService.Process`, then classifies the item with `contingency.Classify`. Needs the same env and IAM as
 `cmd/worker`. Terminal outcomes remove `contingency_sweep` and `contingency_msg` (the message carries the cert password).
+
+## CIOT (`ciot-operation`, `internal/service/ciot.go`)
+
+Same `cmd/worker` binary and SNS filter mechanism as the other workers; `DfeService.Process` routes `doc_type == "ciot"` to
+`processCiot` before the document claim. Spec: `docs/specs/2026-11-04-ciot-antt-pef-integracao.md` sections 4, 8 and 10.
+
+- **Message:** `doc_pk` = `{env}#{org}`, `event_sk` = the `ciots` row sk, `event_type` = `declare|cancel|rectify|close`, `access_key` =
+  unique operation key (outbox pk), `sefaz_environment` = `prod|hom` (the CIOT environment, also the SSM `{env}` segment), `body`
+  = `{declaration | request, payment_institution}`.
+- **Claim:** `UPDATE ciots` sets `processing_owner` + lease under `pending_operation = :op`. Redelivery of a finished operation
+  (no `pending_operation`) republishes the stored outcome and calls nothing; a held lease is a retryable error.
+- **Declaration:** identifier first (stored on the row as `code` and reused on retries; never fabricated), then
+  `DeclaracaoOperacaoTransporte` with a fresh `DataDeclaracao` outside contingency (B11 window). Generator key and fallback URL
+  are read from SSM (`/ctech-dfe/{env}/ciot/generator-api-key` SecureString, `generator-fallback-url`) through an SSM-backed
+  `ciot.SecretProvider` cached per invocation and are passed to the egress only in the generator request; they are never logged.
+- **Outcomes (`decideCiot`, pure and tested):** 110/111 update the state and store the 16-character CIOT, code and
+  `carrier_warning`; business rejection (HTTP 422 from the egress) is terminal and returns nil so SQS/Lambda never retry it
+  (declaration becomes `rejected`; a lifecycle operation keeps its status and stores `last_error`); **219** reconciles with
+  `ConsultarCIOTGerado` and adopts the existing CIOT; **222** confirms a cancellation and **251** a closure (the B37/B38 to
+  code mapping is inferred; any other combination is a rejection); transport/5xx/502 release the lease and return an error
+  (platform retries, then the dlq-processor); credential group (`IsCredentialProblem`) and egress 400 raise an operator alert
+  (`ciot-credential`) instead of a business error and are retried.
+- **Results:** SNS `result_kind=document`, `table_name=ciots`, `access_key` = row sk, `status`, `operation`, `ciot`, `code`,
+  `carrier_warning`, `antt_code`, `internal_code`. No billing fields: billing ignores the table.
+- **Audit:** every egress answer is appended to `ciot_audit` (body sent with its SHA-256, response), insert-only, best effort.
+- **DLQ:** `service.CiotDLQ` (used by `cmd/dlq-processor`) turns an exhausted declaration into `failed`; a lifecycle operation keeps
+  its status and only clears `pending_operation`.
+- **Not built:** the proactive alerts for a certificate about to expire and for the 24 h cancellation deadline. They need a
+  scheduled sweep (follow `cmd/contingency-dispatcher`: EventBridge Scheduler + a sparse index on `ciots` keyed by the deadline,
+  and the certificate `expires_at` from `organization_certificates`). Today the certificate problem alerts when the egress
+  refuses it (400) and a late cancellation comes back as the 221 rejection.

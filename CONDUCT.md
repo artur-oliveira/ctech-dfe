@@ -1423,3 +1423,14 @@ para o ambiente, devolve erro em vez de `appservices(-hml).antt.gov.br`. A guard
 uma vez ao host de homologação (um `defer SetTestHosts` dentro de laço desfez o desvio do ambiente seguinte; foram
 enviados só um certificado descartável e uma chave falsa, e a ANTT respondeu 403). O mapa ambiente para host real fica em
 `realHostFor`, que só os testes de constantes usam, sem abrir conexão.
+
+## CIOT: API e worker
+
+- O identificador de 12 caracteres nunca nasce na API: só o worker o pede ao gerador. A linha do `ciots` usa um id local (ULID) na SK.
+- Toda operação do ciclo de vida marca `pending_operation` na linha com condição (nenhuma em andamento e estado aberto), junto do
+  outbox e da linha de auditoria `request:*`, na mesma transação. Segunda operação concorrente é 409 `ciot_invalid_state`.
+- Corpo enviado e resposta da ANTT vão para `ciot_audit` (cifrado em repouso pelo DynamoDB, hash SHA-256 do corpo) e nunca para log.
+- O piso mínimo só calcula com a tabela verificada; sem isso o endpoint responde 503 e a declaração não ganha aviso de piso.
+- Worker `ciot-operation`: rejeição de negócio da ANTT (HTTP 422 do egress) é terminal e a função retorna sucesso; transporte, 5xx e 502
+  liberam a lease e retornam erro. Chave do gerador e URL de contingência vêm do SSM por invocação e nunca entram em log, resultado SNS
+  ou corpo de auditoria de outra chamada. Só este worker lê `/ctech-dfe/*/ciot/*`; o egress não tem acesso ao SSM.

@@ -12,6 +12,7 @@ import (
 	lambdaSDK "github.com/aws/aws-sdk-go-v2/service/lambda"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/sns"
+	"github.com/aws/aws-sdk-go-v2/service/ssm"
 
 	"gopkg.aoctech.app/dfe/worker/internal/boot"
 	"gopkg.aoctech.app/dfe/worker/internal/config"
@@ -74,7 +75,7 @@ func main() {
 		Lambda: lambdaSDK.NewFromConfig(ac, func(o *lambdaSDK.Options) { o.Region = cfg.DfeEgressRegion }),
 		Dynamo: dyn,
 		SNS:    sns.NewFromConfig(ac),
-	}, cfg).WithOrgStopped(stopped)
+	}, cfg).WithOrgStopped(stopped).WithCiot(ssm.NewFromConfig(ac), boot.Alerts(rootCtx, "dfe-worker"))
 
 	lambda.StartWithOptions(func(ctx context.Context, raw json.RawMessage) error {
 		return handle(ctx, raw, svc)

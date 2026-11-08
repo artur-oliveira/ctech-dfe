@@ -21,6 +21,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/sns"
 
+	"gopkg.aoctech.app/api-commons/alerts"
 	"gopkg.aoctech.app/dfe/worker/internal/config"
 )
 
@@ -64,6 +65,9 @@ type DfeService struct {
 	cfg    *config.Config
 
 	orgStopped OrgStopped
+	// ssm and alerter serve the CIOT path only (WithCiot); alerter defaults to the no-op publisher.
+	ssm     SSMClient
+	alerter alerts.Publisher
 }
 
 // New creates a new DfeService.
@@ -74,6 +78,8 @@ func New(clients Clients, cfg *config.Config) *DfeService {
 		dynamo: clients.Dynamo,
 		sns:    clients.SNS,
 		cfg:    cfg,
+
+		alerter: alerts.Nop{},
 	}
 }
 
@@ -291,6 +297,10 @@ func (s *DfeService) Process(ctx context.Context, msg WorkerMessage) error {
 	} else if stopped {
 		slog.Info("dropping job of a company in account deletion", "doc_pk", msg.DocPK, "access_key", msg.AccessKey)
 		return nil
+	}
+
+	if msg.DocType == docTypeCIOT {
+		return s.processCiot(ctx, msg)
 	}
 
 	owner, err := newProcessingOwner()

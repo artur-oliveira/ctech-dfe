@@ -10,7 +10,7 @@ import * as schedulerTargets from 'aws-cdk-lib/aws-scheduler-targets'
 import * as iam from 'aws-cdk-lib/aws-iam'
 import * as ssm from 'aws-cdk-lib/aws-ssm'
 import {Construct} from 'constructs'
-import {CONTINGENCY_WORKER_ID, DISTRIBUTION_WORKER_ID, WorkerDefinition} from './worker-definitions'
+import {CIOT_SSM_PARAMETER_PATH, CONTINGENCY_WORKER_ID, DISTRIBUTION_WORKER_ID, WorkerDefinition} from './worker-definitions'
 import {Environment} from './types'
 import path from 'node:path'
 import {goLambdaCode} from './go-code'
@@ -200,6 +200,28 @@ export class WorkerStack extends cdk.Stack {
         }))
       }
 
+      // CIOT worker: generator parameters from SSM and operator alerts (credential problems). The SecureString is
+      // decrypted by SSM's own key only (ViaService) and only for parameters under the CIOT path (encryption
+      // context carries the parameter ARN). The egress receives the values in the request and has no SSM access.
+      if (worker.readsCiotSecrets) {
+        role.addToPrincipalPolicy(new iam.PolicyStatement({
+          actions: ['ssm:GetParameter'],
+          resources: [`arn:aws:ssm:${this.region}:${this.account}:parameter${CIOT_SSM_PARAMETER_PATH}`],
+        }))
+        role.addToPrincipalPolicy(new iam.PolicyStatement({
+          actions: ['kms:Decrypt'],
+          resources: [`arn:aws:kms:${this.region}:${this.account}:key/*`],
+          conditions: {
+            StringEquals: {'kms:ViaService': `ssm.${this.region}.amazonaws.com`},
+            StringLike: {'kms:EncryptionContext:PARAMETER_ARN': `arn:aws:ssm:${this.region}:${this.account}:parameter${CIOT_SSM_PARAMETER_PATH}`},
+          },
+        }))
+        role.addToPrincipalPolicy(new iam.PolicyStatement({
+          actions: ['sns:Publish'],
+          resources: [alertsTopicArn],
+        }))
+      }
+
       // Workers with their own message format use a dedicated binary.
       const workerCmd = worker.command ?? 'worker'
 
@@ -223,6 +245,7 @@ export class WorkerStack extends cdk.Stack {
           DFE_LAMBDA_NAME: dfeLambdaName,
           DFE_EGRESS_REGION: dfeEgressRegion,
           RESULTS_TOPIC_ARN: resultsTopicArn,
+          ...(worker.readsCiotSecrets ? {ALERTS_TOPIC_ARN: alertsTopicArn} : {}),
           ...worker.environment,
         },
       })
