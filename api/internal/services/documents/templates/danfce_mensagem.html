@@ -1,0 +1,36 @@
+{# DANFE NFC-e em mensagem eletrônica (Manual DANFE NFC-e 4.1: QR Code obrigatório também no DANFE virtual).
+   Cartão compacto para e-mail/mensageria: chave, QR Code, link de consulta e protocolo. #}
+<style>
+  @page { size: 80mm 0; margin: 3mm; }
+  body { font-family: "DejaVu Sans", Arial, sans-serif; font-size: 7pt; color: #000; margin: 0; }
+  .center, .center div { text-align: center; }
+  .b { font-weight: bold; }
+  .block { margin-bottom: 4pt; }
+  .qr-band { min-height: 32mm; }
+  .qr { width: 30mm; display: block; margin: 0 auto; }
+  .banner { font-weight: bold; text-align: center; margin: 3pt 0; }
+  .watermark { text-align: center; font-weight: bold; color: #888; margin: 2pt 0; }
+  .footer { font-size: 5pt; color: #555; margin-top: 4pt; }
+</style>
+{% if is_cancelada %}<div class="watermark">{{ text.cancelada }}</div>{% endif %}
+{% if is_homologacao %}<div class="watermark">{{ text.homologacao }}</div>{% endif %}
+<div class="center block">
+  <div class="b">{{ emit.nome }}</div>
+  <div>CNPJ: {{ emit.cnpj }}</div>
+  <div>{{ text.doc_auxiliar }}</div>
+</div>
+{% if is_contingencia %}<div class="banner">{{ text.cont_l1 }}<br>{{ text.cont_l2 }}</div>{% endif %}
+<div class="block center">
+  <div class="b">NFC-e nº {{ ident.nNF }} Série {{ ident.serie }}</div>
+  <div>Emissão: {{ ident.dhEmi }}</div>
+  <div>{{ consumidor }}</div>
+  <div class="b">Valor a pagar: R$ {{ totals.vNF }}</div>
+</div>
+<div class="qr-band block"><img class="qr" src="{{ qr_uri }}" alt="QR Code"></div>
+<div class="block center">
+  <div class="b">Consulte pela Chave de acesso em</div>
+  <div>{{ url_chave }}</div>
+  <div>{{ chave_fmt }}</div>
+</div>
+{% if protocolo %}<div class="block center"><div>Protocolo de autorização: {{ protocolo.nProt }}</div><div>{{ protocolo.dhRecbto }}</div></div>{% endif %}
+<div class="footer center">{{ text.gerado_por }} {{ site }} em {{ gerado_em }}</div>

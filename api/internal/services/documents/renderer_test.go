@@ -3,6 +3,7 @@ package documents
 import (
 	"bytes"
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -33,7 +34,7 @@ func TestFolioRendererGeneratesAuxiliaryDocuments(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			pdf, err := renderer.Render(context.Background(), test.docType, []byte(test.xml), StateActive)
+			pdf, err := renderer.Render(context.Background(), test.docType, []byte(test.xml), StateActive, "")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -80,7 +81,7 @@ func TestNFCeOfflineContingencyGeneratesTwoVias(t *testing.T) {
 		t.Fatal(err)
 	}
 	xml := strings.Replace(sampleNFCeXML(), "<tpEmis>1</tpEmis>", "<tpEmis>9</tpEmis>", 1)
-	pdf, err := renderer.Render(context.Background(), DocTypeNFCe, []byte(xml), StateActive)
+	pdf, err := renderer.Render(context.Background(), DocTypeNFCe, []byte(xml), StateActive, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,7 +99,7 @@ func TestFolioRendererRejectsWrongModel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := renderer.Render(context.Background(), DocTypeNFe, []byte(sampleNFCeXML()), StateActive); err == nil {
+	if _, err := renderer.Render(context.Background(), DocTypeNFe, []byte(sampleNFCeXML()), StateActive, ""); err == nil {
 		t.Fatal("expected model mismatch error")
 	}
 }
@@ -135,7 +136,152 @@ func TestDAMDFEOfflineWithoutProtocol(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := renderer.Render(context.Background(), DocTypeMDFe, []byte(x), StateContingencyPending); err != nil {
+	if _, err := renderer.Render(context.Background(), DocTypeMDFe, []byte(x), StateContingencyPending, ""); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestDANFEFormats(t *testing.T) {
+	renderer, err := newFolioRenderer()
+	if err != nil {
+		t.Fatal(err)
+	}
+	tests := []struct {
+		name, format, xml string
+		minW, maxW        float64
+	}{
+		{"retrato explicito", FormatRetrato, sampleNFeXML(), 590, 600},
+		{"paisagem", FormatPaisagem, sampleNFeXML(), 835, 845},
+		{"simplificado", FormatSimplificado, sampleNFeXML(), 220, 232},
+		{"etiqueta", FormatEtiqueta, sampleNFeXML(), 220, 232},
+		{"tpImp 2 vira paisagem", "", strings.Replace(sampleNFeXML(), "<tpNF>", "<tpImp>2</tpImp><tpNF>", 1), 835, 845},
+		{"tpImp 3 vira simplificado", "", strings.Replace(sampleNFeXML(), "<tpNF>", "<tpImp>3</tpImp><tpNF>", 1), 220, 232},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			pdf, err := renderer.Render(context.Background(), DocTypeNFe, []byte(test.xml), StateActive, test.format)
+			if err != nil {
+				t.Fatal(err)
+			}
+			parsed, err := reader.Parse(pdf)
+			if err != nil {
+				t.Fatal(err)
+			}
+			page, _ := parsed.Page(0)
+			if w := page.MediaBox.Width(); w < test.minW || w > test.maxW {
+				t.Fatalf("page width = %.2f, want %.2f..%.2f", w, test.minW, test.maxW)
+			}
+		})
+	}
+}
+
+func TestDANFESimplifiedForbiddenWithEPEC(t *testing.T) {
+	renderer, _ := newFolioRenderer()
+	epec := strings.Replace(sampleNFeXML(), "<tpEmis>1</tpEmis>", "<tpEmis>4</tpEmis>", 1)
+	for _, format := range []string{FormatSimplificado, FormatEtiqueta} {
+		_, err := renderer.Render(context.Background(), DocTypeNFe, []byte(epec), StateActive, format)
+		var notAllowed *FormatNotAllowedError
+		if !errors.As(err, &notAllowed) {
+			t.Fatalf("%s with EPEC: err = %v", format, err)
+		}
+	}
+}
+
+func TestValidateFormatAndCacheKey(t *testing.T) {
+	if p := ValidateFormat(DocTypeNFe, "a5"); p == nil || p.Code != ProblemCodeInvalidFormat {
+		t.Fatalf("invalid format problem = %v", p)
+	}
+	if ValidateFormat(DocTypeNFe, "") != nil || ValidateFormat(DocTypeNFe, FormatPaisagem) != nil {
+		t.Fatal("valid formats rejected")
+	}
+	if ValidateFormat(DocTypeMDFe, FormatSimplificado) == nil {
+		t.Fatal("MDF-e must reject the NF-e-only formats")
+	}
+	def := cacheKey("O", DocTypeNFe, testNFeKey, StateActive, "")
+	land := cacheKey("O", DocTypeNFe, testNFeKey, StateActive, FormatPaisagem)
+	if def == land || !strings.HasSuffix(land, "-active-paisagem.pdf") || !strings.HasSuffix(def, "-active.pdf") {
+		t.Fatalf("keys: %s %s", def, land)
+	}
+}
+
+func TestDANFCeFormats(t *testing.T) {
+	renderer, err := newFolioRenderer()
+	if err != nil {
+		t.Fatal(err)
+	}
+	full, err := renderer.Render(context.Background(), DocTypeNFCe, []byte(sampleNFCeXML()), StateActive, FormatCompleto)
+	if err != nil {
+		t.Fatal(err)
+	}
+	short, err := renderer.Render(context.Background(), DocTypeNFCe, []byte(sampleNFCeXML()), StateActive, FormatResumido)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(full) == len(short) {
+		t.Fatal("resumido must differ from completo (no items division)")
+	}
+	msgXML := strings.Replace(sampleNFCeXML(), "<tpEmis>1</tpEmis>", "<tpEmis>1</tpEmis><tpImp>5</tpImp>", 1)
+	for _, format := range []string{FormatMensagem, ""} {
+		pdf, err := renderer.Render(context.Background(), DocTypeNFCe, []byte(msgXML), StateActive, format)
+		if err != nil {
+			t.Fatalf("mensagem %q: %v", format, err)
+		}
+		if !bytes.HasPrefix(pdf, []byte("%PDF")) {
+			t.Fatal("not a PDF")
+		}
+	}
+	if ValidateFormat(DocTypeNFCe, FormatPaisagem) == nil {
+		t.Fatal("NFC-e must reject NF-e formats")
+	}
+}
+
+func TestDAMDFELandscape(t *testing.T) {
+	renderer, err := newFolioRenderer()
+	if err != nil {
+		t.Fatal(err)
+	}
+	pdf, err := renderer.Render(context.Background(), DocTypeMDFe, []byte(sampleMDFeXML()), StateActive, FormatPaisagem)
+	if err != nil {
+		t.Fatal(err)
+	}
+	parsed, err := reader.Parse(pdf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if page, _ := parsed.Page(0); page.MediaBox.Width() < 835 || page.MediaBox.Width() > 845 {
+		t.Fatalf("not A4 landscape: %.2f", page.MediaBox.Width())
+	}
+}
+
+func TestDANFEPrintsFCPAndICMSDesonerado(t *testing.T) {
+	x := strings.Replace(sampleNFeXML(), "<vICMS>1.80</vICMS></ICMS00>", "<vICMS>1.80</vICMS><vFCP>0.20</vFCP><vFCPST>0.30</vFCPST></ICMS00>", 1)
+	x = strings.Replace(x, "<vProd>10.00</vProd><vNF>", "<vICMSDeson>2.50</vICMSDeson><vProd>10.00</vProd><vNF>", 1)
+	root, err := parseXML([]byte(x))
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := buildNFeContext(root, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	item := data["produtos"].([]map[string]any)[0]["infAdProd"].(string)
+	if !strings.Contains(item, "V. FCP: 0,20") || !strings.Contains(item, "V. FCP ST: 0,30") {
+		t.Fatalf("infAdProd = %q", item)
+	}
+	if msgs := data["msg_contribuinte"].([]string); !strings.Contains(strings.Join(msgs, "|"), "ICMS desonerado: R$ 2,50") {
+		t.Fatalf("msg_contribuinte = %v", msgs)
+	}
+	plain, _ := buildNFeContext(mustParse(t, sampleNFeXML()), false)
+	if plain["produtos"].([]map[string]any)[0]["infAdProd"] != "" {
+		t.Fatal("documents without FCP must stay unchanged")
+	}
+}
+
+func mustParse(t *testing.T, x string) *xmlNode {
+	t.Helper()
+	root, err := parseXML([]byte(x))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return root
 }

@@ -36,9 +36,9 @@ func TestDumpLocal(t *testing.T) {
 		t.Fatal(err)
 	}
 	for name, xml := range map[string]string{
-		"nfe": sampleNFeXML(), "nfce": sampleNFCeXML(), "mdfe": sampleMDFeXML(),
+		"nfe": sampleNFeXML(), "nfce": sampleNFCeXML(), "mdfe": sampleMDFeXML(), "cte": sampleCTeXML(),
 	} {
-		pdf, err := renderer.Render(context.Background(), name, []byte(xml), StateActive)
+		pdf, err := renderer.Render(context.Background(), name, []byte(xml), StateActive, "")
 		if err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
@@ -67,14 +67,14 @@ func TestDumpLocal(t *testing.T) {
 		t.Fatal(err)
 	}
 	bare := strings.Replace(sampleNFeXML(), "<infAdic><infCpl>Documento sintético</infCpl></infAdic>", "", 1)
-	empty, err := renderer.Render(context.Background(), DocTypeNFe, []byte(bare), StateActive)
+	empty, err := renderer.Render(context.Background(), DocTypeNFe, []byte(bare), StateActive, "")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(dir+"/dump_nfe_empty.pdf", empty, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	big, err := renderer.Render(context.Background(), DocTypeNFe, []byte(multiItemNFeXML(60)), StateActive)
+	big, err := renderer.Render(context.Background(), DocTypeNFe, []byte(multiItemNFeXML(60)), StateActive, "")
 	if err != nil {
 		t.Fatal(err)
 	}

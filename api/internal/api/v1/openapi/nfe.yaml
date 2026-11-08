@@ -102,11 +102,19 @@ paths:
       summary: Baixa o DANFE em PDF
       description: Disponível apenas depois da autorização.
       operationId: getNfeDanfe
+      parameters:
+        - name: format
+          in: query
+          required: false
+          description: "Formato impresso. Vazio: o formato do tpImp do XML (2 paisagem, 3 simplificado, demais retrato). . simplificado e etiqueta com EPEC (tpEmis 4): 422 document-format-not-allowed. Valor fora da lista: 400 invalid-document-format."
+          schema: { type: string, enum: [ retrato, paisagem, simplificado, etiqueta ] }
       responses:
         '200': { $ref: '#/components/responses/CachedPdfDownload' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '422': { $ref: '#/components/responses/ValidationError' }
 
   /v1.0/nfes/{access_key}/xml:
     parameters:
@@ -609,11 +617,18 @@ paths:
       tags: [ NFC-e ]
       summary: Baixa o DANFE NFC-e em PDF
       operationId: getNfceDanfce
+      parameters:
+        - name: format
+          in: query
+          required: false
+          description: "Formato impresso. Vazio: completo, ou mensagem se tpImp 5. . resumido omite a divisão de itens; mensagem é o cartão eletrônico com chave, QR Code e link. Valor fora da lista: 400 invalid-document-format."
+          schema: { type: string, enum: [ completo, resumido, mensagem ] }
       responses:
         '200': { $ref: '#/components/responses/CachedPdfDownload' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '400': { $ref: '#/components/responses/BadRequest' }
 
   /v1.0/nfces/{access_key}/cancel:
     parameters:

@@ -52,7 +52,7 @@ func (f *fakePresigner) PresignGetObject(_ context.Context, input *s3.GetObjectI
 
 type fakeRenderer struct{ calls int }
 
-func (f *fakeRenderer) Render(context.Context, string, []byte, DocumentState) ([]byte, error) {
+func (f *fakeRenderer) Render(context.Context, string, []byte, DocumentState, string) ([]byte, error) {
 	f.calls++
 	return []byte("%PDF-test"), nil
 }
@@ -64,7 +64,7 @@ func TestServiceCachesThenReturnsPresignedURL(t *testing.T) {
 	fixedNow := time.Date(2026, 8, 29, 12, 0, 0, 0, time.UTC)
 	service.now = func() time.Time { return fixedNow }
 
-	first, err := service.GetURL(context.Background(), "CNPJ_12345678000190", DocTypeNFe, testNFeKey, []byte("<xml/>"), StateActive)
+	first, err := service.GetURL(context.Background(), "CNPJ_12345678000190", DocTypeNFe, testNFeKey, []byte("<xml/>"), StateActive, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,7 +75,7 @@ func TestServiceCachesThenReturnsPresignedURL(t *testing.T) {
 		t.Fatalf("unexpected PutObject cache controls: %+v", store.put)
 	}
 
-	second, err := service.GetURL(context.Background(), "CNPJ_12345678000190", DocTypeNFe, testNFeKey, []byte("<xml/>"), StateActive)
+	second, err := service.GetURL(context.Background(), "CNPJ_12345678000190", DocTypeNFe, testNFeKey, []byte("<xml/>"), StateActive, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -125,13 +125,13 @@ func TestSignFileSetsSafeDownloadMetadataAndOmitsCacheForSourceXML(t *testing.T)
 func TestCacheKeySeparatesDocumentStates(t *testing.T) {
 	keys := map[string]DocumentState{}
 	for _, state := range []DocumentState{StateActive, StateCancelled, StateSubstituted} {
-		key := cacheKey("CNPJ_12345678000190", DocTypeNFe, testNFeKey, state)
+		key := cacheKey("CNPJ_12345678000190", DocTypeNFe, testNFeKey, state, "")
 		if previous, clash := keys[key]; clash {
 			t.Fatalf("estados %s e %s compartilham a chave de cache %s", previous, state, key)
 		}
 		keys[key] = state
 	}
-	active := cacheKey("CNPJ_12345678000190", DocTypeNFe, testNFeKey, StateActive)
+	active := cacheKey("CNPJ_12345678000190", DocTypeNFe, testNFeKey, StateActive, "")
 	want := "pdfs/nfe/CNPJ_12345678000190/v1/" + testNFeKey + "-active.pdf"
 	if active != want {
 		t.Fatalf("active cache key = %q, want %q", active, want)

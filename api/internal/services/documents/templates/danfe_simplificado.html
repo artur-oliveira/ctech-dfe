@@ -1,0 +1,60 @@
+{# MOC DANFE 2.11 (Simplificado) and 2.12 (Simplificado - Etiqueta, NT 2020.004). Roll paper, minimum width 55 mm;
+   the minimum field list is what the MOC requires, nothing else is printed. Type never below 6 pt. #}
+<style>
+  @page { size: 80mm 0; margin: 3mm; }
+  body { font-family: Arial, "Helvetica Neue", Helvetica, sans-serif; font-size: 6.5pt; color: #000; margin: 0; }
+  .center, .center div { text-align: center; }
+  .b { font-weight: bold; }
+  .lbl { font-weight: bold; text-transform: uppercase; }
+  .block { margin-bottom: 3pt; }
+  table { width: 100%; border-collapse: collapse; }
+  td { vertical-align: top; word-wrap: break-word; }
+  .num { text-align: right; white-space: nowrap; }
+  .items .head td { font-weight: bold; border-bottom: 0.5pt solid #000; }
+  .barcode-band { min-height: 11mm; }
+  .barcode { width: 100%; display: block; }
+  .banner { font-weight: bold; text-align: center; margin: 3pt 0; }
+  .watermark { text-align: center; font-weight: bold; color: #888; margin: 2pt 0; }
+  .foot-line { font-size: 5pt; color: #555; margin-top: 4pt; }
+</style>
+{% if ctx.is_cancelada %}<div class="watermark">{{ ctx.text.cancelada }}</div>{% endif %}
+{% if ctx.is_homologacao %}<div class="watermark">{{ ctx.text.homologacao }}</div>{% endif %}
+<div class="center block">
+  <div class="b">{% if ctx.format == "etiqueta" %}DANFE Simplificado – Etiqueta{% else %}DANFE Simplificado{% endif %}</div>
+  <div>Documento Auxiliar da Nota Fiscal Eletrônica</div>
+</div>
+{% if ctx.is_contingencia %}<div class="banner">{{ ctx.text.contingencia }}</div>{% endif %}
+<div class="block">
+  <div class="lbl">Emitente</div>
+  <div class="b">{{ ctx.emit.nome }}</div>
+  <div>{{ ctx.emit.uf }} &nbsp; CNPJ: {{ ctx.emit.cnpj }} &nbsp; IE: {{ ctx.emit.ie }}</div>
+</div>
+<div class="block">
+  <div class="lbl">Nota fiscal</div>
+  <div>{% if ctx.ide.tpNF == "0" %}Entrada{% else %}Saída{% endif %} &nbsp; Série {{ ctx.ide.serie }} &nbsp; Nº {{ ctx.ide.nNF }}</div>
+  <div>Emissão: {{ ctx.ide.dhEmi }}</div>
+</div>
+<div class="block">
+  <div class="lbl">Destinatário</div>
+  <div class="b">{{ ctx.dest.nome }}</div>
+  <div>{{ ctx.dest.uf }} &nbsp; CNPJ/CPF: {{ ctx.dest.doc }}{% if ctx.format == "etiqueta" and ctx.dest.ie %} &nbsp; IE: {{ ctx.dest.ie }}{% endif %}</div>
+</div>
+{% if ctx.format != "etiqueta" %}
+<table class="items block">
+  <colgroup><col style="width:34%"><col style="width:14%"><col style="width:12%"><col style="width:20%"><col style="width:20%"></colgroup>
+  <tr class="head"><td>Descrição</td><td>UN</td><td class="num">Qtde</td><td class="num">Vl Unit.</td><td class="num">Vl Total</td></tr>
+  {% for it in ctx.produtos %}
+  <tr><td>{{ it.xProd }}</td><td>{{ it.uCom }}</td><td class="num">{{ it.qCom }}</td><td class="num">{{ it.vUnCom }}</td><td class="num">{{ it.vProd }}</td></tr>
+  {% endfor %}
+</table>
+{% endif %}
+<table class="block"><tr><td class="b">Valor total da NF-e</td><td class="num b">R$ {{ ctx.totals.vNF }}</td></tr></table>
+<div class="block">
+  <div class="barcode-band"><img class="barcode" src="{{ ctx.chave_barcode }}" alt="chave"></div>
+  <div class="lbl">Chave de acesso</div>
+  <div>{{ ctx.chave_fmt }}</div>
+</div>
+{% if ctx.show_protocolo and ctx.protocolo %}
+<div class="block"><div class="lbl">Protocolo de autorização de uso</div><div>{{ ctx.protocolo.nProt }} - {{ ctx.protocolo.dhRecbto }}</div></div>
+{% endif %}
+<div class="foot-line">{{ ctx.text.gerado_por }} {{ ctx.site }} em {{ ctx.gerado_em }}</div>

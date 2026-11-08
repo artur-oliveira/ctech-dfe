@@ -191,11 +191,18 @@ paths:
       tags: [ MDF-e ]
       summary: Baixa o DAMDFE em PDF
       operationId: getMdfeDamdfe
+      parameters:
+        - name: format
+          in: query
+          required: false
+          description: "Formato impresso. Vazio: retrato. . Valor fora da lista: 400 invalid-document-format."
+          schema: { type: string, enum: [ retrato, paisagem ] }
       responses:
         '200': { $ref: '#/components/responses/CachedPdfDownload' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '400': { $ref: '#/components/responses/BadRequest' }
 
   /v1.0/mdfes/{access_key}/cancel:
     parameters:

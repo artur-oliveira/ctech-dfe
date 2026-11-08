@@ -8,8 +8,12 @@ import (
 	"gopkg.aoctech.app/dfe/api/internal/services/documents"
 )
 
-// GetDAMDFEURL validates tenant ownership and returns a direct cached PDF download.
-func (s *MdfeService) GetDAMDFEURL(ctx context.Context, orgPK, accessKey string) (*documents.Download, error) {
+// GetDAMDFEURL validates tenant ownership and returns a direct cached PDF download. format: "" or retrato (default)
+// or paisagem.
+func (s *MdfeService) GetDAMDFEURL(ctx context.Context, orgPK, accessKey, format string) (*documents.Download, error) {
+	if p := documents.ValidateFormat(documents.DocTypeMDFe, format); p != nil {
+		return nil, p
+	}
 	doc, err := s.GetMDFe(ctx, orgPK, accessKey)
 	if err != nil {
 		return nil, err
@@ -21,7 +25,7 @@ func (s *MdfeService) GetDAMDFEURL(ctx context.Context, orgPK, accessKey string)
 	if xmlKey == "" {
 		// Offline MDF-e not yet authorized: print from the stored signed XML (EMISSÃO EM CONTINGÊNCIA).
 		if signed := services.ContingencySignedXML(doc); signed != "" {
-			return s.documentSvc.GetURL(ctx, orgPK, documents.DocTypeMDFe, accessKey, []byte(signed), documents.StateContingencyPending)
+			return s.documentSvc.GetURL(ctx, orgPK, documents.DocTypeMDFe, accessKey, []byte(signed), documents.StateContingencyPending, format)
 		}
 		return nil, problem.NotFound("XML do MDF-e ainda não disponível")
 	}
@@ -29,5 +33,5 @@ func (s *MdfeService) GetDAMDFEURL(ctx context.Context, orgPK, accessKey string)
 	if err != nil {
 		return nil, err
 	}
-	return s.documentSvc.GetURL(ctx, orgPK, documents.DocTypeMDFe, accessKey, xmlBytes, documents.CancelledWhen(avStr(doc, "status") == services.StatusCancelled))
+	return s.documentSvc.GetURL(ctx, orgPK, documents.DocTypeMDFe, accessKey, xmlBytes, documents.CancelledWhen(avStr(doc, "status") == services.StatusCancelled), format)
 }

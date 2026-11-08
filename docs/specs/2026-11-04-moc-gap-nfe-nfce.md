@@ -482,13 +482,13 @@ verdade foi autorizada.
 | Formato | `tpImp` | MOC | Estado | Gap |
 |---|---|---|---|---|
 | DANFE retrato (A4) | 1 | 2.7, 2.8.1 | feito: `templates/danfe_retrato.html`, `documents/nfe.go` | campos novos: `vICMSDeson`, `vFCPST`, IBS/CBS/IS, ISSQN (total e itens), `infAdProd` ok; paginação e canhoto: ok; "Folhas soltas x formulário contínuo" (itens 4 e 5 do MOC) não aplicável a PDF |
-| DANFE paisagem (A4) | 2 | 2.8.2, cap. 6 e 7 | **ausente** | template novo; mesmo contexto de dados |
-| DANFE simplificado | 3 | 2.11 | **ausente** | papel >= 55 mm; campos mínimos listados (emitente, tipo, série/número, data, destinatário, itens, total, chave, código de barras, protocolo); proibido com EPEC e FS |
-| DANFE simplificado etiqueta | 3 | 2.12 (NT 2020.004) | **ausente** | para e-commerce/telemarketing |
+| DANFE paisagem (A4) | 2 | 2.8.2, cap. 6 e 7 | **feito (F8)**: `danfe_paisagem.html`, `format=paisagem` | template novo; mesmo contexto de dados |
+| DANFE simplificado | 3 | 2.11 | **feito (F8)**: `danfe_simplificado.html`, `format=simplificado`; EPEC recusado (422) | papel >= 55 mm; campos mínimos listados (emitente, tipo, série/número, data, destinatário, itens, total, chave, código de barras, protocolo); proibido com EPEC e FS |
+| DANFE simplificado etiqueta | 3 | 2.12 (NT 2020.004) | **feito (F8)**: `format=etiqueta` (tpImp não definido pelo MOC; só pelo parâmetro) | para e-commerce/telemarketing |
 | DANFE simplificado tipo 2 | 6 | NT (Ajuste SINIEF 13/26) | **ausente** | cupom NFC-e-like para NF-e fora do estabelecimento, QR v3, 66 regras |
 | DANFE NFC-e (papel) | 4 | 1, 2 | feito: `templates/danfce.html`, `documents/nfce.go` | ver 5.2 |
-| DANFE NFC-e em mensagem eletrônica | 5 | 3.2 | **ausente** | gerar a "mensagem" (texto/HTML com chave, QR e link) para e-mail ou mensageria, sem papel |
-| DANFE NFC-e resumido ("ecológico") | 4 | 1, 2.1.2 | **ausente** | `show_items` fixo `true` (`documents/nfce.go:~83`); suprimir divisão II quando UF permitir e o consumidor pedir |
+| DANFE NFC-e em mensagem eletrônica | 5 | 3.2 | **feito como PDF (F8)**: `danfce_mensagem.html`; envio por e-mail/SMS (texto/HTML) não implementado | gerar a "mensagem" (texto/HTML com chave, QR e link) para e-mail ou mensageria, sem papel |
+| DANFE NFC-e resumido ("ecológico") | 4 | 1, 2.1.2 | **feito (F8)**: `format=resumido`; a UF e o pedido do consumidor são decisão do chamador | `show_items` fixo `true` (`documents/nfce.go:~83`); suprimir divisão II quando UF permitir e o consumidor pedir |
 | Sem DANFE | 0 | B21 | ausente | opção explícita |
 
 ### 5.2 DANFE NFC-e, requisitos do MOC (checklist)

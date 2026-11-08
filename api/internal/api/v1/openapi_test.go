@@ -135,6 +135,7 @@ func TestOpenAPI_AuxiliaryDocumentsReturnCachedDownloadDescriptor(t *testing.T) 
 		"/v1.0/nfes/{access_key}/danfe",
 		"/v1.0/nfces/{access_key}/danfce",
 		"/v1.0/mdfes/{access_key}/damdfe",
+		"/v1.0/ctes/{access_key}/dacte",
 	} {
 		operation := paths[path].(map[string]any)["get"].(map[string]any)
 		responses := operation["responses"].(map[string]any)

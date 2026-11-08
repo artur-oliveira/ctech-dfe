@@ -104,10 +104,10 @@ func RegisterMDFes(router fiber.Router, svc *mdfesvc.MdfeService, userSvc *servi
 		return c.JSON(download)
 	})
 
-	// GET /mdfes/:access_key/damdfe — cached DAMDFE PDF URL rendered in-process
+	// GET /mdfes/:access_key/damdfe?format=retrato|paisagem — cached DAMDFE PDF URL rendered in-process
 	g.Get("/:access_key/damdfe", perm.Require("get.mdfes"), func(c fiber.Ctx) error {
 		accessKey := c.Params("access_key")
-		download, err := svc.GetDAMDFEURL(c.Context(), middleware.GetOrgPK(c), accessKey)
+		download, err := svc.GetDAMDFEURL(c.Context(), middleware.GetOrgPK(c), accessKey, c.Query("format"))
 		if err != nil {
 			return sendProblem(c, err)
 		}

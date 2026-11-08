@@ -65,7 +65,7 @@ func buildNFeContext(root *xmlNode, canceled bool) (map[string]any, error) {
 			"vDesc": moneyBR(prod.value("vDesc")), "origCST": origCST,
 			"vBC": moneyBR(icmsGroup.value("vBC")), "vICMS": moneyBR(icmsGroup.value("vICMS")),
 			"vIPI": moneyBR(ipi.value("vIPI")), "pICMS": moneyBR(icmsGroup.value("pICMS")),
-			"pIPI": moneyBR(ipi.value("pIPI")), "infAdProd": det.value("infAdProd"),
+			"pIPI": moneyBR(ipi.value("pIPI")), "infAdProd": appendFCP(det.value("infAdProd"), icmsGroup),
 		})
 	}
 
@@ -127,6 +127,11 @@ func buildNFeContext(root *xmlNode, canceled bool) (map[string]any, error) {
 	}
 
 	additional := inf.child("infAdic")
+	complementary := splitAdditional(additional.value("infCpl"))
+	// MOC DANFE 2.10.5: vICMSDeson has no field in the layout and goes with the infCpl text.
+	if nonzero(totalNode.value("vICMSDeson")) {
+		complementary = append(complementary, "Valor do ICMS desonerado: R$ "+moneyBR(totalNode.value("vICMSDeson")))
+	}
 	return map[string]any{
 		"layout": "retrato",
 		"emit": map[string]any{
@@ -163,7 +168,7 @@ func buildNFeContext(root *xmlNode, canceled bool) (map[string]any, error) {
 		"show_protocolo": showProtocol, "is_contingencia": tpEmis != "1" && tpEmis != "3" && tpEmis != "6" && tpEmis != "7",
 		"is_fs": isFS, "is_epec": isEPEC, "is_homologacao": ide.value("tpAmb") == "2", "is_cancelada": canceled,
 		"dados_nfe_code": dadosCode, "dados_nfe_barcode": dadosBarcode, "msg_fiscal": splitAdditional(additional.value("infAdFisco")),
-		"msg_contribuinte": splitAdditional(additional.value("infCpl")), "site": "https://dfe.aoctech.app", "gerado_em": time.Now().Format("02/01/2006 15:04:05"),
+		"msg_contribuinte": complementary, "site": "https://dfe.aoctech.app", "gerado_em": time.Now().Format("02/01/2006 15:04:05"),
 		"text": map[string]any{
 			"gerado_por": "Gerado por", "danfe": "DANFE", "danfe_desc": "DOCUMENTO AUXILIAR DA NOTA FISCAL ELETRÔNICA",
 			"homologacao": "SEM VALOR FISCAL", "contingencia": "DANFE EM CONTINGÊNCIA - IMPRESSO EM DECORRÊNCIA DE PROBLEMAS TÉCNICOS",
@@ -206,4 +211,24 @@ func ternary[T any](condition bool, yes, no T) T {
 		return yes
 	}
 	return no
+}
+
+// fcpFields are the per-item FCP values the MOC (DANFE 2.3.2) wants printed under the item, in infAdProd,
+// when they exist: label and ICMS group tag.
+var fcpFields = [][2]string{
+	{"BC FCP", "vBCFCP"}, {"% FCP", "pFCP"}, {"V. FCP", "vFCP"},
+	{"BC FCP ST", "vBCFCPST"}, {"% FCP ST", "pFCPST"}, {"V. FCP ST", "vFCPST"},
+}
+
+func appendFCP(infAdProd string, icmsGroup *xmlNode) string {
+	parts := make([]string, 0, len(fcpFields))
+	for _, f := range fcpFields {
+		if v := icmsGroup.value(f[1]); v != "" {
+			parts = append(parts, f[0]+": "+moneyBR(v))
+		}
+	}
+	if len(parts) == 0 {
+		return infAdProd
+	}
+	return strings.TrimSpace(infAdProd + " " + strings.Join(parts, "; "))
 }

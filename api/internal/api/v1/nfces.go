@@ -122,10 +122,10 @@ func RegisterNFCes(router fiber.Router, svc *nfesvc.NfceService, userSvc *servic
 		return c.JSON(download)
 	})
 
-	// GET /nfces/:access_key/danfce — cached DANFC-e PDF URL rendered in-process
+	// GET /nfces/:access_key/danfce?format=completo|resumido|mensagem — cached DANFC-e PDF URL rendered in-process
 	g.Get("/:access_key/danfce", perm.Require("get.nfces"), func(c fiber.Ctx) error {
 		accessKey := c.Params("access_key")
-		download, err := svc.GetDANFCeURL(c.Context(), middleware.GetOrgPK(c), accessKey)
+		download, err := svc.GetDANFCeURL(c.Context(), middleware.GetOrgPK(c), accessKey, c.Query("format"))
 		if err != nil {
 			return sendProblem(c, err)
 		}

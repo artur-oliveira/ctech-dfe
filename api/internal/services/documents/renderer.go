@@ -26,7 +26,7 @@ var (
 )
 
 type pdfRenderer interface {
-	Render(context.Context, string, []byte, DocumentState) ([]byte, error)
+	Render(ctx context.Context, docType string, xml []byte, state DocumentState, format string) ([]byte, error)
 }
 
 type folioRenderer struct {
@@ -98,12 +98,15 @@ func splitTemplateArguments(value string) []string {
 	return append(args, strings.TrimSpace(value[start:]))
 }
 
-func (r *folioRenderer) Render(ctx context.Context, docType string, xmlBytes []byte, state DocumentState) ([]byte, error) {
-	templateName, ok := templateByDocType[docType]
-	if !ok {
+func (r *folioRenderer) Render(ctx context.Context, docType string, xmlBytes []byte, state DocumentState, format string) ([]byte, error) {
+	if _, ok := templateByDocType[docType]; !ok {
 		return nil, fmt.Errorf("unsupported auxiliary document type %q", docType)
 	}
 	root, err := parseXML(xmlBytes)
+	if err != nil {
+		return nil, err
+	}
+	format, templateName, err := resolveFormat(docType, format, root)
 	if err != nil {
 		return nil, err
 	}
@@ -115,14 +118,23 @@ func (r *folioRenderer) Render(ctx context.Context, docType string, xmlBytes []b
 		data, err = buildNFCeContext(root, state == StateCancelled)
 	case DocTypeMDFe:
 		data, err = buildMDFeContext(root, state == StateCancelled)
+	case DocTypeCTe:
+		data, err = buildCTeContext(root, state == StateCancelled)
 	case DocTypeNFSe:
 		data, err = buildNFSeContext(root, state)
 	}
 	if err != nil {
 		return nil, err
 	}
+	if format != "" {
+		data["format"] = format
+	}
 	if docType == DocTypeNFCe {
+		data["show_items"] = format != FormatResumido
 		vias, _ := data["vias"].([]map[string]any)
+		if format == FormatMensagem && len(vias) > 1 {
+			vias = vias[:1] // the electronic message has no establishment copy
+		}
 		parts := make([][]byte, 0, len(vias))
 		for _, via := range vias {
 			data["via"] = via

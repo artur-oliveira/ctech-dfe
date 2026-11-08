@@ -250,7 +250,7 @@ func (s *NfseService) GetDANFSE(ctx context.Context, orgPK, id string) (*documen
 	if err != nil {
 		return nil, err
 	}
-	return s.documentSvc.GetURL(ctx, orgPK, documents.DocTypeNFSe, accessKey, xmlBytes, danfseState(item))
+	return s.documentSvc.GetURL(ctx, orgPK, documents.DocTypeNFSe, accessKey, xmlBytes, danfseState(item), "")
 }
 
 // danfseState traduz o estado persistido da NFS-e no watermark do DANFSe. Uma

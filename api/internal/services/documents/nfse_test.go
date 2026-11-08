@@ -131,7 +131,7 @@ func TestFolioRendererGeneratesDANFSeSinglePage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	pdf, err := renderer.Render(context.Background(), DocTypeNFSe, []byte(sampleNFSeXML()), StateCancelled)
+	pdf, err := renderer.Render(context.Background(), DocTypeNFSe, []byte(sampleNFSeXML()), StateCancelled, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -160,7 +160,7 @@ func TestFolioRendererDANFSeMinimalDocument(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	pdf, err := renderer.Render(context.Background(), DocTypeNFSe, []byte(minimalNFSeXML()), StateActive)
+	pdf, err := renderer.Render(context.Background(), DocTypeNFSe, []byte(minimalNFSeXML()), StateActive, "")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -115,10 +115,10 @@ func RegisterNFes(router fiber.Router, svc *nfesvc.NfeService, userSvc *services
 		return sendItem(c, nfe)
 	})
 
-	// GET /nfes/:access_key/danfe
+	// GET /nfes/:access_key/danfe?format=retrato|paisagem|simplificado|etiqueta (default: from tpImp)
 	g.Get("/:access_key/danfe", perm.Require("get.nfes"), func(c fiber.Ctx) error {
 		accessKey := c.Params("access_key")
-		download, err := svc.GetDANFeURL(c.Context(), middleware.GetOrgPK(c), accessKey)
+		download, err := svc.GetDANFeURL(c.Context(), middleware.GetOrgPK(c), accessKey, c.Query("format"))
 		if err != nil {
 			return sendProblem(c, err)
 		}

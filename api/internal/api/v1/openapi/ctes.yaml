@@ -141,6 +141,21 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /v1.0/ctes/{access_key}/dacte:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/AccessKey'
+    get:
+      tags: [ CT-e ]
+      summary: Baixa o DACTE em PDF
+      description: A4 retrato. CT-e offline ainda não autorizado sai da cópia assinada guardada, com a legenda de contingência.
+      operationId: getCteDacte
+      responses:
+        '200': { $ref: '#/components/responses/CachedPdfDownload' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /v1.0/ctes/{access_key}/cancel:
     parameters:
       - $ref: '#/components/parameters/OrgHeader'

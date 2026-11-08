@@ -114,3 +114,11 @@ func (n *xmlNode) attr(name string) string {
 	}
 	return n.attrs[name]
 }
+
+// textOrEmpty is the trimmed text of a possibly nil node.
+func (n *xmlNode) textOrEmpty() string {
+	if n == nil {
+		return ""
+	}
+	return strings.TrimSpace(n.text)
+}

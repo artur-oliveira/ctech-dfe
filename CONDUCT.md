@@ -513,10 +513,12 @@ contrário `persistIncoming` reescreve silenciosamente para `1`.
 
 ## Auxiliary-document rendering (API `services/documents`)
 
-- DANFE, DANFC-e, and DAMDFE are rendered in-process by Folio from the stored XML;
+- DANFE, DANFC-e, DAMDFE, and DACTE are rendered in-process by Folio from the stored XML;
   never reintroduce a Lambda, headless browser, or network asset dependency.
 - Cache keys must include tenant PK, renderer schema version, document type,
-  access key, and active/canceled state. A template/context compatibility change
+  access key, state, and the `format` parameter (empty format keeps the key without suffix).
+  `format` is validated by `documents.ValidateFormat` before any S3 read; the formats of each type live in
+  `templateByFormat` (`formats.go`). DACTE: the FS-DA legend is applied to offline (tpEmis 2) by analogy. A template/context compatibility change
   must increment `cacheSchemaVersion`; otherwise S3 can serve stale layouts.
 - Every cached PDF is tagged `cache=auxiliary-document`. Keep the CDK tag filter,
   30-day current-version expiry, noncurrent-version cleanup, and the API role's

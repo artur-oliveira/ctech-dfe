@@ -161,13 +161,20 @@ py_dfe/
 
 ### Auxiliary documents — API-local Folio renderer
 
-`api/internal/services/documents` renders DANFE (model 55), DANFC-e (65), and
-DAMDFE (58) from the stored authorized XML. It uses Folio for HTML→PDF, Gonja for
+F8 (formatos impressos): o parâmetro `format` escolhe o formato; vazio mantém o formato do XML e a chave de cache
+antiga (sem sufixo). Problemas: `400 invalid-document-format` (valor fora da lista do tipo), `422
+document-format-not-allowed` (DANFE simplificado ou etiqueta com EPEC, MOC DANFE 2.11). Impressos também: DACTE A4
+retrato (`cte.go`, `dacte_retrato.html`), DANFE paisagem/simplificado/etiqueta, NFC-e resumida (sem a divisão de
+itens) e em mensagem eletrônica (cartão PDF de 80 mm com chave, QR e link), DAMDFE paisagem. O DANFE passa a
+imprimir os valores de FCP por item (infAdProd) e o `vICMSDeson` nas informações complementares (MOC DANFE 2.10.5).
+
+`api/internal/services/documents` renders DANFE (model 55), DANFC-e (65),
+DAMDFE (58) and DACTE (57) from the stored authorized XML. It uses Folio for HTML→PDF, Gonja for
 the embedded templates, and pure-Go QR/CODE-128 generation. There is no Lambda,
 certificate, browser process, or external asset fetch in this path.
 
 The first request performs `HeadObject`, renders on a miss, and stores the PDF at
-`{org_pk}/pdfs/v1/{nfe|nfce|mdfe}/{access_key}-{active|canceled}.pdf` with the tag
+`{org_pk}/pdfs/v1/{nfe|nfce|mdfe|cte}/{access_key}-{state}[-{format}].pdf` with the tag
 `cache=auxiliary-document`. `If-None-Match: *` avoids overwrite races and
 `singleflight` coalesces misses inside one API process. The S3 lifecycle expires
 tagged current versions after 30 days and noncurrent versions after one day.
@@ -1593,7 +1600,7 @@ O CFOP do item é `[escopo][cfop_suffix]`, onde o escopo vem de `services.Resolv
 | POST   | `/v1.0/nfes/{access_key}/prorrogation-cancel` | Cancela o pedido de prorrogação (111502/111503) |
 | POST   | `/v1.0/nfes/{access_key}/cancel-event`    | Cancelamento de evento (110001)             |
 | GET    | `/v1.0/nfes/{access_key}/xml`             | Presigned S3 XML URL                        |
-| GET    | `/v1.0/nfes/{access_key}/danfe`           | Presigned cached DANFE PDF URL              |
+| GET    | `/v1.0/nfes/{access_key}/danfe?format=`   | Presigned cached DANFE PDF URL; `format` = `retrato`, `paisagem`, `simplificado`, `etiqueta` (empty: from `tpImp`) |
 | GET    | `/v1.0/nfes/{access_key}/events`          | List events                                 |
 | GET    | `/v1.0/nfes/{access_key}/events/{sk}/xml` | Presigned S3 event XML URL                  |
 | POST   | `/v1.0/nfes/inutilizations`               | Inutiliza faixa de numeração não utilizada  |
@@ -1924,7 +1931,7 @@ online, SHA-1 with the CSC stored in `organization_nfce_configs` as
 | POST   | `/v1.0/nfces/{access_key}/cancel`           | Cancel (event 110111)                              |
 | POST   | `/v1.0/nfces/{access_key}/substitute`       | Cancel by substitution (event 110112, `chNFeRef`) |
 | GET    | `/v1.0/nfces/{access_key}/xml`              | Presigned S3 XML URL                                |
-| GET    | `/v1.0/nfces/{access_key}/danfce`           | Presigned cached DANFC-e PDF URL (API/Folio)       |
+| GET    | `/v1.0/nfces/{access_key}/danfce?format=`   | Presigned cached DANFC-e PDF URL (API/Folio); `format` = `completo`, `resumido`, `mensagem` (empty: `mensagem` if `tpImp` 5, else `completo`) |
 | GET    | `/v1.0/nfces/{access_key}/events`           | List events                                         |
 | GET    | `/v1.0/nfces/{access_key}/events/{sk}/xml`  | Presigned S3 event XML URL                          |
 | POST   | `/v1.0/nfces/inutilizations`                | Inutiliza faixa de numeração não utilizada          |
@@ -2050,6 +2057,7 @@ Escopo: tpCTe 0, tpServ 0, modal 01, emitido a partir de NF-e do cadastro (emiti
 | POST   | `/v1.0/ctes/{access_key}/correction-letter` | Carta de correção (110110): `corrections[]` (`group`, `field`, `value`, `item_number`), `sequence_number` opcional 1 a 20 |
 | POST   | `/v1.0/ctes/{access_key}/service-disagreement` | Prestação em desacordo (610110), evento do tomador: `notes` opcional (15 a 255) |
 | POST   | `/v1.0/ctes/{access_key}/service-disagreement-cancel` | Cancela o desacordo (610111): `event_sk` do 610110 com status `success` |
+| GET    | `/v1.0/ctes/{access_key}/dacte` | URL assinada do DACTE em PDF (A4 retrato; CT-e offline pendente sai do XML assinado guardado, com a legenda de contingência), permissão `get.ctes` |
 | GET    | `/v1.0/ctes/{access_key}/events` | Eventos (`cte_events`), permissão `get.cte_events` (escrita: `create.cte_events`) |
 | GET    | `/v1.0/ctes/{access_key}/events/{event_sk}/xml` | URL assinada do XML do evento |
 
@@ -2087,7 +2095,7 @@ Os **quatro modais** emitem: rodoviário, aéreo, aquaviário e ferroviário.
 | POST   | `/v1.0/mdfes/cargo-preview`                          | Parse referenced docs → cargo preview (no persist) |
 | GET    | `/v1.0/mdfes/{access_key}`                           | Detail                                             |
 | GET    | `/v1.0/mdfes/{access_key}/xml`                       | Presigned S3 XML URL                               |
-| GET    | `/v1.0/mdfes/{access_key}/damdfe`                    | Presigned cached DAMDFE PDF URL (API/Folio)        |
+| GET    | `/v1.0/mdfes/{access_key}/damdfe?format=`            | Presigned cached DAMDFE PDF URL (API/Folio); `format` = `retrato` (default), `paisagem` |
 | POST   | `/v1.0/mdfes/{access_key}/cancel`                    | Cancel (event 110111, `justification` ≥ 15 chars) |
 | POST   | `/v1.0/mdfes/{access_key}/close`                     | Encerramento (110112, `ibge_code`, `uf?`, `by_third_party?`) |
 | POST   | `/v1.0/mdfes/{access_key}/include-condutor`          | Inclusão de condutor (event 110114)               |

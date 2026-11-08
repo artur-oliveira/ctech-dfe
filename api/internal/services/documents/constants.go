@@ -7,15 +7,18 @@ const (
 	DocTypeNFCe = "nfce"
 	DocTypeMDFe = "mdfe"
 	DocTypeNFSe = "nfse"
+	DocTypeCTe  = "cte"
 
 	modelNFe  = "55"
 	modelNFCe = "65"
 	modelMDFe = "58"
+	modelCTe  = "57"
 
 	templateDANFe  = "danfe_retrato.html"
 	templateDANFCe = "danfce.html"
 	templateDAMDFE = "damdfe_retrato.html"
 	templateDANFSe = "danfse_v2.html"
+	templateDACTE  = "dacte_retrato.html"
 
 	// nfseConsultaURL is the national NFS-e lookup page the DANFSe QR code and
 	// footer must print (NT 008 v1.02); the access key is appended verbatim.
@@ -47,6 +50,7 @@ var templateByDocType = map[string]string{
 	DocTypeNFCe: templateDANFCe,
 	DocTypeMDFe: templateDAMDFE,
 	DocTypeNFSe: templateDANFSe,
+	DocTypeCTe:  templateDACTE,
 }
 
 // accessKeyLengthByDocType is the digit count of each document's access key.
@@ -57,6 +61,7 @@ var accessKeyLengthByDocType = map[string]int{
 	DocTypeNFCe: 44,
 	DocTypeMDFe: 44,
 	DocTypeNFSe: 50,
+	DocTypeCTe:  44,
 }
 
 // DocumentState is the closed set of fiscal states an auxiliary document can

@@ -76,9 +76,12 @@ func newService(store objectStore, presigner objectPresigner, renderer pdfRender
 }
 
 // GetURL returns a presigned S3 URL, generating the PDF only on a cache miss.
-func (s *Service) GetURL(ctx context.Context, orgPK, docType, accessKey string, xmlBytes []byte, state DocumentState) (*Download, error) {
+func (s *Service) GetURL(ctx context.Context, orgPK, docType, accessKey string, xmlBytes []byte, state DocumentState, format string) (*Download, error) {
 	if _, ok := templateByDocType[docType]; !ok {
 		return nil, problem.BadRequest("tipo de documento auxiliar não suportado")
+	}
+	if p := ValidateFormat(docType, format); p != nil {
+		return nil, p
 	}
 	if !documentStates[state] {
 		return nil, problem.BadRequest("estado do documento auxiliar não suportado")
@@ -86,7 +89,7 @@ func (s *Service) GetURL(ctx context.Context, orgPK, docType, accessKey string, 
 	if digits(accessKey) != accessKey || len(accessKey) != accessKeyLengthByDocType[docType] {
 		return nil, problem.BadRequest("chave de acesso inválida")
 	}
-	objectKey := cacheKey(orgPK, docType, accessKey, state)
+	objectKey := cacheKey(orgPK, docType, accessKey, state, format)
 	if exists, err := s.exists(ctx, objectKey); err != nil {
 		return nil, problem.InternalServer("falha ao consultar cache do PDF").WithCause(err)
 	} else if exists {
@@ -101,7 +104,7 @@ func (s *Service) GetURL(ctx context.Context, orgPK, docType, accessKey string, 
 		} else if exists {
 			return true, nil
 		}
-		pdf, err := s.renderer.Render(generationCtx, docType, xmlBytes, state)
+		pdf, err := s.renderer.Render(generationCtx, docType, xmlBytes, state, format)
 		if err != nil {
 			return nil, fmt.Errorf("render %s: %w", docType, err)
 		}
@@ -118,6 +121,10 @@ func (s *Service) GetURL(ctx context.Context, orgPK, docType, accessKey string, 
 		}
 		return false, nil
 	})
+	var notAllowed *FormatNotAllowedError
+	if errors.As(err, &notAllowed) {
+		return nil, problem.UnprocessableEntity(notAllowed.Reason).WithCode(ProblemCodeFormatNotAllowed)
+	}
 	if err != nil {
 		return nil, problem.InternalServer("falha ao gerar documento auxiliar").WithCause(err)
 	}
@@ -146,8 +153,12 @@ func (s *Service) presignPDF(ctx context.Context, objectKey, accessKey string, c
 	return download, nil
 }
 
-func cacheKey(orgPK, docType, accessKey string, state DocumentState) string {
-	return path.Join("pdfs", docType, orgPK, cacheSchemaVersion, accessKey+"-"+string(state)+fileExtensionPDF)
+// cacheKey: the default format (empty) keeps the pre-F8 key; any other format is a distinct object.
+func cacheKey(orgPK, docType, accessKey string, state DocumentState, format string) string {
+	if format != "" {
+		format = "-" + format
+	}
+	return path.Join("pdfs", docType, orgPK, cacheSchemaVersion, accessKey+"-"+string(state)+format+fileExtensionPDF)
 }
 
 func hasS3Code(err error, code string) bool {
