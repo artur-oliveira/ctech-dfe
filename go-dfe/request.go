@@ -19,8 +19,8 @@ type Request struct {
 	Body                map[string]any `json:"body"`
 	ValidateSchema      bool           `json:"validate_schema,omitempty"`
 	MaxRetries          int            `json:"max_retries,omitempty"`
-	// Contingency routes an NF-e call to the SVC ("SVC-AN" or "SVC-RS"); empty
-	// is the UF's normal authorizer. NF-e only (the MOC offers no SVC for NFC-e).
+	// Contingency routes an NF-e call to the SVC ("SVC-AN" or "SVC-RS") or a CT-e call to
+	// "SVC-RS" or "SVC-SP"; empty is the UF's normal authorizer. No SVC for NFC-e or MDF-e.
 	Contingency string `json:"contingency,omitempty"`
 }
 

@@ -215,6 +215,8 @@ var nfeRegistry = registry{
 const (
 	AuthorizerSVCAN = "SVC-AN"
 	AuthorizerSVCRS = "SVC-RS"
+	// AuthorizerSVCSP serves CT-e only (tpEmis 8).
+	AuthorizerSVCSP = "SVC-SP"
 )
 
 // svcServices are the services the MOC says the SVC offers: authorization,
@@ -245,6 +247,36 @@ var svcRegistry = registry{
 	AuthorizerSVCRS: svrsSubset(nfeRegistry["SVRS"], svcServices),
 }
 
+// cteSVCServices are the CT-e services offered on the SVC (the MOC says it applies to every CT-e
+// model; the cancellation event is the only event accepted there, rule N09).
+var cteSVCServices = []string{
+	"CTeRecepcaoSinc", "CTeRecepcaoOS", "CTeRecepcaoGTVe", "CTeRecepcaoSimp",
+	"CTeConsulta", "CTeStatusServico", "CTeRecepcaoEvento",
+}
+
+// cteSVCRegistry holds the CT-e SVC-RS and SVC-SP endpoints.
+//
+// ponytail: UNVERIFIED. The CT-e MOC (Contingencia, 3.2) only says the addresses are in the Portal
+// Nacional and in the SVRS portal (https://dfe-portal.svrs.rs.gov.br/CTe/Servicos), which was not
+// reachable when this was written. SVC-RS is served by the SVRS hosts and SVC-SP is assumed to be
+// the SP hosts (the same pattern as NF-e SVC-RS reusing SVRS). Confirm both before production.
+var cteSVCRegistry = registry{
+	AuthorizerSVCRS: svrsSubset(cteRegistry["SVRS"], cteSVCServices),
+	AuthorizerSVCSP: svrsSubset(cteRegistry["SP"], cteSVCServices),
+}
+
+// svcRegistries is the SVC endpoint set per doc type. NFC-e and MDF-e have none.
+var svcRegistries = map[string]registry{
+	"nfe": svcRegistry,
+	"cte": cteSVCRegistry,
+}
+
+// HasSVC reports whether authorizer is a contingency authorizer of docType.
+func HasSVC(docType, authorizer string) bool {
+	_, ok := svcRegistries[docType][authorizer]
+	return ok
+}
+
 func svrsSubset(src envURLs, services []string) envURLs {
 	out := envURLs{}
 	for env, urls := range src {
@@ -271,6 +303,31 @@ func init() {
 // SVCFor returns the SVC (SVC-AN or SVC-RS) that serves uf for NF-e.
 func SVCFor(uf string) (string, bool) {
 	a, ok := svcByUF[uf]
+	return a, ok
+}
+
+// cteSVCByUF is the UF to CT-e SVC designation.
+//
+// ponytail: UNVERIFIED. The CT-e MOC does not list it (it says SVC-RS or SVC-SP "conforme a SVC
+// prevista para atender determinada SEFAZ") and the Portal Nacional blocks bots. Assumption: an
+// SVC is never the UF's own authorizer, so the UFs authorized by SVRS use SVC-SP and the UFs with
+// their own authorizer (MG, MS, MT, PR, SP) use SVC-RS. Correct this table when the official
+// designation is read; the test pins every UF once.
+var cteSVCByUF = func() map[string]string {
+	m := map[string]string{}
+	for _, uf := range []string{"AC", "AL", "AM", "AP", "BA", "CE", "DF", "ES", "GO", "MA", "MG", "MS", "MT", "PA", "PB", "PE", "PI", "PR", "RJ", "RN", "RO", "RR", "RS", "SC", "SE", "SP", "TO"} {
+		if a := cteUFAuth[uf]; a == "SVRS" {
+			m[uf] = AuthorizerSVCSP
+		} else {
+			m[uf] = AuthorizerSVCRS
+		}
+	}
+	return m
+}()
+
+// SVCForCTe returns the SVC (SVC-RS or SVC-SP) that serves uf for CT-e.
+func SVCForCTe(uf string) (string, bool) {
+	a, ok := cteSVCByUF[uf]
 	return a, ok
 }
 
@@ -602,12 +659,12 @@ func Resolve(docType, uf, environment, service string) (string, error) {
 	}
 
 	authorizer := uf
-	if uf == AuthorizerSVCAN || uf == AuthorizerSVCRS {
-		// svcRegistry is NF-e only (no SVC for NFC-e, CT-e or MDF-e via this path).
-		if docType != "nfe" {
+	if uf == AuthorizerSVCAN || uf == AuthorizerSVCRS || uf == AuthorizerSVCSP {
+		// SVC registries exist for NF-e and CT-e only.
+		if !HasSVC(docType, uf) {
 			return "", fmt.Errorf("endpoint not found: doc_type=%q has no contingency authorizer %q", docType, uf)
 		}
-		table = docTypeTable{reg: svcRegistry}
+		table = docTypeTable{reg: svcRegistries[docType]}
 	} else if uf != "AN" {
 		authorizer, ok = table.ufAuth[uf]
 		if !ok {

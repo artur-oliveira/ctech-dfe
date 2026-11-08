@@ -11,7 +11,6 @@ import (
 	"context"
 	"crypto/sha1"
 	"encoding/hex"
-	"encoding/json"
 	"encoding/xml"
 	"regexp"
 	"strconv"
@@ -20,18 +19,12 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"gopkg.aoctech.app/api-commons/problem"
-	godfe "gopkg.aoctech.app/dfe/go-dfe"
 
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"
 )
 
 const (
-	// Service names and body keys of the go-dfe local operations (go-dfe/internal/constants).
-	egressServiceSignText = "SignText"
-	egressBodyText        = "text"
-	egressBodySignature   = "signature"
-
 	// tp_idDest of the offline QR Code (Manual 4.4.2, parameter 6).
 	qrDestCNPJ    = "1"
 	qrDestCPF     = "2"
@@ -44,15 +37,8 @@ const (
 	cpfDigits  = 11
 )
 
-// egressCaller is what the NFC-e offline flow uses of ExternalService: the certificate and the
-// go-dfe-egress call. Tests fake the egress through it.
-type egressCaller interface {
-	CertificateB64(ctx context.Context, orgPK string) (string, string, error)
-	CallDfe(ctx context.Context, req godfe.Request) (godfe.Response, error)
-}
-
 // WithEgress sets the egress used by the offline flow (QR signature, sign-only).
-func (s *NfceService) WithEgress(e egressCaller) *NfceService {
+func (s *NfceService) WithEgress(e services.EgressCaller) *NfceService {
 	s.egress = e
 	return s
 }
@@ -87,28 +73,7 @@ func buildQRCodeV3Offline(baseURL, signedParams, signature string) string {
 
 // signText asks the egress to sign text with the organization's certificate (RSA SHA-1, Base64).
 func (s *NfceService) signText(ctx context.Context, orgPK, issuerDoc, text string) (string, error) {
-	if s.egress == nil {
-		return "", problem.InternalServer("assinatura do QR Code offline não configurada")
-	}
-	certB64, certPassword, err := s.egress.CertificateB64(ctx, orgPK)
-	if err != nil {
-		return "", err
-	}
-	resp, err := s.egress.CallDfe(ctx, godfe.Request{
-		CNPJ: issuerDoc, CertificateB64: certB64, CertificatePassword: certPassword,
-		DocType: "nfce", Service: egressServiceSignText, Body: map[string]any{egressBodyText: text},
-	})
-	if err != nil {
-		return "", problem.InternalServer("falha ao assinar o QR Code: " + err.Error())
-	}
-	if resp.StatusCode != 200 {
-		return "", services.ProblemFromDfeBody(resp.StatusCode, resp.Body)
-	}
-	var out map[string]string
-	if err := json.Unmarshal([]byte(resp.Body), &out); err != nil || out[egressBodySignature] == "" {
-		return "", problem.InternalServer("resposta de assinatura em formato inesperado")
-	}
-	return out[egressBodySignature], nil
+	return services.SignTextViaEgress(ctx, s.egress, orgPK, issuerDoc, "nfce", text)
 }
 
 // ── Emissão offline (tpEmis 9) ───────────────────────────────────────────────
@@ -119,22 +84,7 @@ const (
 	// replacing the text in infNFeSupl afterwards keeps it valid.
 	qrPlaceholder = "QRCODE_PLACEHOLDER"
 
-	egressServiceSignOnly = "SignOnly"
-	egressBodyXML         = "xml"
-	egressBodySignedXML   = "@signed_xml"
-	sefazServiceAuth      = "NFeAutorizacao"
-
-	// Mirror of worker/internal/contingency (the worker is another module). The sparse
-	// contingency-index holds only items with attrContingencySweep.
-	attrContingencySweep    = "contingency_sweep"
-	attrContingencyState    = "contingency_state"
-	attrContingencyDeadline = "contingency_deadline"
-	attrContingencyMsg      = "contingency_msg"
-	contingencySweepValue   = "1"
-	contingencyPending      = "pending"
-	// nfceOfflineDeadlineDays is the retransmission window of an offline NFC-e (owner decision 4;
-	// varies by UF). Same value as worker contingency.NFCeDeadlineDays.
-	nfceOfflineDeadlineDays = 3
+	sefazServiceAuth = "NFeAutorizacao"
 )
 
 // resolveNFCeEmission picks the form of emission of an NFC-e from the fiscal configuration: normal,
@@ -213,28 +163,10 @@ func buildQRCodeV2Offline(baseURL, params, csc string) string {
 // signOfflineXML has the egress sign the enviNFe (no transmission) and returns the signed XML. In v2
 // the QR is built from the resulting DigestValue and replaces the placeholder.
 func (s *NfceService) signOfflineXML(ctx context.Context, q *offlineQR, enviNFe map[string]any, sefazEnv string) (string, error) {
-	if s.egress == nil {
-		return "", problem.InternalServer("assinatura da NFC-e offline não configurada")
-	}
-	certB64, certPassword, err := s.egress.CertificateB64(ctx, q.orgPK)
+	xmlStr, err := services.SignOnlyViaEgress(ctx, s.egress, q.orgPK, q.issuerDoc, q.uf, sefazEnv, "nfce", enviNFe)
 	if err != nil {
 		return "", err
 	}
-	resp, err := s.egress.CallDfe(ctx, godfe.Request{
-		CNPJ: q.issuerDoc, CertificateB64: certB64, CertificatePassword: certPassword,
-		UF: q.uf, Environment: sefazEnv, DocType: "nfce", Service: egressServiceSignOnly, Body: enviNFe,
-	})
-	if err != nil {
-		return "", problem.InternalServer("falha ao assinar a NFC-e: " + err.Error())
-	}
-	if resp.StatusCode != 200 {
-		return "", services.ProblemFromDfeBody(resp.StatusCode, resp.Body)
-	}
-	var out map[string]string
-	if err := json.Unmarshal([]byte(resp.Body), &out); err != nil || out[egressBodyXML] == "" {
-		return "", problem.InternalServer("resposta de assinatura da NFC-e em formato inesperado")
-	}
-	xmlStr := out[egressBodyXML]
 	if q.version == qrCodeVersionV3 {
 		return xmlStr, nil
 	}
@@ -256,25 +188,10 @@ func (s *NfceService) signOfflineXML(ctx context.Context, q *offlineQR, enviNFe 
 // sends later through the normal authorization service.
 func markOfflinePending(item map[string]types.AttributeValue, msg services.WorkerMessage, signedXML string, now time.Time) error {
 	msg.SefazService = sefazServiceAuth
-	msg.Body = map[string]any{egressBodySignedXML: signedXML}
-	raw, err := json.Marshal(msg)
-	if err != nil {
-		return problem.InternalServer("failed to encode contingency message")
-	}
-	item[attrContingencySweep] = &types.AttributeValueMemberS{Value: contingencySweepValue}
-	item[attrContingencyState] = &types.AttributeValueMemberS{Value: contingencyPending}
-	item[attrContingencyDeadline] = &types.AttributeValueMemberS{Value: now.UTC().AddDate(0, 0, nfceOfflineDeadlineDays).Format(time.RFC3339)}
-	item[attrContingencyMsg] = &types.AttributeValueMemberS{Value: string(raw)}
-	return nil
+	return services.MarkContingencyPending(item, msg, signedXML, now, services.OfflineWindowNFCe)
 }
 
 // offlineSignedXML returns the signed enviNFe stored in contingency_msg, or "".
 func offlineSignedXML(item map[string]types.AttributeValue) string {
-	var msg struct {
-		Body map[string]string `json:"body"`
-	}
-	if json.Unmarshal([]byte(strAttr(item, attrContingencyMsg)), &msg) != nil {
-		return ""
-	}
-	return msg.Body[egressBodySignedXML]
+	return services.ContingencySignedXML(item)
 }

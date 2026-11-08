@@ -114,3 +114,28 @@ func sampleNFCeXML() string {
 func sampleMDFeXML() string {
 	return `<mdfeProc><MDFe><infMDFe Id="MDFe` + testMDFeKey + `"><ide><mod>58</mod><serie>1</serie><nMDF>1</nMDF><dhEmi>2026-08-29T12:00:00-03:00</dhEmi><tpEmis>1</tpEmis><tpAmb>2</tpAmb><modal>1</modal><tpEmit>2</tpEmit><tpTransp>1</tpTransp><UFIni>SP</UFIni><UFFim>RJ</UFFim><infMunCarrega><xMunCarrega>São Paulo</xMunCarrega></infMunCarrega></ide><emit><CNPJ>12345678000190</CNPJ><xNome>TRANSPORTADOR TESTE</xNome><IE>123</IE><enderEmit><xLgr>Rua A</xLgr><nro>1</nro><xBairro>Centro</xBairro><xMun>São Paulo</xMun><UF>SP</UF><CEP>01001000</CEP></enderEmit></emit><infModal><rodo><infANTT><RNTRC>12345678</RNTRC></infANTT><veicTracao><placa>ABC1D23</placa><UF>SP</UF><tara>1000</tara><condutor><xNome>MOTORISTA TESTE</xNome><CPF>11122233344</CPF></condutor></veicTracao></rodo></infModal><infDoc><infMunDescarga><xMunDescarga>Rio de Janeiro</xMunDescarga><infNFe><chNFe>` + testNFeKey + `</chNFe></infNFe></infMunDescarga></infDoc><prodPred><tpCarga>05</tpCarga><xProd>PRODUTO TESTE</xProd><NCM>00000000</NCM></prodPred><tot><qNFe>1</qNFe><vCarga>10.00</vCarga><qCarga>1.0000</qCarga><cUnid>01</cUnid></tot></infMDFe><infMDFeSupl><qrCodMDFe>https://example.invalid/mdfe?p=` + testMDFeKey + `</qrCodMDFe></infMDFeSupl></MDFe><protMDFe><infProt><chMDFe>` + testMDFeKey + `</chMDFe><nProt>935260000000001</nProt><dhRecbto>2026-08-29T12:00:01-03:00</dhRecbto></infProt></protMDFe></mdfeProc>`
 }
+
+// Offline MDF-e not yet authorized: the stored signed XML is a bare <MDFe> (no mdfeProc, no
+// protocol). DAMDFE 4.1: EMISSÃO EM CONTINGÊNCIA takes the protocol place.
+func TestDAMDFEOfflineWithoutProtocol(t *testing.T) {
+	x := strings.Replace(sampleMDFeXML(), "<tpEmis>1</tpEmis>", "<tpEmis>2</tpEmis>", 1)
+	x = x[strings.Index(x, "<MDFe>"):strings.Index(x, "<protMDFe>")]
+	root, err := parseXML([]byte(x))
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := buildMDFeContext(root, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if data["is_contingencia"] != true || len(data["protocolo"].(map[string]any)) != 0 {
+		t.Fatalf("contingency=%v protocol=%v", data["is_contingencia"], data["protocolo"])
+	}
+	renderer, err := newFolioRenderer()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := renderer.Render(context.Background(), DocTypeMDFe, []byte(x), StateContingencyPending); err != nil {
+		t.Fatal(err)
+	}
+}

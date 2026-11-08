@@ -195,12 +195,16 @@ da assinatura do XML; **não usa**. O que os documentos dizem:
 | NFC-e QR Code v3 online (`qr_code_version`, sem CSC; rejeição 444 para CPF com v2) | feito (fatia 1) |
 | NFC-e QR Code v3 offline: string e assinatura (`go-dfe` `nfce/SignText`, `nfes/nfce_offline.go`) | feito (fatia 2); o plumbing de emissão offline fica na fatia 3 |
 | NFC-e offline (tpEmis 9): `SignOnly` no egress, `@signed_xml`, QR v2/v3, registro pendente no índice | feito (fatia 3); `status` segue `pending` |
-| Retransmissão: `contingency-retransmit` reenvia `contingency_msg` por `DfeService.Process` e classifica com `Classify` (150 ou 100 fora do prazo = sucesso, duplicidade reconciliada pelo Process, vencido sai do índice) | feito (fatia 4); a Lambda precisa das variáveis e permissões do worker (ver abaixo) |
+| Retransmissão: `contingency-retransmit` reenvia `contingency_msg` por `DfeService.Process` e classifica com `Classify` (150 ou 100 fora do prazo = sucesso, duplicidade reconciliada pelo Process, vencido sai do índice) | feito (fatia 4); infra pronta (seção 9.2) |
 | go-dfe: SVC-AN/SVC-RS, UF para SVC, `Request.Contingency`, `dfe.SVCFor` | feito |
 | NF-e SVC: `tpEmis` 6/7, `dhCont`/`xJust`, roteamento, cancelamento na SVC de origem | feito |
 | B: modelo de configuração por documento, endpoints `*-emission`, validação, `contingency_since` | feito |
 | C: EPEC da NF-e | parcial: construtor do 110140, validação e prazo (`nfes/epec.go`), rota AN; falta serviço/rota de emissão e o tratamento no worker |
-| D: emissão offline (MDF-e, CT-e, CT-e SVC, NFC-e) | ver relatório da rodada |
+| D1: MDF-e offline (`tpEmis` 2): sem `dhCont`/`xJust` (leiaute), QR Code com `sign` (RSA SHA-1 da chave, `mdfe/SignText`), XML assinado guardado (`mdfe/SignOnly`), DAMDFE com EMISSÃO EM CONTINGÊNCIA no lugar do protocolo, prazo 168 h do MOC | feito |
+| D2: CT-e offline (`tpEmis` 2): `dhCont`/`xJust`, QR Code com `sign`, `cte/SignOnly`, 168 h, 150 fora do prazo | feito |
+| D3: CT-e SVC-RS/SVC-SP (`tpEmis` 7/8): endpoints, `dfe.SVCForCTe`, chave e `ide` sem `dhCont`/`xJust`, QR Code sem `sign`, cancelamento na mesma SVC | feito; **UF para SVC e URLs não verificadas** |
+| D4: classificação tardia: 150 do CT-e confirmado (G103); MDF-e sem cStat tardio no MOC (100 fora do prazo é sucesso; 150 do MDF-e não verificado) | feito |
+| DACTE | não há renderizador de DACTE no repositório: contingência (texto e QR com `sign`) só especificada aqui |
 | E: contingência automática | ver relatório da rodada |
 | F: retransmissão (worker + cdk) | parcial: `contingency-index`, dispatcher a cada 15 min, worker com `Classify` e marcação de vencido; falta o reenvio pelo egress (depende de D) |
 | G: DANFC-e de duas vias | feito (fatia 5, seção 9.3) |
@@ -218,7 +222,7 @@ e fica **não verificado**.
 
 `cmd/contingency-retransmit` agora usa `config.Load()` e `service.New`, como `cmd/worker`: a Lambda precisa de
 `DOCUMENTS_BUCKET`, `CERTIFICATES_BUCKET`, `DFE_LAMBDA_NAME`, `DFE_EGRESS_REGION`, `RESULTS_TOPIC_ARN`, leitura/escrita
-S3, `lambda:InvokeFunction` no egress, `sns:Publish` e escrita nas tabelas. Isto é `cdk/` (não alterado nesta rodada).
+S3, `lambda:InvokeFunction` no egress, `sns:Publish` e escrita nas tabelas. Feito em `cdk/`: o worker está em `WORKERS` (`worker-definitions.ts`) e recebe do laço de `worker-stack.ts` as mesmas variáveis, S3, `lambda:InvokeFunction` no egress, `sns:Publish` e DynamoDB (Get/Put/Update/Query, inclusive índices) das tabelas de documento e de eventos (`nfce_events` acrescentada); o dispatcher tem o `lambda:InvokeFunction` assíncrono e `Query` só no `contingency-index`. Sem SQS, sem NAT, sem alarme; sem concorrência reservada (custo e piso da conta). Coberto em `cdk/test/worker-stack.test.ts`.
 
 ### 9.3 DANFC-e offline (fatia 5)
 

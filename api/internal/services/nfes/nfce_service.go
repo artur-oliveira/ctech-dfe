@@ -45,7 +45,7 @@ type NfceService struct {
 	bucketDocs   string
 	tech         TechData
 	// egress runs the operations that need the certificate (offline QR signature, sign-only).
-	egress egressCaller
+	egress services.EgressCaller
 }
 
 func NewNfceService(

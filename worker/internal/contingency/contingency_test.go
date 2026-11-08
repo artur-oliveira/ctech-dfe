@@ -32,3 +32,19 @@ func TestClassify(t *testing.T) {
 		t.Error("StateFor")
 	}
 }
+
+// Offline MDF-e / CT-e (168 h window): an authorization after the deadline, with 100 or CT-e's 150,
+// is a success; only a missing answer past the deadline is overdue.
+func TestClassifyOfflineLateSuccess(t *testing.T) {
+	now := time.Now()
+	deadline := now.Add(-time.Minute)
+	if got := Classify(now, deadline, 100, true); got != OutcomeAuthorizedLate {
+		t.Errorf("100 late = %v", got)
+	}
+	if got := Classify(now, deadline, 150, true); got != OutcomeAuthorizedLate {
+		t.Errorf("150 late = %v", got)
+	}
+	if StateFor(OutcomeAuthorizedLate) != StateAuthorizedLate {
+		t.Error("state")
+	}
+}

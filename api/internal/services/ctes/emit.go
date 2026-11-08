@@ -226,14 +226,25 @@ func (s *CteService) Emit(ctx context.Context, orgPK string, req CteEmitBody, us
 	serie := intAttr(cfg, envPrefix+"_current_serie", 1)
 	currentNumber := intAttr(cfg, envPrefix+"_current_number", 0)
 	now := time.Now()
-	accessKey := services.GenerateAccessKey(emit.Addr.UF, emitDoc, services.ModelCTe, serie, currentNumber, now, services.TpEmisNormal)
+	// tpEmis está na chave: a forma de emissão (normal, off-line 2, SVC 7/8) vem antes dela.
+	em, err := resolveCTeEmission(cfg, emit.Addr.UF)
+	if err != nil {
+		return nil, err
+	}
+	accessKey := services.GenerateAccessKey(emit.Addr.UF, emitDoc, services.ModelCTe, serie, currentNumber, now, em.tpEmis)
 	if accessKey == "" {
 		return nil, problem.BadRequest("UF do emitente inválida: " + emit.Addr.UF)
+	}
+	qrSign := ""
+	if em.offline {
+		if qrSign, err = services.SignTextViaEgress(ctx, s.egress, orgPK, emitDoc, s3PrefixCte, accessKey); err != nil {
+			return nil, err
+		}
 	}
 
 	p := buildParams{
 		accessKey: accessKey, serie: serie, number: currentNumber, environment: environment, now: now,
-		tpEmis: services.TpEmisNormal, cfop: *req.CFOP, emit: emit, crt: crt,
+		tpEmis: em.tpEmis, contingencyAt: em.since, justification: em.reason, qrSign: qrSign, cfop: *req.CFOP, emit: emit, crt: crt,
 		rem: in.rem, dest: in.dest, exped: in.exped, receb: in.receb, takerRole: req.Taker.Role, toma4: in.toma4,
 		origin: in.origin, destination: in.destination,
 		vTPrest: vTPrest, comps: comps, icms: icms, ibscbs: ibscbs, autXML: autXML,
@@ -260,20 +271,34 @@ func (s *CteService) Emit(ctx context.Context, orgPK string, req CteEmitBody, us
 	if err != nil {
 		return nil, err
 	}
-	outboxTx, operationID, err := s.workerSvc.BuildOutboxTx(services.WorkerMessage{
+	workerMsg := services.WorkerMessage{
 		DocPK: pk, AccessKey: accessKey, TableName: tableCtes, S3Prefix: s3PrefixCte, ExpectedFileName: accessKey,
 		CNPJ: emitDoc, UF: emit.Addr.UF, SefazEnvironment: sefazEnvFor(environment),
 		CertS3Key: strAttr(cert, "s3_key"), CertPassword: strAttr(cert, "password"),
-		DocType: s3PrefixCte, SefazService: sefazServiceAutorizacao, Body: body,
+		DocType: s3PrefixCte, SefazService: sefazServiceAutorizacao, Contingency: em.svc, Body: body,
 		BillingOrganizationID: reservation.OrganizationID, BillingPeriod: reservation.Period,
 		BillingSubscriptionID: reservation.SubscriptionID, BillingPriceID: reservation.PriceID,
 		BillingMeter: reservation.Meter, BillingExempt: reservation.Exempt,
-	})
-	if err != nil {
-		return nil, err
 	}
-	encoded["operation_id"] = &types.AttributeValueMemberS{Value: operationID}
-	extraTx := []types.TransactWriteItem{outboxTx}
+	var extraTx []types.TransactWriteItem
+	if em.offline {
+		// Offline: sign now, keep the signed XML pending (contingency index), transmit later.
+		// No outbox row: the retransmission worker sends the stored message.
+		signed, err := services.SignOnlyViaEgress(ctx, s.egress, orgPK, emitDoc, emit.Addr.UF, sefazEnvFor(environment), s3PrefixCte, body)
+		if err != nil {
+			return nil, err
+		}
+		if err := markOfflinePending(encoded, workerMsg, signed, now); err != nil {
+			return nil, err
+		}
+	} else {
+		outboxTx, operationID, err := s.workerSvc.BuildOutboxTx(workerMsg)
+		if err != nil {
+			return nil, err
+		}
+		encoded["operation_id"] = &types.AttributeValueMemberS{Value: operationID}
+		extraTx = append(extraTx, outboxTx)
+	}
 	if reservation.Tx != nil {
 		extraTx = append(extraTx, *reservation.Tx)
 	}

@@ -1857,6 +1857,24 @@ a `WorkerMessage` JSON com `sefaz_service = NFeAutorizacao` e `body = {"@signed_
 `contingency-retransmit` (worker), que classifica com `contingency.Classify`. O DANFC-e de uma NFC-e offline pendente sai do
 XML guardado (duas vias, tarjas, sem protocolo).
 
+**Emissão offline do MDF-e e do CT-e (`tpEmis` 2) e SVC do CT-e (`tpEmis` 7/8).** Mesmo desenho da NFC-e offline, com o código
+compartilhado em `api/internal/services/contingency_offline.go` (`SignTextViaEgress`, `SignOnlyViaEgress`,
+`MarkContingencyPending`, `ContingencySignedXML`). O egress ganhou `mdfe/SignText`, `mdfe/SignOnly`, `cte/SignText` e
+`cte/SignOnly` (base `MDFeRecepcaoSinc` e `CTeRecepcaoSinc`; `constants.SignOnlyBaseService` por tipo). Regras do MOC:
+
+- **MDF-e** (MOC Contingencia, QRCodeConsultaPublica 3, regras F117 a F119): `tpEmis=2` no `ide` e na chave; o leiaute do MDF-e
+  **não tem** `dhCont`/`xJust`; o QR Code vira `URL?chMDFe=..&tpAmb=..&sign=<RSA SHA-1 Base64 da chave>` (sem `sign` na emissão
+  normal, rejeição 488). Prazo de 168 horas (a decisão do dono era 3 dias; vale o MOC). O DAMDFE pendente sai do XML guardado e
+  traz EMISSÃO EM CONTINGÊNCIA no lugar do protocolo (DAMDFE 4.1).
+- **CT-e offline** (MOC Contingencia 4.1, regras G008 a G010, G103, G215, G217): `tpEmis=2`, `dhCont` (contingency_since, não
+  posterior a `dhEmi`) e `xJust` (15 a 256) obrigatórios, QR Code com `sign` da chave; 168 horas e, depois delas, a SEFAZ responde
+  cStat 150 (sucesso, `authorized_late`).
+- **CT-e SVC** (G008, G011, G012, G216, N09): `tpEmis` 7 (SVC-RS) ou 8 (SVC-SP) na chave e no `ide`; `dhCont`/`xJust` **não**
+  podem ser informados (rejeição 586; ao contrário da NF-e) e o QR Code não leva `sign`; só `tpCTe` normal; sem estado pendente.
+  O cancelamento de um CT-e autorizado na SVC vai à mesma SVC (`Contingency` pela chave); os demais eventos vão à origem.
+  `Request.Contingency` aceita `SVC-RS` e `SVC-SP` para `cte`. **Não verificado:** a UF atendida por cada SVC e as URLs (o MOC remete
+  ao Portal Nacional; ver `go-dfe/internal/endpoints/table.go`, `cteSVCByUF` e `cteSVCRegistry`).
+
 **Grupo `emit` — derivado do cadastro, nunca do request:**
 
 | Tag        | Origem                                                                                     |

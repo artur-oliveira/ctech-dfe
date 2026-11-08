@@ -300,8 +300,8 @@ One item per issued fiscal document. PK encodes environment + issuer CNPJ for or
 | `updated_at`   | S    | ISO-8601 UTC                                               |
 | `contingency_sweep` | S | `"1"` only on offline/EPEC documents not yet reconciled; key of the sparse `contingency-index` (NFC-e offline writes it) |
 | `contingency_state` | S | `pending`, `authorized`, `authorized_late`, `rejected_late`, `overdue` |
-| `contingency_deadline` | S | RFC3339; sort key of `contingency-index`. NFC-e offline: emission + 3 days |
-| `contingency_msg` | S | NFC-e offline: `WorkerMessage` JSON whose body is `{"@signed_xml": signed enviNFe}`; sent by the retransmission worker |
+| `contingency_deadline` | S | RFC3339; sort key of `contingency-index`. NFC-e offline: emission + 3 days; MDF-e and CT-e offline: emission + 168 h (MOC) |
+| `contingency_msg` | S | NFC-e, MDF-e and CT-e offline: `WorkerMessage` JSON whose body is `{"@signed_xml": signed document}`; sent by the retransmission worker; never in API responses |
 
 CT-e emitido pela API (`POST /v1.0/ctes`, `incoming = 0`) grava também: `emit_cpf_cnpj`, `emit_name`,
 `dest_cpf_cnpj`, `dest_name`, `dh_emi`, `total` e `freight_total` (vTPrest, S, 2 casas), `cfop`, `icms_cst`

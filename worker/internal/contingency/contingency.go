@@ -24,7 +24,9 @@ const (
 
 	// cStat that ends a retransmission as a success. 150 is "autorizado fora de
 	// prazo" and counts as success (owner decision 3). 100 is the normal
-	// authorization. ponytail: 150 for NF-e/MDF-e confirmed by the CT-e MOC only.
+	// authorization. ponytail: 150 is confirmed by the CT-e MOC only (rule G103: offline CT-e sent after
+	// 168 h returns 150). The MDF-e MOC states no late cStat, so a late MDF-e answers 100 (also a success
+	// here, by the deadline comparison) or a rejection; 150 for the MDF-e stays UNVERIFIED.
 	CStatAuthorized     = 100
 	CStatAuthorizedLate = 150
 	// Duplicity: the SEFAZ already holds the key; reconcile by a consulta.
@@ -34,6 +36,9 @@ const (
 	// NFCeDeadlineDays is the retransmission window of an offline NFC-e (owner
 	// decision 4; varies by UF, hence a constant to be replaced by a UF table).
 	NFCeDeadlineDays = 3
+	// OfflineWindowHours is the MOC window of an offline MDF-e and CT-e (168 h); the API computes the
+	// deadline (services.OfflineWindowMDFe/CTe), the worker only reads it.
+	OfflineWindowHours = 168
 )
 
 // Tables are the document tables the sweep covers, without the table prefix.

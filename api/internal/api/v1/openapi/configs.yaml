@@ -67,7 +67,7 @@ paths:
       tags: [ Fiscal Configs ]
       summary: Define a forma de emissão corrente da CT-e e a contingência automática
       description: |
-        Tipos válidos para este documento: `normal`, `offline` (`tpEmis` 2) e `svc` (SVC-RS ou SVC-SP pela UF do emitente, `tpEmis` 7 ou 8); sem EPEC. Qualquer outro devolve 422
+        Tipos válidos para este documento: `normal`, `offline` (`tpEmis` 2) e `svc` (SVC-RS ou SVC-SP pela UF do emitente, `tpEmis` 7 ou 8); sem EPEC. No `offline`, o CT-e é assinado no egress e fica pendente (`contingency_state=pending`, prazo de 168 h) até o reenvio; na `svc` a SVC autoriza (sem `dhCont`/`xJust` e sem `sign` no QR Code, que o MOC proíbe). A UF para SVC-RS/SVC-SP não foi confirmada no MOC. Qualquer outro devolve 422
         `emission_type_invalid`. Sair de `normal` exige `justification` (15 a 256 caracteres,
         vira `xJust`; 422 `emission_reason_required`) e grava `contingency_since` (`dhCont`),
         mantido enquanto a empresa continua em contingência; ao voltar a `normal` o
@@ -96,7 +96,7 @@ paths:
       tags: [ Fiscal Configs ]
       summary: Define a forma de emissão corrente da MDF-e e a contingência automática
       description: |
-        Tipos válidos para este documento: `normal` e `offline` (`tpEmis` 2); sem SVC e sem EPEC. Qualquer outro devolve 422
+        Tipos válidos para este documento: `normal` e `offline` (`tpEmis` 2); sem SVC e sem EPEC. No `offline`, o MDF-e é assinado no egress, o QR Code leva `sign` e o documento fica pendente (`contingency_state=pending`, prazo de 168 h) até o reenvio. Qualquer outro devolve 422
         `emission_type_invalid`. Sair de `normal` exige `justification` (15 a 256 caracteres,
         vira `xJust`; 422 `emission_reason_required`) e grava `contingency_since` (`dhCont`),
         mantido enquanto a empresa continua em contingência; ao voltar a `normal` o

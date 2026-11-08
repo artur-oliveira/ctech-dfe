@@ -255,3 +255,44 @@ func TestCallSignOnly(t *testing.T) {
 		t.Fatalf("unexpected signed xml: %s", x)
 	}
 }
+
+// SignOnly for MDF-e and CT-e (offline tpEmis 2): the signed document comes back with the Signature
+// after infXXX and the supplementary group, and SignText is allowed for the QR Code sign parameter.
+func TestCallSignOnlyMDFeCTe(t *testing.T) {
+	cases := []struct {
+		docType, root, inf, supl string
+	}{
+		{constants.DocTypeMDFE, "MDFe", "infMDFe", "infMDFeSupl"},
+		{constants.DocTypeCTE, "CTe", "infCte", "infCTeSupl"},
+	}
+	for _, c := range cases {
+		if !Implements(c.docType, constants.ServiceSignText) || !Implements(c.docType, constants.ServiceSignOnly) {
+			t.Fatalf("%s: SignText/SignOnly must be in the allowlist", c.docType)
+		}
+		req := Request{
+			DocType: c.docType, Service: constants.ServiceSignOnly, UF: "SP", Environment: "hom",
+			CertificateB64: buildTestPFX(t, "pw"), CertificatePassword: "pw",
+			Body: map[string]any{c.root: map[string]any{
+				c.inf:  map[string]any{"@Id": c.root + "35200514200166000187580010000000011000000018", "ide": map[string]any{"cUF": "35"}},
+				c.supl: map[string]any{"qrCod": "https://x"},
+			}},
+		}
+		resp, err := Call(context.Background(), req)
+		if err != nil || resp.StatusCode != 200 {
+			t.Fatalf("%s: Call: %v %+v", c.docType, err, resp)
+		}
+		var out map[string]string
+		if err := json.Unmarshal([]byte(resp.Body), &out); err != nil {
+			t.Fatal(err)
+		}
+		x := out[constants.BodyKeyXML]
+		i, k := strings.Index(x, "</"+c.inf+">"), strings.Index(x, "<Signature")
+		if i < 0 || k < i || !strings.Contains(x, "<DigestValue>") {
+			t.Fatalf("%s: unexpected signed xml: %s", c.docType, x)
+		}
+	}
+	// NF-e has no SignOnly; NFC-e still does.
+	if Implements(constants.DocTypeNFE, constants.ServiceSignOnly) {
+		t.Error("nfe must not offer SignOnly")
+	}
+}

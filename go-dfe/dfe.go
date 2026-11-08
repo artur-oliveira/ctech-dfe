@@ -66,9 +66,13 @@ var implemented = map[string]map[string]bool{
 		constants.ServiceSignOnly: true,
 	},
 	constants.DocTypeCTE: {
-		"CTeStatusServico":   true,
-		"CTeConsulta":        true,
-		"CTeDistribuicaoDFe": true,
+		// Local operations, as for nfce (CT-e offline tpEmis 2: QR Code sign parameter and
+		// signed XML kept for the retransmission).
+		constants.ServiceSignText: true,
+		constants.ServiceSignOnly: true,
+		"CTeStatusServico":        true,
+		"CTeConsulta":             true,
+		"CTeDistribuicaoDFe":      true,
 		// Signed — worker's cte-emission/-event workers. Same exception as nfe.
 		"CTeRecepcaoSinc":   true,
 		"CTeRecepcaoOS":     true,
@@ -77,10 +81,13 @@ var implemented = map[string]map[string]bool{
 		"CTeRecepcaoEvento": true,
 	},
 	constants.DocTypeMDFE: {
-		"MDFeStatusServico":   true,
-		"MDFeConsulta":        true,
-		"MDFeConsNaoEnc":      true,
-		"MDFeDistribuicaoDFe": true,
+		// Local operations, as for nfce (MDF-e offline tpEmis 2).
+		constants.ServiceSignText: true,
+		constants.ServiceSignOnly: true,
+		"MDFeStatusServico":       true,
+		"MDFeConsulta":            true,
+		"MDFeConsNaoEnc":          true,
+		"MDFeDistribuicaoDFe":     true,
 		// Signed — worker's mdfe-emission/-event workers. Same exception as nfe.
 		"MDFeRecepcaoSinc":   true,
 		"MDFeRecepcaoEvento": true,
@@ -148,7 +155,11 @@ func Call(ctx context.Context, req Request) (Response, error) {
 	}
 
 	if req.Service == constants.ServiceSignOnly {
-		signed, err := client.SignOnly(constants.SignOnlyBaseService, req.Body)
+		base, ok := constants.SignOnlyBaseService[req.DocType]
+		if !ok {
+			return problemResponse(400, constants.ErrCodeValidation, fmt.Sprintf("SignOnly is not available for %q", req.DocType))
+		}
+		signed, err := client.SignOnly(base, req.Body)
 		if err != nil {
 			return problemResponse(400, constants.ErrCodeXMLSign, err.Error())
 		}
@@ -160,7 +171,7 @@ func Call(ctx context.Context, req Request) (Response, error) {
 	}
 
 	if req.Contingency != "" {
-		if req.Contingency != endpoints.AuthorizerSVCAN && req.Contingency != endpoints.AuthorizerSVCRS {
+		if !endpoints.HasSVC(req.DocType, req.Contingency) {
 			return problemResponse(400, constants.ErrCodeValidation, fmt.Sprintf("unknown contingency authorizer %q", req.Contingency))
 		}
 		client.WithSVC(req.Contingency)
@@ -254,11 +265,17 @@ func problemResponse(status int, code, detail string) (Response, error) {
 	return Response{StatusCode: status, Body: string(body), Headers: map[string]string{}}, nil
 }
 
-// Contingency authorizers accepted in Request.Contingency (NF-e only).
+// Contingency authorizers accepted in Request.Contingency (NF-e: SVC-AN, SVC-RS; CT-e: SVC-RS, SVC-SP).
 const (
 	ContingencySVCAN = endpoints.AuthorizerSVCAN
 	ContingencySVCRS = endpoints.AuthorizerSVCRS
+	// ContingencySVCSP serves CT-e only (SVC-SP, tpEmis 8).
+	ContingencySVCSP = endpoints.AuthorizerSVCSP
 )
 
 // SVCFor returns the SVC that serves uf for NF-e (Ato COTEPE 39/2012).
 func SVCFor(uf string) (string, bool) { return endpoints.SVCFor(uf) }
+
+// SVCForCTe returns the SVC (SVC-RS or SVC-SP) that serves uf for CT-e. UNVERIFIED mapping, see
+// endpoints.cteSVCByUF.
+func SVCForCTe(uf string) (string, bool) { return endpoints.SVCForCTe(uf) }

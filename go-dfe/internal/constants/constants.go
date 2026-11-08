@@ -303,13 +303,20 @@ const (
 )
 
 const (
-	// ServiceSignOnly builds and signs the NFeAutorizacao payload (Body, same shape) and returns
-	// {"xml": signed enviNFe} without contacting the authority. Offline NFC-e (tpEmis 9).
+	// ServiceSignOnly builds and signs the authorization payload of the doc type (Body, same shape
+	// as that service) and returns {"xml": signed document} without contacting the authority.
+	// Offline NFC-e (tpEmis 9), MDF-e and CT-e (tpEmis 2).
 	ServiceSignOnly = "SignOnly"
 	// BodyKeyXML is the response key of ServiceSignOnly.
 	BodyKeyXML = "xml"
-	// BodyKeySignedXML in an NFeAutorizacao Body means: send this already signed enviNFe as is.
+	// BodyKeySignedXML in an authorization Body means: send this already signed document as is.
 	BodyKeySignedXML = "@signed_xml"
-	// signOnlyBaseService is the signed service whose build and signature SignOnly reproduces.
-	SignOnlyBaseService = "NFeAutorizacao"
 )
+
+// SignOnlyBaseService is, per doc type, the signed service whose build and signature SignOnly
+// reproduces. A doc type absent here has no SignOnly.
+var SignOnlyBaseService = map[string]string{
+	DocTypeNFCE: "NFeAutorizacao",
+	DocTypeMDFE: "MDFeRecepcaoSinc",
+	DocTypeCTE:  "CTeRecepcaoSinc",
+}

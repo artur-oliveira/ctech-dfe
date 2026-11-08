@@ -96,6 +96,11 @@ type buildParams struct {
 	now         time.Time
 	tpEmis      string
 	cfop        string
+	// dhCont e xJust só no off-line (tpEmis 2); na SVC (7/8) o MOC proíbe (G008, 586).
+	contingencyAt time.Time
+	justification string
+	// qrSign é o parâmetro sign do QR Code (off-line; G215): RSA SHA-1 Base64 da chave, assinada pelo egress.
+	qrSign string
 
 	emit actor
 	crt  int
@@ -172,7 +177,7 @@ func BuildCTe(p buildParams) map[string]any {
 		"CTe": map[string]any{
 			"@xmlns":     cteXMLNS,
 			"infCte":     inf,
-			"infCTeSupl": map[string]any{"qrCodCTe": qrCodeURL(p.emit.Addr.UF, p.accessKey, p.environment)},
+			"infCTeSupl": map[string]any{"qrCodCTe": qrCodeURL(p.emit.Addr.UF, p.accessKey, p.environment, p.qrSign)},
 		},
 	}).(map[string]any)
 }
@@ -216,6 +221,10 @@ func (p buildParams) buildIde(cUF, cCT, cDV string) map[string]any {
 		"xMunFim": p.destination.City,
 		"UFFim":   p.destination.UF,
 		"retira":  retiraNao,
+	}
+	if p.tpEmis == tpEmisOffline {
+		ide["dhCont"] = p.contingencyAt.In(p.now.Location()).Format(layoutDateTimeTZ)
+		ide["xJust"] = p.justification
 	}
 	taker := p.takerActor()
 	ide["indIEToma"] = indIEToma(taker.IE)
@@ -323,7 +332,8 @@ func indIEToma(ie string) string {
 	return indIETomaContrib
 }
 
-func qrCodeURL(uf, accessKey string, environment int) string {
+// qrCodeURL builds URL?chCTe=...&tpAmb=... and, in off-line contingency, &sign=... (MOC CT-e, QR Code 2.3.2).
+func qrCodeURL(uf, accessKey string, environment int, sign string) string {
 	base, ok := qrCodeBaseByUF[uf]
 	if !ok {
 		base = qrCodeBaseSVRS
@@ -331,7 +341,11 @@ func qrCodeURL(uf, accessKey string, environment int) string {
 	if hom, ok := qrCodeBaseHomByUF[uf]; ok && environment == 2 {
 		base = hom
 	}
-	return fmt.Sprintf("%s?chCTe=%s&tpAmb=%d", base, accessKey, environment)
+	u := fmt.Sprintf("%s?chCTe=%s&tpAmb=%d", base, accessKey, environment)
+	if sign != "" {
+		u += "&sign=" + sign
+	}
+	return u
 }
 
 func verProc(t TechData) string {

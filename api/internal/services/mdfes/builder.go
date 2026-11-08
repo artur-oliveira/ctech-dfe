@@ -72,6 +72,10 @@ type buildParams struct {
 	// tpEmis é a forma de emissão (1 normal, 2 contingência, 3 Regime Especial
 	// NFF). Ao contrário da NF-e, o layout do MDF-e não tem dhCont/xJust.
 	tpEmis string
+	// qrSign é o parâmetro sign do QR Code (contingência off-line, MOC QRCodeConsultaPublica 3):
+	// RSA SHA-1 em Base64 da chave de acesso, assinada pelo egress. Vazio na emissão normal
+	// (com tpEmis normal, informar sign é a rejeição 488).
+	qrSign string
 	// tolls são os vales-pedágio da viagem, já cruzados com o cadastro.
 	tolls []resolvedToll
 	// contractors são os contratantes do frete (infANTT/infContratante), já
@@ -155,9 +159,7 @@ func BuildMDFe(p buildParams) map[string]any {
 		infMDFe["infRespTec"] = rt
 	}
 
-	infMDFeSupl := map[string]any{
-		"qrCodMDFe": fmt.Sprintf("https://dfe-portal.svrs.rs.gov.br/mdfe/qrCode?chMDFe=%s&tpAmb=%d", p.accessKey, p.environment),
-	}
+	infMDFeSupl := map[string]any{"qrCodMDFe": p.qrCode()}
 
 	return services.PruneEmpty(map[string]any{
 		"MDFe": map[string]any{
@@ -166,6 +168,18 @@ func BuildMDFe(p buildParams) map[string]any {
 			"infMDFeSupl": infMDFeSupl,
 		},
 	}).(map[string]any)
+}
+
+// mdfeQRCodeBase is the Portal Nacional QR Code address (MOC MDF-e, QRCodeConsultaPublica 2).
+const mdfeQRCodeBase = "https://dfe-portal.svrs.rs.gov.br/mdfe/qrCode"
+
+// qrCode is URL?chMDFe=...&tpAmb=... plus &sign=... in offline contingency.
+func (p buildParams) qrCode() string {
+	u := fmt.Sprintf("%s?chMDFe=%s&tpAmb=%d", mdfeQRCodeBase, p.accessKey, p.environment)
+	if p.qrSign != "" {
+		u += "&sign=" + p.qrSign
+	}
+	return u
 }
 
 // buildInfAdic junta a mensagem ao fisco (configuração) e a observação da

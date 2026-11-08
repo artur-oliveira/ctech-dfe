@@ -227,3 +227,40 @@ func TestResolve_SVC(t *testing.T) {
 		t.Error("NFC-e must not resolve on the SVC")
 	}
 }
+
+// CT-e SVC (MOC CT-e Contingencia 3.2): tpEmis 7 SVC-RS and 8 SVC-SP. The UF designation and the
+// URLs are UNVERIFIED (see cteSVCByUF); the test pins the assumption so a correction is deliberate.
+func TestCTeSVC(t *testing.T) {
+	if len(cteSVCByUF) != 27 {
+		t.Fatalf("cteSVCByUF has %d UFs, want 27", len(cteSVCByUF))
+	}
+	for _, uf := range []string{"MG", "MS", "MT", "PR", "SP"} {
+		if got, _ := SVCForCTe(uf); got != AuthorizerSVCRS {
+			t.Errorf("%s: got %q, want SVC-RS", uf, got)
+		}
+	}
+	for _, uf := range []string{"AC", "BA", "RJ", "RS", "TO"} {
+		if got, _ := SVCForCTe(uf); got != AuthorizerSVCSP {
+			t.Errorf("%s: got %q, want SVC-SP", uf, got)
+		}
+	}
+	rs, err := Resolve("cte", AuthorizerSVCRS, "prod", "CTeRecepcaoSinc")
+	if err != nil || rs != "https://cte.svrs.rs.gov.br/ws/CTeRecepcaoSincV4/CTeRecepcaoSincV4.asmx" {
+		t.Fatalf("SVC-RS: %q %v", rs, err)
+	}
+	if _, err := Resolve("cte", AuthorizerSVCSP, "hom", "CTeRecepcaoEvento"); err != nil {
+		t.Fatalf("SVC-SP: %v", err)
+	}
+	if _, err := Resolve("cte", AuthorizerSVCAN, "prod", "CTeRecepcaoSinc"); err == nil {
+		t.Error("SVC-AN must not resolve for CT-e")
+	}
+	if _, err := Resolve("nfe", AuthorizerSVCSP, "prod", "NFeAutorizacao"); err == nil {
+		t.Error("SVC-SP must not resolve for NF-e")
+	}
+	if _, err := Resolve("mdfe", AuthorizerSVCRS, "prod", "MDFeRecepcaoSinc"); err == nil {
+		t.Error("MDF-e has no SVC")
+	}
+	if _, err := Resolve("cte", AuthorizerSVCRS, "prod", "CTeDistribuicaoDFe"); err == nil {
+		t.Error("distribution must not resolve on the SVC")
+	}
+}

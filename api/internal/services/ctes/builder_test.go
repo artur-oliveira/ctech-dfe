@@ -194,13 +194,13 @@ func TestBuildCTe_ParidadeComXSD(t *testing.T) {
 }
 
 func TestQRCodeURL(t *testing.T) {
-	if u := qrCodeURL("SP", "K", 1); !strings.HasPrefix(u, qrCodeBaseByUF["SP"]+"?chCTe=K&tpAmb=1") {
+	if u := qrCodeURL("SP", "K", 1, ""); !strings.HasPrefix(u, qrCodeBaseByUF["SP"]+"?chCTe=K&tpAmb=1") {
 		t.Fatal(u)
 	}
-	if u := qrCodeURL("MT", "K", 2); !strings.HasPrefix(u, "https://homologacao.sefaz.mt.gov.br/cte/qrcode?chCTe=K&tpAmb=2") {
+	if u := qrCodeURL("MT", "K", 2, ""); !strings.HasPrefix(u, "https://homologacao.sefaz.mt.gov.br/cte/qrcode?chCTe=K&tpAmb=2") {
 		t.Errorf("MT em homologação usa o endereço próprio: %s", u)
 	}
-	if u := qrCodeURL("BA", "K", 1); !strings.HasPrefix(u, qrCodeBaseSVRS) {
+	if u := qrCodeURL("BA", "K", 1, ""); !strings.HasPrefix(u, qrCodeBaseSVRS) {
 		t.Fatal(u)
 	}
 }

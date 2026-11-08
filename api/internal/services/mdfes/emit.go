@@ -517,9 +517,9 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 		}
 	}
 
-	// C0: a forma de emissão é resolvida antes da chave (tpEmis está na chave).
-	// Hoje sempre normal; a contingência do MDF-e entra na fase C6 do plano.
-	tpEmis := tpEmisNormal
+	// C0: a forma de emissão é resolvida antes da chave (tpEmis está na chave). Off-line (2) quando o
+	// dono trocou o MDF-e para ela; o MDF-e não tem SVC nem EPEC.
+	tpEmis, offline := resolveMDFeEmission(configItem)
 
 	docPeri, err := s.resolveDocPeri(ctx, orgPK, cargo.docs)
 	if err != nil {
@@ -546,6 +546,14 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 	accessKey := services.GenerateAccessKey(emitUF, cnpj, services.ModelMDFe, serie, currentNumber, now, tpEmis)
 	if accessKey == "" {
 		return nil, problem.BadRequest("UF do emitente inválida: " + emitUF)
+	}
+
+	// Offline: o parâmetro sign do QR Code é a assinatura da chave de acesso (egress SignText).
+	qrSign := ""
+	if offline {
+		if qrSign, err = services.SignTextViaEgress(ctx, s.egress, orgPK, cnpj, s3PrefixMdfe, accessKey); err != nil {
+			return nil, err
+		}
 	}
 
 	tpEmit := tpEmitCargaPropria // carregamento posterior: só carga própria (F24, já conferida)
@@ -595,6 +603,7 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 		water:               req.Water,
 		rail:                req.Rail,
 		tpEmis:              tpEmis,
+		qrSign:              qrSign,
 		tolls:               tolls,
 		contractors:         contractors,
 		policies:            policies,
@@ -649,18 +658,31 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 		BillingSubscriptionID: reservation.SubscriptionID, BillingPriceID: reservation.PriceID,
 		BillingMeter: reservation.Meter, BillingExempt: reservation.Exempt,
 	}
-	outboxTx, operationID, err := s.workerSvc.BuildOutboxTx(workerMsg)
-	if err != nil {
-		return nil, err
+	var extraTx []types.TransactWriteItem
+	if offline {
+		// Offline: sign now, keep the signed XML pending (contingency index), transmit later.
+		// No outbox row: the retransmission worker sends the stored message.
+		signed, err := services.SignOnlyViaEgress(ctx, s.egress, orgPK, cnpj, emitUF, sefazEnvFor(environment), s3PrefixMdfe, mdfeBody)
+		if err != nil {
+			return nil, err
+		}
+		if err := markOfflinePending(encoded, workerMsg, signed, now); err != nil {
+			return nil, err
+		}
+	} else {
+		outboxTx, operationID, err := s.workerSvc.BuildOutboxTx(workerMsg)
+		if err != nil {
+			return nil, err
+		}
+		encoded["operation_id"] = &types.AttributeValueMemberS{Value: operationID}
+		extraTx = append(extraTx, outboxTx)
 	}
-	encoded["operation_id"] = &types.AttributeValueMemberS{Value: operationID}
 
 	// The quota is claimed **before** the write, and before anything reaches
 	// SEFAZ. Counting authorised documents instead would make the limit
 	// asynchronous and passable by two concurrent requests, each reading the same
 	// count and each issuing one more. The cost is that a document SEFAZ rejects
 	// has spent a slot; the worker gives it back on a terminal rejection.
-	extraTx := []types.TransactWriteItem{outboxTx}
 	if reservation.Tx != nil {
 		extraTx = append(extraTx, *reservation.Tx)
 	}

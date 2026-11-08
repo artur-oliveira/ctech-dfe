@@ -206,6 +206,7 @@ func (s *CteService) dispatchEvent(ctx context.Context, ec *eventContext, access
 		CNPJ:             ec.cnpj, UF: ec.emitUF, SefazEnvironment: ec.sefazEnv,
 		CertS3Key: ec.certS3Key, CertPassword: ec.certPass,
 		DocType: s3PrefixCte, SefazService: sefazServiceEvento, Body: body,
+		Contingency:     eventContingency(eventType, accessKey),
 		EventsTableName: aws.String(eventsTableKey + "_events"), EventType: aws.String(eventType),
 		SequenceNumber: &seq, EventSK: aws.String(strAttr(event, "sk")),
 	}); err != nil {
@@ -374,4 +375,13 @@ func (s *CteService) GetEventXML(ctx context.Context, orgPK, accessKey, eventSK 
 		return nil, problem.NotFound("XML do evento ainda não disponível")
 	}
 	return s.documentSvc.SignFile(ctx, s3Key, documents.XMLFilename(strAttr(event, "event_type")+"-"+accessKey), documents.ContentTypeXML)
+}
+
+// eventContingency routes the cancellation of a CT-e authorized on the SVC to that same SVC (the SVC accepts
+// only the cancellation, rule N09); every other event goes to the normal authorizer.
+func eventContingency(eventType, accessKey string) string {
+	if eventType != TpEventoCancelamento {
+		return ""
+	}
+	return svcAuthorizerForKey(accessKey)
 }

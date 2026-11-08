@@ -1303,3 +1303,7 @@ A API nunca assina. O QR Code v3 offline e o XML da NFC-e com `tpEmis=9` são as
 e `nfce/SignOnly`); o XML assinado fica em `contingency_msg` e é transmitido depois com `Body["@signed_xml"]`, sem remontar
 nem reassinar (a chave e o `cNF` não mudam). `contingency_msg` carrega a senha do certificado: o `contingency-retransmit`
 remove o atributo em todo desfecho terminal.
+
+MDF-e e CT-e off-line (`tpEmis=2`) seguem a mesma regra (`mdfe`/`cte` `SignText` e `SignOnly`); prazo de 168 h (MOC), não os 3 dias da
+NFC-e. Na SVC do CT-e (7/8) **não** se informa `dhCont`/`xJust` nem `sign` (o oposto da NF-e): copiar o desenho da NF-e aqui
+é rejeição 586. A UF para SVC-RS/SVC-SP e as URLs da SVC do CT-e estão não verificadas (Portal Nacional bloqueia robôs).
