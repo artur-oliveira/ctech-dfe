@@ -16,6 +16,22 @@ const (
 	closeAgregadoDays   = 10
 )
 
+// TripStart is the reference instant of the lifecycle windows: DataInicioViagem, or for TAC-Agregado (which omits
+// it) the declaration date (spec section 5). Zero time when neither parses.
+func TripStart(tripStart, declaredAt string) time.Time {
+	if t, err := ParseDate(tripStart); err == nil {
+		return t
+	}
+	t, _ := ParseDateTime(declaredAt)
+	return t
+}
+
+// CancelDeadline is the last instant the ANTT accepts a cancellation (rule B35); false when the start is unknown.
+func CancelDeadline(tripStart, declaredAt string) (time.Time, bool) {
+	s := TripStart(tripStart, declaredAt)
+	return s.Add(cancelWindow), !s.IsZero()
+}
+
 // LifecycleContext describes the operation being requested on an existing CIOT. Start is DataInicioViagem (for
 // TAC-Agregado, the declaration date), End is DataFimViagem; Inspected is "the ANTT already inspected" (B36/B40).
 type LifecycleContext struct {

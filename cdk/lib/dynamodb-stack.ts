@@ -800,6 +800,19 @@ export class DynamoDBStack extends cdk.Stack {
       maxReadRequestUnits: 1000,
       maxWriteRequestUnits: 1000,
     });
+    // alert-index: sparse. Only open CIOTs (declared, rectified) carry alert_sweep = "1"; the worker stamps it with
+    // alert_at (the 24 h cancellation deadline, RFC3339 UTC) when a declaration succeeds and removes both on cancel
+    // or close. The contingency dispatcher's 15-minute run reads it for the proactive CIOT alerts. KEYS_ONLY, so it
+    // holds no document data; normally a handful of rows.
+    ciotsTable.addGlobalSecondaryIndex({
+      indexName: 'alert-index',
+      partitionKey: {name: 'alert_sweep', type: dynamodb.AttributeType.STRING},
+      sortKey: {name: 'alert_at', type: dynamodb.AttributeType.STRING},
+      projectionType: dynamodb.ProjectionType.KEYS_ONLY,
+      warmThroughput: undefined,
+      maxReadRequestUnits: 1000,
+      maxWriteRequestUnits: 1000,
+    });
     this.tables.set('ciots', ciotsTable);
 
     // ciot_audit: append-only proof of what was sent to the ANTT and what came back. pk = the CIOT row's sk,

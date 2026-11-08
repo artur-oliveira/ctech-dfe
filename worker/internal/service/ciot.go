@@ -25,6 +25,7 @@ import (
 
 	"gopkg.aoctech.app/api-commons/alerts"
 	"gopkg.aoctech.app/dfe/go-dfe/ciot"
+	"gopkg.aoctech.app/dfe/worker/internal/ciotalert"
 )
 
 const (
@@ -234,7 +235,7 @@ func (s *DfeService) releaseCiot(ctx context.Context, msg WorkerMessage, sk, own
 }
 
 // finishCiot writes the outcome: status and attributes, the history entry, and clears the in-flight marker.
-func (s *DfeService) finishCiot(ctx context.Context, msg WorkerMessage, sk, owner, op string, o ciotOutcome, declaration map[string]any) error {
+func (s *DfeService) finishCiot(ctx context.Context, msg WorkerMessage, sk, owner, op string, o ciotOutcome, declaration map[string]any, row map[string]types.AttributeValue) error {
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	set := []string{"updated_at = :ts", "history = list_append(if_not_exists(history, :empty), :entry)"}
 	names := map[string]string{}
@@ -263,6 +264,19 @@ func (s *DfeService) finishCiot(ctx context.Context, msg WorkerMessage, sk, owne
 		i++
 	}
 	remove := "pending_operation, processing_owner, processing_lease_until"
+	// Sparse alert-index: an open CIOT carries the sweep keys (proactive alerts, internal/ciotalert); a final one drops them.
+	switch o.Status {
+	case ciotDeclared:
+		at := time.Now().UTC()
+		if d, ok := ciot.CancelDeadline(rowStr(row, "trip_start"), rowStr(row, "declared_at")); ok {
+			at = d.UTC()
+		}
+		set = append(set, ciotalert.SweepAttr+" = :sw", ciotalert.AtAttr+" = :swat")
+		vals[":sw"] = &types.AttributeValueMemberS{Value: ciotalert.SweepValue}
+		vals[":swat"] = &types.AttributeValueMemberS{Value: at.Format(ciotalert.TimeLayout)}
+	case ciotCancelled, ciotClosed:
+		remove += ", " + ciotalert.SweepAttr + ", " + ciotalert.AtAttr
+	}
 	if o.LastError {
 		set = append(set, "last_error = :le")
 		vals[":le"] = &types.AttributeValueMemberM{Value: map[string]types.AttributeValue{
@@ -557,7 +571,7 @@ func (s *DfeService) settleCiot(ctx context.Context, msg WorkerMessage, sk, op, 
 		}
 		return retry(o.Message, fmt.Errorf("ciot %s: %s", op, o.Message))
 	}
-	if err := s.finishCiot(ctx, msg, sk, owner, op, o, declaration); err != nil {
+	if err := s.finishCiot(ctx, msg, sk, owner, op, o, declaration, row); err != nil {
 		return fmt.Errorf("finish ciot: %w", err)
 	}
 	status := o.Status

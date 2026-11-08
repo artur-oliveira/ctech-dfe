@@ -164,7 +164,19 @@ Same `cmd/worker` binary and SNS filter mechanism as the other workers; `DfeServ
 - **Audit:** every egress answer is appended to `ciot_audit` (body sent with its SHA-256, response), insert-only, best effort.
 - **DLQ:** `service.CiotDLQ` (used by `cmd/dlq-processor`) turns an exhausted declaration into `failed`; a lifecycle operation keeps
   its status and only clears `pending_operation`.
-- **Not built:** the proactive alerts for a certificate about to expire and for the 24 h cancellation deadline. They need a
-  scheduled sweep (follow `cmd/contingency-dispatcher`: EventBridge Scheduler + a sparse index on `ciots` keyed by the deadline,
-  and the certificate `expires_at` from `organization_certificates`). Today the certificate problem alerts when the egress
-  refuses it (400) and a late cancellation comes back as the 221 rejection.
+- **Proactive alerts (`internal/ciotalert`):** no schedule or Lambda of their own; `cmd/contingency-dispatcher` calls
+  `ciotalert.Sweep` at the start of its 15-minute run (a failure is logged and never blocks the retransmissions). Delivery is only
+  go-common `alerts` (env `ALERTS_TOPIC_ARN`), no CloudWatch alarm or metric. Sparse `alert-index` on `ciots`
+  (`alert_sweep = "1"`, sort `alert_at`, KEYS_ONLY): `finishCiot` stamps it when a declaration succeeds (`alert_at` = trip start,
+  or the declaration date for TAC-Agregado, in Brasilia time, plus 24 h, `ciot.CancelDeadline`) and removes it on cancel or close;
+  a rectification leaves it. The sweep queries the whole index (bounded by open CIOTs, no Scan).
+  - `ciot-cancel-deadline`: a row whose `alert_at` is within 2 h ahead and that has no operation in flight; a conditional update of
+    `cancel_alerted` is the once-only guard.
+  - `ciot-certificate-expiry`: per organization with open CIOTs, the latest `expires_at` in `organization_certificates` (a renewed
+    certificate silences the old one) against thresholds 15, 7, 3, 1 days and 0 (expired); the tightest crossed threshold alerts once,
+    guarded by a conditional-put marker row in `ciots` (`CERT_ALERT#{org}`, TTL). Marker first, then alert: a crash in between loses
+    that threshold's alert (the next threshold still fires) rather than repeating it.
+  - Alert text carries ids, env and dates only (org pk, row sk, expiry, threshold); never a document number or certificate content.
+  - Role: `Query` on `ciots/alert-index` and `organization_certificates`, `PutItem`/`UpdateItem` on `ciots`, `sns:Publish` on the alerts topic.
+  - Why not a new schedule: same cadence, same Lambda, no extra cost; the dispatcher is named after contingency only for history.
+  - CIOTs declared before this change have no `alert_*` keys and are not covered (a rectification does not stamp them; no backfill built).

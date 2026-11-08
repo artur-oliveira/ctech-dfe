@@ -266,6 +266,8 @@ sucesso é o `ciot.Result` (`ciot` com 16 caracteres, `aviso_transportador`); re
 local (`ciot.Validate`, `ciot.ValidateLifecycle`), tabela de rejeições e cálculo do piso (tabela versionada, hoje placeholder
 NÃO VERIFICADO) ficam no pacote, ainda sem integração ao `go-dfe/validate`. Spec: `docs/specs/2026-11-04-ciot-antt-pef-integracao.md`.
 
+**Alertas proativos do CIOT:** a rodada de 15 min do `contingency-dispatcher` também varre o índice esparso `alert-index` de `ciots` (CIOTs abertos; `alert_at` = prazo de cancelamento de 24 h, B35) e alerta só pelo tópico compartilhado (go-common `alerts`): `ciot-cancel-deadline` (a 2 h do fim, uma vez por CIOT) e `ciot-certificate-expiry` (certificado da organização com CIOT aberto, em 15, 7, 3 e 1 dias e vencido, uma vez por limite). Sem alarme nem métrica CloudWatch; texto só com ids e datas. Detalhes em `worker/CLAUDE.md`.
+
 **Timeouts de rede:** o `http.Client` de `certificate.Load` usa `constants.DialTimeout` (10 s) no TCP
 connect, e `nfse/nacional`'s `httpDo` limita cada tentativa a `constants.NFSeAttemptTimeout` (20 s).
 

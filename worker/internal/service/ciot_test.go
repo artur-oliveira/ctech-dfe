@@ -452,3 +452,35 @@ func TestUnlinkCiotsRemovesLinkAndAudits(t *testing.T) {
 		t.Fatal("nfe queried the ciots table")
 	}
 }
+
+func TestFinishCiotSparseAlertAttrs(t *testing.T) {
+	row := ciotRow("pending")
+	row["trip_start"] = &types.AttributeValueMemberS{Value: "2026-11-01"}
+	r := newCiotRig(t, row, nil)
+	msg := declareMsg()
+	if err := r.svc.finishCiot(t.Context(), msg, "CIOT_1", "o", "declare", ciotOutcome{Status: ciotDeclared}, nil, row); err != nil {
+		t.Fatal(err)
+	}
+	in := r.dyn.updates[0]
+	if v := in.ExpressionAttributeValues[":swat"].(*types.AttributeValueMemberS).Value; v != "2026-11-02T03:00:00Z" {
+		t.Fatalf("alert_at = %s (trip start 2026-11-01 Brasilia + 24h)", v)
+	}
+	if in.ExpressionAttributeValues[":sw"].(*types.AttributeValueMemberS).Value != "1" {
+		t.Fatal("sweep not stamped")
+	}
+	for _, st := range []string{ciotCancelled, ciotClosed} {
+		r.dyn.updates = nil
+		if err := r.svc.finishCiot(t.Context(), msg, "CIOT_1", "o", "cancel", ciotOutcome{Status: st}, nil, row); err != nil {
+			t.Fatal(err)
+		}
+		expr := aws.ToString(r.dyn.updates[0].UpdateExpression)
+		if !strings.Contains(expr, "alert_sweep, alert_at") || strings.Contains(expr, ":sw") {
+			t.Fatalf("%s must drop the sweep keys: %s", st, expr)
+		}
+	}
+	r.dyn.updates = nil
+	_ = r.svc.finishCiot(t.Context(), msg, "CIOT_1", "o", "rectify", ciotOutcome{Status: ciotRectified}, nil, row)
+	if expr := aws.ToString(r.dyn.updates[0].UpdateExpression); strings.Contains(expr, "alert_") {
+		t.Fatalf("rectify leaves the sweep keys alone: %s", expr)
+	}
+}

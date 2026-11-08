@@ -1,12 +1,15 @@
 // Command contingency-dispatcher lists the documents pending retransmission
 // through the sparse contingency-index (no Scan) and invokes the retransmission
 // worker once per document (async: Lambda retries twice, then the dlq-processor).
+// The same 15-minute run also sweeps the CIOT alert-index (certificate expiry and
+// the 24 h cancellation deadline, internal/ciotalert): no schedule or Lambda of its own.
 package main
 
 import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"time"
 
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
@@ -15,6 +18,7 @@ import (
 	lambdaTypes "github.com/aws/aws-sdk-go-v2/service/lambda/types"
 
 	"gopkg.aoctech.app/dfe/worker/internal/boot"
+	"gopkg.aoctech.app/dfe/worker/internal/ciotalert"
 	"gopkg.aoctech.app/dfe/worker/internal/config"
 	"gopkg.aoctech.app/dfe/worker/internal/contingency"
 )
@@ -31,7 +35,9 @@ func main() {
 		panic("aws config: " + err.Error())
 	}
 	db, lc := dynamodb.NewFromConfig(ac), lambdaSDK.NewFromConfig(ac)
+	alerter := boot.Alerts(rootCtx, "contingency-dispatcher")
 	lambda.StartWithOptions(func(ctx context.Context, _ json.RawMessage) error {
+		ciotalert.Sweep(ctx, db, alerter, cfg.TablePrefix, time.Now().UTC()) // logs its own failures; never blocks the retransmissions
 		return dispatch(ctx, cfg, db, lc)
 	}, lambda.WithContext(rootCtx))
 }

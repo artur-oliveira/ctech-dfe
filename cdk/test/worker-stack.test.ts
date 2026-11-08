@@ -241,6 +241,23 @@ test('the contingency dispatcher runs every 15 min, queries the sparse index and
   expect(text).not.toContain('dynamodb:Scan')
 })
 
+test('the contingency dispatcher also runs the CIOT alerts: sparse index, no Scan, alerts topic only, no alarms', () => {
+  const template = buildTemplate()
+  template.hasResourceProperties('AWS::Lambda::Function', {
+    FunctionName: 'dev-contingency-dispatcher',
+    Environment: {Variables: Match.objectLike({ALERTS_TOPIC_ARN: Match.anyValue()})},
+  })
+  const role = JSON.stringify(Object.values(template.findResources('AWS::IAM::Policy')).filter((p: any) =>
+    JSON.stringify(p.Properties.PolicyName).includes('contingencydispatcherrole')))
+  expect(role).toContain('alert-index')
+  expect(role).toContain('organization_certificates')
+  expect(role).toContain('sns:Publish')
+  expect(role).not.toContain('dynamodb:Scan')
+  template.resourceCountIs('AWS::CloudWatch::Alarm', 0)
+  // one schedule for both jobs
+  template.resourcePropertiesCountIs('AWS::Scheduler::Schedule', {Name: 'dev-contingency-schedule'}, 1)
+})
+
 test('the contingency worker has the shared worker env vars and egress/S3/SNS/Dynamo permissions', () => {
   const template = buildTemplate()
   template.hasResourceProperties('AWS::Lambda::Function', {

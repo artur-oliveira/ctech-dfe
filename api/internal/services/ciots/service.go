@@ -306,10 +306,7 @@ func (s *Service) open(ctx context.Context, orgPK, id string) (map[string]types.
 
 func lifecycleContext(row map[string]types.AttributeValue, op string, now time.Time) ciot.LifecycleContext {
 	lc := ciot.LifecycleContext{Op: op, Tipo: avInt(row, "operation_type"), Now: now}
-	lc.Start, _ = ciot.ParseDate(avStr(row, "trip_start"))
-	if lc.Start.IsZero() { // TAC-Agregado omits the start: the declaration date stands in (spec section 5)
-		lc.Start, _ = ciot.ParseDateTime(avStr(row, "declared_at"))
-	}
+	lc.Start = ciot.TripStart(avStr(row, "trip_start"), avStr(row, "declared_at"))
 	lc.End, _ = ciot.ParseDate(avStr(row, "trip_end"))
 	return lc
 }

@@ -197,6 +197,22 @@ describe('DynamoDBStack - CIOT', () => {
         });
     });
 
+    test('ciots tem o alert-index esparso, KEYS_ONLY', () => {
+        synth().hasResourceProperties('AWS::DynamoDB::GlobalTable', {
+            TableName: 'dev_dfe_ciots',
+            GlobalSecondaryIndexes: Match.arrayWith([
+                Match.objectLike({
+                    IndexName: 'alert-index',
+                    Projection: {ProjectionType: 'KEYS_ONLY'},
+                    KeySchema: [
+                        {AttributeName: 'alert_sweep', KeyType: 'HASH'},
+                        {AttributeName: 'alert_at', KeyType: 'RANGE'},
+                    ],
+                }),
+            ]),
+        });
+    });
+
     test('ciot_audit e pk/sk sem indices e sem TTL', () => {
         const t = synth();
         t.hasResourceProperties('AWS::DynamoDB::GlobalTable', {

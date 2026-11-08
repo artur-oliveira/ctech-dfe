@@ -1135,9 +1135,16 @@ the worker (spec `docs/specs/2026-11-04-ciot-antt-pef-integracao.md`). Cost: on-
 | `mdfe_cascade` | S | `cancel` or `close`: the linked MDF-e was cancelled or closed and the CIOT should follow (offer, never automatic) |
 | `status` | S | `pending`, `declared`, `rectified`, `cancelled`, `closed`, `rejected` |
 | `history` | L | transitions: `{status, operation, at, antt_code, internal_code}` |
-| `expires_at` | N | TTL (epoch seconds), only on carrier-status cache rows (1 h) |
+| `expires_at` | N | TTL (epoch seconds), only on carrier-status cache rows (1 h) and on certificate alert markers |
+| `alert_sweep` | S | `"1"` while the CIOT is open (`declared`, `rectified`); key of `alert-index`. Stamped by the worker when a declaration succeeds, removed on cancel/close. Never returned by the API |
+| `alert_at` | S | RFC3339 UTC `2006-01-02T15:04:05Z`: the 24 h cancellation deadline (B35: trip start, or the declaration date for TAC-Agregado, in Brasilia time, plus 24 h); sort key of `alert-index` |
+| `cancel_alerted` | S | RFC3339 time the cancellation-deadline alert was sent (once per CIOT, set by a conditional update) |
 
-GSIs: `code-index` (pk, `code`) and `mdfe-index` (pk, `mdfe_access_key`), both ALL. Erasure: `ScopeEnvDocs` with `ciot_audit`
+Certificate alert markers (same table, never org rows): `pk` = `CERT_ALERT#{org_pk}`, `sk` = `{certificate expires_at}#{threshold days}`,
+TTL `expires_at` = certificate expiry + 30 days. A conditional put makes each threshold (15, 7, 3, 1 days, 0 = expired) alert once per expiry date.
+
+GSIs: `code-index` (pk, `code`) and `mdfe-index` (pk, `mdfe_access_key`), both ALL; `alert-index` (`alert_sweep`, `alert_at`), KEYS_ONLY, sparse
+(read by the contingency dispatcher's 15-minute run, see `worker/CLAUDE.md`). Erasure: `ScopeEnvDocs` with `ciot_audit`
 as its events table.
 
 ## 49. `ciot_audit`

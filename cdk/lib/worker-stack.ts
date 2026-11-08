@@ -447,6 +447,21 @@ export class WorkerStack extends cdk.Stack {
       resources: ['nfes', 'nfces', 'mdfes', 'ctes'].map(t =>
         `arn:aws:dynamodb:${this.region}:${this.account}:table/${tablePrefix}_${t}/index/contingency-index`),
     }))
+    // The same run also sweeps the CIOT alert-index (certificate expiry, 24 h cancellation deadline) and alerts
+    // through the shared SNS topic: no schedule or Lambda of its own. It reads certificate expiry from the
+    // certificates table, stamps the once-only markers on ciots, and publishes only to the alerts topic.
+    contingencyRole.addToPrincipalPolicy(new iam.PolicyStatement({
+      actions: ['dynamodb:Query'],
+      resources: [
+        `arn:aws:dynamodb:${this.region}:${this.account}:table/${tablePrefix}_ciots/index/alert-index`,
+        `arn:aws:dynamodb:${this.region}:${this.account}:table/${tablePrefix}_organization_certificates`,
+      ],
+    }))
+    contingencyRole.addToPrincipalPolicy(new iam.PolicyStatement({
+      actions: ['dynamodb:PutItem', 'dynamodb:UpdateItem'],
+      resources: [`arn:aws:dynamodb:${this.region}:${this.account}:table/${tablePrefix}_ciots`],
+    }))
+    contingencyRole.addToPrincipalPolicy(new iam.PolicyStatement({actions: ['sns:Publish'], resources: [alertsTopicArn]}))
     const contingencyDispatcher = new lambda.Function(this, 'contingency-dispatcher', {
       functionName: `${environment}-contingency-dispatcher`,
       runtime: lambda.Runtime.PROVIDED_AL2023,
@@ -460,6 +475,7 @@ export class WorkerStack extends cdk.Stack {
         APP_ENVIRONMENT: environment,
         TABLE_PREFIX: tablePrefix,
         CONTINGENCY_FUNCTION_NAME: contingencyWorker.functionName,
+        ALERTS_TOPIC_ARN: alertsTopicArn,
       },
     })
     new scheduler.Schedule(this, 'ContingencySchedule', {
