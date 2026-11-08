@@ -3386,8 +3386,16 @@ Em Configuração Fiscal, as abas NF-e, NFC-e, CT-e e MDF-e têm o bloco "Forma 
   `auto_contingency_type_invalid`); o GET devolve o campo. A troca em si está desligada no servidor
   (`autocontingency.SwitchEnabled = false`); desenho, sinais, disjuntor, prova de duplicidade e pendências em
   `docs/specs/2026-11-08-contingencia.md` seção 4.1.
-- `auto_contingency` aparece desabilitado ("Disponível em breve") enquanto `AUTO_CONTINGENCY_AVAILABLE`
-  (`lib/contingency.ts`) for falso: a troca automática ainda não existe na API.
+- **Contingência automática (UI, pronta e travada):** `EmissionSection` tem o interruptor `auto_contingency` (padrão desligado) e,
+  ligado, um seletor obrigatório `auto_contingency_type` com as `emission_options` sem `normal` (uma só opção, como a NFC-e e o
+  MDF-e `offline`, já vem escolhida); o corpo do PUT leva o tipo só com a flag ligada. Enquanto `AUTO_CONTINGENCY_AVAILABLE`
+  (`lib/contingency.ts`) for falso o interruptor fica desabilitado com "Disponível em breve"; a prop `autoAvailable` do componente
+  e `?mock=auto-contingency` o liberam (testes e captura do guia). Virar a constante a `true` quando `autocontingency.SwitchEnabled` ligar.
+- Estado `awaiting_epec` (NF-e em EPEC, evento 110140 ainda não registrado): selo "Aguardando EPEC" nas listas e aviso no detalhe
+  (`CONTINGENCY_STATE_META`). Mensagens pt-BR em `contingencyFailure` para 422 `epec_uf_refused`, `epec_dhemi_stale`, `epec_invalid`,
+  `auto_contingency_type_required` e `auto_contingency_type_invalid`. Mock: `?mock=auto-contingency|epec-uf|epec-stale|epec-invalid`.
+- Regressão de troca de abas: `EmissionSection` e `FiscalConfigForm` mantêm chaves próprias (`emission-${aba}`, `form-${aba}`);
+  `FiscalConfigTabKeys.test.tsx` e o teste de remontagem em `EmissionSection.test.tsx` cobrem.
 - `ContingencyIndicator` (Topbar) avisa enquanto qualquer documento estiver fora de `normal`.
 - NFC-e: `qr_code_version` (2 ou 3); o CSC só é obrigatório fora da v3.
 - Documentos com `contingency_state` (`pending`, `authorized_late`, `rejected_late`, `overdue`) ganham selo nas listas e

@@ -284,6 +284,8 @@ export const nfesFixture = [
   // EPEC: transmitida depois; os dois estados que a tela precisa distinguir.
   {...nfeList('pending', 1006, '420.00', 9), ...inContingency('pending', '2026-07-16T12:00:00Z')},
   {...nfeList('authorized', 1007, '150.00', 7), ...inContingency('authorized_late', '2026-07-12T12:00:00Z')},
+  // EPEC cujo evento 110140 ainda não foi registrado: o reenvio só é armado depois dele.
+  {...nfeList('pending', 1008, '210.00', 10), ...inContingency('awaiting_epec', '2026-07-17T12:00:00Z')},
 ];
 
 export const nfcesFixture = [
@@ -502,7 +504,7 @@ export const nfeConfigFixture = {
   hom_nsu: 100000002,
   hom_last_dist_nsu_at: '2026-07-02T11:05:00Z',
   emission_type: 'normal',
-  emission_options: ['normal', 'svc'],
+  emission_options: ['normal', 'svc', 'epec'],
   auto_contingency: false,
   updated_at: '2026-07-02T11:05:00Z',
 };
@@ -559,6 +561,11 @@ export const emissionProblemFixtures = {
   reason: {title: 'Motivo obrigatório', detail: 'justificativa de 15 a 256 caracteres obrigatória', code: 'emission_reason_required'},
   qr444: {title: 'Requisição inválida', detail: 'emitente pessoa física (CPF) exige o QR Code versão 3; configure qr_code_version = 3 na Configuração Fiscal da NFC-e (rejeição 444)'},
   svcUf: {title: 'Requisição inválida', detail: 'UF do emitente sem SVC designada: AC'},
+  epecUf: {title: 'EPEC recusado', detail: 'a UF do emitente não aceita EPEC (rejeição 121)', code: 'epec_uf_refused'},
+  epecStale: {title: 'EPEC recusado', detail: 'EPEC exige dhEmi com no máximo 1 dia (rejeição 228)', code: 'epec_dhemi_stale'},
+  epecInvalid: {title: 'EPEC recusado', detail: 'resumo do EPEC incompleto', code: 'epec_invalid'},
+  autoRequired: {title: 'Contingência automática', detail: 'escolha a contingência usada na troca automática', code: 'auto_contingency_type_required'},
+  autoInvalid: {title: 'Contingência automática', detail: 'contingência automática inválida para este documento', code: 'auto_contingency_type_invalid'},
 };
 
 /** Corpos das recusas do impresso (`?mock=format-invalid|format-not-allowed|xml-not-ready`). */

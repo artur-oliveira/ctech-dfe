@@ -204,10 +204,16 @@ const EMISSION_PROBLEMS = {invalid: 'invalid', reason: 'reason'} as const;
  * ao voltar) e devolve a configuração. `?mock=emission-422|emission-reason` força os dois 422.
  */
 function mockEmission(doc: string, raw: unknown): RouteResult {
-  const body = (typeof raw === 'string' ? JSON.parse(raw) : raw) as {emission_type: string; auto_contingency?: boolean; justification?: string};
+  const body = (typeof raw === 'string' ? JSON.parse(raw) : raw) as {emission_type: string; auto_contingency?: boolean; auto_contingency_type?: string; justification?: string};
   const forced = getMockState().emissionProblem;
   if (forced === EMISSION_PROBLEMS.invalid || forced === EMISSION_PROBLEMS.reason) {
     return {error: {status: 422, data: emissionProblemFixtures[forced]}};
+  }
+  // A API exige o tipo com a flag ligada e só aceita uma das `emission_options` além de `normal`.
+  if (body.auto_contingency) {
+    if (!body.auto_contingency_type) return {error: {status: 422, data: emissionProblemFixtures.autoRequired}};
+    const valid = ((mockConfig(doc) as {emission_options?: string[]}).emission_options ?? []).filter((o) => o !== 'normal');
+    if (!valid.includes(body.auto_contingency_type)) return {error: {status: 422, data: emissionProblemFixtures.autoInvalid}};
   }
   const leaving = body.emission_type !== 'normal';
   if (leaving && (body.justification ?? '').trim().length < 15) {
@@ -217,6 +223,7 @@ function mockEmission(doc: string, raw: unknown): RouteResult {
   savedEmission[doc] = {
     emission_type: body.emission_type,
     auto_contingency: body.auto_contingency ?? false,
+    auto_contingency_type: body.auto_contingency ? body.auto_contingency_type : null,
     contingency_since: leaving ? before.contingency_since ?? new Date().toISOString() : null,
     contingency_reason: leaving ? body.justification : null,
   };
@@ -306,6 +313,9 @@ function route(method: string, path: string, body: unknown, params?: Record<stri
   if (m === 'post' && path === '/v1.0/nfes') {
     if (getMockState().emitPrevalidation) return {error: {status: 422, data: nfeFiscalPrevalidationFixture}};
     if (getMockState().emissionProblem === 'svcUf') return {error: {status: 400, data: emissionProblemFixtures.svcUf}};
+    const epec = {epecUf: 'epecUf', epecStale: 'epecStale', epecInvalid: 'epecInvalid'} as const;
+    const forced = getMockState().emissionProblem;
+    if (forced && forced in epec) return {error: {status: 422, data: emissionProblemFixtures[forced as keyof typeof epec]}};
     return {data: echo(body, 'nfe')};
   }
   if (key === 'get /v1.0/nfces') return {data: paginated(nfcesFixture)};
@@ -392,7 +402,7 @@ function route(method: string, path: string, body: unknown, params?: Record<stri
       const base = kind === 'nfes' ? nfeDetailFixture : nfceDetailFixture;
       const row = (kind === 'nfes' ? nfesFixture : nfcesFixture).find((d) => d.sk === sk) as ContingencyDocFields & typeof nfesFixture[number] | undefined;
       // Documento em contingência traz o próprio estado; o pendente ainda não tem XML autorizado.
-      return {data: row?.contingency_state ? {...base, ...row, xml_s3_key: row.contingency_state === 'pending' ? null : base.xml_s3_key} : base};
+      return {data: row?.contingency_state ? {...base, ...row, xml_s3_key: (row.contingency_state === 'pending' || row.contingency_state === 'awaiting_epec') ? null : base.xml_s3_key} : base};
     }
   }
   {

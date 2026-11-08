@@ -9,7 +9,9 @@ import {OptionsSelect} from '@/components/ui/options-select';
 import {emitFailure, type EmitFailure} from '@/lib/billing/notice';
 import {
   AUTO_CONTINGENCY_AVAILABLE,
+  autoContingencyOptions,
   currentEmission,
+  DOC_ARTICLES,
   DOC_LABELS,
   EMISSION_NORMAL,
   EMISSION_REASON_MAX,
@@ -28,6 +30,8 @@ interface EmissionSectionProps {
   doc: EmissionDoc
   pk: string
   config: EmissionFields
+  /** Liga a contingência automática; o padrão é a constante do servidor. Testes e `?mock=auto-contingency` passam true. */
+  autoAvailable?: boolean
 }
 
 /**
@@ -35,11 +39,14 @@ interface EmissionSectionProps {
  * "Salvar configuração" porque é outro endpoint e muda o que a próxima emissão faz. Só oferece o que a API
  * listou em `emission_options` para este documento.
  */
-export function EmissionSection({doc, pk, config}: EmissionSectionProps) {
+export function EmissionSection({doc, pk, config, autoAvailable = AUTO_CONTINGENCY_AVAILABLE}: EmissionSectionProps) {
   const current = currentEmission(config);
   const mutation = useEmissionMutation(doc, pk);
   const [type, setType] = useState<EmissionType>(current);
   const [reason, setReason] = useState(config.contingency_reason ?? '');
+  const autoOptions = autoContingencyOptions(config);
+  const [auto, setAuto] = useState(config.auto_contingency ?? false);
+  const [autoType, setAutoType] = useState<EmissionType | ''>(config.auto_contingency_type ?? '');
   const [failure, setFailure] = useState<EmitFailure | null>(null);
 
   const listed = config.emission_options?.length ? config.emission_options : [EMISSION_NORMAL];
@@ -47,14 +54,23 @@ export function EmissionSection({doc, pk, config}: EmissionSectionProps) {
   const leavingNormal = type !== EMISSION_NORMAL;
   const trimmed = reason.trim();
   const reasonInvalid = leavingNormal && (trimmed.length < EMISSION_REASON_MIN || trimmed.length > EMISSION_REASON_MAX);
-  const dirty = type !== current || (leavingNormal && trimmed !== (config.contingency_reason ?? '').trim());
+  const autoMissing = autoAvailable && auto && !autoType;
+  const autoDirty = auto !== (config.auto_contingency ?? false) || (auto && autoType !== (config.auto_contingency_type ?? ''));
+  const dirty = type !== current || (leavingNormal && trimmed !== (config.contingency_reason ?? '').trim()) || autoDirty;
+
+  const toggleAuto = (on: boolean) => {
+    setAuto(on);
+    // Com uma única contingência possível (NFC-e e MDF-e: offline) não há o que escolher.
+    if (on && !autoType && autoOptions.length === 1) setAutoType(autoOptions[0]);
+  };
 
   const save = async () => {
     setFailure(null);
     try {
       await mutation.mutateAsync({
         emission_type: type,
-        auto_contingency: config.auto_contingency ?? false,
+        auto_contingency: auto,
+        ...(auto && autoType ? {auto_contingency_type: autoType} : {}),
         ...(leavingNormal ? {justification: trimmed} : {}),
       });
       toast.success(type === EMISSION_NORMAL ? 'Emissão normal restabelecida.' : 'Forma de emissão alterada.');
@@ -119,29 +135,48 @@ export function EmissionSection({doc, pk, config}: EmissionSectionProps) {
           <label className="flex min-h-11 items-start gap-2 py-2">
             <input
               type="checkbox"
-              checked={!!config.auto_contingency}
-              disabled={!AUTO_CONTINGENCY_AVAILABLE}
-              readOnly
+              checked={auto}
+              onChange={(e) => toggleAuto(e.target.checked)}
+              disabled={!autoAvailable}
               className="mt-0.5 size-4 rounded border-gray-300 text-brand-600 disabled:cursor-not-allowed"
             />
             <span className="text-sm text-gray-700">
               Entrar em contingência sozinho
-              {!AUTO_CONTINGENCY_AVAILABLE && (
+              {!autoAvailable && (
                 <span className="ml-2 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">Disponível em breve</span>
               )}
               <span className="block text-xs text-gray-500">
-                Quando a SEFAZ ficar fora do ar, o sistema troca a forma de emissão por conta própria e emite o documento de
-                novo, com outra chave de acesso. Ao voltar para Normal, a data de início da contingência é apagada.
+                Vem desligado. Quando a SEFAZ ficar fora do ar, o sistema troca a forma de emissão por conta própria e, nas
+                emissões novas, gera {DOC_ARTICLES[doc]} {DOC_LABELS[doc]} de novo na contingência escolhida, com outra chave de acesso.
+                Quando a SEFAZ volta, o sistema retorna a Normal sozinho e a data de início da contingência é apagada.
+                Uma contingência que você escolheu aqui nunca é desfeita pelo sistema.
               </span>
             </span>
           </label>
+          {autoAvailable && auto && (
+            <div className="ml-6">
+              <label htmlFor={`${doc}-auto-type`} className="mb-1.5 block text-sm font-medium text-gray-700">
+                Contingência usada na troca automática
+              </label>
+              <OptionsSelect
+                id={`${doc}-auto-type`}
+                value={autoType}
+                onValueChange={(v) => setAutoType(v as EmissionType)}
+                options={autoOptions.map((o) => ({value: o, label: emissionLabel(o, doc)}))}
+                placeholder="Escolha a contingência"
+                clearable={false}
+                className="w-full sm:max-w-md"
+              />
+              {autoMissing && <p className="mt-1 text-xs text-red-600">Obrigatório: escolha a contingência da troca automática.</p>}
+            </div>
+          )}
         </div>
       )}
 
       <EmitError failure={failure}/>
 
       <div className="flex justify-end">
-        <Button type="button" onClick={() => void save()} disabled={!dirty || reasonInvalid || mutation.isPending}
+        <Button type="button" onClick={() => void save()} disabled={!dirty || reasonInvalid || autoMissing || mutation.isPending}
                 className="min-h-11 sm:min-h-0">
           {mutation.isPending ? 'Salvando…' : 'Aplicar forma de emissão'}
         </Button>

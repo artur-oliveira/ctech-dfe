@@ -26,8 +26,10 @@ export interface MockState {
   regimeNormal: boolean
   /** NF-e em SVC e NFC-e offline nas configurações, para rever o aviso do app e o banner. */
   contingency: boolean
-  /** Recusa da emissão ou da troca da forma de emissão: `invalid`, `reason`, `qr444` ou `svcUf`. */
-  emissionProblem: 'invalid' | 'reason' | 'qr444' | 'svcUf' | null
+  /** A contingência automática liberada na Configuração Fiscal (`auto-contingency`), enquanto o servidor não a liga. */
+  autoContingency: boolean
+  /** Recusa da emissão ou da troca da forma de emissão: `invalid`, `reason`, `qr444`, `svcUf`, `epecUf`, `epecStale` ou `epecInvalid`. */
+  emissionProblem: 'invalid' | 'reason' | 'qr444' | 'svcUf' | 'epecUf' | 'epecStale' | 'epecInvalid' | null
   /** Recusa do impresso (DANFE, DANFC-e, DAMDFE, DACTE): formato inválido, não permitido ou XML ainda indisponível. */
   printProblem: 'invalidFormat' | 'notAllowed' | 'noXml' | null
   /** Recusa dos eventos F9 (reforma, entrega, ator interessado): layout, evento não autorizado, evento inexistente ou sem certificado. */
@@ -54,6 +56,7 @@ const DEFAULT: MockState = {
   emitPrevalidation: false,
   regimeNormal: false,
   contingency: false,
+  autoContingency: false,
   emissionProblem: null,
   printProblem: null,
   eventProblem: null,
@@ -86,6 +89,14 @@ export function initMockStateFromUrl(search: string): void {
     state = {...state, regimeNormal: true};
   } else if (raw === 'contingency') {
     state = {...state, contingency: true};
+  } else if (raw === 'auto-contingency') {
+    state = {...state, autoContingency: true};
+  } else if (raw === 'epec-uf') {
+    state = {...state, emissionProblem: 'epecUf'};
+  } else if (raw === 'epec-stale') {
+    state = {...state, emissionProblem: 'epecStale'};
+  } else if (raw === 'epec-invalid') {
+    state = {...state, emissionProblem: 'epecInvalid'};
   } else if (raw === 'emission-422') {
     state = {...state, emissionProblem: 'invalid'};
   } else if (raw === 'emission-reason') {

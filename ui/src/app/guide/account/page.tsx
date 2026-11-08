@@ -195,9 +195,34 @@ export default function GuideConta() {
                 <b>Em contingência desde</b>. Enquanto algum documento estiver fora de Normal, o topo do app mostra
                 um aviso que leva direto a esta aba. Voltar para Normal não pede motivo e apaga a data de início.
               </p>
-              <GuideCallout kind="info" title="Contingência automática">
-                A opção <b>Entrar em contingência sozinho</b> aparece desligada, com o selo Disponível em breve: a
-                troca automática ainda não está ativa. Hoje a mudança é sempre manual.
+            </>
+          ),
+        },
+        {
+          id: 'auto-contingency',
+          title: 'Contingência automática',
+          summary:
+            'Opcional e desligada por padrão: o sistema troca a forma de emissão sozinho quando a SEFAZ cai e volta a Normal quando ela se recupera.',
+          image: {
+            src: '/guide/fiscal-config-auto-contingency.webp',
+            alt: 'Bloco Forma de emissão da NF-e com Entrar em contingência sozinho ligado e o seletor obrigatório da contingência usada na troca',
+          },
+          body: (
+            <>
+              <p>
+                A opção <b>Entrar em contingência sozinho</b> vem <b>desligada</b>. Ao ligar, escolha a contingência
+                que o sistema deve usar (obrigatório): NF-e, <b>SVC</b> ou <b>EPEC</b>; NFC-e, <b>offline</b>; CT-e,{' '}
+                <b>offline</b> ou <b>SVC</b>; MDF-e, <b>offline</b>. O sistema nunca troca para uma forma que você não escolheu.
+              </p>
+              <GuideBullets>
+                <li>Vale para as emissões novas: quando a SEFAZ está fora do ar, o documento é gerado de novo na contingência, com outra chave de acesso.</li>
+                <li>Quando a SEFAZ se recupera, o sistema volta a Normal sozinho e a data de início da contingência é apagada.</li>
+                <li>Uma contingência que você escolheu manualmente nunca é desfeita pelo sistema.</li>
+                <li>Na NF-e em EPEC, a nota fica com o selo <b>Aguardando EPEC</b> até o evento ser registrado na SEFAZ Nacional; depois passa a <b>Contingência pendente</b>.</li>
+              </GuideBullets>
+              <GuideCallout kind="info" title="Disponível em breve">
+                A troca automática ainda não está ativa no servidor: o interruptor aparece travado com o selo Disponível em breve e
+                hoje a mudança é sempre manual.
               </GuideCallout>
             </>
           ),

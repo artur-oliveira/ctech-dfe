@@ -11,7 +11,9 @@ import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
 import {NoOrgBanner} from '@/components/ui/no-org-banner';
 import {EmissionSection} from '@/components/fiscal-config/EmissionSection';
-import {EMISSION_DOCS, type EmissionDoc, type EmissionFields} from '@/lib/contingency';
+import {MOCK_ENABLED} from '@/lib/mock/env';
+import {getMockState} from '@/lib/mock/state';
+import {AUTO_CONTINGENCY_AVAILABLE, EMISSION_DOCS, type EmissionDoc, type EmissionFields} from '@/lib/contingency';
 import {FiscalConfigForm} from '@/components/fiscal-config/FiscalConfigForm';
 import type {DocVariant} from '@/lib/schemas/fiscal-configs';
 import {Skeleton} from '@aoctech/ui';
@@ -152,6 +154,7 @@ function FiscalConfigContent() {
                     doc={activeTab as EmissionDoc}
                     pk={pk}
                     config={active.query.config as EmissionFields}
+                    autoAvailable={AUTO_CONTINGENCY_AVAILABLE || (MOCK_ENABLED && getMockState().autoContingency)}
                   />
                 )}
                 <FiscalConfigForm

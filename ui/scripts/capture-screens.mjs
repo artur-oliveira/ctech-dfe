@@ -299,6 +299,9 @@ const CAPTURES = [
   {slug: 'fiscal-config', route: '/fiscal-config', waitText: 'Ambiente ativo'},
   // `?mock=contingency`: NF-e em SVC (banner com início e motivo) e o aviso no topo do app.
   {slug: 'fiscal-config-emission', route: '/fiscal-config?mock=contingency', waitText: 'Em contingência desde'},
+  // `?mock=auto-contingency` libera a troca automática enquanto o servidor não a liga; o clique liga o interruptor e abre o seletor do tipo.
+  {slug: 'fiscal-config-auto-contingency', route: '/fiscal-config?mock=auto-contingency', waitText: 'Entrar em contingência sozinho',
+    steps: [{clickAt: 'input[type="checkbox"]'}, {waitText: 'Contingência usada na troca automática'}, {scrollAt: 'section[aria-label="Forma de emissão"]'}]},
   {slug: 'fiscal-config-nfce-qr', route: '/fiscal-config?tab=nfce', waitText: 'Versão do QR Code'},
   {slug: 'certificates', route: '/certificates', waitText: 'EMPRESA MOCK'},
 

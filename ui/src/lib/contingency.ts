@@ -18,18 +18,23 @@ export const EMISSION_REASON_MIN = 15;
 export const EMISSION_REASON_MAX = 256;
 
 /**
- * A API guarda a flag mas ainda não troca a forma de emissão sozinha (fatia E da spec, seção 9). Enquanto for falso,
- * o interruptor aparece desligado e travado: ligar prometeria algo que não acontece. Virar `true` quando a fatia sair.
+ * A API guarda a flag e o tipo, mas ainda não troca a forma de emissão sozinha (`autocontingency.SwitchEnabled`, spec
+ * seção 4.1). Enquanto for falso, o interruptor aparece desligado e travado: ligar prometeria algo que não acontece.
+ * Virar `true` quando o servidor ligar a troca. A tela já está pronta: `EmissionSection` aceita `autoAvailable` (testes
+ * e `?mock=auto-contingency`).
  */
 export const AUTO_CONTINGENCY_AVAILABLE = false;
 
 export const DOC_LABELS: Record<EmissionDoc, string> = {nfe: 'NF-e', nfce: 'NFC-e', cte: 'CT-e', mdfe: 'MDF-e'};
+export const DOC_ARTICLES: Record<EmissionDoc, string> = {nfe: 'a', nfce: 'a', cte: 'o', mdfe: 'o'};
 
 /** Campos de contingência que o GET da configuração devolve (`emission_options` é a lista válida do documento). */
 export interface EmissionFields {
   emission_type?: EmissionType | null
   emission_options?: EmissionType[] | null
   auto_contingency?: boolean
+  /** Contingência da troca automática (`svc`, `epec` ou `offline`); só existe com `auto_contingency` ligada. */
+  auto_contingency_type?: EmissionType | null
   contingency_since?: string | null
   contingency_reason?: string | null
 }
@@ -38,6 +43,8 @@ export interface EmissionFields {
 export interface EmissionBody {
   emission_type: EmissionType
   auto_contingency: boolean
+  /** Obrigatório com `auto_contingency` ligada: uma das `emission_options` além de `normal`. */
+  auto_contingency_type?: EmissionType
   /** Obrigatória ao sair de `normal`; não vai ao voltar a `normal`. */
   justification?: string
 }
@@ -64,6 +71,10 @@ export function emissionLabel(type: EmissionType, doc: EmissionDoc): string {
   return detail ? `${EMISSION_LABELS.svc} (${detail})` : EMISSION_LABELS[type];
 }
 
+/** Tipos que a troca automática pode usar neste documento: as `emission_options` sem `normal`. */
+export const autoContingencyOptions = (cfg: EmissionFields | null | undefined): EmissionType[] =>
+  (cfg?.emission_options ?? []).filter((o) => o !== EMISSION_NORMAL);
+
 export const emissionHint = (type: EmissionType): string => EMISSION_HINTS[type];
 
 /** Ausente é normal. */
@@ -72,7 +83,7 @@ export const currentEmission = (cfg: EmissionFields | null | undefined): Emissio
 export const inContingency = (cfg: EmissionFields | null | undefined): boolean => currentEmission(cfg) !== EMISSION_NORMAL;
 
 /** Estado de um documento emitido em contingência EPEC/offline (`contingency_state`). */
-export type ContingencyState = 'pending' | 'authorized_late' | 'rejected_late' | 'overdue'
+export type ContingencyState = 'awaiting_epec' | 'pending' | 'authorized_late' | 'rejected_late' | 'overdue'
 
 export const CONTINGENCY_PENDING: ContingencyState = 'pending';
 
@@ -83,6 +94,11 @@ export interface ContingencyDocFields {
 
 /** `@` vira a vogal de gênero, como em `dfe_status`: Emitid@ → Emitida (nota) / Emitido (manifesto, conhecimento). */
 export const CONTINGENCY_STATE_META: Record<ContingencyState, { label: string; tone: 'warning' | 'success' | 'danger'; notice: string }> = {
+  awaiting_epec: {
+    label: 'Aguardando EPEC',
+    tone: 'warning',
+    notice: 'Emitid@ em EPEC; aguardando o registro do evento na SEFAZ Nacional. A transmissão só começa depois do registro',
+  },
   pending: {
     label: 'Contingência pendente',
     tone: 'warning',
@@ -121,6 +137,11 @@ export function contingencyNotice(state: ContingencyState, male: boolean, deadli
 /** Códigos de problema (RFC 7807) da troca da forma de emissão. */
 export const PROBLEM_EMISSION_TYPE_INVALID = 'emission_type_invalid';
 export const PROBLEM_EMISSION_REASON_REQUIRED = 'emission_reason_required';
+export const PROBLEM_AUTO_TYPE_REQUIRED = 'auto_contingency_type_required';
+export const PROBLEM_AUTO_TYPE_INVALID = 'auto_contingency_type_invalid';
+export const PROBLEM_EPEC_UF_REFUSED = 'epec_uf_refused';
+export const PROBLEM_EPEC_DHEMI_STALE = 'epec_dhemi_stale';
+export const PROBLEM_EPEC_INVALID = 'epec_invalid';
 
 const QR_VERSION_FIELD = 'qr_code_version';
 const SVC_WITHOUT_UF = 'sem SVC designada';
@@ -152,6 +173,22 @@ export function contingencyFailure(
       message: `Explique o motivo da contingência, com ${EMISSION_REASON_MIN} a ${EMISSION_REASON_MAX} caracteres.`,
       action: {label: 'Abrir configuração', href: fiscalConfigHref(doc)},
     };
+  }
+  const configAction = {label: 'Abrir configuração', href: fiscalConfigHref(doc)};
+  if (code === PROBLEM_AUTO_TYPE_REQUIRED) {
+    return {message: 'Escolha a contingência que o sistema deve usar na troca automática.', action: configAction};
+  }
+  if (code === PROBLEM_AUTO_TYPE_INVALID) {
+    return {message: `Essa contingência não existe para ${DOC_ARTICLES[doc]} ${DOC_LABELS[doc]}. Escolha uma das opções da lista.`, action: configAction};
+  }
+  if (code === PROBLEM_EPEC_UF_REFUSED) {
+    return {message: 'A UF da sua empresa não aceita EPEC (rejeição 121). Use a contingência SVC ou volte para Normal.', action: configAction};
+  }
+  if (code === PROBLEM_EPEC_DHEMI_STALE) {
+    return {message: 'No EPEC, a data de emissão da nota pode ter no máximo 1 dia (rejeição 228). Emita de novo com a data atual.', action: configAction};
+  }
+  if (code === PROBLEM_EPEC_INVALID) {
+    return {message: 'O resumo do EPEC não fecha com a nota (chave ou dados incompletos). Confira a nota e emita de novo.', action: configAction};
   }
   if (detail.includes(QR_VERSION_FIELD)) {
     return {

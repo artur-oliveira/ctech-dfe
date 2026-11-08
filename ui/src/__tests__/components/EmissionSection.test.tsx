@@ -88,4 +88,80 @@ describe('EmissionSection', () => {
     fireEvent.click(screen.getByRole('button', {name: 'Aplicar forma de emissão'}));
     expect(await screen.findByRole('alert')).toHaveTextContent(/Explique o motivo da contingência/);
   });
+
+  describe('contingência automática liberada (autoAvailable)', () => {
+    const NFCE = {...NFE_CFG, emission_options: ['normal', 'offline'] as ('normal' | 'offline')[]};
+    const apply = () => fireEvent.click(screen.getByRole('button', {name: 'Aplicar forma de emissão'}));
+
+    it('liga o interruptor, explica o padrão desligado e a regeração, e pede o tipo só da lista sem normal', async () => {
+      render(<EmissionSection doc="nfe" pk="1" config={NFE_CFG} autoAvailable/>);
+      const toggle = screen.getByRole('checkbox', {name: /Entrar em contingência sozinho/});
+      expect(toggle).toBeEnabled();
+      expect(toggle).not.toBeChecked();
+      expect(screen.queryByText('Disponível em breve')).not.toBeInTheDocument();
+      expect(screen.getByText(/Vem desligado/)).toBeInTheDocument();
+      expect(screen.getByText(/gera a NF-e de novo/)).toBeInTheDocument();
+      expect(screen.getByText(/data de início da contingência é apagada/)).toBeInTheDocument();
+      expect(screen.queryByLabelText('Contingência usada na troca automática')).not.toBeInTheDocument();
+      await userEvent.click(toggle);
+      fireEvent.click(screen.getByRole('combobox', {name: 'Contingência usada na troca automática'}));
+      expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual([
+        'Contingência SVC (SVC-AN ou SVC-RS conforme a UF)', 'EPEC',
+      ]);
+    });
+
+    it('com a flag ligada o tipo é obrigatório: o botão trava até escolher e o corpo leva o tipo', async () => {
+      mutateAsync.mockResolvedValue({});
+      render(<EmissionSection doc="nfe" pk="1" config={NFE_CFG} autoAvailable/>);
+      await userEvent.click(screen.getByRole('checkbox', {name: /Entrar em contingência sozinho/}));
+      expect(screen.getByRole('button', {name: 'Aplicar forma de emissão'})).toBeDisabled();
+      expect(screen.getByText(/Obrigatório: escolha a contingência/)).toBeInTheDocument();
+      await userEvent.click(screen.getByRole('combobox', {name: 'Contingência usada na troca automática'}));
+      await userEvent.click(await screen.findByRole('option', {name: 'EPEC'}));
+      apply();
+      await waitFor(() => expect(mutateAsync).toHaveBeenCalledWith({
+        emission_type: 'normal', auto_contingency: true, auto_contingency_type: 'epec',
+      }));
+    });
+
+    it('com uma única contingência possível (NFC-e: offline) o tipo já vem escolhido', async () => {
+      mutateAsync.mockResolvedValue({});
+      render(<EmissionSection doc="nfce" pk="1" config={NFCE} autoAvailable/>);
+      await userEvent.click(screen.getByRole('checkbox', {name: /Entrar em contingência sozinho/}));
+      expect(screen.getByRole('button', {name: 'Aplicar forma de emissão'})).toBeEnabled();
+      apply();
+      await waitFor(() => expect(mutateAsync).toHaveBeenCalledWith({
+        emission_type: 'normal', auto_contingency: true, auto_contingency_type: 'offline',
+      }));
+    });
+
+    it('desligar a flag não envia o tipo', async () => {
+      mutateAsync.mockResolvedValue({});
+      render(<EmissionSection doc="nfce" pk="1" config={{...NFCE, auto_contingency: true, auto_contingency_type: 'offline'}} autoAvailable/>);
+      await userEvent.click(screen.getByRole('checkbox', {name: /Entrar em contingência sozinho/}));
+      apply();
+      await waitFor(() => expect(mutateAsync).toHaveBeenCalledWith({emission_type: 'normal', auto_contingency: false}));
+    });
+
+    it('mostra a recusa auto_contingency_type_required da API', async () => {
+      const {ApiError} = await import('@/lib/api/client');
+      mutateAsync.mockRejectedValue(new ApiError(422, 'x', {code: 'auto_contingency_type_required', detail: 'x'}));
+      render(<EmissionSection doc="nfce" pk="1" config={NFCE} autoAvailable/>);
+      await userEvent.click(screen.getByRole('checkbox', {name: /Entrar em contingência sozinho/}));
+      apply();
+      expect(await screen.findByRole('alert')).toHaveTextContent(/Escolha a contingência que o sistema deve usar/);
+    });
+
+    // Regressão da troca de abas: a página remonta a seção por `key` (`emission-${aba}`); o estado do interruptor de
+    // uma aba não pode vazar para a outra nem a seção se acumular.
+    it('trocar de aba (outra key) remonta uma única seção, sem levar o interruptor da aba anterior', async () => {
+      const {rerender} = render(<EmissionSection key="emission-nfe" doc="nfe" pk="1" config={NFE_CFG} autoAvailable/>);
+      await userEvent.click(screen.getByRole('checkbox', {name: /Entrar em contingência sozinho/}));
+      expect(screen.getByRole('checkbox', {name: /Entrar em contingência sozinho/})).toBeChecked();
+      rerender(<EmissionSection key="emission-nfce" doc="nfce" pk="1" config={NFCE} autoAvailable/>);
+      expect(screen.getAllByRole('region', {name: 'Forma de emissão'})).toHaveLength(1);
+      expect(screen.getAllByRole('checkbox')).toHaveLength(1);
+      expect(screen.getByRole('checkbox', {name: /Entrar em contingência sozinho/})).not.toBeChecked();
+    });
+  });
 });

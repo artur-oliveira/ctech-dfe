@@ -75,3 +75,21 @@ describe('nfceConfigSchema: CSC e versão do QR Code', () => {
     }).success).toBe(true);
   });
 });
+
+describe('contingência automática e EPEC', () => {
+  it('awaiting_epec tem selo e aviso próprios, no feminino da NF-e', () => {
+    expect(contingencyLabel('awaiting_epec')).toBe('Aguardando EPEC');
+    expect(contingencyNotice('awaiting_epec', false)).toMatch(/^Emitida em EPEC; aguardando o registro do evento/);
+  });
+
+  it('mapeia os códigos novos para mensagens em pt-BR, com artigo certo', () => {
+    const msg = (code: string, doc: 'nfe' | 'cte' | 'mdfe' = 'nfe') => contingencyFailure({code}, '', doc)?.message;
+    expect(msg('auto_contingency_type_required')).toMatch(/Escolha a contingência/);
+    expect(msg('auto_contingency_type_invalid', 'cte')).toMatch(/para o CT-e/);
+    expect(msg('auto_contingency_type_invalid', 'mdfe')).toMatch(/para o MDF-e/);
+    expect(msg('epec_uf_refused')).toMatch(/não aceita EPEC/);
+    expect(msg('epec_dhemi_stale')).toMatch(/no máximo 1 dia/);
+    expect(msg('epec_invalid')).toMatch(/resumo do EPEC/);
+    expect(JSON.stringify(['a', msg('epec_uf_refused'), msg('epec_invalid')])).not.toContain('—');
+  });
+});

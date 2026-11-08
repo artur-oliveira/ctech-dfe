@@ -281,6 +281,7 @@ da assinatura do XML; **não usa**. O que os documentos dizem:
 | D4: classificação tardia: 150 do CT-e confirmado (G103); MDF-e sem cStat tardio no MOC (100 fora do prazo é sucesso; 150 do MDF-e não verificado) | feito |
 | DACTE | não há renderizador de DACTE no repositório: contingência (texto e QR com `sign`) só especificada aqui |
 | E: contingência automática | desenho final na seção 4.1; `auto_contingency_type` (campo, validação e problemas) e a lógica de decisão (`autocontingency`: sinais, disjuntor com histerese, prova de duplicidade, `Reissue`) feitos e testados; **troca desligada** (`SwitchEnabled = false`); falta o que a seção 4.1 lista |
+| E (UI): configuração da contingência automática | feito (2026-11-08): interruptor e seletor de `auto_contingency_type` por documento, selo `awaiting_epec`, mensagens dos 422 novos, mock e guia; **travado** por `AUTO_CONTINGENCY_AVAILABLE = false` até `SwitchEnabled` ligar |
 | F: retransmissão (worker + cdk) | parcial: `contingency-index`, dispatcher a cada 15 min, worker com `Classify` e marcação de vencido; falta o reenvio pelo egress (depende de D) |
 | G: DANFC-e de duas vias | feito (fatia 5, seção 9.3) |
 
