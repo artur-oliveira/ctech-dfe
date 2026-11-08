@@ -149,7 +149,7 @@ describe('mock handler: CT-e detalhe, eventos e SEFAZ', () => {
     const other = await get(`/v1.0/ctes/${ctesFixture[5].sk}`) as {taker: {doc: string}; emit_cpf_cnpj: string};
     expect(other.taker.doc).not.toBe(other.emit_cpf_cnpj);
     const events = await get(`/v1.0/ctes/${ctesFixture[0].sk}/events`) as {items: {event_type: string}[]};
-    expect(events.items.map((e) => e.event_type)).toEqual(['emission', '110110', '610110']);
+    expect(events.items.map((e) => e.event_type)).toEqual(['emission', '110110', '610110', '110180']);
   });
 
   it('a consulta na SEFAZ diverge no CT-e 35 e acusa chave desconhecida', async () => {

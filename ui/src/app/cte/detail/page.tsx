@@ -27,7 +27,10 @@ import {formatCurrency} from '@/lib/utils/helpers';
 import {formatDatetimeBR, triggerRemoteDownload} from '@/lib/utils/dfe';
 import {sameDoc} from '@/lib/utils/cte';
 import {ACCESS_KEY_MOD_CTE, validateAccessKey} from '@/lib/utils/access-key';
+import {hasPermission} from '@/lib/utils/delivery-events';
 import type {NfeEventOut} from '@/lib/types/api';
+
+const PERMISSION_CTE_EVENTS = 'create.cte_events';
 
 const ACTION_BTN = 'min-h-11 sm:min-h-0';
 
@@ -50,7 +53,7 @@ const Party = ({label, p}: { label: string; p?: { doc: string; name: string } })
 function CteDetail({accessKey}: { accessKey: string }) {
   const {selectedOrg} = useAuth();
   const [eventXmlLoading, setEventXmlLoading] = useState<string | null>(null);
-  const {openCancel, openCorrection, openDisagree, openDisagreeCancel, modals} = useCteActions(selectedOrg?.pk);
+  const {openCancel, openCorrection, openDisagree, openDisagreeCancel, openReceipt, openFailure, openDeliveryCancel, modals} = useCteActions(selectedOrg?.pk);
 
   const {data: doc, isLoading, error} = useQuery({
     queryKey: queryKeys.ctes.detail(accessKey),
@@ -88,7 +91,10 @@ function CteDetail({accessKey}: { accessKey: string }) {
   const target = {
     sk: accessKey, number: doc.number,
     disagreements: events.items.filter((e) => e.event_type === CTE_EVENT.DISAGREEMENT && e.status === 'success'),
+    deliveries: events.items.filter((e) => (e.event_type === CTE_EVENT.DELIVERY_RECEIPT || e.event_type === CTE_EVENT.DELIVERY_FAILURE) && e.status === 'success'),
+    nfeKeys: doc.nfe_keys,
   };
+  const canEvents = hasPermission(selectedOrg?.permissions, PERMISSION_CTE_EVENTS);
   const place = (p: { city: string; uf: string } | null) => (p ? `${p.city} / ${p.uf}` : '-');
 
   return (
@@ -123,6 +129,21 @@ function CteDetail({accessKey}: { accessKey: string }) {
               <Button variant="outline" onClick={() => openCancel(target)} className={`${ACTION_BTN} text-red-600 border-red-200 hover:bg-red-50`}>
                 Cancelar
               </Button>
+              {canEvents && (
+                <>
+                  <Button variant="outline" onClick={() => openReceipt(target)} className={ACTION_BTN}>
+                    Comprovante de entrega
+                  </Button>
+                  <Button variant="outline" onClick={() => openFailure(target)} className={ACTION_BTN}>
+                    Insucesso de entrega
+                  </Button>
+                  {target.deliveries.length > 0 && (
+                    <Button variant="outline" onClick={() => openDeliveryCancel(target)} className={ACTION_BTN}>
+                      Cancelar entrega
+                    </Button>
+                  )}
+                </>
+              )}
             </>
           )}
           {isTaker ? (

@@ -224,6 +224,82 @@ export default function GuideNfe() {
           ),
         },
         {
+          id: 'fiscal-events',
+          title: 'Eventos fiscais: entrega, ator interessado e reforma tributária',
+          summary: 'Um único botão, Eventos fiscais, reúne os eventos que não são carta de correção nem cancelamento.',
+          image: {
+            src: '/guide/nfe-fiscal-events-menu.webp',
+            alt: 'Menu Eventos fiscais da NF-e, com os grupos Entrega, Transporte e Reforma tributária',
+          },
+          body: (
+            <>
+              <p>
+                O menu aparece em NF-e autorizada, para quem tem a permissão de eventos de NF-e. Cada entrada abre
+                uma janela só com os campos daquele evento; o número de sequência é opcional e, vazio, vale o
+                próximo livre. O resultado volta pela linha do tempo de eventos.
+              </p>
+              <GuideTerms>
+                <GuideTerm term="Comprovante de entrega (110130)">
+                  Só o emitente. Data e hora da entrega, nome e documento do recebedor, hash SHA-1 em Base64
+                  (28 caracteres) e, se quiser, a data do hash e as coordenadas. Vai ao Ambiente Nacional.
+                </GuideTerm>
+                <GuideTerm term="Cancelar comprovante (110131)">
+                  Escolha na lista o comprovante que a SEFAZ já autorizou; o protocolo vem do registro.
+                </GuideTerm>
+                <GuideTerm term="Ator interessado (110150)">
+                  Indica o transportador (CPF ou CNPJ, escolhido no cadastro de pessoas) que pode baixar a NF-e. A
+                  opção de subcontratados permite que ele autorize outros transportadores.
+                </GuideTerm>
+              </GuideTerms>
+              <p>
+                O leiaute de 110130, 110131, 110150 e 110300 segue as tabelas do MOC e ainda não foi conferido
+                contra o XSD oficial; uma rejeição de layout pode acontecer.
+              </p>
+              <GuideCallout kind="warning" title="Reforma tributária">
+                A SEFAZ pode não aceitar os eventos da reforma antes de 16/11/2026. Até lá, uma rejeição é esperada.
+              </GuideCallout>
+              <GuideTerms>
+                <GuideTerm term="Emitente: 112110, 112140, 112150, 110300">
+                  Pagamento integral (confirmação, que libera o crédito presumido do adquirente), fornecimento não
+                  realizado (itens com IBS, CBS, quantidade e unidade), data de previsão de entrega e vinculação de
+                  pagamento (transação, meio de pagamento, recebedor e PSP, ambos por CNPJ).
+                </GuideTerm>
+                <GuideTerm term="Destinatário: 211124, 211128, 211130, 211140, 211150">
+                  Perecimento, aceite de débito (aceitar ou recusar), imobilização, crédito de combustível e crédito
+                  dependente do adquirente. Aparecem nas NF-e recebidas.
+                </GuideTerm>
+                <GuideTerm term="Emitente ou destinatário: 211110">
+                  Crédito presumido por item: base, código de 2 dígitos e, se houver, o percentual e o valor de IBS
+                  e de CBS. Você escolhe quem emite o evento.
+                </GuideTerm>
+                <GuideTerm term="Sucessora: 212110 e 212120">
+                  Aceitar ou recusar o pedido de transferência de crédito de IBS ou de CBS em sucessão.
+                </GuideTerm>
+              </GuideTerms>
+              <p>
+                Valores têm duas casas; quantidade, até quatro. Unidade, meio de pagamento e respostas vêm de listas.
+                Cada item é identificado pelo número dele na nota, sem repetir.
+              </p>
+            </>
+          ),
+        },
+        {
+          id: 'reform-event-modal',
+          title: 'Janela de um evento da reforma',
+          summary: 'Só os campos do evento escolhido; o botão de envio espera tudo estar preenchido.',
+          image: {
+            src: '/guide/nfe-reform-event.webp',
+            alt: 'Janela do evento Crédito presumido, com autor, item, base, código e os grupos de IBS e CBS',
+          },
+          body: (
+            <p>
+              No crédito presumido, o código de 2 dígitos é do item; dentro dos grupos de IBS e de CBS você informa
+              só o percentual (até 4 casas) e o valor. Os itens são acrescentados com <b>Adicionar item</b>, até 990.
+              O que falta preencher aparece em lista abaixo dos campos.
+            </p>
+          ),
+        },
+        {
           id: 'contingency',
           title: 'Quando a SEFAZ está fora do ar',
           summary:

@@ -3375,6 +3375,24 @@ pendente em contingência offline. Recusas: `400 invalid-document-format`, `422 
 (XML ainda não disponível), em texto simples. Os valores permitidos estão duplicados à mão na UI e no mock (a API não
 os lista): mudou `documents/formats.go`, muda `PRINT_FORMATS`. Mock: `?mock=format-invalid|format-not-allowed|xml-not-ready`.
 
+### Eventos F9 na UI (NF-e e CT-e)
+
+- **NF-e** (detalhe, NF-e autorizada, permissão `create.nfe_events`): menu "Eventos fiscais"
+  (`components/nfe/NfeFiscalEvents.tsx`, `components/dfe/EventsMenu.tsx`) com comprovante de entrega (110130, só NF-e
+  emitida), cancelar comprovante (110131), ator interessado (110150) e os 12 eventos da reforma tributária (112110,
+  112140, 112150, 211110, 211124, 211128, 211130, 211140, 211150, 212110, 212120, 110300). NF-e emitida oferece os do
+  emitente; NF-e recebida, os do destinatário e da sucessora; 211110 e o ator interessado valem nos dois lados.
+- Fonte única dos eventos da reforma: `lib/data/nfe_reform_events.ts` (rótulo, código, quem emite, campos, regras,
+  `reformIssues`, `buildReformBody`). Comprovante, insucesso e ator interessado: `lib/utils/delivery-events.ts`.
+- **CNPJ nos eventos de NF-e é só numérico**: o esquema de evento (`TCnpj` v1.03) aceita 14 dígitos; `PersonDocField`
+  recusa CNPJ alfanumérico até o esquema oficial permitir (a api também devolve 422 `event_invalid`).
+- **CT-e** (detalhe, emitente, `create.cte_events`): comprovante de entrega (110180), insucesso (110190, justificativa
+  de 25 a 250 só no motivo 4) e cancelar entrega. A prestação em desacordo (610110) exige `notes` de 15 a 255.
+- Erros `event_invalid`, `event_not_authorized`, `event_not_found`, `not_cte_issuer` e `no_certificate` viram frase em
+  pt-BR (`lib/utils/event-failure.ts`). Os eventos da reforma podem não ser aceitos antes de 16/11/2026.
+  110130, 110131, 110150 e 110300 não têm XSD oficial conferido.
+- Mock: `?mock=event-invalid|event-not-authorized|event-not-found|no-certificate`.
+
 ## 6. ctech-dfe-worker — Async Workers
 
 **Location:** `/worker/`

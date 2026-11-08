@@ -9,7 +9,6 @@ import {
   CTE_CST_WITH_REDUCTION,
   CTE_CST_WITHOUT_RATE,
   CTE_TAKER_NEEDS_PERSON,
-  CTE_EVENT_ERRORS,
   CTE_TOTAL_WITH_TAXES_FROM_YEAR,
 } from '@/lib/constants/cte';
 import {getCfopDescription, getCfopOptionsForCte, getCfopVariants, type CfopCode} from '@/lib/data/cfop';
@@ -321,10 +320,6 @@ export function cteEmitFailure(err: unknown): EmitFailure {
   return emitFailure(err, 'Erro ao emitir CT-e.', undefined, 'cte');
 }
 
-/** Falha de cancelamento ou evento: o `code` da api vira frase em pt-BR; o resto segue a mensagem da api. */
-export function cteEventFailureMessage(err: unknown, fallback: string): string {
-  const code = err instanceof ApiError ? (err.raw as {code?: unknown} | undefined)?.code : undefined;
-  if (typeof code === 'string' && CTE_EVENT_ERRORS[code]) return CTE_EVENT_ERRORS[code];
-  return err instanceof Error ? err.message : fallback;
-}
+/** Falha de evento: mora em `event-failure` (sem as tabelas deste arquivo) para o menu da NF-e não carregá-las. */
+export {cteEventFailureMessage} from '@/lib/utils/event-failure';
 

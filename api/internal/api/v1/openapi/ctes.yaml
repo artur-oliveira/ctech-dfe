@@ -457,8 +457,9 @@ components:
 
     CteDisagreementBody:
       type: object
+      required: [ notes ]
       properties:
-        notes: { type: string, minLength: 15, maxLength: 255, description: xObs, opcional }
+        notes: { type: string, minLength: 15, maxLength: 255, description: xObs, obrigatório }
         sequence_number: { type: integer, minimum: 1, maximum: 20 }
 
     CteDisagreementCancelBody:

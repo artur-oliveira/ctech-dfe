@@ -30,6 +30,8 @@ export interface MockState {
   emissionProblem: 'invalid' | 'reason' | 'qr444' | 'svcUf' | null
   /** Recusa do impresso (DANFE, DANFC-e, DAMDFE, DACTE): formato inválido, não permitido ou XML ainda indisponível. */
   printProblem: 'invalidFormat' | 'notAllowed' | 'noXml' | null
+  /** Recusa dos eventos F9 (reforma, entrega, ator interessado): layout, evento não autorizado, evento inexistente ou sem certificado. */
+  eventProblem: 'invalid' | 'notAuthorized' | 'notFound' | 'noCertificate' | null
 }
 
 const SAFE_PATHS = [
@@ -49,6 +51,7 @@ const DEFAULT: MockState = {
   contingency: false,
   emissionProblem: null,
   printProblem: null,
+  eventProblem: null,
 };
 
 let state: MockState = {...DEFAULT};
@@ -89,6 +92,14 @@ export function initMockStateFromUrl(search: string): void {
     state = {...state, printProblem: 'notAllowed'};
   } else if (raw === 'xml-not-ready') {
     state = {...state, printProblem: 'noXml'};
+  } else if (raw === 'event-invalid') {
+    state = {...state, eventProblem: 'invalid'};
+  } else if (raw === 'event-not-authorized') {
+    state = {...state, eventProblem: 'notAuthorized'};
+  } else if (raw === 'event-not-found') {
+    state = {...state, eventProblem: 'notFound'};
+  } else if (raw === 'no-certificate') {
+    state = {...state, eventProblem: 'noCertificate'};
   } else if (raw === 'ok') {
     state = {...state, mode: 'ok'};
   }

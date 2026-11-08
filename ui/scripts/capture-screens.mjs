@@ -119,6 +119,16 @@ const CAPTURES = [
   },
   {slug: 'nfe-detail', route: `/nfe/detail?key=${NFE_KEY}`, waitText: 'Notebook 15 polegadas'},
   {
+    slug: 'nfe-fiscal-events-menu',
+    route: `/nfe/detail?key=${NFE_KEY}`,
+    steps: [{waitText: 'Notebook 15 polegadas'}, {click: 'Eventos fiscais'}, {waitText: 'Vinculação de pagamento'}],
+  },
+  {
+    slug: 'nfe-reform-event',
+    route: `/nfe/detail?key=${NFE_KEY}`,
+    steps: [{waitText: 'Notebook 15 polegadas'}, {click: 'Eventos fiscais'}, {click: 'Crédito presumido'}, {waitAt: '[role="dialog"]'}],
+  },
+  {
     slug: 'nfe-events',
     route: `/nfe/detail?key=${NFE_KEY}`,
     steps: [
@@ -194,6 +204,11 @@ const CAPTURES = [
     slug: 'cte-correction',
     route: `/cte/detail?key=${CTE_KEY}`,
     steps: [{waitText: 'Carta de correção'}, {click: 'Carta de correção'}, {waitAt: '[role="dialog"]'}],
+  },
+  {
+    slug: 'cte-delivery-failure',
+    route: `/cte/detail?key=${CTE_KEY}`,
+    steps: [{waitText: 'Carta de correção'}, {click: 'Insucesso de entrega'}, {waitAt: '[role="dialog"]'}],
   },
   {slug: 'cte-contingency', route: `/cte/detail?key=${CTE_PENDING_KEY}`, waitText: 'pendente de autorização; prazo até'},
   {slug: 'cte-detail-not-taker', route: `/cte/detail?key=${CTE_OTHER_TAKER_KEY}`, waitText: 'apenas o tomador'},

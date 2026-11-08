@@ -18,6 +18,7 @@ import {
   emissionProblemFixtures,
   printFormatsByRoute,
   printProblemFixtures,
+  eventProblemFixtures,
   cteDeriveNotesFixture,
   ctePersonIdsFixture,
   cteDetailFixture,
@@ -217,6 +218,12 @@ function mockEmission(doc: string, raw: unknown): RouteResult {
   return {data: mockConfig(doc)};
 }
 
+/** Recusa forçada dos eventos F9 por `?mock=event-invalid|event-not-authorized|event-not-found|no-certificate`. */
+function eventProblem(): RouteResult {
+  const p = eventProblemFixtures[getMockState().eventProblem!];
+  return {error: {status: p.status, data: p}};
+}
+
 type RouteResult = {data: unknown; status?: number} | {error: {status: number; data: unknown}}
 
 function route(method: string, path: string, body: unknown, params?: Record<string, unknown>): RouteResult {
@@ -326,11 +333,12 @@ function route(method: string, path: string, body: unknown, params?: Record<stri
     return {data: {...ctesFixture[2], nfe_keys: [], origin: null, destination: null, cargo: null, xml_s3_key: null}, status: 202};
   }
   {
-    const cte = /^(get|post) \/v1\.0\/ctes\/([^/]+)\/(sefaz-status|events|cancel|correction-letter|service-disagreement|service-disagreement-cancel)$/.exec(key);
+    const cte = /^(get|post) \/v1\.0\/ctes\/([^/]+)\/(sefaz-status|events|cancel|correction-letter|service-disagreement|service-disagreement-cancel|delivery-receipt|delivery-failure|delivery-cancel)$/.exec(key);
     if (cte) {
       const [, , sk, action] = cte;
       if (action === 'sefaz-status') return {data: cteSefazStatusFixture(sk)};
       if (action === 'events') return {data: paginated(cteEventsFixture(sk))};
+      if (m === 'post' && /^delivery-/.test(action) && getMockState().eventProblem) return eventProblem();
       return {data: cteDetailFixture(sk)};
     }
     if (/^get \/v1\.0\/ctes\/[^/]+\/events\/[^/]+\/xml$/.test(key)) {
@@ -394,6 +402,9 @@ function route(method: string, path: string, body: unknown, params?: Record<stri
     if (cte) return {data: cteDetailFixture(cte[1])};
   }
   if (/^get \/v1\.0\/nfses\/[^/]+$/.test(key)) return {data: nfsesFixture[0]};
+  if (/^post \/v1\.0\/nfes\/.+\/(ibscbs-events|delivery-receipt|delivery-receipt-cancel|interested-actor)$/.test(key)) {
+    return getMockState().eventProblem ? eventProblem() : {data: nfeDetailFixture};
+  }
   if (/^post \/v1\.0\/nfes\/.+\/(cancel|correction-letter|manifestation)$/.test(key)) return {data: nfeDetailFixture};
   if (/^post \/v1\.0\/nfces\/.+\/(cancel|substitute)$/.test(key)) return {data: nfceDetailFixture};
   if (/^post \/v1\.0\/mdfes\/.+\/(cancel|close|include-condutor|include-dfe)$/.test(key)) return {data: mdfeDetailFixture};

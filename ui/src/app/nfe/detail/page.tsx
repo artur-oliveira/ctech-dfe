@@ -17,6 +17,10 @@ import {DfeDetail} from '@/components/dfe/DfeDetail';
 import {EVENT_TYPE_LABELS} from '@/lib/data/dfe_event';
 import {EVENT_STATUS_SUCCESS} from '@/lib/utils/dfe-result-toast';
 import {toast} from 'sonner';
+import {NFE_EVENT, useNfeFiscalEvents} from '@/components/nfe/NfeFiscalEvents';
+import {hasPermission} from '@/lib/utils/delivery-events';
+
+const PERMISSION_NFE_EVENTS = 'create.nfe_events';
 
 const MANIFEST_EVENT_TYPES = ['210210', '210200', '210220', '210240'] as const;
 const MANIFEST_JUSTIFICATION_REQUIRED_TYPE = '210240';
@@ -27,6 +31,8 @@ const MANIFEST_JUSTIFICATION_MIN_LENGTH = 15;
 function NfeDetail({accessKey}: { accessKey: string }) {
   const {selectedOrg} = useAuth();
   const qc = useQueryClient();
+  const fiscalEvents = useNfeFiscalEvents(selectedOrg?.pk);
+  const canFiscalEvents = hasPermission(selectedOrg?.permissions, PERMISSION_NFE_EVENTS);
   const [showCceModal, setShowCceModal] = useState(false);
   const [cceText, setCceText] = useState('');
   const [cceSeq, setCceSeq] = useState(1);
@@ -118,6 +124,10 @@ function NfeDetail({accessKey}: { accessKey: string }) {
               Carta de Correção
             </Button>
           )}
+          {doc.status === 'authorized' && fiscalEvents.menu({
+            sk: accessKey, number: doc.number, incoming: doc.incoming === 1,
+            receipts: (eventsData?.items ?? []).filter((e) => e.event_type === NFE_EVENT.RECEIPT && e.status === EVENT_STATUS_SUCCESS),
+          }, canFiscalEvents)}
           {doc.incoming === 1 && (
             <Button variant="outline" size="sm"
                     onClick={() => {
@@ -142,6 +152,7 @@ function NfeDetail({accessKey}: { accessKey: string }) {
       )}
       renderExtra={(doc) => (
         <>
+          {fiscalEvents.modals}
           <Modal
             open={showCceModal}
             title={`Carta de Correção: NF-e nº ${doc.number}`}

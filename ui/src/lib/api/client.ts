@@ -926,6 +926,15 @@ class ApiClient {
     return this.post(`/v1.0/nfes/${accessKey}/cancel`, {justification, sequence_number: sequenceNumber});
   }
 
+  /** Eventos F9 da NF-e: reforma tributária (`ibscbs-events`), comprovante de entrega, seu cancelamento e ator interessado. */
+  async requestNfeFiscalEvent(
+    accessKey: string,
+    route: 'ibscbs-events' | 'delivery-receipt' | 'delivery-receipt-cancel' | 'interested-actor',
+    body: object,
+  ): Promise<NfeDetailOut> {
+    return this.post(`/v1.0/nfes/${accessKey}/${route}`, body);
+  }
+
   async sendCorrectionLetter(accessKey: string, correctionText: string, sequenceNumber = 1): Promise<NfeDetailOut> {
     return this.post(`/v1.0/nfes/${accessKey}/correction-letter`, {
       correction_text: correctionText,
@@ -1044,12 +1053,16 @@ class ApiClient {
     return this.post(`/v1.0/ctes/${accessKey}/correction-letter`, {corrections, sequence_number: sequenceNumber});
   }
 
-  async disagreeCteService(accessKey: string, notes?: string, sequenceNumber?: number): Promise<CteDetailOut> {
-    return this.post(`/v1.0/ctes/${accessKey}/service-disagreement`, {notes: notes || undefined, sequence_number: sequenceNumber});
+  async disagreeCteService(accessKey: string, notes: string, sequenceNumber?: number): Promise<CteDetailOut> {
+    return this.post(`/v1.0/ctes/${accessKey}/service-disagreement`, {notes, sequence_number: sequenceNumber});
   }
 
   async cancelCteServiceDisagreement(accessKey: string, eventSk: string, sequenceNumber?: number): Promise<CteDetailOut> {
     return this.post(`/v1.0/ctes/${accessKey}/service-disagreement-cancel`, {event_sk: eventSk, sequence_number: sequenceNumber});
+  }
+
+  async registerCteDeliveryEvent(accessKey: string, route: 'delivery-receipt' | 'delivery-failure' | 'delivery-cancel', body: object): Promise<CteDetailOut> {
+    return this.post(`/v1.0/ctes/${accessKey}/${route}`, body);
   }
 
   async getCteSefazStatus(accessKey: string): Promise<CteSituationOut> {

@@ -48,7 +48,7 @@ describe('detalhe do CT-e', () => {
     expect(screen.getByRole('button', {name: 'Baixar DACTE'})).toBeInTheDocument();
     expect(await screen.findByText('Carta de Correção')).toBeInTheDocument();
     expect(screen.getByText('Prestação de serviço em desacordo')).toBeInTheDocument();
-    expect(screen.getAllByRole('button', {name: /Baixar XML do evento/})).toHaveLength(3);
+    expect(screen.getAllByRole('button', {name: /Baixar XML do evento/})).toHaveLength(4);
   });
 
   it('autorizado e tomador: oferece as quatro ações', async () => {
@@ -149,16 +149,16 @@ describe('ações do CT-e', () => {
       AUTH_TAKER.sk, [{group: 'ObsCont', field: 'xTexto', value: 'Entrega no portão 2', item_number: 1}], undefined));
   });
 
-  it('prestação em desacordo: notas opcionais, mas de 15 a 255 quando informadas', async () => {
+  it('prestação em desacordo: observações obrigatórias, de 15 a 255 caracteres', async () => {
     renderDetail(AUTH_TAKER.sk);
     const spy = vi.spyOn(apiClient, 'disagreeCteService').mockResolvedValue({} as never);
     fireEvent.click(await screen.findByRole('button', {name: 'Prestação em desacordo'}));
     const dialog = await screen.findByRole('dialog');
     const submit = within(dialog).getByRole('button', {name: 'Registrar desacordo'});
-    expect(submit).toBeEnabled();
-    fireEvent.change(within(dialog).getByLabelText('Observações (opcional)'), {target: {value: 'curto'}});
     expect(submit).toBeDisabled();
-    fireEvent.change(within(dialog).getByLabelText('Observações (opcional)'), {target: {value: 'Carga chegou avariada ao destino'}});
+    fireEvent.change(within(dialog).getByLabelText('Observações'), {target: {value: 'curto'}});
+    expect(submit).toBeDisabled();
+    fireEvent.change(within(dialog).getByLabelText('Observações'), {target: {value: 'Carga chegou avariada ao destino'}});
     fireEvent.click(submit);
     await waitFor(() => expect(spy).toHaveBeenCalledWith(AUTH_TAKER.sk, 'Carga chegou avariada ao destino', undefined));
   });

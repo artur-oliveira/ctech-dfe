@@ -9,9 +9,17 @@ import {queryKeys} from '@/lib/api/query-keys';
 import {JustificationField} from '@/components/ui/justification-field';
 import {NumericInput} from '@/components/ui/numeric-input';
 import {OptionsSelect} from '@/components/ui/options-select';
+import {DeliveryProofFields} from '@/components/dfe/DeliveryProofFields';
+import {EventSequenceField} from '@/components/dfe/EventSequenceField';
+import {
+  cteDeliveryCancelBody, cteFailureBody, cteReceiptBody, emptyProof, failureIssues, FAILURE_ATTEMPT_MAX,
+  FAILURE_JUSTIFICATION_MAX, FAILURE_JUSTIFICATION_MIN, FAILURE_REASON_OTHER, FAILURE_REASONS, proofIssues,
+  type FailureDraft, type ProofDraft,
+} from '@/lib/utils/delivery-events';
 import {setDocStatusOptimistic} from '@/lib/utils/dfe-status';
 import {cteEventFailureMessage} from '@/lib/utils/cte';
 import {
+  CTE_EVENT,
   CTE_CORRECTION_ITEM_MAX,
   CTE_CORRECTION_VALUE_MAX,
   CTE_CORRECTIONS_MAX,
@@ -29,13 +37,16 @@ export interface CteActionTarget {
   number: number | string
   /** Eventos 610110 com status `success`: os que o 610111 pode cancelar. */
   disagreements?: NfeEventOut[]
+  /** Eventos 110180 e 110190 com status `success`: os que o cancelamento de entrega pode desfazer. */
+  deliveries?: NfeEventOut[]
+  /** Chaves das NF-e do CT-e, para a entrega dizer quais notas cobre. */
+  nfeKeys?: string[]
 }
 
 interface CorrectionRow extends CteCorrection {
   id: number
 }
 
-const SEQUENCE_OPTIONS = Array.from({length: 20}, (_, i) => ({value: String(i + 1), label: `Sequência ${i + 1}`}));
 const GROUP_OPTIONS = CTE_CORRECTION_GROUPS.map((g) => ({value: g.value, label: g.label}));
 const emptyRow = (id: number): CorrectionRow => ({id, group: '', field: '', value: ''});
 
@@ -53,12 +64,14 @@ function ModalError({message}: { message: string | null }) {
 export function useCteActions(orgPk?: string) {
   const qc = useQueryClient();
   const [target, setTarget] = useState<CteActionTarget | null>(null);
-  const [kind, setKind] = useState<'cancel' | 'correction' | 'disagree' | 'disagreeCancel' | null>(null);
+  const [kind, setKind] = useState<'cancel' | 'correction' | 'disagree' | 'disagreeCancel' | 'receipt' | 'failure' | 'deliveryCancel' | null>(null);
   const [text, setText] = useState('');
   const [rows, setRows] = useState<CorrectionRow[]>([emptyRow(1)]);
   const [nextId, setNextId] = useState(2);
   const [sequence, setSequence] = useState('');
   const [eventSk, setEventSk] = useState('');
+  const [proof, setProof] = useState<ProofDraft>(emptyProof());
+  const [failure, setFailure] = useState<FailureDraft>({reason: '', attempt: '', justification: ''});
   const [error, setError] = useState<string | null>(null);
 
   const close = () => {
@@ -69,6 +82,8 @@ export function useCteActions(orgPk?: string) {
     setNextId(2);
     setSequence('');
     setEventSk('');
+    setProof(emptyProof());
+    setFailure({reason: '', attempt: '', justification: ''});
     setError(null);
   };
   const open = (k: NonNullable<typeof kind>) => (t: CteActionTarget) => {
@@ -96,8 +111,20 @@ export function useCteActions(orgPk?: string) {
           await apiClient.correctCte(key, rows.map((r) => ({group: r.group, field: r.field, value: r.value.trim(), item_number: r.item_number})), seq);
           return 'Carta de correção enviada à SEFAZ.';
         case 'disagree':
-          await apiClient.disagreeCteService(key, text.trim() || undefined, seq);
+          await apiClient.disagreeCteService(key, text.trim(), seq);
           return 'Prestação em desacordo enviada à SEFAZ.';
+        case 'receipt':
+          await apiClient.registerCteDeliveryEvent(key, 'delivery-receipt', cteReceiptBody({...proof, sequence}));
+          return 'Comprovante de entrega enviado à SEFAZ.';
+        case 'failure':
+          await apiClient.registerCteDeliveryEvent(key, 'delivery-failure', cteFailureBody({...proof, sequence}, failure));
+          return 'Insucesso de entrega enviado à SEFAZ.';
+        case 'deliveryCancel': {
+          const picked = (target!.deliveries ?? []).find((e) => e.sk === eventSk);
+          await apiClient.registerCteDeliveryEvent(key, 'delivery-cancel',
+            cteDeliveryCancelBody(picked?.event_type === CTE_EVENT.DELIVERY_FAILURE ? 'failure' : 'receipt', eventSk, sequence));
+          return 'Cancelamento da entrega enviado à SEFAZ.';
+        }
         default:
           await apiClient.cancelCteServiceDisagreement(key, eventSk, seq);
           return 'Cancelamento do desacordo enviado à SEFAZ.';
@@ -122,8 +149,10 @@ export function useCteActions(orgPk?: string) {
 
   const ready = kind === 'cancel' ? textOk(text)
     : kind === 'correction' ? rowsReady
-      : kind === 'disagree' ? text.trim() === '' || textOk(text)
-        : !!eventSk;
+      : kind === 'disagree' ? textOk(text)
+        : kind === 'receipt' ? proofIssues('cte-receipt', proof).length === 0
+          : kind === 'failure' ? proofIssues('cte-failure', proof).length === 0 && failureIssues(failure).length === 0
+            : !!eventSk;
 
   const title = !target || !kind ? ''
     : {
@@ -131,20 +160,18 @@ export function useCteActions(orgPk?: string) {
       correction: `Carta de correção do CT-e nº ${target.number}`,
       disagree: `Prestação em desacordo do CT-e nº ${target.number}`,
       disagreeCancel: `Cancelar desacordo do CT-e nº ${target.number}`,
+      receipt: `Comprovante de entrega do CT-e nº ${target.number}`,
+      failure: `Insucesso de entrega do CT-e nº ${target.number}`,
+      deliveryCancel: `Cancelar entrega do CT-e nº ${target.number}`,
     }[kind];
 
   const submitLabel = {
     cancel: 'Confirmar cancelamento', correction: 'Enviar carta de correção',
     disagree: 'Registrar desacordo', disagreeCancel: 'Cancelar desacordo',
+    receipt: 'Enviar comprovante', failure: 'Registrar insucesso', deliveryCancel: 'Cancelar entrega',
   };
 
-  const sequenceField = (
-    <div className="flex flex-col gap-1">
-      <label htmlFor="cte-event-seq" className="text-xs font-medium text-gray-600">Número de sequência (opcional)</label>
-      <OptionsSelect id="cte-event-seq" value={sequence} onValueChange={setSequence} clearable
-                     options={SEQUENCE_OPTIONS} placeholder="Automático: o próximo livre"/>
-    </div>
-  );
+  const sequenceField = <EventSequenceField id="cte-event-seq" value={sequence} onChange={setSequence}/>;
 
   const modals: ReactNode = (
     <Modal
@@ -227,7 +254,7 @@ export function useCteActions(orgPk?: string) {
             Informa à SEFAZ que o serviço de transporte não foi prestado como consta no CT-e. Só o tomador faz isto, em
             até 45 dias da autorização.
           </p>
-          <JustificationField id="cte-disagree-notes" label="Observações (opcional)" value={text} onChange={setText}
+          <JustificationField id="cte-disagree-notes" label="Observações" value={text} onChange={setText}
                               minLength={CTE_EVENT_TEXT_MIN} maxLength={CTE_EVENT_TEXT_MAX}
                               placeholder="Explique o desacordo (15 a 255 caracteres)…"/>
           {sequenceField}
@@ -251,11 +278,63 @@ export function useCteActions(orgPk?: string) {
           <ModalError message={error}/>
         </div>
       )}
+      {kind === 'receipt' && (
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">Registra a entrega ao recebedor. Só o emitente envia, com o CT-e autorizado.</p>
+          <DeliveryProofFields prefix="cte-receipt" kind="cte-receipt" value={proof} keys={target?.nfeKeys}
+                               onChange={(p) => setProof((d) => ({...d, ...p}))}/>
+          {sequenceField}
+          <ModalError message={error}/>
+        </div>
+      )}
+
+      {kind === 'failure' && (
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">Registra que a entrega não foi feita. Só o emitente envia.</p>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="cte-failure-reason" className="text-xs font-medium text-gray-600">Motivo</label>
+            <OptionsSelect id="cte-failure-reason" value={failure.reason} options={FAILURE_REASONS} placeholder="Escolha o motivo"
+                           onValueChange={(reason) => setFailure((f) => ({...f, reason}))}/>
+          </div>
+          {failure.reason === FAILURE_REASON_OTHER && (
+            <JustificationField id="cte-failure-justification" value={failure.justification}
+                                onChange={(justification) => setFailure((f) => ({...f, justification}))}
+                                minLength={FAILURE_JUSTIFICATION_MIN} maxLength={FAILURE_JUSTIFICATION_MAX}
+                                placeholder={`Descreva o motivo (${FAILURE_JUSTIFICATION_MIN} a ${FAILURE_JUSTIFICATION_MAX} caracteres)…`}/>
+          )}
+          <div className="flex flex-col gap-1">
+            <label htmlFor="cte-failure-attempt" className="text-xs font-medium text-gray-600">Tentativa de entrega (opcional)</label>
+            <NumericInput id="cte-failure-attempt" integerPlaces={3} value={failure.attempt} placeholder={`1 a ${FAILURE_ATTEMPT_MAX}`}
+                          onChange={(attempt) => setFailure((f) => ({...f, attempt: attempt && Number(attempt) > 0 ? String(Math.min(Number(attempt), FAILURE_ATTEMPT_MAX)) : ''}))}/>
+          </div>
+          <DeliveryProofFields prefix="cte-failure" kind="cte-failure" value={proof} keys={target?.nfeKeys}
+                               onChange={(p) => setProof((d) => ({...d, ...p}))}/>
+          {sequenceField}
+          <ModalError message={error}/>
+        </div>
+      )}
+
+      {kind === 'deliveryCancel' && (
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">Escolha o comprovante ou o insucesso que a SEFAZ já autorizou e que você quer desfazer.</p>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="cte-delivery-event" className="text-xs font-medium text-gray-600">Entrega a cancelar</label>
+            <OptionsSelect id="cte-delivery-event" value={eventSk} onValueChange={setEventSk} placeholder="Escolha o evento"
+                           options={(target?.deliveries ?? []).map((e) => ({
+                             value: e.sk,
+                             label: `${EVENT_TYPE_LABELS[e.event_type] ?? e.event_type} · seq. ${e.sequence_number} · ${formatDatetimeBR(e.created_at)}`,
+                           }))}/>
+          </div>
+          {sequenceField}
+          <ModalError message={error}/>
+        </div>
+      )}
     </Modal>
   );
 
   return {
     openCancel: open('cancel'), openCorrection: open('correction'),
-    openDisagree: open('disagree'), openDisagreeCancel: open('disagreeCancel'), modals,
+    openDisagree: open('disagree'), openDisagreeCancel: open('disagreeCancel'),
+    openReceipt: open('receipt'), openFailure: open('failure'), openDeliveryCancel: open('deliveryCancel'), modals,
   };
 }

@@ -124,6 +124,8 @@ export const CTE_EVENT = {
   CORRECTION: '110110',
   DISAGREEMENT: '610110',
   DISAGREEMENT_CANCEL: '610111',
+  DELIVERY_RECEIPT: '110180',
+  DELIVERY_FAILURE: '110190',
 } as const;
 
 /** TJust do cancelamento e xObs do desacordo: 15 a 255 caracteres. */
@@ -146,7 +148,8 @@ export const CTE_EVENT_ERRORS: Record<string, string> = {
   cte_protocol_missing: 'Este CT-e não tem o protocolo de autorização gravado. Consulte a situação na SEFAZ antes de tentar de novo.',
   event_invalid: 'Os dados do evento não passam na validação. Confira os campos e o tamanho dos textos.',
   event_not_found: 'O evento escolhido não existe mais neste CT-e. Atualize a página e escolha de novo.',
-  event_not_authorized: 'Só dá para cancelar um desacordo que a SEFAZ já autorizou (status "sucesso").',
+  event_not_authorized: 'Só dá para cancelar um evento que a SEFAZ já autorizou (status "sucesso").',
+  no_certificate: 'A organização não tem certificado digital válido. Cadastre um em Certificados antes de enviar eventos.',
 };
 
 // ─── IBS/CBS e autXML ───────────────────────────────────────────────────────

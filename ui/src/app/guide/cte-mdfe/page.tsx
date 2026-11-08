@@ -372,8 +372,8 @@ export default function GuideCteMdfe() {
                   pode ser corrigido.
                 </GuideTerm>
                 <GuideTerm term="Prestação em desacordo (tomador)">
-                  Informa que o serviço não foi prestado como consta. Observações de 15 a 255
-                  caracteres, opcionais; em até 45 dias da autorização.
+                  Informa que o serviço não foi prestado como consta. As observações são obrigatórias,
+                  de 15 a 255 caracteres; em até 45 dias da autorização.
                 </GuideTerm>
                 <GuideTerm term="Cancelar desacordo (tomador)">
                   Escolha na lista o desacordo que a SEFAZ já autorizou e que você quer desfazer.
@@ -383,6 +383,39 @@ export default function GuideCteMdfe() {
                 Se quem paga o frete é o cliente, a tela mostra <b>Apenas o tomador</b> no lugar da
                 prestação em desacordo. Se a sua empresa não é a emitente, cancelar e corrigir também
                 somem. Quando a SEFAZ ou a api recusam, o motivo aparece em português dentro da janela.
+              </GuideCallout>
+            </>
+          ),
+        },
+        {
+          id: 'cte-delivery',
+          title: 'Entrega: comprovante e insucesso',
+          summary: 'Só o emitente registra a entrega do CT-e, e cada registro pode ser cancelado depois.',
+          image: {
+            src: '/guide/cte-delivery-failure.webp',
+            alt: 'Janela de insucesso de entrega do CT-e, com motivo, data, hash e coordenadas',
+          },
+          body: (
+            <>
+              <GuideTerms>
+                <GuideTerm term="Comprovante de entrega (110180)">
+                  Registra a entrega ao recebedor: data e hora, nome e documento de quem recebeu, e o hash SHA-1
+                  em Base64 (28 caracteres) do comprovante, com a data e hora dele. Latitude e longitude são
+                  opcionais, mas vão juntas. Você pode marcar quais notas do CT-e a entrega cobre.
+                </GuideTerm>
+                <GuideTerm term="Insucesso de entrega (110190)">
+                  Registra que a entrega não aconteceu. Escolha o motivo na lista: recebedor ausente, endereço
+                  não localizado, recusa do recebedor ou outro motivo. A justificativa, de 25 a 250 caracteres,
+                  só aparece e só é exigida no motivo <b>Outro motivo</b>. A tentativa é opcional.
+                </GuideTerm>
+                <GuideTerm term="Cancelar entrega (110181 e 110191)">
+                  Escolha na lista o comprovante ou o insucesso que a SEFAZ já autorizou. O botão só aparece
+                  quando existe um.
+                </GuideTerm>
+              </GuideTerms>
+              <GuideCallout kind="tip" title="Quem pode e quando">
+                Os três botões aparecem para o emitente de um CT-e autorizado, com a permissão de eventos de
+                CT-e. O resultado chega pela linha do tempo de eventos, sem recarregar a página.
               </GuideCallout>
             </>
           ),

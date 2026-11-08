@@ -550,6 +550,14 @@ export const printProblemFixtures = {
   noXml: {status: 404, title: 'Não encontrado', detail: 'XML do documento ainda não disponível'},
 };
 
+/** Corpos 422 dos eventos F9 (`?mock=event-invalid|event-not-authorized|event-not-found|no-certificate`). */
+export const eventProblemFixtures = {
+  invalid: {status: 422, title: 'Evento inválido', detail: 'informe de 1 a 990 itens', code: 'event_invalid'},
+  notAuthorized: {status: 422, title: 'Evento não autorizado', detail: 'o evento escolhido não está autorizado', code: 'event_not_authorized'},
+  notFound: {status: 404, title: 'Não encontrado', detail: 'evento não encontrado', code: 'event_not_found'},
+  noCertificate: {status: 422, title: 'Sem certificado', detail: 'organização sem certificado digital', code: 'no_certificate'},
+};
+
 /** Formatos que a API aceita no `format` de cada impresso (espelha `formats.go`); o CT-e tem formato único. */
 export const printFormatsByRoute: Record<string, string[]> = {
   danfe: ['retrato', 'paisagem', 'simplificado', 'etiqueta'],
@@ -940,6 +948,7 @@ function dfeEvent(accessKey: string, eventType: string, seq: number, status: str
 export const nfeEventsFixture = [
   dfeEvent(nfesFixture[0].sk, 'emission', 1, 'authorized', '2026-07-01T14:30:00Z'),
   dfeEvent(nfesFixture[0].sk, '110110', 1, 'success', '2026-07-03T10:12:00Z'),
+  dfeEvent(nfesFixture[0].sk, '110130', 1, 'success', '2026-07-05T16:40:00Z'),
 ];
 
 export const nfceEventsFixture = [
@@ -961,6 +970,7 @@ export function cteEventsFixture(sk: string) {
       emission,
       dfeEvent(sk, '110110', 1, 'success', '2026-07-07T10:00:00Z'),
       dfeEvent(sk, '610110', 1, 'success', '2026-07-08T15:20:00Z'),
+      dfeEvent(sk, '110180', 1, 'success', '2026-07-09T14:05:00Z'),
     ];
   }
   return [emission];
