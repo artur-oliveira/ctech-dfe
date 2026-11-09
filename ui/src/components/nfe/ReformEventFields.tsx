@@ -9,7 +9,7 @@ import {PersonDocField} from '@/components/dfe/PersonDocField';
 import {UNIT_OPTIONS} from '@/lib/data/unit';
 import {
   emptyReformItem, PAYMENT_METHOD_OPTIONS, REFORM_AUTHOR_OPTIONS, REFORM_ITEM_MAX, REFORM_MAX_ITEMS,
-  type PresumedDraft, type ReformDraft, type ReformEventDef, type ReformItemDraft,
+  type PaymentDraft, type PresumedDraft, type ReformDraft, type ReformEventDef, type ReformItemDraft,
 } from '@/lib/data/nfe_reform_events';
 
 const LABEL = 'text-xs font-medium text-gray-600';
@@ -19,6 +19,26 @@ function Field({label, htmlFor, children}: { label: string; htmlFor: string; chi
     <div className="flex min-w-0 flex-col gap-1">
       <label htmlFor={htmlFor} className={LABEL}>{label}</label>
       {children}
+    </div>
+  );
+}
+
+/** Grupo de pagamento (110300): identificador, meio, recebedor e PSP. Usado também pelo evento do CT-e. */
+export function PaymentLinkFields({prefix, value: p, onChange}: { prefix: string; value: PaymentDraft; onChange: (p: PaymentDraft) => void }) {
+  return (
+    <div className="space-y-3">
+      <Field label="Identificador da transação (2 a 35 caracteres)" htmlFor={`${prefix}-tx`}>
+        <Input id={`${prefix}-tx`} className="h-11 w-full" maxLength={35} value={p.transaction_id}
+               onChange={(e) => onChange({...p, transaction_id: e.target.value})}/>
+      </Field>
+      <Field label="Meio de pagamento" htmlFor={`${prefix}-method`}>
+        <OptionsSelect id={`${prefix}-method`} value={p.payment_method} options={PAYMENT_METHOD_OPTIONS} placeholder="Escolha o meio"
+                       onValueChange={(payment_method) => onChange({...p, payment_method})}/>
+      </Field>
+      <PersonDocField id={`${prefix}-receiver`} label="Recebedor do pagamento" accept="cnpj" value={p.receiver}
+                      onChange={(receiver) => onChange({...p, receiver})}/>
+      <PersonDocField id={`${prefix}-psp`} label="PSP (usa a raiz de 8 dígitos do CNPJ)" accept="cnpj" value={p.psp}
+                      onChange={(psp) => onChange({...p, psp})}/>
     </div>
   );
 }
@@ -158,22 +178,7 @@ export function ReformEventFields({def, draft, onChange, nextId, onNextId}: {
         </>
       )}
 
-      {def.shape === 'payment' && (
-        <div className="space-y-3">
-          <Field label="Identificador da transação (2 a 35 caracteres)" htmlFor="reform-tx">
-            <Input id="reform-tx" className="h-11 w-full" maxLength={35} value={p.transaction_id}
-                   onChange={(e) => onChange({payment: {...p, transaction_id: e.target.value}})}/>
-          </Field>
-          <Field label="Meio de pagamento" htmlFor="reform-method">
-            <OptionsSelect id="reform-method" value={p.payment_method} options={PAYMENT_METHOD_OPTIONS} placeholder="Escolha o meio"
-                           onValueChange={(payment_method) => onChange({payment: {...p, payment_method}})}/>
-          </Field>
-          <PersonDocField id="reform-receiver" label="Recebedor do pagamento" accept="cnpj" value={p.receiver}
-                          onChange={(receiver) => onChange({payment: {...p, receiver}})}/>
-          <PersonDocField id="reform-psp" label="PSP (usa a raiz de 8 dígitos do CNPJ)" accept="cnpj" value={p.psp}
-                          onChange={(psp) => onChange({payment: {...p, psp}})}/>
-        </div>
-      )}
+      {def.shape === 'payment' && <PaymentLinkFields prefix="reform" value={p} onChange={(payment) => onChange({payment})}/>}
     </div>
   );
 }

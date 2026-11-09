@@ -73,7 +73,7 @@ const Party = ({label, p}: { label: string; p?: { doc: string; name: string } })
 function CteDetail({accessKey}: { accessKey: string }) {
   const {selectedOrg} = useAuth();
   const [eventXmlLoading, setEventXmlLoading] = useState<string | null>(null);
-  const {openCancel, openCorrection, openDisagree, openDisagreeCancel, openReceipt, openFailure, openDeliveryCancel, modals} = useCteActions(selectedOrg?.pk);
+  const {openCancel, openCorrection, openDisagree, openDisagreeCancel, openReceipt, openFailure, openDeliveryCancel, openPaymentLink, openPaymentLinkCancel, modals} = useCteActions(selectedOrg?.pk);
 
   const {data: doc, isLoading, error} = useQuery({
     queryKey: queryKeys.ctes.detail(accessKey),
@@ -109,13 +109,14 @@ function CteDetail({accessKey}: { accessKey: string }) {
   const isIssuer = !doc.emit_cpf_cnpj || sameDoc(doc.emit_cpf_cnpj, orgDoc);
   const isTaker = sameDoc(doc.taker?.doc, orgDoc);
   const kind = cteKind(doc);
-  // Só o cancelamento e a carta de correção existem para o CT-e OS (modelo 67); entrega e desacordo são do 57.
+  // Para o CT-e OS (modelo 67) valem cancelamento, carta de correção e vinculação de pagamento; entrega e desacordo são do 57.
   const isOs = kind === 'os';
   const canChange = hasPermission(selectedOrg?.permissions, PERMISSION_CTE_CREATE) && !cteChangeBlocker(doc, isIssuer);
   const target = {
     sk: accessKey, number: doc.number,
     disagreements: events.items.filter((e) => e.event_type === CTE_EVENT.DISAGREEMENT && e.status === 'success'),
     deliveries: events.items.filter((e) => (e.event_type === CTE_EVENT.DELIVERY_RECEIPT || e.event_type === CTE_EVENT.DELIVERY_FAILURE) && e.status === 'success'),
+    paymentLinks: events.items.filter((e) => e.event_type === CTE_EVENT.PAYMENT_LINK && e.status === 'success'),
     nfeKeys: doc.nfe_keys ?? [],
   };
   const canEvents = hasPermission(selectedOrg?.permissions, PERMISSION_CTE_EVENTS);
@@ -178,6 +179,18 @@ function CteDetail({accessKey}: { accessKey: string }) {
                     </Button>
                   )}
                 </>
+              )}
+            </>
+          )}
+          {canEvents && (
+            <>
+              <Button variant="outline" onClick={() => openPaymentLink(target)} className={ACTION_BTN}>
+                Vincular pagamento
+              </Button>
+              {target.paymentLinks.length > 0 && (
+                <Button variant="outline" onClick={() => openPaymentLinkCancel(target)} className={ACTION_BTN}>
+                  Cancelar vinculação
+                </Button>
               )}
             </>
           )}

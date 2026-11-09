@@ -497,7 +497,9 @@ Menor caminho para valor: Fases 0, 1, 2 e 3 (CT-e rodoviário completo e validad
 
 ## Status F9 (eventos), 2026-11-07
 
-Feitos: 110180, 110181, 110190, 110191 (`api/internal/services/ctes/delivery_events.go`). Pendentes: 110160, 110300/110301, 211110.
+Feitos: 110180, 110181, 110190, 110191 (`api/internal/services/ctes/delivery_events.go`). 110300/110301 (`api/internal/services/ctes/payment_events.go`, layout dos XSDs vendorizados; autor, autorizador, prazo e a lista de tpMeioPgto não estão em documento disponível: perguntas em aberto abaixo). Pendentes: 110160, 211110.
+
+Perguntas em aberto do 110300/110301: (1) quem pode registrar (emitente, tomador, outro)? (2) vai ao autorizador do CT-e ou à SVRS, como o 110300 da NF-e? (3) há prazo ou regra de unicidade de nPag/idTransacao entre eventos? (4) a lista de tpMeioPgto é a tPag da NF-e? (5) o 110301 só cancela o 110300 indicado em nProtVincPgto (o XSD diz assim)? Documentos que respondem: MOC CT-e (RecepcaoEventosEspecificos e RegrasDeValidacao) e a IT DFe 2026.001.
 MDF-e: o MOC lista como eventos do emitente apenas 110111, 110112, 110114, 110115, 110116, 110117 e 110118, todos já implementados.
 
 ## Status F6 parte 3 (complemento, substituto, CT-e OS), 2026-11-08

@@ -47,10 +47,10 @@ func TestXSDOrderMatchesEventSpecs(t *testing.T) {
 	// Eventos que nenhum builder emite hoje: sem entrada no xsdorder. Quem criar o builder acrescenta a tabela
 	// e tira o evento desta lista.
 	notBuilt := map[string]bool{
-		"evento_cte_evApropriaCredPres": true, "evento_cte_evCancTribSN": true, "evento_cte_evCancVincPgto": true,
+		"evento_cte_evApropriaCredPres": true, "evento_cte_evCancTribSN": true,
 		"evento_cte_evEPECCTe": true, "evento_cte_evGTV": true, "evento_cte_evRegMultimodal": true,
-		"evento_cte_evTributacaoSN": true, "evento_cte_evVincPgto": true,
-		"evento_nfe_112120": true, "evento_nfe_112130": true, "evento_nfe_412120": true, "evento_nfe_412130": true,
+		"evento_cte_evTributacaoSN": true,
+		"evento_nfe_112120":         true, "evento_nfe_112130": true, "evento_nfe_412120": true, "evento_nfe_412130": true,
 	}
 	files, _ := filepath.Glob("specs/evento_*.json")
 	if len(files) == 0 {

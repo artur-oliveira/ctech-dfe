@@ -257,6 +257,40 @@ func RegisterCTes(router fiber.Router, svc *ctesvc.CteService, userSvc *services
 		return sendItem(c, cte)
 	})
 
+	// POST /ctes/:access_key/payment-link: vinculação de pagamento (110300), CT-e 57 e 67
+	g.Post("/:access_key/payment-link", perm.Require("create.cte_events"), func(c fiber.Ctx) error {
+		var body struct {
+			ctesvc.PaymentLink
+			SequenceNumber int `json:"sequence_number" validate:"omitempty,gte=1,lte=20"`
+		}
+		if p := bindJSON(c, &body); p != nil {
+			return sendProblem(c, p)
+		}
+		userID, userName := resolveActor(c, userSvc)
+		cte, err := svc.RegisterPaymentLink(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"), body.PaymentLink, body.SequenceNumber, userID, userName)
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		return sendItem(c, cte)
+	})
+
+	// POST /ctes/:access_key/payment-link-cancel: cancela um 110300 (110301) pelo event_sk
+	g.Post("/:access_key/payment-link-cancel", perm.Require("create.cte_events"), func(c fiber.Ctx) error {
+		var body struct {
+			EventSK        string `json:"event_sk" validate:"required"`
+			SequenceNumber int    `json:"sequence_number" validate:"omitempty,gte=1,lte=20"`
+		}
+		if p := bindJSON(c, &body); p != nil {
+			return sendProblem(c, p)
+		}
+		userID, userName := resolveActor(c, userSvc)
+		cte, err := svc.CancelPaymentLink(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"), body.EventSK, body.SequenceNumber, userID, userName)
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		return sendItem(c, cte)
+	})
+
 	// GET /ctes/:access_key/events
 	g.Get("/:access_key/events", perm.Require("get.cte_events"), func(c fiber.Ctx) error {
 		cursor := c.Query("cursor")

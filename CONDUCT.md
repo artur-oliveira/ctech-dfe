@@ -1397,6 +1397,11 @@ NFC-e. Na SVC do CT-e (7/8) **não** se informa `dhCont`/`xJust` nem `sign` (o o
 - **Fora desta rodada:** 112120 e 112130 (o MOC nomeia tags de forma contraditória ou sem nome), 211120 (removido pela LC
   227/2026), 412120 e 412130 (autor é o Fisco). O EPEC da NF-e tem rota (ver abaixo, 2026-11-08) e a opção `epec` está em `emission.go` só para a NF-e.
 
+- **Vinculação de pagamento do CT-e (110300 e 110301).** Layout dos XSDs vendorizados (`evVincPgto`, `evCancVincPgto`; o
+  elemento do cancelamento é `evCancVincPgto`, com `p` minúsculo, e não `evCancVincPGto` como no catálogo da spec). A api não
+  restringe o autor nem o prazo e não roteia para a SVRS: nenhum documento do repositório diz quem autoriza (decisão pendente,
+  ver spec do CT-e). O meio de pagamento reaproveita a tabela `tPag` da NF-e na UI.
+
 ## XSDs de evento
 
 - Vendorizados em `go-dfe/schemas/{nfe,cte,mdfe}/<pacote>` junto dos XSDs do documento (README e `SHA256SUMS` em

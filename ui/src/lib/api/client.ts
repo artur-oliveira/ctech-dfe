@@ -1090,6 +1090,10 @@ class ApiClient {
     return this.post(`/v1.0/ctes/${accessKey}/${route}`, body);
   }
 
+  async registerCtePaymentLink(accessKey: string, route: 'payment-link' | 'payment-link-cancel', body: object): Promise<CteDetailOut> {
+    return this.post(`/v1.0/ctes/${accessKey}/${route}`, body);
+  }
+
   async getCteSefazStatus(accessKey: string): Promise<CteSituationOut> {
     return this.get(`/v1.0/ctes/${accessKey}/sefaz-status`);
   }

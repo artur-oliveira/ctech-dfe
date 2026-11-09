@@ -360,12 +360,12 @@ function route(method: string, path: string, body: unknown, params?: Record<stri
     return {data: {...ctesFixture[2], nfe_keys: [], origin: null, destination: null, cargo: null, xml_s3_key: null}, status: 202};
   }
   {
-    const cte = /^(get|post) \/v1\.0\/ctes\/([^/]+)\/(sefaz-status|events|cancel|correction-letter|service-disagreement|service-disagreement-cancel|delivery-receipt|delivery-failure|delivery-cancel)$/.exec(key);
+    const cte = /^(get|post) \/v1\.0\/ctes\/([^/]+)\/(sefaz-status|events|cancel|correction-letter|service-disagreement|service-disagreement-cancel|delivery-receipt|delivery-failure|delivery-cancel|payment-link|payment-link-cancel)$/.exec(key);
     if (cte) {
       const [, , sk, action] = cte;
       if (action === 'sefaz-status') return {data: cteSefazStatusFixture(sk)};
       if (action === 'events') return {data: paginated(cteEventsFixture(sk))};
-      if (m === 'post' && /^delivery-/.test(action) && getMockState().eventProblem) return eventProblem();
+      if (m === 'post' && /^(delivery|payment-link)/.test(action) && getMockState().eventProblem) return eventProblem();
       return {data: cteDetailFixture(sk)};
     }
     if (/^get \/v1\.0\/ctes\/[^/]+\/events\/[^/]+\/xml$/.test(key)) {

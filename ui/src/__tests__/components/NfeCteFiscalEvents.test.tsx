@@ -136,4 +136,33 @@ describe('entrega no detalhe do CT-e', () => {
     fireEvent.click(within(dialog).getByRole('button', {name: 'Cancelar entrega'}));
     await waitFor(() => expect(spy).toHaveBeenCalledWith(AUTH.sk, 'delivery-cancel', expect.objectContaining({kind: 'receipt'})));
   });
+
+  it('sem permissão não oferece a vinculação de pagamento', async () => {
+    permissions = [];
+    renderCte();
+    await screen.findByRole('button', {name: 'Carta de correção'});
+    expect(screen.queryByRole('button', {name: 'Vincular pagamento'})).toBeNull();
+  });
+
+  it('vincular pagamento abre o formulário com número, meio, recebedor e PSP', async () => {
+    renderCte();
+    fireEvent.click(await screen.findByRole('button', {name: 'Vincular pagamento'}));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByLabelText('Número do pagamento')).toHaveValue('1');
+    expect(within(dialog).getByLabelText(/Identificador da transação/)).toBeInTheDocument();
+    expect(within(dialog).getByLabelText('Meio de pagamento')).toBeInTheDocument();
+    expect(within(dialog).getByText('Recebedor do pagamento')).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', {name: 'Vincular pagamento'})).toBeDisabled();
+  });
+
+  it('cancelar vinculação envia o event_sk escolhido ao 110301', async () => {
+    const spy = vi.spyOn(apiClient, 'registerCtePaymentLink').mockResolvedValue({} as never);
+    renderCte();
+    fireEvent.click(await screen.findByRole('button', {name: 'Cancelar vinculação'}));
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.click(within(dialog).getByLabelText('Vinculação a cancelar'));
+    await userEvent.click(await screen.findByRole('option', {name: /Vinculação de pagamento/}));
+    fireEvent.click(within(dialog).getByRole('button', {name: 'Cancelar vinculação'}));
+    await waitFor(() => expect(spy).toHaveBeenCalledWith(AUTH.sk, 'payment-link-cancel', expect.objectContaining({event_sk: expect.any(String)})));
+  });
 });

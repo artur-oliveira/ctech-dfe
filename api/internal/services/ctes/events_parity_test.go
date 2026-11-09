@@ -33,6 +33,8 @@ func TestEventBodies_ParidadeComXSD(t *testing.T) {
 			map[string]any{"descEvento": descCancComprovanteEntrega, "nProt": parityProt, "nProtCE": parityProt}),
 		"110191 canc insucesso": buildEventEnvelope(evCtx(), eventKey, TpEventoCancInsucessoEntrega, 1, "evCancIECTe",
 			map[string]any{"descEvento": descCancInsucessoEntrega, "nProt": parityProt, "nProtIE": parityProt}),
+		"110300 vinculo pgto": buildEventEnvelope(evCtx(), eventKey, TpEventoVinculoPagamento, 1, "evVincPgto", paymentLinkDet(validLink(), parityProt)),
+		"110301 canc vinculo": buildEventEnvelope(evCtx(), eventKey, TpEventoCancVinculoPagamento, 1, "evCancVincPgto", cancPaymentLinkDet(parityProt, parityProt)),
 	}
 	for name, body := range bodies {
 		for _, v := range dfecheck.EventFindings("cte", body) {

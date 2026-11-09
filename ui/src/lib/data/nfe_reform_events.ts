@@ -166,6 +166,24 @@ function itemIssues(def: ReformEventDef, it: ReformItemDraft, n: number): string
   return out;
 }
 
+/** Validação do grupo de pagamento, comum ao 110300 da NF-e e ao do CT-e. */
+export function paymentIssues(p: PaymentDraft): string[] {
+  const out: string[] = [];
+  if (!reTransaction.test(p.transaction_id)) out.push('Identificador da transação de 2 a 35 caracteres.');
+  if (!p.payment_method) out.push('Escolha o meio de pagamento.');
+  if (!p.receiver || !validateCNPJ(p.receiver.doc)) out.push('Escolha o recebedor (CNPJ).');
+  if (!p.psp || !validateCNPJ(p.psp.doc)) out.push('Escolha o PSP (CNPJ).');
+  return out;
+}
+
+/** Campos do pagamento na requisição (api `PaymentLink`); chamar com `paymentIssues` vazio. */
+export function paymentBody(p: PaymentDraft) {
+  return {
+    transaction_id: p.transaction_id.trim(), payment_method: p.payment_method,
+    receiver_cnpj: cleanDocument(p.receiver!.doc), psp_base_cnpj: cleanDocument(p.psp!.doc).slice(0, 8),
+  };
+}
+
 /** Pendências que a api recusaria; vazio quando o evento pode ser enviado. */
 export function reformIssues(def: ReformEventDef, d: ReformDraft): string[] {
   const out: string[] = [];
@@ -180,13 +198,7 @@ export function reformIssues(def: ReformEventDef, d: ReformDraft): string[] {
     if (new Set(nums).size !== nums.length) out.push('Há item repetido.');
     d.items.forEach((it, i) => out.push(...itemIssues(def, it, i + 1)));
   }
-  if (def.shape === 'payment') {
-    const p = d.payment;
-    if (!reTransaction.test(p.transaction_id)) out.push('Identificador da transação de 2 a 35 caracteres.');
-    if (!p.payment_method) out.push('Escolha o meio de pagamento.');
-    if (!p.receiver || !validateCNPJ(p.receiver.doc)) out.push('Escolha o recebedor (CNPJ).');
-    if (!p.psp || !validateCNPJ(p.psp.doc)) out.push('Escolha o PSP (CNPJ).');
-  }
+  if (def.shape === 'payment') out.push(...paymentIssues(d.payment));
   return out;
 }
 
@@ -230,12 +242,6 @@ export function buildReformBody(def: ReformEventDef, d: ReformDraft): ReformEven
   if (def.shape === 'indicator') body.indicator = d.indicator === '1' ? 1 : 0;
   if (def.shape === 'forecast') body.delivery_forecast = d.forecast;
   if (def.shape === 'items') body.items = d.items.map((it) => itemBody(def, it));
-  if (def.shape === 'payment') {
-    const p = d.payment;
-    body.payment = {
-      transaction_id: p.transaction_id.trim(), payment_method: p.payment_method,
-      receiver_cnpj: cleanDocument(p.receiver!.doc), psp_base_cnpj: cleanDocument(p.psp!.doc).slice(0, 8),
-    };
-  }
+  if (def.shape === 'payment') body.payment = paymentBody(d.payment);
   return body;
 }

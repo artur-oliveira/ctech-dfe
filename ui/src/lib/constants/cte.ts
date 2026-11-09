@@ -126,6 +126,7 @@ export const CTE_EVENT = {
   DISAGREEMENT_CANCEL: '610111',
   DELIVERY_RECEIPT: '110180',
   DELIVERY_FAILURE: '110190',
+  PAYMENT_LINK: '110300',
 } as const;
 
 /** TJust do cancelamento e xObs do desacordo: 15 a 255 caracteres. */

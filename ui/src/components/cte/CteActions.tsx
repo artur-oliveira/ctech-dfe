@@ -16,6 +16,11 @@ import {
   FAILURE_JUSTIFICATION_MAX, FAILURE_JUSTIFICATION_MIN, FAILURE_REASON_OTHER, FAILURE_REASONS, proofIssues,
   type FailureDraft, type ProofDraft,
 } from '@/lib/utils/delivery-events';
+import {PaymentLinkFields} from '@/components/nfe/ReformEventFields';
+import {
+  emptyPaymentLinkDraft, paymentLinkBody, paymentLinkCancelBody, paymentLinkIssues, PAYMENT_NUMBER_MAX,
+  type PaymentLinkDraft,
+} from '@/lib/utils/cte-payment-link';
 import {setDocStatusOptimistic} from '@/lib/utils/dfe-status';
 import {cteEventFailureMessage} from '@/lib/utils/cte';
 import {
@@ -39,6 +44,8 @@ export interface CteActionTarget {
   disagreements?: NfeEventOut[]
   /** Eventos 110180 e 110190 com status `success`: os que o cancelamento de entrega pode desfazer. */
   deliveries?: NfeEventOut[]
+  /** Eventos 110300 com status `success`: os que o 110301 pode cancelar. */
+  paymentLinks?: NfeEventOut[]
   /** Chaves das NF-e do CT-e, para a entrega dizer quais notas cobre. */
   nfeKeys?: string[]
 }
@@ -64,7 +71,7 @@ function ModalError({message}: { message: string | null }) {
 export function useCteActions(orgPk?: string) {
   const qc = useQueryClient();
   const [target, setTarget] = useState<CteActionTarget | null>(null);
-  const [kind, setKind] = useState<'cancel' | 'correction' | 'disagree' | 'disagreeCancel' | 'receipt' | 'failure' | 'deliveryCancel' | null>(null);
+  const [kind, setKind] = useState<'cancel' | 'correction' | 'disagree' | 'disagreeCancel' | 'receipt' | 'failure' | 'deliveryCancel' | 'paymentLink' | 'paymentLinkCancel' | null>(null);
   const [text, setText] = useState('');
   const [rows, setRows] = useState<CorrectionRow[]>([emptyRow(1)]);
   const [nextId, setNextId] = useState(2);
@@ -72,6 +79,7 @@ export function useCteActions(orgPk?: string) {
   const [eventSk, setEventSk] = useState('');
   const [proof, setProof] = useState<ProofDraft>(emptyProof());
   const [failure, setFailure] = useState<FailureDraft>({reason: '', attempt: '', justification: ''});
+  const [payment, setPayment] = useState<PaymentLinkDraft>(emptyPaymentLinkDraft());
   const [error, setError] = useState<string | null>(null);
 
   const close = () => {
@@ -84,6 +92,7 @@ export function useCteActions(orgPk?: string) {
     setEventSk('');
     setProof(emptyProof());
     setFailure({reason: '', attempt: '', justification: ''});
+    setPayment(emptyPaymentLinkDraft());
     setError(null);
   };
   const open = (k: NonNullable<typeof kind>) => (t: CteActionTarget) => {
@@ -125,6 +134,12 @@ export function useCteActions(orgPk?: string) {
             cteDeliveryCancelBody(picked?.event_type === CTE_EVENT.DELIVERY_FAILURE ? 'failure' : 'receipt', eventSk, sequence));
           return 'Cancelamento da entrega enviado à SEFAZ.';
         }
+        case 'paymentLink':
+          await apiClient.registerCtePaymentLink(key, 'payment-link', paymentLinkBody(payment, sequence));
+          return 'Vinculação de pagamento enviada à SEFAZ.';
+        case 'paymentLinkCancel':
+          await apiClient.registerCtePaymentLink(key, 'payment-link-cancel', paymentLinkCancelBody(eventSk, sequence));
+          return 'Cancelamento da vinculação de pagamento enviado à SEFAZ.';
         default:
           await apiClient.cancelCteServiceDisagreement(key, eventSk, seq);
           return 'Cancelamento do desacordo enviado à SEFAZ.';
@@ -152,6 +167,7 @@ export function useCteActions(orgPk?: string) {
       : kind === 'disagree' ? textOk(text)
         : kind === 'receipt' ? proofIssues('cte-receipt', proof).length === 0
           : kind === 'failure' ? proofIssues('cte-failure', proof).length === 0 && failureIssues(failure).length === 0
+            : kind === 'paymentLink' ? paymentLinkIssues(payment).length === 0
             : !!eventSk;
 
   const title = !target || !kind ? ''
@@ -163,12 +179,15 @@ export function useCteActions(orgPk?: string) {
       receipt: `Comprovante de entrega do CT-e nº ${target.number}`,
       failure: `Insucesso de entrega do CT-e nº ${target.number}`,
       deliveryCancel: `Cancelar entrega do CT-e nº ${target.number}`,
+      paymentLink: `Vincular pagamento ao CT-e nº ${target.number}`,
+      paymentLinkCancel: `Cancelar vinculação de pagamento do CT-e nº ${target.number}`,
     }[kind];
 
   const submitLabel = {
     cancel: 'Confirmar cancelamento', correction: 'Enviar carta de correção',
     disagree: 'Registrar desacordo', disagreeCancel: 'Cancelar desacordo',
     receipt: 'Enviar comprovante', failure: 'Registrar insucesso', deliveryCancel: 'Cancelar entrega',
+    paymentLink: 'Vincular pagamento', paymentLinkCancel: 'Cancelar vinculação',
   };
 
   const sequenceField = <EventSequenceField id="cte-event-seq" value={sequence} onChange={setSequence}/>;
@@ -329,12 +348,43 @@ export function useCteActions(orgPk?: string) {
           <ModalError message={error}/>
         </div>
       )}
+
+      {kind === 'paymentLink' && (
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">Vincula ao CT-e a transação de pagamento (meio, recebedor e PSP). Vale para o CT-e e para o CT-e OS autorizados.</p>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="cte-payment-number" className="text-xs font-medium text-gray-600">Número do pagamento</label>
+            <NumericInput id="cte-payment-number" integerPlaces={3} value={payment.number} placeholder={`1 a ${PAYMENT_NUMBER_MAX}`}
+                          onChange={(number) => setPayment((d) => ({...d, number: number && Number(number) > 0 ? String(Math.min(Number(number), PAYMENT_NUMBER_MAX)) : ''}))}/>
+          </div>
+          <PaymentLinkFields prefix="cte-payment" value={payment.payment} onChange={(p) => setPayment((d) => ({...d, payment: p}))}/>
+          {sequenceField}
+          <ModalError message={error}/>
+        </div>
+      )}
+
+      {kind === 'paymentLinkCancel' && (
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">Escolha a vinculação de pagamento que a SEFAZ já autorizou e que você quer desfazer.</p>
+          <div className="flex flex-col gap-1">
+            <label htmlFor="cte-payment-event" className="text-xs font-medium text-gray-600">Vinculação a cancelar</label>
+            <OptionsSelect id="cte-payment-event" value={eventSk} onValueChange={setEventSk} placeholder="Escolha o evento"
+                           options={(target?.paymentLinks ?? []).map((e) => ({
+                             value: e.sk,
+                             label: `${EVENT_TYPE_LABELS[e.event_type] ?? e.event_type} · seq. ${e.sequence_number} · ${formatDatetimeBR(e.created_at)}`,
+                           }))}/>
+          </div>
+          {sequenceField}
+          <ModalError message={error}/>
+        </div>
+      )}
     </Modal>
   );
 
   return {
     openCancel: open('cancel'), openCorrection: open('correction'),
     openDisagree: open('disagree'), openDisagreeCancel: open('disagreeCancel'),
-    openReceipt: open('receipt'), openFailure: open('failure'), openDeliveryCancel: open('deliveryCancel'), modals,
+    openReceipt: open('receipt'), openFailure: open('failure'), openDeliveryCancel: open('deliveryCancel'),
+    openPaymentLink: open('paymentLink'), openPaymentLinkCancel: open('paymentLinkCancel'), modals,
   };
 }

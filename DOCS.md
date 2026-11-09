@@ -2090,6 +2090,8 @@ Escopo: tpCTe 0, tpServ 0, modal 01, emitido a partir de NF-e do cadastro (emiti
 | POST   | `/v1.0/ctes/{access_key}/service-disagreement-cancel` | Cancela o desacordo (610111): `event_sk` do 610110 com status `success` |
 | POST   | `/v1.0/ctes/{access_key}/delivery-receipt` | Comprovante de entrega (110180); `create.cte_events` |
 | POST   | `/v1.0/ctes/{access_key}/delivery-failure` | Insucesso na entrega (110190); `reason_type` 4 exige `justification` de 25 a 250 |
+| POST   | `/v1.0/ctes/{access_key}/payment-link` | Vinculação de pagamento (110300, `evVincPgto`), CT-e 57 e CT-e OS 67; corpo `number` (nPag 1 a 990), `transaction_id` (2 a 35), `payment_method` (2 dígitos), `receiver_cnpj` (14), `psp_base_cnpj` (8). Sem trava de autor na api (a SEFAZ confere); roteia ao autorizador normal do CT-e |
+| POST   | `/v1.0/ctes/{access_key}/payment-link-cancel` | Cancela a vinculação (110301, `evCancVincPgto`) por `event_sk` de um 110300 `success`; o protocolo vem do registro |
 | POST   | `/v1.0/ctes/{access_key}/delivery-cancel` | Cancela o comprovante (110181, `kind` receipt) ou o insucesso (110191, `kind` failure) por `event_sk` |
 | GET    | `/v1.0/ctes/{access_key}/dacte` | URL assinada do DACTE em PDF (A4 retrato; CT-e offline pendente sai do XML assinado guardado, com a legenda de contingência), permissão `get.ctes` |
 | GET    | `/v1.0/ctes/{access_key}/events` | Eventos (`cte_events`), permissão `get.cte_events` (escrita: `create.cte_events`) |
@@ -3412,8 +3414,9 @@ Limites do leiaute numa fonte só, `ui/src/lib/constants/layout-limits.ts` (`LAY
   revogada). O DACTE 57 segue recusando modelo 67.
 - **Eventos do CT-e OS:** valem cancelamento (110111) e carta de correção (110110), os mesmos handlers do 57. Desacordo (610110 e
   610111) e entrega (110180 a 110191) respondem 422 `event_not_for_cte_os` (`requireModel57`, pelo modelo da chave). O catálogo do MOC
-  (spec `2026-11-04-moc-gap-cte.md`, 6.3) também lista 110300/110301 (vinculação de pagamento) para o 67, não implementado: ver
-  pendências na spec do CT-e.
+  (spec `2026-11-04-moc-gap-cte.md`, 6.3) também lista 110300/110301 (vinculação de pagamento) para o 57 e o 67: implementados (`ctes/payment_events.go`, botões
+  "Vincular pagamento" e "Cancelar vinculação" no detalhe, guia `cte-payment-link`); autor, autorizador, prazo e a lista de
+  `tpMeioPgto` (IT DFe 2026.001) seguem sem fonte: ver pendências na spec do CT-e.
 
 ### Contingência na UI
 

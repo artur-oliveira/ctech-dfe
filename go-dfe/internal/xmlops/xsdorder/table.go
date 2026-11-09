@@ -639,6 +639,11 @@ var servicosCte = map[string][]string{
 	"evIECTe":     {"descEvento", "nProt", "dhTentativaEntrega", "nTentativa", "tpMotivo", "xJustMotivo", "latitude", "longitude", "hashTentativaEntrega", "dhHashTentativaEntrega", "infEntrega"},
 	"evCancIECTe": {"descEvento", "nProt", "nProtIE"},
 	"infEntrega":  {"chNFe"},
+
+	// Vinculação de pagamento (evVincPgto 110300) e seu cancelamento (evCancVincPgto 110301) do CT-e e do CT-e OS.
+	"evVincPgto":      {"descEvento", "nProt", "pgto"},
+	"evVincPgto:pgto": {"tpMeioPgto", "CNPJReceb", "CNPJBasePSP"},
+	"evCancVincPgto":  {"descEvento", "nProt", "nProtVincPgto"},
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -53,6 +53,7 @@ export const EVENT_TYPE_LABELS: Record<string, string> = {
   '110190': 'Insucesso na entrega do CT-e',
   '110191': 'Cancelamento do insucesso na entrega do CT-e',
   '110300': 'Vinculação de pagamento',
+  '110301': 'Cancelamento da vinculação de pagamento',
   '112110': 'Pagamento integral',
   '112140': 'Fornecimento não realizado',
   '112150': 'Data de previsão de entrega',

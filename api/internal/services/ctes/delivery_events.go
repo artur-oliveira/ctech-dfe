@@ -15,8 +15,6 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.aoctech.app/api-commons/problem"
-
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
 
@@ -182,20 +180,13 @@ func (s *CteService) CancelDeliveryEvent(ctx context.Context, orgPK, accessKey, 
 	if err != nil {
 		return nil, err
 	}
-	target, err := s.eventRepo.GetEvent(ctx, accessKey, eventSK)
-	if err != nil {
-		return nil, err
-	}
-	if target == nil {
-		return nil, problem.NotFound("evento não encontrado").WithCode(CodeEventNotFound)
-	}
 	want, tpCancel, root, desc, tag := TpEventoComprovanteEntrega, TpEventoCancComprovanteEntrega, "evCancCECTe", descCancComprovanteEntrega, "nProtCE"
 	if insucesso {
 		want, tpCancel, root, desc, tag = TpEventoInsucessoEntrega, TpEventoCancInsucessoEntrega, "evCancIECTe", descCancInsucessoEntrega, "nProtIE"
 	}
-	evProt := strAttr(target, "sefaz_protocol")
-	if strAttr(target, "event_type") != want || strAttr(target, "status") != eventStatusSuccess || !protocolRe.MatchString(evProt) {
-		return nil, unprocessable(CodeEventNotActive, "o evento escolhido não é um evento "+want+" autorizado")
+	evProt, err := s.authorizedEventProtocol(ctx, accessKey, eventSK, want)
+	if err != nil {
+		return nil, err
 	}
 	if seq, err = s.nextSequence(ctx, accessKey, tpCancel, seq); err != nil {
 		return nil, err

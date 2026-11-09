@@ -1030,6 +1030,7 @@ export function cteEventsFixture(sk: string) {
       dfeEvent(sk, '110110', 1, 'success', '2026-07-07T10:00:00Z'),
       dfeEvent(sk, '610110', 1, 'success', '2026-07-08T15:20:00Z'),
       dfeEvent(sk, '110180', 1, 'success', '2026-07-09T14:05:00Z'),
+      dfeEvent(sk, '110300', 1, 'success', '2026-07-10T09:00:00Z'),
     ];
   }
   return [emission];

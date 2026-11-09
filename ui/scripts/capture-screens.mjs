@@ -215,6 +215,11 @@ const CAPTURES = [
     route: `/cte/detail?key=${CTE_KEY}`,
     steps: [{waitText: 'Carta de correção'}, {click: 'Insucesso de entrega'}, {waitAt: '[role="dialog"]'}],
   },
+  {
+    slug: 'cte-payment-link',
+    route: `/cte/detail?key=${CTE_KEY}`,
+    steps: [{waitText: 'Carta de correção'}, {click: 'Vincular pagamento'}, {waitAt: '[role="dialog"]'}],
+  },
   {slug: 'cte-contingency', route: `/cte/detail?key=${CTE_PENDING_KEY}`, waitText: 'pendente de autorização; prazo até'},
   {slug: 'cte-detail-not-taker', route: `/cte/detail?key=${CTE_OTHER_TAKER_KEY}`, waitText: 'apenas o tomador'},
   {

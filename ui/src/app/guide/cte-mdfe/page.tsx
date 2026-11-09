@@ -624,6 +624,34 @@ export default function GuideCteMdfe() {
           ),
         },
         {
+          id: 'cte-payment-link',
+          title: 'Vinculação de pagamento',
+          summary: 'Liga ao CT-e ou ao CT-e OS a transação de pagamento; meio e empresas vêm de listas.',
+          image: {
+            src: '/guide/cte-payment-link.webp',
+            alt: 'Janela de vinculação de pagamento do CT-e, com número, identificador da transação, meio, recebedor e PSP',
+          },
+          body: (
+            <>
+              <GuideTerms>
+                <GuideTerm term="Vinculação de pagamento (110300)">
+                  Informe o número do pagamento (de 1 a 990), o identificador da transação (de 2 a 35
+                  caracteres), o meio de pagamento na lista, o recebedor e o PSP. Recebedor e PSP são
+                  escolhidos entre as pessoas cadastradas, com CNPJ; do PSP vai a raiz de 8 dígitos.
+                </GuideTerm>
+                <GuideTerm term="Cancelar vinculação (110301)">
+                  Escolha na lista a vinculação que a SEFAZ já autorizou. O botão só aparece quando existe uma.
+                </GuideTerm>
+              </GuideTerms>
+              <GuideCallout kind="warning" title="Regras ainda não conferidas">
+                O leiaute segue o XSD oficial, mas quem pode registrar, o prazo e a lista de meios de pagamento
+                não constam de documento do repositório. A tela oferece o botão a quem tem a permissão de eventos
+                de CT-e e a SEFAZ confere o autor; a lista de meios é a mesma da NF-e. Vale para o CT-e e para o CT-e OS.
+              </GuideCallout>
+            </>
+          ),
+        },
+        {
           id: 'cte-correction',
           title: 'Carta de correção',
           summary: 'Grupo e campo vêm de listas; o novo valor é o único texto livre.',

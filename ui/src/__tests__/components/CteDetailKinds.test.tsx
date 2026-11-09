@@ -84,12 +84,13 @@ describe('detalhe do CT-e: espécie e relacionados', () => {
     expect(screen.getByRole('region', {name: 'Substituído por'}).querySelector('a')).toHaveAttribute('href', `/cte/detail?key=${SUBSTITUTE.sk}`);
   });
 
-  it('CT-e OS: DACTE e só cancelamento e carta de correção; sem entrega nem desacordo', async () => {
+  it('CT-e OS: DACTE, cancelamento, carta de correção e vinculação de pagamento; sem entrega nem desacordo', async () => {
     renderDetail(OS.sk);
     await screen.findByText(/CT-e 40/);
     expect(screen.getByRole('button', {name: 'Baixar DACTE'})).toBeInTheDocument();
     expect(screen.getByText('Carta de correção')).toBeInTheDocument();
     expect(screen.getByText('Cancelar')).toBeInTheDocument();
+    expect(screen.getByText('Vincular pagamento')).toBeInTheDocument();
     for (const hidden of ['Comprovante de entrega', 'Insucesso de entrega', 'Prestação em desacordo', 'Cancelar entrega', 'Cancelar desacordo']) {
       expect(screen.queryByText(hidden)).toBeNull();
     }

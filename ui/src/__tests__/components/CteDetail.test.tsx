@@ -48,7 +48,7 @@ describe('detalhe do CT-e', () => {
     expect(screen.getByRole('button', {name: 'Baixar DACTE'})).toBeInTheDocument();
     expect(await screen.findByText('Carta de Correção')).toBeInTheDocument();
     expect(screen.getByText('Prestação de serviço em desacordo')).toBeInTheDocument();
-    expect(screen.getAllByRole('button', {name: /Baixar XML do evento/})).toHaveLength(4);
+    expect(screen.getAllByRole('button', {name: /Baixar XML do evento/})).toHaveLength(5);
   });
 
   it('autorizado e tomador: oferece as quatro ações', async () => {
