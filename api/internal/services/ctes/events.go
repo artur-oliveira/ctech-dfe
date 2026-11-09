@@ -69,7 +69,18 @@ const (
 	CodeEventInvalid   = "event_invalid"
 	CodeEventNotFound  = "event_not_found"
 	CodeEventNotActive = "event_not_authorized"
+	CodeEventNotForOS  = "event_not_for_cte_os"
 )
+
+// requireModel57 recusa os eventos que o MOC só admite no CT-e modelo 57 (desacordo 610110/610111 e entrega
+// 110180 a 110191). Para o CT-e OS (modelo 67) valem o cancelamento (110111) e a carta de correção (110110).
+// O modelo é o da chave (posições 21 e 22).
+func requireModel57(accessKey string) error {
+	if len(accessKey) == accessKeyLen && accessKey[20:22] == ModelCTeOS {
+		return unprocessable(CodeEventNotForOS, "este evento não existe para o CT-e OS (modelo 67); valem o cancelamento e a carta de correção")
+	}
+	return nil
+}
 
 var protocolRe = regexp.MustCompile(`^\d{15}$`)
 
@@ -273,6 +284,9 @@ func (s *CteService) CorrectionLetter(ctx context.Context, orgPK, accessKey stri
 
 // ServiceDisagreement registra a prestação de serviço em desacordo (610110), evento do tomador. obs é obrigatória (xObs, 15 a 255).
 func (s *CteService) ServiceDisagreement(ctx context.Context, orgPK, accessKey, obs string, seq int, userID, userName string) (map[string]types.AttributeValue, error) {
+	if err := requireModel57(accessKey); err != nil {
+		return nil, err
+	}
 	obs = strings.TrimSpace(obs)
 	// evPrestDesacordo/xObs é obrigatório no XSD (15 a 255 caracteres).
 	if n := len([]rune(obs)); n < minObs || n > maxObs {
@@ -295,6 +309,9 @@ func (s *CteService) ServiceDisagreement(ctx context.Context, orgPK, accessKey, 
 // CancelServiceDisagreement cancela um evento de desacordo (610111). O evento a cancelar é escolhido pelo sk
 // na lista de eventos; o protocolo vem do registro dele, nunca digitado.
 func (s *CteService) CancelServiceDisagreement(ctx context.Context, orgPK, accessKey, eventSK string, seq int, userID, userName string) (map[string]types.AttributeValue, error) {
+	if err := requireModel57(accessKey); err != nil {
+		return nil, err
+	}
 	ec, err := s.resolveEventContext(ctx, orgPK, accessKey)
 	if err != nil {
 		return nil, err

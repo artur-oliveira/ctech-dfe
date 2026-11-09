@@ -171,10 +171,21 @@ e regras do MOC cobertas: `CONDUCT.md`, seções "CT-e complementar e substituto
 - O registro do CT-e ganha `cte_type` (`complement`, `substitute`), `complemented_keys`, `substituted_key`, e no CT-e OS
   `model` = `67` e `os_service`. A UI precisa tratar a ausência de `nfe_keys`, `sender`, `recipient` e `cargo` nesses registros.
 
+### Status F6 parte 4 (2026-11-08)
+
+Feito: detalhe do CT-e com `expedidor`, `recebedor`, `complemented_by` e `substituted_by` (linhas de referência `ref#` na tabela
+`ctes`, sem Scan nem GSI; detalhes em `DOCS.md`, "CT-e: detalhe com referência reversa..."); troca de tomador do substituto com
+todos os participantes; DACTE OS (MOC Anexo II, seções 4 e 6); eventos do CT-e OS só 110111 e 110110 (os do 57 respondem 422
+`event_not_for_cte_os`) e a UI esconde o resto. Perguntas em aberto: (1) CFOP do CT-e OS: o pedido citava 5206/6206 como transporte
+de pessoas, mas a tabela de CFOP do repositório (`ui/src/lib/data/cfop.ts`) descreve 5206/6206/7206 como "Anulação de valor relativo
+a aquisição de serviço de transporte"; nenhum documento do repositório ou fornecido lista CFOP específico do CT-e OS, então a lista
+continua a do CT-e e nada foi inventado (a fixture do mock deixou de usar 6206). Precisa do Anexo I do MOC (regras H, CFOP do 67).
+(2) 110300/110301 (vinculação de pagamento) são do 57 e do 67 no catálogo, mas as regras (autor, autorizador, uso) não estão em
+nenhum documento disponível e também não existem para o 57: não implementado. (3) Referências reversas de complementares e
+substitutos emitidos antes desta mudança.
+
 ### Status da UI (F6 parte 3)
 
 Construída em `ui/`: `/cte/complement`, `/cte/substitute` e `/cte/os`, espécie na lista e no detalhe, links para o original,
-mock e guia (detalhes em `DOCS.md`, "CT-e complementar, substituto e CT-e OS na UI"). Em aberto, dependem do backend:
-link do original para os complementos e substitutos dele (a API só devolve a referência no documento novo); papéis
-expedidor e recebedor na troca de tomador (o registro não traz esses participantes); DACTE e eventos do CT-e OS; lista de
-CFOP específica do CT-e OS.
+mock e guia (detalhes em `DOCS.md`, "CT-e complementar, substituto e CT-e OS na UI"). Os itens que dependiam do backend (link do original,
+expedidor e recebedor, DACTE e eventos do CT-e OS) foram feitos na parte 4; a lista de CFOP específica do CT-e OS segue em aberto.

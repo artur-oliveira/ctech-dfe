@@ -456,10 +456,10 @@ function route(method: string, path: string, body: unknown, params?: Record<stri
     if (getMockState().anttDown) return {error: {status: 503, data: {detail: 'serviço da ANTT indisponível; tente novamente', code: 'ciot_unavailable'}}};
     return {data: key.endsWith('/fleet') ? ciotCarrierFleetFixture : ciotCarrierStatusFixture};
   }
-  // Piso mínimo: enquanto a tabela oficial não foi verificada a api responde 503, nunca um número.
+  // Piso mínimo: calculado; com `?mock=floor-unverified` a api responde 503 (tabela não verificada), nunca um número.
   if (key === 'get /v1.0/freight-floor') {
-    if (getMockState().freightFloor) return {data: ciotFloorFixture};
-    return {error: {status: 503, data: {detail: 'Tabela do piso mínimo de frete ainda não verificada.', code: 'ciot_floor_unverified'}}};
+    if (!getMockState().floorUnverified) return {data: ciotFloorFixture};
+    return {error: {status: 503, data: {detail: 'Tabela do piso mínimo de frete não verificada.', code: 'ciot_floor_unverified'}}};
   }
 
   // Distributions

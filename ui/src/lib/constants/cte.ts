@@ -189,8 +189,15 @@ export const CTE_KIND_LABELS: Record<CteKind, string> = {
 export const CTE_SUBSTITUTE_SEFAZ_DAYS = 60;
 export const CTE_SUBSTITUTE_LIMIT_DAYS = 67;
 
-/** Papéis de tomador que o substituto oferece: a UI só conhece remetente e destinatário do original, mais `outro` do cadastro. */
-export const CTE_SUBSTITUTE_TAKER_ROLES: readonly CteTakerRole[] = ['remetente', 'destinatario', 'outro'];
+/**
+ * Papéis de tomador que o substituto oferece: todos os participantes. Remetente, expedidor, recebedor e destinatário
+ * são os do XML do original (a api devolve `expedidor` e `recebedor` no detalhe; só aparecem os que o original tem);
+ * `outro` vem do cadastro de pessoas.
+ */
+export const CTE_SUBSTITUTE_TAKER_ROLES: readonly CteTakerRole[] = ['remetente', 'expedidor', 'recebedor', 'destinatario', 'outro'];
+
+/** No substituto só `outro` pede pessoa do cadastro; os demais papéis são participantes do original. */
+export const CTE_SUBSTITUTE_NEEDS_PERSON: ReadonlySet<CteTakerRole> = new Set(['outro']);
 
 export const CTE_OS_SERVICES: { value: 'people' | 'values' | 'baggage'; label: string; hint: string }[] = [
   {value: 'people', label: 'Transporte de pessoas', hint: 'Fretamento de passageiros (tpServ 6)'},

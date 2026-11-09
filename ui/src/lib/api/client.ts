@@ -1135,10 +1135,10 @@ class ApiClient {
     return this.get(`/v1.0/ciot-carriers/${cpfCnpj}/fleet`, {params: {plates: plates.join(','), environment}}, false);
   }
 
-  /** Piso mínimo de frete. 503 `ciot_floor_unverified` enquanto a tabela oficial não foi verificada; a tela trata como "indisponível". */
+  /** Piso mínimo de frete (PNPM-TRC). 503 `ciot_floor_unverified` só se a tabela estiver marcada como não verificada; a tela trata como "indisponível". */
   async getFreightFloor(params: {
-    composition?: string
-    high_performance?: string
+    composition?: boolean
+    high_performance?: boolean
     cargo_type?: number
     axles?: number
     distance_km?: number

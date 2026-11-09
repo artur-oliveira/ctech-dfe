@@ -38,11 +38,11 @@ export const CIOT_ENVIRONMENTS: { value: CiotEnvironment; label: string }[] = [
   {value: 'hom', label: 'Homologação'},
 ];
 
-/** Tipos de carga da ANTT (1 a 12). Conferir a redação com a tabela oficial antes de publicar. */
+/** Tipos de carga da ANTT (1 a 12, CodigoTipoCarga; mesma numeração do Anexo II do piso). */
 export const CIOT_CARGO_TYPES = [
   'Granel sólido', 'Granel líquido', 'Frigorificada', 'Conteinerizada', 'Carga geral', 'Neogranel',
   'Perigosa (granel sólido)', 'Perigosa (granel líquido)', 'Perigosa (frigorificada)',
-  'Perigosa (conteinerizada)', 'Perigosa (carga geral)', 'Granel pressurizada',
+  'Perigosa (conteinerizada)', 'Perigosa (carga geral)', 'Granel pressurizado',
 ].map((label, i) => ({value: String(i + 1), label: `${i + 1}. ${label}`}));
 
 export const PAYMENT_PIX = 6;

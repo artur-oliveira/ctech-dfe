@@ -86,3 +86,41 @@ func TestDACTERejectsWrongModel(t *testing.T) {
 		t.Fatal("expected model mismatch error")
 	}
 }
+
+const testCTeOSKey = "35260812345678000190670010000000011000000012"
+
+func sampleCTeOSXML() string {
+	return `<cteOSProc xmlns="http://www.portalfiscal.inf.br/cte"><CTeOS><infCte Id="CTe` + testCTeOSKey + `"><ide><mod>67</mod><serie>1</serie><nCT>1</nCT><dhEmi>2026-08-29T12:00:00-03:00</dhEmi><tpEmis>1</tpEmis><tpAmb>2</tpAmb><tpCTe>0</tpCTe><tpServ>6</tpServ><modal>01</modal><CFOP>6353</CFOP><natOp>PRESTACAO DE SERVICO DE TRANSPORTE</natOp><xMunIni>Sao Paulo</xMunIni><UFIni>SP</UFIni><xMunFim>Rio de Janeiro</xMunFim><UFFim>RJ</UFFim><infPercurso><UFPer>MG</UFPer></infPercurso></ide><compl><xObs>Observacao OS</xObs><ObsCont xCampo="a"><xTexto>uso emissor</xTexto></ObsCont></compl><emit><CNPJ>12345678000190</CNPJ><IE>123</IE><xNome>TRANSPORTADORA TESTE</xNome><enderEmit><xLgr>Rua A</xLgr><nro>1</nro><xBairro>Centro</xBairro><xMun>Sao Paulo</xMun><CEP>01001000</CEP><UF>SP</UF></enderEmit></emit><toma><CNPJ>98765432000110</CNPJ><IE>456</IE><xNome>TOMADOR TESTE</xNome><enderToma><xLgr>Rua B</xLgr><nro>2</nro><xBairro>Centro</xBairro><xMun>Sao Paulo</xMun><CEP>01001000</CEP><UF>SP</UF></enderToma></toma><vPrest><vTPrest>300.00</vTPrest><vRec>300.00</vRec><Comp><xNome>PASSAGEM</xNome><vComp>300.00</vComp></Comp></vPrest><imp><ICMS><ICMS00><CST>00</CST><vBC>300.00</vBC><pICMS>12.00</pICMS><vICMS>36.00</vICMS></ICMS00></ICMS></imp><infCTeNorm><infServico><xDescServ>Transporte de passageiros</xDescServ><infQ><qCarga>12</qCarga></infQ></infServico><infModal versaoModal="4.00"><rodoOS><TAF>123456789012</TAF><veic><placa>ABC1D23</placa><RENAVAM>12345678901</RENAVAM></veic></rodoOS></infModal></infCTeNorm></infCte><infCTeSupl><qrCodCTe>https://example.invalid/cte?chCTe=` + testCTeOSKey + `</qrCodCTe></infCTeSupl></CTeOS><protCTe><infProt><chCTe>` + testCTeOSKey + `</chCTe><nProt>135260000000010</nProt><dhRecbto>2026-08-29T12:00:01-03:00</dhRecbto></infProt></protCTe></cteOSProc>`
+}
+
+func TestDACTEOSContextAndPDF(t *testing.T) {
+	root, err := parseXML([]byte(sampleCTeOSXML()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := buildCTeOSContext(root, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if toma := data["toma"].(map[string]any); toma["nome"] != "TOMADOR TESTE" {
+		t.Fatalf("toma = %v", toma)
+	}
+	if s := data["servico"].(map[string]any); s["qtd"] != "12" || s["desc"] != "Transporte de passageiros" {
+		t.Fatalf("servico = %v", s)
+	}
+	if rd := data["rodo"].(map[string]any); rd["placa"] != "ABC1D23" || rd["taf"] != "123456789012" {
+		t.Fatalf("rodo = %v", rd)
+	}
+	if data["ide"].(map[string]any)["percurso"] != "MG" || data["ide"].(map[string]any)["tpServ"] != "Transporte de Pessoas" || data["uso_emissor"] != "uso emissor" {
+		t.Fatalf("ide = %v", data["ide"])
+	}
+	renderer, err := newFolioRenderer()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The model 57 DACTE builder keeps refusing model 67; the renderer routes it to the OS layout.
+	pdf, err := renderer.Render(context.Background(), DocTypeCTe, []byte(sampleCTeOSXML()), StateActive, "")
+	if err != nil || !bytes.HasPrefix(pdf, []byte("%PDF")) {
+		t.Fatalf("render OS: %v", err)
+	}
+}

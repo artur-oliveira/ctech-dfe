@@ -324,6 +324,11 @@ complementar) ou `substituted_key` (S, só no substituto). `nfe_keys` do complem
 CT-e OS (`POST /v1.0/ctes/os`) usa o mesmo registro com `model = "67"`, `os_service` (`people`, `values`, `baggage`), o tomador em `taker`
 (`role = tomador`) e em `dest_cpf_cnpj`/`dest_name`, `nfe_keys` vazio e sem `sender`/`recipient`/`cargo`.
 
+Tabela `ctes` guarda também linhas de **referência reversa** (CT-e complementar e substituto): `pk` igual à do documento, `sk =
+ref#{chave do original}#{chave do derivado}`, `original_key`, `child_key`, `cte_type`, `created_at`. Gravadas na transação da
+emissão; lidas com Query `begins_with(sk, "ref#{chave}#")` pelo detalhe do CT-e (`GET /v1.0/ctes/{access_key}`). Sem `number`/`incoming`,
+não entram em nenhum GSI. Sem índice novo e sem alteração no CDK.
+
 **GSIs:**
 
 | Index             | PK   | Sort keys                          | Use case                                 |

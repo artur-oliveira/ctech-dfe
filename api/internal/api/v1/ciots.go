@@ -58,7 +58,7 @@ func RegisterCIOTs(router fiber.Router, svc *ciotsvc.Service, userSvc *services.
 	// Public and stateless: no organization, no data of anyone.
 	router.Get("/freight-floor", func(c fiber.Ctx) error {
 		in := ciot.FloorInput{
-			Composition: c.Query("composition"), HighPerformance: c.Query("high_performance"),
+			Composition: c.Query("composition") == "true", HighPerformance: c.Query("high_performance") == "true",
 			CargoType: intQuery(c, "cargo_type", 0), Axles: intQuery(c, "axles", 0),
 			DistanceKm: intQuery(c, "distance_km", 0), EmptyReturn: c.Query("empty_return") == "true",
 		}

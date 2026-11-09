@@ -263,8 +263,8 @@ cabeçalho `Chave`, `POST /gerar` com Bearer; contingência por gateway só em H
 `carrier_cpf_cnpj`, `payment_institution`, `generator_api_key`, `generator_fallback_url`, `cpf_cnpj`; a resposta de
 sucesso é o `ciot.Result` (`ciot` com 16 caracteres, `aviso_transportador`); rejeição de negócio volta 422 com
 `internal_code` (`CIOT_<GRUPO>_<codigo>`), `antt_code`, `antt_message`, `protocol`; indisponibilidade volta 502. Validador
-local (`ciot.Validate`, `ciot.ValidateLifecycle`), tabela de rejeições e cálculo do piso (tabela versionada, hoje placeholder
-NÃO VERIFICADO) ficam no pacote, ainda sem integração ao `go-dfe/validate`. Spec: `docs/specs/2026-11-04-ciot-antt-pef-integracao.md`.
+local (`ciot.Validate`, `ciot.ValidateLifecycle`), tabela de rejeições e cálculo do piso (tabela versionada 2026-07-17 portada da
+implementação de referência do dono, `verified=true`; Nota 1 dos eixos: coluna inferior primeiro) ficam no pacote, ainda sem integração ao `go-dfe/validate`. Spec: `docs/specs/2026-11-04-ciot-antt-pef-integracao.md`.
 
 **Alertas proativos do CIOT:** a rodada de 15 min do `contingency-dispatcher` também varre o índice esparso `alert-index` de `ciots` (CIOTs abertos; `alert_at` = prazo de cancelamento de 24 h, B35) e alerta só pelo tópico compartilhado (go-common `alerts`): `ciot-cancel-deadline` (a 2 h do fim, uma vez por CIOT) e `ciot-certificate-expiry` (certificado da organização com CIOT aberto, em 15, 7, 3 e 1 dias e vencido, uma vez por limite). Sem alarme nem métrica CloudWatch; texto só com ids e datas. Detalhes em `worker/CLAUDE.md`.
 
@@ -3380,16 +3380,40 @@ Limites do leiaute numa fonte só, `ui/src/lib/constants/layout-limits.ts` (`LAY
   Tudo em `components/cte/` (`CteChangeForm`, `CteOsForm`, `CteOsFields`, `CteCharge`, `CteKindBadge`); o valor, o CFOP e o
   ICMS vêm de `useCteCharge`, que a emissão a partir de NF-e também usa.
 - **API**: `POST /v1.0/ctes/complement`, `/substitute`, `/os` (`apiClient.complementCte`, `substituteCte`, `emitCteOs`), todos 202
-  `pending`. Substituto: `change_taker` + `taker` só quando o usuário troca; a UI oferece remetente, destinatário e `outro`
-  (pessoa do cadastro), sem o papel do tomador atual. Prazo: avisa de 60 a 67 dias (SEFAZ decide) e bloqueia acima de 67.
+  `pending`. Substituto: `change_taker` + `taker` só quando o usuário troca; a UI oferece remetente, expedidor, recebedor,
+  destinatário (só os que o detalhe do original traz) e `outro` (pessoa do cadastro, o único que pede `person_id`), sem o papel do
+  tomador atual. Prazo: avisa de 60 a 67 dias (SEFAZ decide) e bloqueia acima de 67.
 - **Espécie**: `cteKind(doc)` (`model` 67 = OS, `cte_type`, senão normal) e `CteKindBadge` na lista e no detalhe. O detalhe lista
-  "Complementa" e "Substitui" com link para o original; `sender`, `recipient`, `taker`, `nfe_keys` e `cargo` são opcionais nos tipos.
-  O DACTE fica oculto no CT-e OS e as ações de complemento e substituto não aparecem para ele.
+  "Complementa" e "Substitui" com link para o original e, no original, "Complementado por" e "Substituído por"
+  (`complemented_by`, `substituted_by`), mais Expedidor e Recebedor (`expedidor`, `recebedor`); `sender`, `recipient`, `taker`,
+  `nfe_keys` e `cargo` são opcionais nos tipos. No CT-e OS o detalhe mostra o DACTE e só Cancelar e Carta de correção (entrega e
+  desacordo são do 57); complemento e substituto não aparecem para ele.
 - **CT-e OS**: formulário por tipo (pessoas, valores, bagagem) espelhando o `CteOsEmitBody`; TAF ou registro estadual pelo trajeto
   (H023, H024), fretamento, GTV-e com soma conferida contra o frete (H053), INSS obrigatório com tomador CNPJ (H057), sem CST 60.
 - **Erros**: `CTE_DOC_ERRORS` traduz os `code` 422 de `openapi/ctes.yaml`; código desconhecido mostra a mensagem do servidor.
 - **Mock**: `?mock=cte-window` (substituto fora do prazo) e `?mock=cte-os-invalid` (soma das GTV-e); fixtures de complemento,
   substituto e CT-e OS no fim de `ctesFixture`.
+
+### CT-e: detalhe com referência reversa, DACTE OS e eventos do CT-e OS (API)
+
+- `GET /v1.0/ctes/{access_key}` (`CteService.GetCTeDetail`, `ctes/related.go`) acrescenta ao registro: `expedidor` e `recebedor`
+  (`{doc, name}`, lidos do XML autorizado no S3 com `nfexml.ParseCTe`; só modelo 57 com `xml_s3_key`; falha de leitura omite o campo) e,
+  nos emitidos, `complemented_by` e `substituted_by` (lista de `{access_key, status, number, serie, dh_emi, cte_type}`).
+- **Como acha os derivados, sem Scan nem GSI novo:** na transação da emissão do complementar e do substituto (`persist`), uma linha
+  por par (original, derivado) é gravada na própria tabela `ctes`: mesma `pk` (`{env}#{org}`), `sk = ref#{original}#{derivado}`,
+  atributos `original_key`, `child_key`, `cte_type`. O detalhe faz um Query na `pk` com `begins_with(sk, "ref#{chave}#")` (limite 50;
+  o MOC admite 10 complementos e 1 substituto por original) e um GetItem por derivado. As linhas não têm `number`, `incoming` nem
+  `year`, então não entram em `number-index-v2` nem em `dfe-index`. **Limite:** CT-e complementar ou substituto emitido antes desta
+  mudança não tem linha de referência e não aparece em "Complementado por"/"Substituído por" (o link no sentido derivado para
+  original continua pelo registro). Backfill: um Query por original não resolve; se houver dados reais, rodar uma migração única.
+- **DACTE OS (modelo 67):** `GET /v1.0/ctes/{key}/dacte` escolhe o leiaute pelo modelo do XML (`renderer.go`, `isCTeOS`):
+  `documents/templates/dacte_os_retrato.html` e `buildCTeOSContext` (`documents/cte.go`), campos e quadros do MOC CT-e Anexo II,
+  seções 4 (correlação XML x DACTE OS) e 6 (modelo). Contingência: só a legenda (FS-DA, a que tem o segundo código de barras, está
+  revogada). O DACTE 57 segue recusando modelo 67.
+- **Eventos do CT-e OS:** valem cancelamento (110111) e carta de correção (110110), os mesmos handlers do 57. Desacordo (610110 e
+  610111) e entrega (110180 a 110191) respondem 422 `event_not_for_cte_os` (`requireModel57`, pelo modelo da chave). O catálogo do MOC
+  (spec `2026-11-04-moc-gap-cte.md`, 6.3) também lista 110300/110301 (vinculação de pagamento) para o 67, não implementado: ver
+  pendências na spec do CT-e.
 
 ### Contingência na UI
 
@@ -3835,7 +3859,7 @@ Spec: `docs/specs/2026-11-04-ciot-antt-pef-integracao.md`. Code: `api/internal/s
 | `POST /v1.0/ciots/{id}/closure` `{closed_at, cargo_weight, routes, trip_count}` | `update.ciots` | 202 |
 | `GET /v1.0/ciot-carriers/{cpfCnpj}/status?environment=` | `get.ciots` | sync through the egress; 1 h DynamoDB TTL cache (`cached`) |
 | `GET /v1.0/ciot-carriers/{cpfCnpj}/fleet?plates=A,B&environment=` | `get.ciots` | sync, no cache, 1 to 7 plates |
-| `GET /v1.0/freight-floor` | public | 503 `ciot_floor_unverified` while the table is unverified, never a number |
+| `GET /v1.0/freight-floor` | public | query `composition`, `high_performance`, `empty_return` (booleans), `cargo_type` 1-12, `axles`, `distance_km`; returns `cents`, `value`, `outbound_*`, `empty_return_*`, `axles_used`, `table_version`, `valid_from`; 503 `ciot_floor_unverified` only if the table is marked unverified, never a number; 422 on bad input |
 
 The `ciots` RBAC resource is also covered by the `dfe:mdfes` OAuth scope family (`middleware/scopes.go`); the scope catalog in
 ctech-account is unchanged. Row status: `pending`, `declared`, `rectified`, `cancelled`, `closed`, `rejected`;
@@ -3857,12 +3881,12 @@ under the MDF-e context in `nav.tsx`. Permissions gate the screens and buttons (
 
 - The three `GET` helpers that can answer 503 as a business answer (`ciot-carriers/*`, `freight-floor`) bypass the maintenance
   redirect (`get(..., maintenance=false)`): a 503 there is inline text, never `/unavailable`. The floor hint says
-  "indisponivel" and never blocks the declaration; `composition` and `high_performance` are not sent until phase C7.
+  "indisponivel" and never blocks the declaration; `composition` (`vehicle_composition`) and `high_performance` are sent, the hint shows outbound/empty-return breakdown, table version and `valid_from`, and warns when the trip date predates `valid_from`. The floor is a warning only (ANTT decides).
 - The ANTT `result.body` shape is not fixed by the contract: the UI shows scalar fields as received and reads an RNTRC only
   from a key matching `rntrc`; it never states eligibility the ANTT did not say (110/111 only).
 - Realtime: `dfe_result` with `table_name=ciots` invalidates `ciots` list and detail (`access_key` is `CIOT_{id}`) and toasts via
   `resolveCiotToast`; a lifecycle rejection arrives with the old status plus `internal_code`.
-- Mock flags: `?mock=floor` (floor computed), `?mock=ciot-invalid` (422 `ciot_validation`), `?mock=antt-down` (503 on carrier
+- Mock flags: `?mock=floor-unverified` (floor answers 503; computed by default), `?mock=ciot-invalid` (422 `ciot_validation`), `?mock=antt-down` (503 on carrier
   queries). Guide: three sections in `/guide/cte-mdfe`, captures `ciot-list|emit|detail`.
 
 ### CIOT worker

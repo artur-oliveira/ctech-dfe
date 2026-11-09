@@ -14,11 +14,12 @@ const (
 	modelMDFe = "58"
 	modelCTe  = "57"
 
-	templateDANFe  = "danfe_retrato.html"
-	templateDANFCe = "danfce.html"
-	templateDAMDFE = "damdfe_retrato.html"
-	templateDANFSe = "danfse_v2.html"
-	templateDACTE  = "dacte_retrato.html"
+	templateDANFe   = "danfe_retrato.html"
+	templateDANFCe  = "danfce.html"
+	templateDAMDFE  = "damdfe_retrato.html"
+	templateDANFSe  = "danfse_v2.html"
+	templateDACTE   = "dacte_retrato.html"
+	templateDACTEOS = "dacte_os_retrato.html"
 
 	// nfseConsultaURL is the national NFS-e lookup page the DANFSe QR code and
 	// footer must print (NT 008 v1.02); the access key is appended verbatim.

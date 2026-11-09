@@ -206,6 +206,9 @@ func (s *CteService) CancelDeliveryEvent(ctx context.Context, orgPK, accessKey, 
 
 // issuerEventTarget loads the CT-e for an issuer-only event and returns its authorization protocol.
 func (s *CteService) issuerEventTarget(ctx context.Context, orgPK, accessKey string) (*eventContext, string, error) {
+	if err := requireModel57(accessKey); err != nil {
+		return nil, "", err
+	}
 	ec, err := s.resolveEventContext(ctx, orgPK, accessKey)
 	if err != nil {
 		return nil, "", err

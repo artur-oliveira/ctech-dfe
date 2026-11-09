@@ -128,7 +128,7 @@ func RegisterCTes(router fiber.Router, svc *ctesvc.CteService, userSvc *services
 
 	// GET /ctes/:access_key
 	g.Get("/:access_key", perm.Require("get.ctes"), func(c fiber.Ctx) error {
-		cte, err := svc.GetCTe(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"))
+		cte, err := svc.GetCTeDetail(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"))
 		if err != nil {
 			return sendProblem(c, err)
 		}

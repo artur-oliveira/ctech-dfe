@@ -245,6 +245,11 @@ paths:
     get:
       tags: [ CT-e ]
       summary: Detalha um CT-e
+      description: |
+        Além do registro, devolve `expedidor` e `recebedor` (lidos do XML autorizado guardado, modelo 57) e as
+        referências reversas `complemented_by` e `substituted_by` (CT-e emitido): os complementares e substitutos
+        que apontam para este CT-e. A busca é um Query por `begins_with(sk, "ref#{chave}#")` na partição do
+        ambiente e da organização (linhas de referência gravadas na transação da emissão); nunca Scan.
       operationId: getCte
       responses:
         '200':
@@ -263,7 +268,7 @@ paths:
     get:
       tags: [ CT-e ]
       summary: Baixa o DACTE em PDF
-      description: A4 retrato. CT-e offline ainda não autorizado sai da cópia assinada guardada, com a legenda de contingência.
+      description: A4 retrato. O CT-e OS (modelo 67) sai no leiaute do DACTE OS (MOC Anexo II, seção 6). CT-e offline ainda não autorizado sai da cópia assinada guardada, com a legenda de contingência.
       operationId: getCteDacte
       responses:
         '200': { $ref: '#/components/responses/CachedPdfDownload' }
@@ -338,7 +343,7 @@ paths:
       tags: [ CT-e ]
       summary: Prestação de serviço em desacordo (evento 610110)
       description: |
-        Evento do tomador do serviço (422 `not_cte_taker`). Até 45 dias da autorização (rejeição 787 da SEFAZ).
+        Evento do tomador do serviço (422 `not_cte_taker`). Só CT-e modelo 57: no CT-e OS (modelo 67) responde 422 `event_not_for_cte_os`. Até 45 dias da autorização (rejeição 787 da SEFAZ).
         `sequence_number` omitido vira o seguinte ao maior já enviado (1 a 20).
       operationId: disagreeCteService
       requestBody:
@@ -394,7 +399,7 @@ paths:
       tags: [ CT-e ]
       summary: Comprovante de entrega do CT-e (evento 110180)
       description: |
-        Evento do emitente, CT-e autorizado. `nfe_keys` só para serviço Normal (`infEntrega`). Retorno 135.
+        Evento do emitente, CT-e autorizado, só modelo 57 (CT-e OS: 422 `event_not_for_cte_os`). `nfe_keys` só para serviço Normal (`infEntrega`). Retorno 135.
       operationId: registerCteDeliveryReceipt
       requestBody:
         required: true
@@ -915,6 +920,15 @@ components:
                 inss: { type: [ string, 'null' ] }
                 csll: { type: [ string, 'null' ] }
 
+    CteRelatedLink:
+      type: object
+      properties:
+        access_key: { type: string }
+        status: { type: string }
+        number: { type: integer }
+        serie: { type: integer }
+        dh_emi: { type: string }
+        cte_type: { type: string, enum: [ complement, substitute ] }
     CteDocument:
       allOf:
         - $ref: '#/components/schemas/FiscalDocument'
@@ -930,6 +944,10 @@ components:
             substituted_key: { type: string }
             sender: { type: object, properties: { doc: { type: string }, name: { type: string } } }
             recipient: { type: object, properties: { doc: { type: string }, name: { type: string } } }
+            expedidor: { type: object, description: Só no detalhe, do XML autorizado., properties: { doc: { type: string }, name: { type: string } } }
+            recebedor: { type: object, description: Só no detalhe, do XML autorizado., properties: { doc: { type: string }, name: { type: string } } }
+            complemented_by: { type: array, description: Só no detalhe do CT-e emitido., items: { $ref: '#/components/schemas/CteRelatedLink' } }
+            substituted_by: { type: array, description: Só no detalhe do CT-e emitido., items: { $ref: '#/components/schemas/CteRelatedLink' } }
             taker:
               type: object
               properties:

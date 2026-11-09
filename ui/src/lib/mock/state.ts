@@ -36,9 +36,9 @@ export interface MockState {
   eventProblem: 'invalid' | 'notAuthorized' | 'notFound' | 'noCertificate' | null
   /** Substituto fora do prazo (`cte-window`) ou CT-e OS com a soma das GTV-e errada (`cte-os-invalid`): 422 com `code`. */
   cteProblem: 'window' | 'osGtve' | null
-  /** CIOT: a declaração é recusada com 422 `ciot_validation` (`ciot-invalid`) ou o piso mínimo de frete vem calculado (`floor`). */
+  /** CIOT: a declaração é recusada com 422 `ciot_validation` (`ciot-invalid`) ou o piso mínimo de frete responde 503 como tabela não verificada (`floor-unverified`). */
   ciotProblem: 'invalid' | null
-  freightFloor: boolean
+  floorUnverified: boolean
   /** A ANTT fora do ar (503) nas consultas de transportador (`antt-down`). */
   anttDown: boolean
 }
@@ -64,7 +64,7 @@ const DEFAULT: MockState = {
   eventProblem: null,
   cteProblem: null,
   ciotProblem: null,
-  freightFloor: false,
+  floorUnverified: false,
   anttDown: false,
 };
 
@@ -128,8 +128,8 @@ export function initMockStateFromUrl(search: string): void {
     state = {...state, cteProblem: 'osGtve'};
   } else if (raw === 'ciot-invalid') {
     state = {...state, ciotProblem: 'invalid'};
-  } else if (raw === 'floor') {
-    state = {...state, freightFloor: true};
+  } else if (raw === 'floor-unverified') {
+    state = {...state, floorUnverified: true};
   } else if (raw === 'antt-down') {
     state = {...state, anttDown: true};
   } else if (raw === 'ok') {

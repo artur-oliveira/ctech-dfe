@@ -110,6 +110,11 @@ func (r *folioRenderer) Render(ctx context.Context, docType string, xmlBytes []b
 	if err != nil {
 		return nil, err
 	}
+	// The CT-e OS (model 67) shares the "cte" doc type but has its own layout (MOC Anexo II, DACTE OS).
+	isCTeOS := docType == DocTypeCTe && root.firstDeep("infCte").child("ide").value("mod") == modelCTeOS
+	if isCTeOS {
+		templateName = templateDACTEOS
+	}
 	var data map[string]any
 	switch docType {
 	case DocTypeNFe:
@@ -119,7 +124,11 @@ func (r *folioRenderer) Render(ctx context.Context, docType string, xmlBytes []b
 	case DocTypeMDFe:
 		data, err = buildMDFeContext(root, state == StateCancelled)
 	case DocTypeCTe:
-		data, err = buildCTeContext(root, state == StateCancelled)
+		if isCTeOS {
+			data, err = buildCTeOSContext(root, state == StateCancelled)
+		} else {
+			data, err = buildCTeContext(root, state == StateCancelled)
+		}
 	case DocTypeNFSe:
 		data, err = buildNFSeContext(root, state)
 	}

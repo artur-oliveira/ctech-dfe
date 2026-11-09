@@ -29,24 +29,24 @@ import {formatDatetimeBR, triggerRemoteDownload} from '@/lib/utils/dfe';
 import {cteChangeBlocker, cteKind, sameDoc} from '@/lib/utils/cte';
 import {ACCESS_KEY_MOD_CTE, ACCESS_KEY_MOD_CTE_OS, validateAccessKey} from '@/lib/utils/access-key';
 import {hasPermission} from '@/lib/utils/delivery-events';
-import type {NfeEventOut} from '@/lib/types/api';
+import type {CteRelatedLink, NfeEventOut} from '@/lib/types/api';
 
 const PERMISSION_CTE_EVENTS = 'create.cte_events';
 
 const ACTION_BTN = 'min-h-11 sm:min-h-0';
 
-/** CT-e relacionados (complemento ou substituto): a api só devolve a referência do documento para o original. */
-function RelatedDocs({label, keys}: { label: string; keys: string[] }) {
+/** CT-e relacionados: o que este documento referencia (só a chave) e o que referencia este (chave, número e situação). */
+function RelatedDocs({label, links}: { label: string; links: CteRelatedLink[] }) {
   return (
     <section aria-label={label} className="rounded-xl border border-gray-200 bg-white overflow-hidden">
       <p className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-400 border-b border-gray-100">{label}</p>
       <ul className="divide-y divide-gray-100">
-        {keys.map((k) => (
-          <li key={k}>
-            <Link href={`/cte/detail?key=${k}`}
-                  className="flex min-h-11 items-center px-4 py-2.5 font-mono text-xs text-brand-600 hover:text-brand-700 truncate sm:min-h-0">
-              {k}
+        {links.map((l) => (
+          <li key={l.access_key} className="flex min-h-11 items-center justify-between gap-3 px-4 py-2.5 sm:min-h-0">
+            <Link href={`/cte/detail?key=${l.access_key}`} className="min-w-0 truncate font-mono text-xs text-brand-600 hover:text-brand-700">
+              {l.number ? `CT-e ${l.number} · ` : ''}{l.access_key}
             </Link>
+            {l.status && <DfeStatusBadge status={l.status} gender="m"/>}
           </li>
         ))}
       </ul>
@@ -109,6 +109,8 @@ function CteDetail({accessKey}: { accessKey: string }) {
   const isIssuer = !doc.emit_cpf_cnpj || sameDoc(doc.emit_cpf_cnpj, orgDoc);
   const isTaker = sameDoc(doc.taker?.doc, orgDoc);
   const kind = cteKind(doc);
+  // Só o cancelamento e a carta de correção existem para o CT-e OS (modelo 67); entrega e desacordo são do 57.
+  const isOs = kind === 'os';
   const canChange = hasPermission(selectedOrg?.permissions, PERMISSION_CTE_CREATE) && !cteChangeBlocker(doc, isIssuer);
   const target = {
     sk: accessKey, number: doc.number,
@@ -133,7 +135,7 @@ function CteDetail({accessKey}: { accessKey: string }) {
           <CteDocKindBadge doc={doc} size="md"/>
           <DfeStatusBadge status={doc.status} gender="m" size="md"/>
           <ContingencyBadge state={doc.contingency_state} male size="md"/>
-          {kind !== 'os' && (authorized || doc.contingency_state === CONTINGENCY_PENDING) && (
+          {(authorized || doc.contingency_state === CONTINGENCY_PENDING) && (
             <DownloadPdfButton fetchPdf={() => apiClient.downloadCteDacte(accessKey)} label="Baixar DACTE" variant="outline"
                                className={`${ACTION_BTN} text-brand-600 border-brand-200 hover:bg-brand-50`}/>
           )}
@@ -162,7 +164,7 @@ function CteDetail({accessKey}: { accessKey: string }) {
               <Button variant="outline" onClick={() => openCancel(target)} className={`${ACTION_BTN} text-red-600 border-red-200 hover:bg-red-50`}>
                 Cancelar
               </Button>
-              {canEvents && (
+              {canEvents && !isOs && (
                 <>
                   <Button variant="outline" onClick={() => openReceipt(target)} className={ACTION_BTN}>
                     Comprovante de entrega
@@ -179,7 +181,7 @@ function CteDetail({accessKey}: { accessKey: string }) {
               )}
             </>
           )}
-          {isTaker ? (
+          {isOs ? null : isTaker ? (
             <>
               <Button variant="outline" onClick={() => openDisagree(target)} className={ACTION_BTN}>
                 Prestação em desacordo
@@ -214,9 +216,11 @@ function CteDetail({accessKey}: { accessKey: string }) {
       <MdfeSefazStatus accessKey={accessKey} localStatus={doc.status} docType="cte"/>
 
       {doc.complemented_keys && doc.complemented_keys.length > 0 && (
-        <RelatedDocs label="Complementa" keys={doc.complemented_keys}/>
+        <RelatedDocs label="Complementa" links={doc.complemented_keys.map((k) => ({access_key: k} as CteRelatedLink))}/>
       )}
-      {doc.substituted_key && <RelatedDocs label="Substitui" keys={[doc.substituted_key]}/>}
+      {doc.substituted_key && <RelatedDocs label="Substitui" links={[{access_key: doc.substituted_key} as CteRelatedLink]}/>}
+      {doc.complemented_by && doc.complemented_by.length > 0 && <RelatedDocs label="Complementado por" links={doc.complemented_by}/>}
+      {doc.substituted_by && doc.substituted_by.length > 0 && <RelatedDocs label="Substituído por" links={doc.substituted_by}/>}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <InfoCard label="Frete">
@@ -242,6 +246,8 @@ function CteDetail({accessKey}: { accessKey: string }) {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {doc.sender && <Party label="Remetente" p={doc.sender}/>}
+        {doc.expedidor && <Party label="Expedidor" p={doc.expedidor}/>}
+        {doc.recebedor && <Party label="Recebedor" p={doc.recebedor}/>}
         {doc.recipient && <Party label="Destinatário" p={doc.recipient}/>}
         {doc.taker && (
           <InfoCard label={`Tomador (${CTE_TAKER_LABELS[doc.taker.role] ?? doc.taker.role})`}>

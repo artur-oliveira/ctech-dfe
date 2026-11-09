@@ -219,15 +219,15 @@ describe('mock handler: CIOT', () => {
     }
   });
 
-  it('o piso vem 503 ciot_floor_unverified até o `?mock=floor` calcular', async () => {
-    await expect(call('get', '/v1.0/freight-floor')).rejects.toMatchObject({
-      response: {status: 503, data: {code: 'ciot_floor_unverified'}},
-    });
-    setMockState({freightFloor: true});
+  it('o piso vem calculado; `?mock=floor-unverified` responde 503 ciot_floor_unverified', async () => {
+    expect((await get('/v1.0/freight-floor')).value).toBe('4820.00');
+    setMockState({floorUnverified: true});
     try {
-      expect((await get('/v1.0/freight-floor')).value).toBe('4820.00');
+      await expect(call('get', '/v1.0/freight-floor')).rejects.toMatchObject({
+        response: {status: 503, data: {code: 'ciot_floor_unverified'}},
+      });
     } finally {
-      setMockState({freightFloor: false});
+      setMockState({floorUnverified: false});
     }
   });
 

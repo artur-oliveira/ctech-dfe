@@ -69,13 +69,46 @@ describe('detalhe do CT-e: espécie e relacionados', () => {
     expect(related.querySelector('a')).toHaveAttribute('href', `/cte/detail?key=${SUBSTITUTED.sk}`);
   });
 
-  it('CT-e OS: chave modelo 67 abre, mostra o serviço, não oferece complemento nem DACTE', async () => {
+  it('original: links para o complementar e o substituto, e expedidor e recebedor do XML', async () => {
+    renderDetail(NORMAL.sk);
+    await screen.findByText(/CT-e 31/);
+    const comp = screen.getByRole('region', {name: 'Complementado por'});
+    expect(comp.querySelector('a')).toHaveAttribute('href', `/cte/detail?key=${COMPLEMENT.sk}`);
+    expect(screen.getByText('Expedidor')).toBeInTheDocument();
+    expect(screen.getByText('Recebedora Mock LTDA')).toBeInTheDocument();
+  });
+
+  it('original com substituto: link em Substituído por', async () => {
+    renderDetail(SUBSTITUTED.sk);
+    await screen.findByText(/CT-e 30/);
+    expect(screen.getByRole('region', {name: 'Substituído por'}).querySelector('a')).toHaveAttribute('href', `/cte/detail?key=${SUBSTITUTE.sk}`);
+  });
+
+  it('CT-e OS: DACTE e só cancelamento e carta de correção; sem entrega nem desacordo', async () => {
+    renderDetail(OS.sk);
+    await screen.findByText(/CT-e 40/);
+    expect(screen.getByRole('button', {name: 'Baixar DACTE'})).toBeInTheDocument();
+    expect(screen.getByText('Carta de correção')).toBeInTheDocument();
+    expect(screen.getByText('Cancelar')).toBeInTheDocument();
+    for (const hidden of ['Comprovante de entrega', 'Insucesso de entrega', 'Prestação em desacordo', 'Cancelar entrega', 'Cancelar desacordo']) {
+      expect(screen.queryByText(hidden)).toBeNull();
+    }
+    expect(screen.queryByText(/apenas o tomador/)).toBeNull();
+  });
+
+  it('CT-e normal segue com todos os eventos', async () => {
+    renderDetail(NORMAL.sk);
+    await screen.findByText(/CT-e 31/);
+    expect(screen.getByText('Comprovante de entrega')).toBeInTheDocument();
+    expect(screen.getByText('Insucesso de entrega')).toBeInTheDocument();
+  });
+
+  it('CT-e OS: chave modelo 67 abre, mostra o serviço e não oferece complemento', async () => {
     renderDetail(OS.sk);
     await screen.findByText(/CT-e 40/);
     expect(screen.getByTestId('cte-kind')).toHaveTextContent('CT-e OS');
     expect(screen.getByText('Transporte de pessoas')).toBeInTheDocument();
     expect(screen.queryByText('Emitir complemento')).toBeNull();
-    expect(screen.queryByRole('button', {name: 'Baixar DACTE'})).toBeNull();
     expect(screen.queryByText(/não é de um CT-e válido/)).toBeNull();
   });
 });

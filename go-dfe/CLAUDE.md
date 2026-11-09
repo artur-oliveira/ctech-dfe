@@ -46,7 +46,7 @@ go-dfe/
 │   ├── client.go, types.go, result.go, normalize.go   # 8 services at {host}/api/{Service}; Codigo/Mensagem scalar or list
 │   ├── generator.go             # POST /token (header Chave) + POST /gerar; token cache; fallback only on HTTP 500 in prod
 │   ├── validator.go, lifecycle.go, rejections.go      # data catalogs: local rules, deadline rules, ANTT code -> CIOT_<GROUP>_<code>
-│   ├── floor.go, floor_table.json                     # freight floor; embedded table is an UNVERIFIED empty placeholder
+│   ├── floor.go, floor_table.json                     # freight floor; embedded table ported by script from the owner reference (verified, 2026-07-17)
 │   ├── certcheck.go             # preflight: OID 2.16.76.1.3.3, client EKU, carrier match (B112)
 │   └── ciottest/                # throwaway PFX with the OID + fake ANTT (TLS with required client cert) for tests
 ├── internal/taxid/              # single CPF/CNPJ (numeric and alphanumeric) check-digit implementation; validate delegates
@@ -132,7 +132,10 @@ and fallback URL arrive in `Request.Body` (`generator_api_key`, `generator_fallb
 caller; empty and `CHANGE_ME` keys are refused when the generator is built. Business rejections return HTTP 422 with
 `internal_code`/`antt_code`/`protocol`; transport, 5xx and generator failures return 502 (retryable by the caller).
 Certificate preflight (`ciot.CheckCertificate`) runs before any network call and fails with 400. The freight floor
-refuses to compute from an unverified table.
+refuses to compute from an unverified table. `floor_table.json` (Tables A to D as `composition` x `high_performance`
+booleans, cargo types 1 to 12, axle columns 2 to 7 and 9) was generated from `ciot-api/internal/freight/tables.go`, not
+typed; the official ANTT publication was not read automatically. Axle rule (Nota 1): nearest column below, above only if
+none below, also across blank cells; above 9 is 9, 1 is 2. Legs are rounded to cents separately, total is their sum.
 
 ### XSD validation and DANFE — explicitly out of scope
 

@@ -33,6 +33,27 @@ describe('FreightFloorHint', () => {
     expect(screen.getByTestId('floor-value')).toHaveTextContent('abaixo do piso');
   });
 
+  it('manda composição e alto desempenho e mostra a ida, o retorno vazio e a vigência', async () => {
+    const spy = vi.spyOn(apiClient, 'getFreightFloor').mockResolvedValue(ciotFloorFixture);
+    wrap(<FreightFloorHint params={{...ready, composition: true, high_performance: true, empty_return: true}} freight="1000"/>);
+    expect(await screen.findByTestId('floor-breakdown')).toHaveTextContent(/Ida .*2\.510,00; retorno vazio .*2\.310,00; coluna de 5 eixos/);
+    expect(screen.getByTestId('floor-value')).toHaveTextContent('vigente desde 17/07/2026');
+    expect(spy).toHaveBeenCalledWith(expect.objectContaining({composition: true, high_performance: true, empty_return: true}));
+  });
+
+  it('data da viagem anterior à vigência da tabela avisa', async () => {
+    vi.spyOn(apiClient, 'getFreightFloor').mockResolvedValue(ciotFloorFixture);
+    wrap(<FreightFloorHint params={ready} freight="5000" operationDate="2026-07-01"/>);
+    expect(await screen.findByTestId('floor-predates')).toHaveTextContent('anterior à vigência');
+  });
+
+  it('data da viagem dentro da vigência não avisa', async () => {
+    vi.spyOn(apiClient, 'getFreightFloor').mockResolvedValue(ciotFloorFixture);
+    wrap(<FreightFloorHint params={ready} freight="5000" operationDate="2026-08-01"/>);
+    await screen.findByTestId('floor-value');
+    expect(screen.queryByTestId('floor-predates')).toBeNull();
+  });
+
   it('frete acima do piso não avisa', async () => {
     vi.spyOn(apiClient, 'getFreightFloor').mockResolvedValue(ciotFloorFixture);
     wrap(<FreightFloorHint params={ready} freight="5000"/>);

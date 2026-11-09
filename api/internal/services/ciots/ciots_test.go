@@ -32,13 +32,34 @@ func TestDeclareEmptyBodyIsValidationProblem(t *testing.T) {
 	}
 }
 
+func TestFreightFloorComputesFromVerifiedTable(t *testing.T) {
+	res, err := FreightFloor(ciot.FloorInput{Composition: true, HighPerformance: true, CargoType: 5, Axles: 2, DistanceKm: 100, EmptyReturn: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Cents != 82242 || res.Value != "822.42" || res.OutboundValue != "511.00" || res.EmptyReturnValue != "311.42" ||
+		res.AxlesUsed != 2 || res.TableVersion != "2026-07-17" || res.ValidFrom != "2026-07-17" {
+		t.Fatalf("%+v", res)
+	}
+}
+
 func TestFreightFloorUnverifiedIs503NeverANumber(t *testing.T) {
-	res, err := FreightFloor(ciot.FloorInput{CargoType: 1, Axles: 2, DistanceKm: 100})
+	tab := ciot.DefaultFloorTable()
+	tab.Verified = false
+	res, err := freightFloor(tab, ciot.FloorInput{CargoType: 1, Axles: 2, DistanceKm: 100})
 	if res != nil {
 		t.Fatalf("returned a number: %+v", res)
 	}
 	if p := asProblem(t, err); p.Status != 503 || p.Code != CodeFloor {
 		t.Fatalf("problem = %+v", p)
+	}
+}
+
+func TestFreightFloorBadInputIs422(t *testing.T) {
+	for _, in := range []ciot.FloorInput{{CargoType: 0, Axles: 2, DistanceKm: 1}, {CargoType: 13, Axles: 2, DistanceKm: 1}, {CargoType: 1, Axles: 0, DistanceKm: 1}, {CargoType: 1, Axles: 2}} {
+		if p := asProblem(t, func() error { _, err := FreightFloor(in); return err }()); p.Status != 422 || p.Code != CodeValidation {
+			t.Fatalf("%+v: %+v", in, p)
+		}
 	}
 }
 

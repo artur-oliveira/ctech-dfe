@@ -69,7 +69,7 @@ export function summarizeAntt(result: CiotAnttResult | undefined): AnttSummary {
   };
 }
 
-/** A tabela do piso ainda não foi verificada (ou a api está fora): a dica some, a declaração segue. */
+/** A tabela do piso está marcada como não verificada (ou a api está fora): a dica some, a declaração segue. */
 export function floorUnavailable(err: unknown): boolean {
   if (!(err instanceof ApiError)) return false;
   const code = (err.raw as { code?: string } | undefined)?.code;

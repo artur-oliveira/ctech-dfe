@@ -2168,7 +2168,23 @@ export interface CteListOut extends ContingencyDocFields {
   os_service?: CteOsServiceType
 }
 
+/** Complementar ou substituto que aponta para um CT-e (detalhe do original). */
+export interface CteRelatedLink {
+  access_key: string
+  status: DfeStatus
+  number?: number
+  serie?: number
+  dh_emi?: string
+  cte_type?: CteDocType
+}
+
 export interface CteDetailOut extends CteListOut {
+  /** Do XML autorizado do CT-e 57, só no detalhe; ausentes se o CT-e não os tem. */
+  expedidor?: { doc: string; name: string }
+  recebedor?: { doc: string; name: string }
+  /** Só no detalhe do CT-e emitido: os documentos que apontam para este. */
+  complemented_by?: CteRelatedLink[]
+  substituted_by?: CteRelatedLink[]
   /** Ausente no complementar e no CT-e OS. */
   nfe_keys?: string[]
   origin: CtePlace | null
@@ -2620,5 +2636,12 @@ export interface CiotCarrierResult {
 export interface FreightFloorOut {
   cents: number
   value: string
+  outbound_cents: number
+  outbound_value: string
+  empty_return_cents: number
+  empty_return_value: string
+  axles_used: number
   table_version: string
+  /** yyyy-MM-dd: início da vigência da tabela usada. */
+  valid_from: string
 }

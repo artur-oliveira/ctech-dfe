@@ -9,6 +9,7 @@ import {
   CTE_OS_GTVE_COMPONENT_NAME_MAX,
   CTE_OS_ROUTE_UFS_MAX,
   CTE_PRODUCT_MAX_LENGTH,
+  CTE_SUBSTITUTE_NEEDS_PERSON,
   CTE_TAKER_NEEDS_PERSON,
   CTE_TAKER_ROLES,
 } from '@/lib/constants/cte';
@@ -111,7 +112,7 @@ export const cteSubstituteBodySchema = z.object({
   ...chargeShape,
 }).refine((b) => !b.change_taker || !!b.taker, {message: 'Escolha o novo tomador', path: ['taker']})
   .refine((b) => !b.taker || b.change_taker, {message: 'O tomador só vale com a troca de tomador', path: ['taker']})
-  .refine((b) => !b.taker || !CTE_TAKER_NEEDS_PERSON.has(b.taker.role) || !!b.taker.person_id,
+  .refine((b) => !b.taker || !CTE_SUBSTITUTE_NEEDS_PERSON.has(b.taker.role) || !!b.taker.person_id,
     {message: 'Escolha a pessoa do cadastro', path: ['taker', 'person_id']});
 
 const osPlace = z.object({city_ibge: z.string().regex(IBGE), city: z.string().min(2).max(60), uf: z.string().length(2)});

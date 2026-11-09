@@ -1293,6 +1293,12 @@ builder (`BuildCTeOS`, raiz `<CTeOS versao="4.00">`), mas o fim da emissão é o
   `gCompraGov`, antecipação de pagamento, outros modais. GTV-e (modelo 64) e CT-e Simplificado: só spec
   (`docs/specs/2026-11-04-moc-gap-cte.md`, seção 7).
 
+- **CT-e OS: eventos, DACTE e referência reversa.** Só 110111 e 110110 valem para o modelo 67 (catálogo do MOC na spec
+  `2026-11-04-moc-gap-cte.md`, 6.3); os eventos do 57 (610110/610111, 110180 a 110191) recebem 422 `event_not_for_cte_os` em
+  `requireModel57`. DACTE OS: `documents/dacte_os_retrato.html` pelo Anexo II do MOC. Complementar e substituto gravam, na transação
+  da emissão, linhas `ref#{original}#{derivado}` na tabela `ctes` (lidas por Query com `begins_with`, nunca Scan); a linha não pode
+  ganhar `number`, `incoming` ou `year` (entraria nos GSIs de listagem).
+
 ## MDF-e: portão do MOC, chaves e CNPJ alfanumérico
 
 - **Portão:** `mdfes/prevalidate.go` lista as regras do catálogo do MDF-e que recusam a emissão (422
@@ -1417,8 +1423,10 @@ NFC-e. Na SVC do CT-e (7/8) **não** se informa `dhCont`/`xJust` nem `sign` (o o
 - Chave do gerador e URL de contingência nunca entram em log, erro ou resposta; a biblioteca recusa vazio e `CHANGE_ME`
   ao construir o gerador. Quem lê o SSM (worker, C4) precisa de `ssm:GetParameter` e `kms:Decrypt` com escopo de caminho;
   o egress não tem cliente AWS e recebe os valores no corpo.
-- O piso mínimo só calcula com tabela marcada `verified`; a tabela embutida é um placeholder vazio. Coeficientes vêm da
-  publicação oficial da ANTT, nunca de memória.
+- O piso mínimo só calcula com tabela marcada `verified`. A tabela embutida (`floor_table.json`) é gerada por script da
+  implementação de referência do dono (`ciot-api/internal/freight`), nunca digitada; a publicação oficial da ANTT não foi
+  lida automaticamente. Eixos pedidos: coluna inferior primeiro, superior só sem inferior (Nota 1); cada perna arredonda
+  em centavos. O piso é só aviso na tela (a ANTT decide).
 - Mapeamentos entre código ANTT e regra inferidos pela posição na tabela da spec estão marcados `Inferred` em
   `ciot/rejections.go`; confirmar em homologação.
 
@@ -1442,7 +1450,7 @@ enviados só um certificado descartável e uma chave falsa, e a ANTT respondeu 4
 - Toda operação do ciclo de vida marca `pending_operation` na linha com condição (nenhuma em andamento e estado aberto), junto do
   outbox e da linha de auditoria `request:*`, na mesma transação. Segunda operação concorrente é 409 `ciot_invalid_state`.
 - Corpo enviado e resposta da ANTT vão para `ciot_audit` (cifrado em repouso pelo DynamoDB, hash SHA-256 do corpo) e nunca para log.
-- O piso mínimo só calcula com a tabela verificada; sem isso o endpoint responde 503 e a declaração não ganha aviso de piso.
+- O piso mínimo só calcula com a tabela verificada; se ela for marcada não verificada o endpoint responde 503 (`ciot_floor_unverified`) e a tela mostra "indisponível". O aviso de piso é da tela, não do servidor.
 - Worker `ciot-operation`: rejeição de negócio da ANTT (HTTP 422 do egress) é terminal e a função retorna sucesso; transporte, 5xx e 502
   liberam a lease e retornam erro. Chave do gerador e URL de contingência vêm do SSM por invocação e nunca entram em log, resultado SNS
   ou corpo de auditoria de outra chamada. Só este worker lê `/ctech-dfe/*/ciot/*`; o egress não tem acesso ao SSM.

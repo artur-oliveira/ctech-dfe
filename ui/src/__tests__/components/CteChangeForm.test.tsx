@@ -123,6 +123,30 @@ describe('substituto', () => {
     }));
   });
 
+  it('troca para expedidor ou recebedor do original: sem pessoa do cadastro, só o papel', async () => {
+    renderForm('substitute');
+    fireEvent.click(screen.getByRole('checkbox', {name: /Informar outro tomador/}));
+    // Remetente é o atual; o original tem expedidor e recebedor (XML), então os quatro participantes e Outro aparecem.
+    for (const r of [/Expedidor/, /Recebedor/, /Destinatário/, /Outro/]) expect(screen.getByRole('radio', {name: r})).toBeInTheDocument();
+    typeMoney('Valor total do frete', '100');
+    await chooseCfop();
+    fireEvent.click(screen.getByRole('radio', {name: /Expedidor/}));
+    expect(screen.queryByText('Pessoa que paga o frete')).toBeNull();
+    const emit = screen.getByRole('button', {name: 'Emitir substituto'});
+    await waitFor(() => expect(emit).toBeEnabled());
+    fireEvent.click(emit);
+    fireEvent.click(await screen.findByRole('button', {name: 'Confirmar e emitir'}));
+    await waitFor(() => expect(apiClient.substituteCte).toHaveBeenCalledTimes(1));
+    expect(apiClient.substituteCte).toHaveBeenCalledWith(expect.objectContaining({change_taker: true, taker: {role: 'expedidor'}}));
+  });
+
+  it('original sem expedidor nem recebedor não os oferece', () => {
+    renderForm('substitute', {...original(), expedidor: undefined, recebedor: undefined});
+    fireEvent.click(screen.getByRole('checkbox', {name: /Informar outro tomador/}));
+    expect(screen.queryByRole('radio', {name: /Expedidor/})).toBeNull();
+    expect(screen.queryByRole('radio', {name: /Recebedor/})).toBeNull();
+  });
+
   it('além de 67 dias o prazo acabou: avisa e não deixa emitir', () => {
     const old = {...original(), dh_emi: new Date(Date.now() - 80 * 86_400_000).toISOString()};
     renderForm('substitute', old);

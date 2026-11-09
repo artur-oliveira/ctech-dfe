@@ -232,16 +232,18 @@ paths:
       tags: [ CIOT ]
       summary: Piso mínimo de frete (público)
       description: |
-        Sem autenticação e sem estado. Enquanto a tabela do piso não for verificada contra a publicação oficial da
-        ANTT responde 503 com `code` `ciot_floor_unverified`; nunca devolve um número não verificado.
+        Sem autenticação e sem estado. Calcula o piso mínimo (PNPM-TRC, Anexo II da Resolução ANTT 5.867/2020,
+        redação da 6.084/2026) com a tabela versionada; devolve a versão e a vigência (`valid_from`) usadas. Se a
+        tabela estiver marcada como não verificada responde 503 com `code` `ciot_floor_unverified`. O piso é
+        informativo na declaração: a ANTT decide.
       operationId: getFreightFloor
       security: []
       parameters:
-        - { name: composition, in: query, schema: { type: string } }
-        - { name: high_performance, in: query, schema: { type: string } }
+        - { name: composition, in: query, description: "Composição veicular (automotor com implemento ou caminhão simples): Tabelas A e C", schema: { type: boolean } }
+        - { name: high_performance, in: query, description: "Alto desempenho: Tabelas C e D", schema: { type: boolean } }
         - { name: cargo_type, in: query, schema: { type: integer, minimum: 1, maximum: 12 } }
-        - { name: axles, in: query, schema: { type: integer } }
-        - { name: distance_km, in: query, schema: { type: integer } }
+        - { name: axles, in: query, description: "Eixos carregados; a coluna usada segue a Nota 1 (inferior primeiro)", schema: { type: integer, minimum: 1 } }
+        - { name: distance_km, in: query, schema: { type: integer, minimum: 1 } }
         - { name: empty_return, in: query, schema: { type: boolean } }
       responses:
         '200':
@@ -253,10 +255,16 @@ paths:
                 properties:
                   cents: { type: integer }
                   value: { type: string }
+                  outbound_cents: { type: integer }
+                  outbound_value: { type: string }
+                  empty_return_cents: { type: integer }
+                  empty_return_value: { type: string }
+                  axles_used: { type: integer }
                   table_version: { type: string }
+                  valid_from: { type: string, format: date }
         '422': { $ref: '#/components/responses/ValidationError' }
         '503':
-          description: Tabela do piso não verificada.
+          description: Tabela do piso não verificada (`ciot_floor_unverified`).
 
 components:
   schemas:

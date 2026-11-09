@@ -17,6 +17,7 @@ const (
 	dacteHomologLegend     = "EMITIDO EM AMBIENTE DE HOMOLOGAÇÃO – SEM VALOR FISCAL"
 	tpEmisCTeOffline       = "2"
 	cteTomaOutros          = "4"
+	modelCTeOS             = "67"
 	cteUnitTon             = "02"
 	cteUnitKg              = "01"
 	cteUnitM3              = "00"
@@ -28,6 +29,10 @@ var (
 	cteModalLabels = map[string]string{"01": "Rodoviário", "02": "Aéreo", "03": "Aquaviário", "04": "Ferroviário", "05": "Dutoviário", "06": "Multimodal"}
 	cteTypeLabels  = map[string]string{"0": "Normal", "1": "Complemento de Valores", "2": "Anulação", "3": "Substituto"}
 	cteServLabels  = map[string]string{"0": "Normal", "1": "Subcontratação", "2": "Redespacho", "3": "Redespacho Intermediário", "4": "Serviço Vinculado a Multimodal"}
+	// tpServ of the CT-e OS (cteOS_v4.00.xsd): 6 transporte de pessoas, 7 valores, 8 excesso de bagagem.
+	cteOSServLabels = map[string]string{"6": "Transporte de Pessoas", "7": "Transporte de Valores", "8": "Excesso de Bagagem"}
+	// respSeg of seg (MOC Anexo II, section 4): the DACTE OS prints the insured only for 4 and 5.
+	cteOSInsurer = map[string]string{"4": "Emitente do CT-e", "5": "Tomador de Serviço"}
 	// toma3 codes 0..3 point at rem, exped, receb, dest.
 	cteTomaActor = map[string][2]string{"0": {"rem", "enderReme"}, "1": {"exped", "enderExped"}, "2": {"receb", "enderReceb"}, "3": {"dest", "enderDest"}}
 )
@@ -174,6 +179,99 @@ func buildCTeContext(root *xmlNode, cancelled bool) (map[string]any, error) {
 		"comps": comps, "vTPrest": moneyBR(inf.child("vPrest").value("vTPrest")), "vRec": moneyBR(inf.child("vPrest").value("vRec")),
 		"imp": cteTax(inf.child("imp")), "docs": cteOriginDocs(norm.child("infDoc")),
 		"rntrc": rodo.child("RNTRC").textOrEmpty(), "obs": inf.child("compl").value("xObs"),
+		"chave_fmt": keyBlocks(key), "chave_barcode": barcode, "qr_uri": qrURI, "consulta_url": cteConsultaURL,
+		"protocolo": protocol, "is_contingencia": contingency, "is_homologacao": ide.value("tpAmb") == "2", "is_cancelada": cancelled,
+		"legend_contingencia": dacteContingencyLegend, "legend_homologacao": dacteHomologLegend,
+		"site": "https://dfe.aoctech.app", "gerado_em": time.Now().Format("02/01/2006 15:04:05"),
+	}, nil
+}
+
+// cteOSPlace joins a place as the DACTE OS prints it: "UF - município" (Início/Término da Prestação).
+func cteOSPlace(ide *xmlNode, ufTag, munTag string) string {
+	return joinOptional(ide.value(munTag), ide.value(ufTag), " - ")
+}
+
+// buildCTeOSContext reads a CT-e OS (model 67, root CTeOS) into the DACTE OS fields of the MOC Anexo II
+// (section 4: correlation XML x DACTE OS; section 6.1/6.2: layout). Contingency prints the legend, like the
+// DACTE: FS-DA (the only contingency with a second bar code) is revoked.
+func buildCTeOSContext(root *xmlNode, cancelled bool) (map[string]any, error) {
+	inf := root.firstDeep("infCte")
+	if inf == nil {
+		return nil, fmt.Errorf("infCte not found")
+	}
+	ide := inf.child("ide")
+	if ide.value("mod") != modelCTeOS {
+		return nil, fmt.Errorf("DACTE OS requires model %s, got %q", modelCTeOS, ide.value("mod"))
+	}
+	prot := root.firstDeep("infProt")
+	key := strings.TrimPrefix(inf.attr("Id"), "CTe")
+	if prot != nil && prot.value("chCTe") != "" {
+		key = prot.value("chCTe")
+	}
+	barcode, err := code128DataURI(key)
+	if err != nil {
+		return nil, err
+	}
+	qrURI := ""
+	if qr := root.firstDeep("infCTeSupl").value("qrCodCTe"); qr != "" {
+		if qrURI, err = qrDataURI(qr); err != nil {
+			return nil, err
+		}
+	}
+	emit := inf.child("emit")
+	ender := emit.child("enderEmit")
+	norm := inf.child("infCTeNorm")
+	contingency := ide.value("tpEmis") == tpEmisCTeOffline
+	protocol := map[string]any(nil)
+	if !contingency && prot != nil {
+		protocol = map[string]any{"nProt": prot.value("nProt"), "dhRecbto": dateTimeBR(prot.value("dhRecbto"))}
+	}
+	comps := make([]map[string]any, 0)
+	for _, c := range inf.child("vPrest").childrenNamed("Comp") {
+		comps = append(comps, map[string]any{"nome": c.value("xNome"), "valor": moneyBR(c.value("vComp"))})
+	}
+	route := make([]string, 0)
+	for _, p := range ide.childrenNamed("infPercurso") {
+		route = append(route, p.value("UFPer"))
+	}
+	rodo := norm.child("infModal").child("rodoOS")
+	veic := rodo.child("veic")
+	prop := veic.child("prop")
+	obs := func(group string) string {
+		texts := make([]string, 0)
+		for _, o := range inf.child("compl").childrenNamed(group) {
+			texts = append(texts, o.value("xTexto"))
+		}
+		return strings.Join(texts, " | ")
+	}
+	seg := inf.child("infCTeNorm").child("seg")
+	if seg == nil {
+		seg = inf.child("seg")
+	}
+	return map[string]any{
+		"emit": map[string]any{
+			"nome": firstNonempty(emit.value("xNome"), emit.value("xFant")), "endereco": address(ender), "mun": ender.value("xMun"),
+			"uf": ender.value("UF"), "cep": maskCEP(ender.value("CEP")), "fone": ender.value("fone"),
+			"doc": maskCPFCNPJ(emit.value("CNPJ")), "ie": emit.value("IE"),
+		},
+		"ide": map[string]any{
+			"modal": cteModalLabels[ide.value("modal")], "mod": ide.value("mod"), "serie": ide.value("serie"), "nCT": ide.value("nCT"),
+			"dhEmi": dateTimeBR(ide.value("dhEmi")), "tpCTe": cteTypeLabels[ide.value("tpCTe")], "tpServ": cteOSServLabels[ide.value("tpServ")],
+			"cfop": ide.value("CFOP"), "natOp": ide.value("natOp"),
+			"ini": cteOSPlace(ide, "UFIni", "xMunIni"), "fim": cteOSPlace(ide, "UFFim", "xMunFim"), "percurso": strings.Join(route, ", "),
+		},
+		"toma":    cteParty(inf.child("toma"), "enderToma"),
+		"servico": map[string]any{"qtd": norm.child("infServico").child("infQ").value("qCarga"), "desc": norm.child("infServico").value("xDescServ")},
+		"comps":   comps, "vTPrest": moneyBR(inf.child("vPrest").value("vTPrest")), "vRec": moneyBR(inf.child("vPrest").value("vRec")),
+		"imp": cteTax(inf.child("imp")), "obs": inf.child("compl").value("xObs"),
+		"seg": map[string]any{
+			"resp": cteOSInsurer[seg.value("respSeg")], "nome": seg.value("xSeg"), "apolice": seg.value("nApol"),
+		},
+		"rodo": map[string]any{
+			"taf": rodo.value("TAF"), "reg": rodo.value("NroRegEstadual"), "placa": veic.value("placa"), "renavam": veic.value("RENAVAM"),
+			"prop_doc": maskCPFCNPJ(firstNonempty(prop.value("CNPJ"), prop.value("CPF"))), "prop_taf": prop.value("TAF"), "prop_reg": prop.value("NroRegEstadual"),
+		},
+		"uso_emissor": obs("ObsCont"), "reservado_fisco": obs("ObsFisco"),
 		"chave_fmt": keyBlocks(key), "chave_barcode": barcode, "qr_uri": qrURI, "consulta_url": cteConsultaURL,
 		"protocolo": protocol, "is_contingencia": contingency, "is_homologacao": ide.value("tpAmb") == "2", "is_cancelada": cancelled,
 		"legend_contingencia": dacteContingencyLegend, "legend_homologacao": dacteHomologLegend,

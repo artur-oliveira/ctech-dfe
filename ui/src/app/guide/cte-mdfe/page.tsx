@@ -234,9 +234,12 @@ export default function GuideCteMdfe() {
                 </GuideTerm>
               </GuideTerms>
               <GuideCallout kind="tip" title="Piso mínimo de frete">
-                Com tipo de carga, eixos e distância informados, a tela mostra o piso mínimo de frete e avisa se o frete
-                está abaixo. Enquanto a tabela oficial da ANTT não for verificada pelo sistema, a dica diz{' '}
-                <b>indisponível</b> e a declaração segue normalmente: o piso nunca bloqueia o envio.
+                Com tipo de carga, eixos e distância informados, a tela mostra o piso mínimo de frete (tabela da ANTT, com
+                a versão e a data de início da vigência), separa a ida do retorno vazio e avisa se o frete está abaixo.
+                Os interruptores <b>Alto desempenho</b>, <b>Retorno vazio</b> e <b>Composição veicular</b> entram no
+                cálculo. Se a data da viagem for anterior à vigência da tabela, a tela avisa que o piso pode ser outro.
+                É só um aviso: quem decide é a ANTT, e o piso nunca bloqueia o envio. Se o cálculo estiver{' '}
+                <b>indisponível</b>, a declaração segue normalmente.
               </GuideCallout>
               <GuideCallout kind="tip" title="Se a ANTT recusar">
                 Quando o sistema recusa a declaração antes de enviar, cada regra violada aparece em uma linha, com a
@@ -435,7 +438,8 @@ export default function GuideCteMdfe() {
               </p>
               <p>
                 No <b>substituto</b> você informa o novo valor e, se preciso, troca o tomador: o
-                formulário oferece os papéis do original e <b>Outro</b>, escolhido no cadastro de pessoas.
+                formulário oferece todos os participantes do original (remetente, expedidor, recebedor e destinatário, só os que o
+                CT-e tem) e <b>Outro</b>, escolhido no cadastro de pessoas.
                 O prazo é de 60 dias da emissão do original; até 67 dias (60 dias mais 168 horas) a decisão
                 é da SEFAZ e depois disso a emissão é recusada, com o aviso na própria tela.
               </p>
@@ -463,8 +467,9 @@ export default function GuideCteMdfe() {
             <p>
               No complemento aparece <b>Complementa</b> e no substituto <b>Substitui</b>, cada um com o
               link para o CT-e original. Esses registros não repetem remetente, destinatário e notas: são
-              os do original. Do original para o complemento ainda não há link, porque a API só devolve a
-              referência no documento novo.
+              os do original. No sentido contrário, o detalhe do original lista <b>Complementado por</b> e{' '}
+              <b>Substituído por</b>, com número e situação de cada documento e o link para ele. O detalhe do
+              original também mostra o <b>Expedidor</b> e o <b>Recebedor</b>, quando o CT-e os tem.
             </p>
           ),
         },
@@ -494,6 +499,11 @@ export default function GuideCteMdfe() {
                 CFOP, CST do ICMS (o CT-e OS não tem o 60) e tomador são sempre escolha sua. A numeração
                 é a mesma do CT-e comum.
               </GuideCallout>
+              <p>
+                No detalhe do CT-e OS autorizado há o <b>DACTE OS</b> (PDF no leiaute do Anexo II do MOC) e
+                só dois eventos: <b>Cancelar</b> e <b>Carta de correção</b>. Comprovante e insucesso de entrega
+                e prestação em desacordo existem apenas para o CT-e comum e não aparecem para o CT-e OS.
+              </p>
               <figure className="overflow-hidden rounded-xl border border-gray-200 bg-gray-50 shadow-card">
                 <Image src="/guide/cte-os-detail.webp" alt="Detalhe de um CT-e OS autorizado" width={1280} height={800} sizes="(max-width: 1024px) 100vw, 760px" className="w-full"/>
               </figure>

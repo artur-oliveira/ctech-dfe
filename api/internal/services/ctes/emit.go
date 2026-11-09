@@ -314,6 +314,19 @@ func (s *CteService) persist(ctx context.Context, orgPK string, cfg map[string]t
 	if reservation.Tx != nil {
 		extraTx = append(extraTx, *reservation.Tx)
 	}
+	switch p.tpCTe {
+	case tpCTeComplement, tpCTeSubstitute:
+		// Referência reversa (related.go): um Put por original, na mesma transação da emissão.
+		cteType, originals := cteTypeComplement, p.complementKeys
+		if p.tpCTe == tpCTeSubstitute {
+			cteType, originals = cteTypeSubstitute, []string{p.sub.chCte}
+		}
+		refs, err := refPutItems(s.cteRepo.TableName, pk, accessKey, cteType, originals, repositories.NowStr())
+		if err != nil {
+			return nil, problem.InternalServer("failed to encode CT-e references")
+		}
+		extraTx = append(extraTx, refs...)
+	}
 	if err := s.cteRepo.TransactReserveAndCreate(ctx, s.configRepo.TableName, orgPK, envPrefix, currentNumber, encoded, extraTx...); err != nil {
 		if strings.Contains(err.Error(), "TransactionCanceledException") {
 			return nil, problem.Conflict("conflito ao reservar número do CT-e. Tente novamente.")

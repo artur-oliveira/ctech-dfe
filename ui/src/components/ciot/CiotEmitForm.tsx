@@ -145,6 +145,8 @@ export function CiotEmitForm({rectifyOf}: { rectifyOf?: CiotOut }) {
     axles: maxAxles || undefined,
     distance_km: Number(form.distance_km) || undefined,
     empty_return: form.empty_return,
+    composition: form.vehicle_composition,
+    high_performance: form.high_performance,
   };
 
   const declare = useMutation({
@@ -343,7 +345,7 @@ export function CiotEmitForm({rectifyOf}: { rectifyOf?: CiotOut }) {
                            onValueChange={(v) => set('payment_type', v as CiotDeclareFormData['payment_type'])}/>
           </Field>
         </div>
-        {hasRoute && <FreightFloorHint params={floorParams} freight={form.freight_value}/>}
+        {hasRoute && <FreightFloorHint params={floorParams} freight={form.freight_value} operationDate={form.trip_start || form.trip_end}/>}
         <Field id="ciot-credited" label="Favorecido do pagamento" error={errors.credited_doc}>
           <OptionsSelect id="ciot-credited" value={form.credited_doc} options={docOptions} placeholder="Selecione"
                          onValueChange={(v) => set('credited_doc', v)}/>

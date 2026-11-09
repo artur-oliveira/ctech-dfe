@@ -148,13 +148,22 @@ A ANTT rejeita frete abaixo do piso (B80) e distância incompatível com origem 
 localmente a partir da tabela pública do PNPM-TRC (Anexo II da Resolução ANTT 5.867/2020, redação da Resolução 6.084/2026,
 em vigor desde 17/07/2026), a mesma da calculadora pública da ANTT:
 
-- Tabela por composição veicular (automotor mais implemento ou caminhão simples) e alto desempenho (A, B, C, D).
-- Coeficientes por **tipo de carga** (1 a 12) e **número de eixos**; quando a célula da combinação está em branco, usa-se o
-  eixo seguinte com valor.
+- Tabela por composição veicular (automotor mais implemento ou caminhão simples) e alto desempenho: A (composição sim,
+  alto desempenho não), B (não, não), C (sim, sim), D (não, sim). Em `floor_table.json` cada linha leva `composition` e
+  `high_performance` booleanos; a tabela é identificada pelo par.
+- Coeficientes por **tipo de carga** (1 a 12, o `CodigoTipoCarga`: 1 granel sólido, 2 granel líquido, 3 frigorificada,
+  4 conteinerizada, 5 carga geral, 6 neogranel, 7 a 11 as perigosas na mesma ordem, 12 granel pressurizado) e **número de
+  eixos** (colunas 2, 3, 4, 5, 6, 7 e 9). Nota 1 do Anexo II: usa-se a coluna imediatamente **inferior** à pedida e a
+  superior só se não houver inferior; vale também para célula em branco. Acima de 9 eixos vale 9; 1 eixo vale 2.
+- Cada perna (ida, retorno vazio) é arredondada para centavos (meio para cima) e o total é a soma, como na calculadora.
 - `piso = distância × CCD + CC`, e, com retorno vazio, soma-se `0,92 × distância × CCD`.
 
-**[proposta]** Usar o cálculo como **pré-validação com aviso** (a ANTT é quem decide) e para sugerir o valor mínimo na tela.
-Os coeficientes saem da publicação oficial, versionados com a data de vigência; nenhum valor é digitado de memória.
+**[decisão]** O cálculo é **aviso** (a ANTT é quem decide) e sugere o valor mínimo na tela; nunca bloqueia. A resposta de
+`GET /v1.0/freight-floor` traz `table_version` e `valid_from`; a tela avisa se a data da viagem é anterior à vigência.
+**Origem dos coeficientes (C7):** portados por script (`go-dfe/ciot/floor_table.json`, versão 2026-07-17, `verified=true`)
+da implementação de referência do dono (`ciot-api/internal/freight`), que reproduz a calculadora pública da ANTT. A
+publicação oficial **não foi lida automaticamente**: a conferência contra o Anexo II segue manual e a cada resolução nova
+a tabela é regerada e a versão muda.
 
 ## 8. Rejeições da ANTT e códigos internos
 
@@ -261,15 +270,14 @@ padrão das demais tabelas de domínio) e usar seletor, nunca texto livre; Pix c
 | C4 | `worker`: consumidor, reconciliação do 219, alertas de prazo e de certificado | 1 |
 | C5 | MDF-e: `infCIOT` múltiplo, responsável, regra F113, cancelar e encerrar em cascata | 1 |
 | C6 | UI, mock, capturas e guia | 1,5 |
-| C7 | Atualização versionada dos coeficientes do piso e aviso de vigência | 0,5 |
+| C7 | Atualização versionada dos coeficientes do piso e aviso de vigência (implementado 2026-11-08) | 0,5 |
 
 **Status (2026-11-08):** C1 e C2 implementados em `go-dfe/ciot` e `go-dfe/ciot.go` com testes contra servidor falso.
-Pendências do C1: tabela do piso é placeholder NÃO VERIFICADO (a publicação oficial não pôde ser lida automaticamente);
-regras B57, B58, B63 a B67 e B69 não implementadas (a spec não define seu conteúdo); nomes de sub-campos fora da tabela da
+Pendências do C1: regras B57, B58, B63 a B67 e B69 não implementadas (a spec não define seu conteúdo); nomes de sub-campos fora da tabela da
 seção 5 (OrigemDestino, DadosCarga, banco, tipo de veículo, corpos das consultas, cancelamento, encerramento) são
 [prática] não verificados; integração com `go-dfe/validate` adiada.
 
-**Status C3 e C4 (2026-11-08):** implementados, incluindo os alertas proativos (certificado vencendo em 15, 7, 3 e 1 dias e vencido; prazo de cancelamento de 24 h a 2 h do fim) pela rodada de 15 min do `contingency-dispatcher`, índice esparso `alert-index` em `ciots`, só via go-common `alerts` (ver `worker/CLAUDE.md`). API: tabelas `ciots` e `ciot_audit` (CDK), repositório, endpoints, permissões `create|list|get|update.ciots`, OpenAPI `ciots.yaml`, pré-voo de certificado, regras e prazos. Worker `ciot-operation`: gerador por SSM, declaração, 219, 222/251, alertas de credencial, auditoria, DLQ. Pendências: aviso de piso na declaração (tabela não verificada, C7); nenhum teste de ponta a ponta contra a ANTT (nem homologação); `kms:EncryptionContext:PARAMETER_ARN` e o mapeamento 222/251 por operação não verificados em ambiente real.
+**Status C3 e C4 (2026-11-08):** implementados, incluindo os alertas proativos (certificado vencendo em 15, 7, 3 e 1 dias e vencido; prazo de cancelamento de 24 h a 2 h do fim) pela rodada de 15 min do `contingency-dispatcher`, índice esparso `alert-index` em `ciots`, só via go-common `alerts` (ver `worker/CLAUDE.md`). API: tabelas `ciots` e `ciot_audit` (CDK), repositório, endpoints, permissões `create|list|get|update.ciots`, OpenAPI `ciots.yaml`, pré-voo de certificado, regras e prazos. Worker `ciot-operation`: gerador por SSM, declaração, 219, 222/251, alertas de credencial, auditoria, DLQ. Pendências: nenhum teste de ponta a ponta contra a ANTT (nem homologação); `kms:EncryptionContext:PARAMETER_ARN` e o mapeamento 222/251 por operação não verificados em ambiente real.
 
 **Status C5 (2026-11-08):** implementado. `infCIOT` 0-n com CPF ou CNPJ do responsável, ordem do XSD e F113 (aviso offline no `go-dfe/validate`, bloqueio local na emissão) já existiam. Novo: o MDF-e aceita `ciot_id` (CIOT declarado; responsável = `carrier_doc`) ou CIOT externo; vínculo atômico com a emissão; desvínculo pelo worker na rejeição; cancelar ou encerrar o MDF-e marca o CIOT com `mdfe_cascade` (oferta, ver decisões abaixo). UI: seletor de origem do CIOT. Pendências: captura de tela do guia; um CIOT só vincula a um MDF-e (índice por chave única); nenhum teste contra ANTT ou SEFAZ reais. **Decisões do dono:** (1) a cascata é oferta, não execução automática (cancelar exige motivo, encerrar exige peso e rotas); (2) responsável do CIOT declarado = transportador contratado (`carrier_doc`), a confirmar; (3) um CIOT de TAC-agregado em várias viagens precisaria de vários MDF-e por CIOT; (4) o identificador do gerador pode não ser numérico, mas o XSD exige 12 dígitos.
 

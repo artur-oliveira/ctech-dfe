@@ -452,7 +452,7 @@ export const ctesFixture = [
   {...cteWithoutParties('pending', 39, 12, '640.00'), cte_type: 'substitute' as const, substituted_key: accessKey(ORG_PK, '57', 1, 30, 30 * 17), ...recent(1)},
   {
     ...cteWithoutParties('authorized', 40, 13, '2400.00'),
-    sk: accessKey(ORG_PK, '67', 1, 40, 40 * 17), model: '67', os_service: 'people' as const, cfop: '6206',
+    sk: accessKey(ORG_PK, '67', 1, 40, 40 * 17), model: '67', os_service: 'people' as const, cfop: '6353',
     taker: {role: 'outro' as const, doc: CUSTOMER_PARTY.doc, name: CUSTOMER_PARTY.name}, ...recent(3),
   },
 ].map((c) => ({...c, emit_cpf_cnpj: ORG_PK, emit_name: 'Empresa Mock LTDA'}));
@@ -467,8 +467,17 @@ export function cteDetailFixture(sk: string) {
       cargo: null, xml_s3_key: `xml/${ORG_PK}/cte/${base.number}.xml`,
     };
   }
+  // Referência reversa e participantes do XML (só no detalhe): o 31 tem expedidor e recebedor e um complementar; o 30, um substituto.
+  const byKey = (n: number) => ctesFixture.find((c) => c.number === n);
+  const link = (n: number) => {
+    const c = byKey(n);
+    return c ? [{access_key: c.sk, status: c.status, number: c.number, serie: c.serie, dh_emi: c.dh_emi, cte_type: (c as {cte_type?: string}).cte_type}] : [];
+  };
+  const reverse = base.number === 31 ? {complemented_by: link(38), substituted_by: []}
+    : base.number === 30 ? {complemented_by: [], substituted_by: link(39)} : {};
+  const parties = base.number === 31 ? {expedidor: {doc: '11222333000181', name: 'Expedidora Mock ME'}, recebedor: {doc: '45723174000110', name: 'Recebedora Mock LTDA'}} : {};
   return {
-    ...base,
+    ...base, ...reverse, ...parties,
     nfe_keys: [nfesFixture[0].sk, nfesFixture[1].sk],
     origin: {uf: 'SP', city_ibge: '3550308', city: 'São Paulo'},
     destination: {uf: 'MG', city_ibge: '3106200', city: 'Belo Horizonte'},
@@ -1696,7 +1705,11 @@ export const ciotCarrierFleetFixture = {
   },
 };
 
-export const ciotFloorFixture = {cents: 482000, value: '4820.00', table_version: 'mock-0'};
+export const ciotFloorFixture = {
+  cents: 482000, value: '4820.00', outbound_cents: 251000, outbound_value: '2510.00',
+  empty_return_cents: 231000, empty_return_value: '2310.00', axles_used: 5,
+  table_version: '2026-07-17', valid_from: '2026-07-17',
+};
 
 export const ciotValidationProblemFixture = {
   type: '/problems/unprocessable-entity',

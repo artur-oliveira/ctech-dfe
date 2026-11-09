@@ -19,7 +19,7 @@ import {
   CTE_SUBSTITUTE_SEFAZ_DAYS,
   CTE_SUBSTITUTE_TAKER_ROLES,
   CTE_TAKER_LABELS,
-  CTE_TAKER_NEEDS_PERSON,
+  CTE_SUBSTITUTE_NEEDS_PERSON,
 } from '@/lib/constants/cte';
 import {cteComplementBodySchema, cteSubstituteBodySchema} from '@/lib/schemas/cte';
 import {buildChargeBody, chargeMissing, cteDocFailure, daysSince, ibsCbsComplete, substituteWindow} from '@/lib/utils/cte';
@@ -118,8 +118,11 @@ function TakerChange({original, value, onChange}: { original: CteDetailOut; valu
   const current = original.taker?.role;
   const names: Partial<Record<CteTakerRole, string | undefined>> = {
     remetente: original.sender?.name, destinatario: original.recipient?.name,
+    expedidor: original.expedidor?.name, recebedor: original.recebedor?.name,
   };
-  const roles = CTE_SUBSTITUTE_TAKER_ROLES.filter((r) => r !== current);
+  // Expedidor e recebedor só existem se o original os traz (senão a api responde 422 taker_role_missing).
+  const roles = CTE_SUBSTITUTE_TAKER_ROLES.filter((r) => r !== current
+    && (r !== 'expedidor' || !!original.expedidor) && (r !== 'recebedor' || !!original.recebedor));
   return (
     <CteSection id="cte-taker-change" title="Trocar o tomador?"
                 hint={`Hoje paga o frete: ${original.taker?.name ?? 'o tomador do original'}. Sem troca, o tomador continua o mesmo.`}>
@@ -142,14 +145,14 @@ function TakerChange({original, value, onChange}: { original: CteDetailOut; valu
                          onChange={() => onChange({...value, role: r, person: r === value.role ? value.person : null})}/>
                   <span className="text-sm font-medium text-gray-900">{CTE_TAKER_LABELS[r]}</span>
                   <span className="truncate text-xs text-gray-500">
-                    {CTE_TAKER_NEEDS_PERSON.has(r) ? (checked && value.person ? value.person.name : 'Escolher do cadastro')
+                    {CTE_SUBSTITUTE_NEEDS_PERSON.has(r) ? (checked && value.person ? value.person.name : 'Escolher do cadastro')
                       : names[r] ?? 'Participante do original'}
                   </span>
                 </label>
               );
             })}
           </div>
-          {value.role && CTE_TAKER_NEEDS_PERSON.has(value.role) && (
+          {value.role && CTE_SUBSTITUTE_NEEDS_PERSON.has(value.role) && (
             <div className="space-y-1.5">
               <p className="text-sm font-medium text-gray-700">Pessoa que paga o frete</p>
               <PersonPicker value={value.person} onChange={(person) => onChange({...value, person})}
@@ -178,7 +181,7 @@ export function CteChangeForm({mode, original}: { mode: CteChangeMode; original:
   const missing = [
     ...chargeMissing(charge.state, mode === 'complement' ? 'valor complementar' : 'frete'),
     ...(mode === 'substitute' && taker.change && !taker.role ? ['Escolha o novo tomador'] : []),
-    ...(mode === 'substitute' && taker.role && CTE_TAKER_NEEDS_PERSON.has(taker.role) && !taker.person
+    ...(mode === 'substitute' && taker.role && CTE_SUBSTITUTE_NEEDS_PERSON.has(taker.role) && !taker.person
       ? ['Escolha a pessoa que paga o frete'] : []),
     ...(mode === 'substitute' && deadline === 'expired' ? ['O prazo para substituir acabou'] : []),
     ...(charge.state.ibsCbs && !ibsCbsComplete(charge.state.ibsCbs) ? ['Complete o IBS/CBS ou desligue o bloco'] : []),
@@ -194,7 +197,7 @@ export function CteChangeForm({mode, original}: { mode: CteChangeMode; original:
         ...base, original_key: original.sk,
         ...(taker.change && taker.role ? {
           change_taker: true,
-          taker: CTE_TAKER_NEEDS_PERSON.has(taker.role) && taker.person ? {role: taker.role, person_id: taker.person.sk} : {role: taker.role},
+          taker: CTE_SUBSTITUTE_NEEDS_PERSON.has(taker.role) && taker.person ? {role: taker.role, person_id: taker.person.sk} : {role: taker.role},
         } : {}),
       }));
     },
