@@ -52,7 +52,7 @@
       {%- if ctx.prodPred.ncm %} &nbsp;·&nbsp; NCM {{ ctx.prodPred.ncm }}{% endif %}</div>
     <div class="section">{{ ctx.text.protocolo }}</div>
     {# DAMDFE 4.1: in contingency the protocol place carries EMISSÃO EM CONTINGÊNCIA, highlighted. #}
-    <div>{% if ctx.is_contingencia %}<span class="b">{{ ctx.text.contingencia }}</span>{% elif ctx.protocolo %}{{ ctx.protocolo.nProt }} - {{ ctx.protocolo.dhRecbto }}{% endif %}</div>
+    <div>{% if ctx.protocolo %}{{ ctx.protocolo.nProt }} - {{ ctx.protocolo.dhRecbto }}{% elif ctx.is_contingencia %}<span class="b">{{ ctx.text.contingencia }}</span>{% endif %}</div>
   </td>
   <td style="width:52%">
     <div class="section muted small">CONTROLE DO FISCO</div>

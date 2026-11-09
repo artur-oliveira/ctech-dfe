@@ -902,7 +902,7 @@ perguntado — é derivado do número de reboques do próprio manifesto.
 | `cnpj_forn`   | S    | CNPJ da fornecedora → MDF-e `valePed/disp/CNPJForn`                     |
 | `cnpj_pg`     | S    | Pagador do vale quando não é o emitente → `disp/CNPJPg`. Choice com `cpf_pg` |
 | `cpf_pg`      | S    | Idem, pessoa física → `disp/CPFPg`                                      |
-| `tp_vale_ped` | S    | `01` TAG · `02` cupom · `03` cartão → `disp/tpValePed`                  |
+| `tp_vale_ped` | S    | `01` TAG · `04` leitura de placa → `disp/tpValePed`                  |
 | `created_at` / `updated_at` | S | ISO-8601 UTC                                              |
 
 ---

@@ -843,7 +843,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
     watchedIcmsOverride !== productSystemAliq.icms_aliq;
 
 
-  const {showPRedBC, showMotDeSon, showPDif} = icmsConditionalFields(cfopRow.icms ?? '');
+  const {showPRedBC, showMotDeSon, motDesRequired, showPDif} = icmsConditionalFields(cfopRow.icms ?? '');
 
 
   // ─── CFOP handlers ──────────────────────────────────────────────────────────
@@ -865,7 +865,7 @@ export function ProductForm({initialData, crt = 3, uf, onSubmit, loading = false
       setCfopError('PIS e COFINS são obrigatórios');
       return;
     }
-    if (!simples && showMotDeSon && !cfopRow.icms_mot_des) {
+    if (!simples && motDesRequired && !cfopRow.icms_mot_des) {
       setCfopError('Motivo de desoneração obrigatório para este CST');
       return;
     }

@@ -229,3 +229,28 @@ F-07, F-08, F-09, F-10, F-15, F-22, F-24. Fora esses, os `oneof` do DTO para `fi
 3. F-07 a F-10 e F-15 (API e UI com tabelas geradas do XSD); guia da UI atualizado na mesma alteração.
 4. F-11 depois de ler as regras B09 e B10 no MOC.
 5. Minors em lote com a F3 do plano consolidado.
+
+## 8. Status das correcoes (NF-e, 2026-11-09)
+
+Cada correcao tem teste de regressao em `api/internal/services/nfes/moc_nfe_fixes_test.go` (documento inteiro passado pelo validador
+de esquema, exceto onde indicado) e `ui/src/__tests__/lib/data/icms-moc.test.ts`.
+
+| ID | Status | Nota |
+|---|---|---|
+| F-01 | Corrigido | `ipiCSTTributado = {00, 49, 50, 99}`; vIPI dos CSTs 00, 49, 99 entra no total. |
+| F-02 | Corrigido | `qBCProd` = quantidade tributavel do item (`qTrib`), `vPIS`/`vCOFINS` = `qBCProd x vAliqProd`. |
+| F-03 | Corrigido | `pRedBCEfet` sempre sai com o grupo; `[vBCSTRet, pST, vICMSSTRet]` so sai com `pST` em ICMS60 e ICMSSN500 (nao se inventa aliquota). ICMSST: `vBCSTDest`/`vICMSSTDest` sao obrigatorios no XSD e continuam dependendo da configuracao (ver abaixo). |
+| F-04 | Corrigido | `vFCPSTRet` e as seis tags monofasicas somadas dos itens (so saem quando algum item trouxe); `vNF` soma `vICMSMonoReten`. ICMS15 passou a emitir `qBCMonoReten` (mesma quantidade que ja baseava `vICMSMonoReten`). |
+| F-05 | Corrigido | `qTrib` do IS = quantidade tributavel. `vIS` nao mudou: o XSD nao define a formula e o config nao tem "modo especifico". |
+| F-06 | Corrigido | `vNF` abate apenas `vICMSDeson` de item com `indDeduzDeson=1`. |
+| F-07 | Corrigido | `oneof` de `tPag` com 23, 24, 91 nos dois DTOs; teste de igualdade dos dominios. |
+| F-08 | Corrigido | UI oferece os 15 CSTs; `30` saiu do conjunto "tributado" (ICMS30 nao tem vBC/pICMS). |
+| F-09 | Corrigido | `motDesICMS` por CST (sem o 2, com o 12), `motDesICMSST` so em 10/70/90, `pRedBC` em 20/51/70/90, motivo nao exigido onde o grupo e opcional. Pendente: `ICMSPart` (motivos 9, 10, 11) nao tem lista propria na UI. |
+| F-10 | Corrigido | `dest/ISUF` a partir de `person.isuf_emit` do destinatario (DTO e UI: 8 ou 9 digitos); chave de acesso com CPF `000`+CPF. |
+| F-11 | Corrigido (NF-e) | `dhEmi` e AAMM no fuso da UF do emitente via `go-dfe/uftz`. A regra B09/B10 do MOC continua sem fonte; o fuso por UF e o da capital. NFC-e (`nfce_emit.go`) fica para o agente da NFC-e. |
+| F-15 | Parcial | rotulos de PIS/COFINS pelo XSD, 03 e 05 adicionados; CSTs 50 a 75 e 98 de `PISOutr` nao oferecidos (o editor nao tem os campos). |
+| F-19 | Parcial | tetos de `det` (990), `detPag` (100), `dup` (120) e `armas` (500). Faltam DI, adi, forDia, defensivo. |
+| F-24 | Corrigido | rotulos 17, 18, 20 e 90 pela tabela oficial. |
+| F-12, F-13, F-14 | Fora do escopo | validador e Gate (agente seguinte). |
+| F-16, F-17, F-18, F-20, F-21, F-22, F-23, F-25 | Nao corrigido | ver o relatorio de entrega: exigem decisao de produto ou fonte (MOC), ou sao maiores que um ajuste. |
+

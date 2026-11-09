@@ -69,7 +69,7 @@ type CteEmitBody struct {
 	AuthorizedXML []CteAuthorizedXML `json:"authorized_xml" validate:"omitempty,max=10,dive"`
 	Overrides     *CteOverrides      `json:"overrides"`
 	// CFOP da prestação (5351 a 5360, 6351 a 6360, 7358, 5932, 6932...). Regra fiscal: nunca presumido.
-	CFOP           *string `json:"cfop" validate:"omitempty,cfop"`
+	CFOP           *string `json:"cfop" validate:"omitempty,cfop_cte"`
 	AdditionalInfo *string `json:"additional_info" validate:"omitempty,max=2000"`
 }
 
@@ -547,6 +547,10 @@ func resolveICMS(in *CteICMS, crt int, vTPrest decimal.Decimal) (map[string]any,
 	pRed := decimal.Zero
 	if in.PRedBC != nil {
 		pRed = nfexml.Dec(*in.PRedBC)
+	}
+	// pRedBC só existe em ICMS20 e ICMS90 no XSD; em outro CST a base reduzida ficaria sem a redução declarada.
+	if pRed.IsPositive() && in.CST != cst20 && in.CST != cst90 {
+		return nil, unprocessable(CodeICMSRateRequired, "o percentual de redução da base só vale para os CST 20 e 90")
 	}
 	vBC := vTPrest.Mul(decimal.NewFromInt(1).Sub(pRed.Div(hundred))).RoundBank(2)
 	rate := func() (decimal.Decimal, error) {

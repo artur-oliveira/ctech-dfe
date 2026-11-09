@@ -381,6 +381,12 @@ func BuildEnviNFe(
 			t.VBCST = t.VBCST.Add(dv(icmsInner, "vBCST"))
 			t.VICMSST = t.VICMSST.Add(dv(icmsInner, "vICMSST"))
 			t.VFCPST = t.VFCPST.Add(dv(icmsInner, "vFCPST"))
+			t.VFCPSTRet = t.VFCPSTRet.Add(dv(icmsInner, "vFCPSTRet"))
+			// W16-10: só o vICMSDeson com indDeduzDeson=1 abate o vNF (XSD indDeduzDeson).
+			if icmsInner["indDeduzDeson"] == "1" {
+				t.VICMSDesonDeduz = t.VICMSDesonDeduz.Add(dv(icmsInner, "vICMSDeson"))
+			}
+			t.addMono(icmsInner)
 
 			icmsUFDestNode = map[string]any{}
 			if isDifalEligible && icmsCSTDifalEligible[cstForItem] {
@@ -523,12 +529,12 @@ func BuildEnviNFe(
 		pisCST := cfgStr(cfopEntry, "pis", "49")
 		pisAliq := anyStrPtr(cfopEntry, "pis_aliq")
 		pisAliqUnid := anyStrPtr(cfopEntry, "pis_aliq_unid")
-		pisBuilt := buildPIS(pisCST, vBCIBSCBS, pisAliq, pisAliqUnid)
+		pisBuilt := buildPIS(pisCST, vBCIBSCBS, pisAliq, pisAliqUnid, d(qTrib))
 
 		cofinsCST := cfgStr(cfopEntry, "cofins", "49")
 		cofinsAliq := anyStrPtr(cfopEntry, "cofins_aliq")
 		cofinsAliqUnid := anyStrPtr(cfopEntry, "cofins_aliq_unid")
-		cofinsBuilt := buildCOFINS(cofinsCST, vBCIBSCBS, cofinsAliq, cofinsAliqUnid)
+		cofinsBuilt := buildCOFINS(cofinsCST, vBCIBSCBS, cofinsAliq, cofinsAliqUnid, d(qTrib))
 
 		for _, pk := range []string{"PISAliq", "PISOutr", "PISQtde"} {
 			if inner, ok := pisBuilt[pk].(map[string]any); ok {
@@ -603,7 +609,7 @@ func BuildEnviNFe(
 
 		isCST := cfgStr(cfopEntry, "is_cst", "")
 		isAliq := anyStrPtr(cfopEntry, "is_aliq")
-		isNode := buildIS(isCST, vBCIBSCBS, isAliq, cfopEntry)
+		isNode := buildIS(isCST, vBCIBSCBS, isAliq, cfopEntry, d(qTrib))
 		if isNode != nil {
 			imposto["IS"] = isNode["IS"]
 			// O ISTot é a soma do vIS dos itens — lida do nó emitido, não

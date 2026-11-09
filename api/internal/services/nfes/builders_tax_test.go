@@ -162,13 +162,13 @@ func TestBuildIPI_NaoTributadoCST03(t *testing.T) {
 // ─── buildPIS ─────────────────────────────────────────────────────────────────
 
 func TestBuildPIS_CST07NaoTributado(t *testing.T) {
-	result := buildPIS("07", dec("100.00"), nil, nil)
+	result := buildPIS("07", dec("100.00"), nil, nil, decimal.NewFromInt(1))
 	inner := mapKey(t, result, "PISNT")
 	strField(t, inner, "CST", "07")
 }
 
 func TestBuildPIS_CST01Aliq(t *testing.T) {
-	result := buildPIS("01", dec("100.00"), new("0.65"), nil)
+	result := buildPIS("01", dec("100.00"), new("0.65"), nil, decimal.NewFromInt(1))
 	inner := mapKey(t, result, "PISAliq")
 	strField(t, inner, "CST", "01")
 	strField(t, inner, "vBC", "100.00")
@@ -177,7 +177,7 @@ func TestBuildPIS_CST01Aliq(t *testing.T) {
 }
 
 func TestBuildPIS_CST04NaoTributado(t *testing.T) {
-	result := buildPIS("04", dec("100.00"), nil, nil)
+	result := buildPIS("04", dec("100.00"), nil, nil, decimal.NewFromInt(1))
 	inner := mapKey(t, result, "PISNT")
 	strField(t, inner, "CST", "04")
 }
@@ -185,13 +185,13 @@ func TestBuildPIS_CST04NaoTributado(t *testing.T) {
 // ─── buildCOFINS ─────────────────────────────────────────────────────────────
 
 func TestBuildCOFINS_CST07NaoTributado(t *testing.T) {
-	result := buildCOFINS("07", dec("100.00"), nil, nil)
+	result := buildCOFINS("07", dec("100.00"), nil, nil, decimal.NewFromInt(1))
 	inner := mapKey(t, result, "COFINSNT")
 	strField(t, inner, "CST", "07")
 }
 
 func TestBuildCOFINS_CST01Aliq(t *testing.T) {
-	result := buildCOFINS("01", dec("100.00"), new("3.00"), nil)
+	result := buildCOFINS("01", dec("100.00"), new("3.00"), nil, decimal.NewFromInt(1))
 	inner := mapKey(t, result, "COFINSAliq")
 	strField(t, inner, "CST", "01")
 	strField(t, inner, "vCOFINS", "3.00")

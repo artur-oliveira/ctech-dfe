@@ -167,7 +167,7 @@ export const entitySchema = z.object({
     /** CNAE do emitente — exigido pelo leiaute quando IM está presente. */
     cnae: z.string().regex(/^\d{7}$/, 'CNAE tem 7 dígitos').optional().or(z.literal('')),
     /** Inscrição Suframa do emitente (emit/ISUFEmit). */
-    isuf_emit: z.string().regex(/^\d{1,9}$/, 'Suframa é numérico').optional().or(z.literal('')),
+    isuf_emit: z.string().regex(/^\d{8,9}$/, 'Suframa tem 8 ou 9 dígitos').optional().or(z.literal('')),
     /** Identificador do emitente no cadastro do intermediador
      *  (NF-e infIntermed/idCadIntTran) — o "seller id" do marketplace. */
     intermediary_id: z.string().max(60).optional().or(z.literal('')),

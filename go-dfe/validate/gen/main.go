@@ -427,6 +427,7 @@ func main() {
 		{"../schemas/cte/PL_CTe_400_NT2026.005_SN_1.00", "rodoOS", "specs/cte_rodoos.json"},
 		{"../schemas/cte/PL_CTe_400_NT2026.005_SN_1.00", "aereo", "specs/cte_aereo.json"},
 		{"../schemas/cte/PL_CTe_400_NT2026.005_SN_1.00", "aquav", "specs/cte_aquav.json"},
+		{"../schemas/cte/PL_CTe_400_NT2026.005_SN_1.00", "ferrov", "specs/cte_ferrov.json"},
 		{"../schemas/cte/PL_CTe_400_NT2026.005_SN_1.00", "duto", "specs/cte_duto.json"},
 		{"../schemas/cte/PL_CTe_400_NT2026.005_SN_1.00", "multimodal", "specs/cte_multimodal.json"},
 	}

@@ -40,6 +40,37 @@ func TestXSDOrderMatchesSpecs(t *testing.T) {
 	}
 }
 
+// Modais do CT-e: o infModal do documento é xs:any, então cada modal tem spec próprio e entra no xsdorder com o
+// escopo "infCTeNorm:infModal:<modal>"; sem escopo a ordem seria a do MDF-e (aereo, aquav, ferrov) ou alfabética
+// (duto, multimodal), rejeição 215. Estrito: todo grupo com 2 ou mais filhos precisa de entrada.
+func TestXSDOrderMatchesCTeModalSpecs(t *testing.T) {
+	var problems []string
+	for _, name := range []string{"cte_rodo", "cte_aereo", "cte_aquav", "cte_ferrov", "cte_duto", "cte_multimodal"} {
+		sp, err := Load(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var walk func(parent string, n *node, path string)
+		walk = func(parent string, n *node, path string) {
+			if len(n.Children) >= 2 {
+				if order, ok := xsdorder.Resolve(parent, n.Name); ok {
+					problems = append(problems, compareOrder(name, path, order, n)...)
+				} else if !onlyAny(n) && !allChoice(n) {
+					problems = append(problems, fmt.Sprintf("%s %s: sem entrada no xsdorder (%d filhos)", name, path, len(n.Children)))
+				}
+			}
+			for _, c := range n.Children {
+				walk(anc(parent, n.Name), c, path+"/"+c.Name)
+			}
+		}
+		walk("infCTeNorm:infModal", sp.root, sp.root.Name)
+	}
+	sort.Strings(problems)
+	for _, p := range problems {
+		t.Error(p)
+	}
+}
+
 // Mesma conferência para os XSDs de evento: um spec por evento (detEvento da NF-e; grupo evXxx do CT-e e do
 // MDF-e) e o envelope de cada documento. A tabela de detEvento da NF-e é única para todos os tipos, então um
 // evento que pede ordem diferente de outro aparece aqui.

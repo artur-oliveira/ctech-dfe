@@ -1,6 +1,10 @@
 package mdfes
 
-import "testing"
+import (
+	"testing"
+
+	"gopkg.aoctech.app/dfe/api/internal/services/dfecheck"
+)
 
 // TestValidateModalPayload cobre o contrato de cada modal habilitado: escolher
 // o modal sem mandar os dados dele é 400 com mensagem explícita, não um nó
@@ -131,5 +135,28 @@ func TestBuildInfModal_DespachaPorModal(t *testing.T) {
 	p.rail = &MdfeRailModal{XPref: "TR1", XOri: "A", XDest: "B", Wagons: []MdfeRailWagon{{PesoBC: "1", PesoR: "1", Serie: "A", NVag: "1", TU: "1"}}}
 	if _, has := p.buildInfModal()["ferrov"]; !has {
 		t.Fatal("infModal sem ferrov")
+	}
+}
+
+// M-11: dhTrem sai no padrão TDateTimeUTC do XSD (segundos e fuso em hora cheia).
+func TestBuildFerrov_DhTremNormalizado(t *testing.T) {
+	cases := map[string]string{
+		"2026-05-01T10:30":          "2026-05-01T10:30:00-03:00",
+		"2026-05-01T10:30:15":       "2026-05-01T10:30:15-03:00",
+		"2026-05-01T10:30:15+01:00": "2026-05-01T10:30:15+01:00",
+		"2026-05-01T10:30:15+05:30": "",
+		"01/05/2026":                "",
+	}
+	for in, want := range cases {
+		if got := normalizeDhTrem(in); got != want {
+			t.Errorf("normalizeDhTrem(%q)=%q, want %q", in, got, want)
+		}
+	}
+	trem := buildFerrov(&MdfeRailModal{XPref: "ABC", DhTrem: "2026-05-01T10:30", XOri: "AAA", XDest: "BBB",
+		Wagons: []MdfeRailWagon{{PesoBC: "1", PesoR: "1", Serie: "ABC", NVag: "1", TU: "1"}}})
+	for _, v := range dfecheck.Shadow("mdfe_ferrov", "mdfe_ferrov", "t", trem) {
+		if v.Code != "required" {
+			t.Errorf("%s %s: %s", v.Path, v.Code, v.Message)
+		}
 	}
 }

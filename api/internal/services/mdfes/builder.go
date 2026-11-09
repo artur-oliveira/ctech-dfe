@@ -217,7 +217,7 @@ func (p buildParams) buildIde(cUF, cMDF, cDV string) map[string]any {
 		"UFFim":   p.cargo.ufFim,
 	}
 
-	// SEFAZ rule F25 (cStat 745): tpTransp may only be present when the traction
+	// SEFAZ rule F20 (cStat 745): tpTransp may only be present when the traction
 	// vehicle has a third-party owner (grupo prop). For carga própria (own
 	// vehicle, no prop) the field MUST be omitted.
 	if tp := tpTranspFor(p.owner); tp != "" {
@@ -323,6 +323,9 @@ func (p buildParams) buildRodo() map[string]any {
 			if t.UF != "" {
 				reboque["UF"] = t.UF
 			}
+			if prop := buildProp(t.Prop); prop != nil {
+				reboque["prop"] = prop
+			}
 			reboques = append(reboques, reboque)
 		}
 		rodo["veicReboque"] = reboques
@@ -381,7 +384,7 @@ func (p buildParams) tpEmitOrDefault() string {
 // tpTranspFor derives ide/tpTransp from the third-party owner, per SEFAZ rules
 // F18 (cStat 743) and F19 (cStat 744): a CPF owner ⇒ TAC; a CNPJ owner ⇒ ETC,
 // or CTC when the caller explicitly requests it. Returns "" when there is no
-// owner (rule F25: tpTransp must then be absent).
+// owner (rule F20: tpTransp must then be absent).
 func tpTranspFor(o *resolvedOwner) string {
 	if o == nil {
 		return ""
@@ -393,6 +396,15 @@ func tpTranspFor(o *resolvedOwner) string {
 		return tpTranspCTC
 	}
 	return tpTranspETC
+}
+
+// lotacaoLocal monta infLocalCarrega/infLocalDescarrega: o XSD é um choice entre CEP e latitude+longitude.
+// validateBulkCargo já recusou os dois juntos; aqui vale o CEP quando existe.
+func lotacaoLocal(cep string, lat, lon *string) map[string]any {
+	if cep == "" && lat != nil && lon != nil && *lat != "" && *lon != "" {
+		return map[string]any{"latitude": *lat, "longitude": *lon}
+	}
+	return map[string]any{"CEP": onlyDigits(cep)}
 }
 
 func (p buildParams) buildProdPred() map[string]any {
@@ -407,15 +419,9 @@ func (p buildParams) buildProdPred() map[string]any {
 		pred["NCM"] = p.cargo.prodPred.NCM
 	}
 	if p.bulkCargo != nil {
-		carr := map[string]any{"CEP": onlyDigits(p.bulkCargo.CEPLoading)}
-		setIfPtr(carr, "latitude", p.bulkCargo.LatLoading)
-		setIfPtr(carr, "longitude", p.bulkCargo.LonLoading)
-		desc := map[string]any{"CEP": onlyDigits(p.bulkCargo.CEPUnloading)}
-		setIfPtr(desc, "latitude", p.bulkCargo.LatUnloading)
-		setIfPtr(desc, "longitude", p.bulkCargo.LonUnloading)
 		pred["infLotacao"] = map[string]any{
-			"infLocalCarrega":    carr,
-			"infLocalDescarrega": desc,
+			"infLocalCarrega":    lotacaoLocal(p.bulkCargo.CEPLoading, p.bulkCargo.LatLoading, p.bulkCargo.LonLoading),
+			"infLocalDescarrega": lotacaoLocal(p.bulkCargo.CEPUnloading, p.bulkCargo.LatUnloading, p.bulkCargo.LonUnloading),
 		}
 	}
 	return pred
@@ -478,7 +484,8 @@ func buildEmit(org map[string]types.AttributeValue, orgPerson map[string]any, or
 	} else {
 		emit["CPF"] = doc
 	}
-	if ie := firstIE(orgPerson); ie != "" {
+	// IE da UF do enderecoEmit (F73/209); ISENTO e IE de outra UF não saem (TIe [0-9]{2,14}).
+	if ie := services.IEForUF(orgPerson, anyStr(services.FirstAddress(orgPerson), "state_federation")); ie != "" {
 		emit["IE"] = ie
 	}
 	return emit
@@ -536,8 +543,6 @@ func personMap(org map[string]types.AttributeValue) map[string]any {
 	}
 	return map[string]any{}
 }
-
-func firstIE(person map[string]any) string { return services.FirstIE(person) }
 
 func anyStr(m map[string]any, key string) string {
 	if v, ok := m[key].(string); ok {

@@ -1,6 +1,9 @@
 package mdfes
 
-import "strconv"
+import (
+	"strconv"
+	"time"
+)
 
 // modals.go holds the non-rodoviário transport modals. Unlike rodoviário (which
 // is assembled from internal vehicle/owner records), the aéreo, aquaviário and
@@ -127,13 +130,13 @@ func buildWaterTerminals(terminals []MdfeWaterTerminal, codeTag, nameTag string)
 
 // MdfeRailWagon mirrors one <vag> entry.
 type MdfeRailWagon struct {
-	PesoBC string `json:"weight_bc" validate:"required,decimalv"`   // pesoBC
-	PesoR  string `json:"weight_real" validate:"required,decimalv"` // pesoR
-	TpVag  string `json:"wagon_type" validate:"omitempty,max=3"`    // tpVag (optional)
-	Serie  string `json:"series" validate:"required,max=3"`         // serie
-	NVag   string `json:"number" validate:"required,max=9"`         // nVag
-	NSeq   string `json:"sequence" validate:"omitempty,max=2"`      // nSeq (optional)
-	TU     string `json:"tu" validate:"required,decimalv"`          // TU — tonelada útil
+	PesoBC string `json:"weight_bc" validate:"required,decimalv"`      // pesoBC
+	PesoR  string `json:"weight_real" validate:"required,decimalv"`    // pesoR
+	TpVag  string `json:"wagon_type" validate:"omitempty,len=3"`       // tpVag (optional, XSD length=3)
+	Serie  string `json:"series" validate:"required,len=3"`            // serie (XSD length=3)
+	NVag   string `json:"number" validate:"required,max=8,numeric"`    // nVag (XSD [1-9][0-9]{0,7})
+	NSeq   string `json:"sequence" validate:"omitempty,max=3,numeric"` // nSeq (optional, XSD até 3 dígitos)
+	TU     string `json:"tu" validate:"required,decimalv"`             // TU — tonelada útil
 }
 
 // MdfeRailModal mirrors the <ferrov> group (trem + wagons). qVag é derivado da
@@ -141,8 +144,8 @@ type MdfeRailWagon struct {
 type MdfeRailModal struct {
 	XPref  string          `json:"train_prefix" validate:"required,max=10"` // trem/xPref
 	DhTrem string          `json:"train_datetime" validate:"omitempty"`
-	XOri   string          `json:"origin_station" validate:"required,max=100"` // trem/xOri
-	XDest  string          `json:"dest_station" validate:"required,max=100"`   // trem/xDest
+	XOri   string          `json:"origin_station" validate:"required,max=3"` // trem/xOri (XSD 1 a 3)
+	XDest  string          `json:"dest_station" validate:"required,max=3"`   // trem/xDest (XSD 1 a 3)
 	Wagons []MdfeRailWagon `json:"wagons" validate:"required,min=1,dive"`
 }
 
@@ -156,7 +159,7 @@ func buildFerrov(r *MdfeRailModal) map[string]any {
 		"xDest": r.XDest,
 		"qVag":  intString(len(r.Wagons)),
 	}
-	setIfStr(trem, "dhTrem", r.DhTrem)
+	setIfStr(trem, "dhTrem", normalizeDhTrem(r.DhTrem))
 
 	vags := make([]map[string]any, 0, len(r.Wagons))
 	for _, w := range r.Wagons {
@@ -172,6 +175,26 @@ func buildFerrov(r *MdfeRailModal) map[string]any {
 		vags = append(vags, vag)
 	}
 	return map[string]any{"trem": trem, "vag": vags}
+}
+
+// dhTremLayouts são os formatos aceitos para dhTrem (TDateTimeUTC exige segundos e fuso em hora cheia).
+// Sem fuso vale -03:00, o mesmo de dhIniViagem; o formulário (datetime-local) manda AAAA-MM-DDTHH:MM.
+var dhTremLayouts = []struct{ layout, suffix string }{
+	{"2006-01-02T15:04", ":00-03:00"},
+	{"2006-01-02T15:04:05", "-03:00"},
+	{time.RFC3339, ""},
+}
+
+// normalizeDhTrem devolve o dhTrem no padrão do XSD, ou "" se o formato não for reconhecido.
+func normalizeDhTrem(v string) string {
+	for _, l := range dhTremLayouts {
+		if t, err := time.Parse(l.layout, v); err == nil {
+			if _, off := t.Zone(); l.suffix != "" || off%3600 == 0 {
+				return v + l.suffix
+			}
+		}
+	}
+	return ""
 }
 
 func setIfStr(m map[string]any, key, val string) {

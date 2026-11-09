@@ -17,7 +17,7 @@ var (
 		"01": "Granel sólido", "02": "Granel líquido", "03": "Frigorificada", "04": "Conteinerizada",
 		"05": "Carga Geral", "06": "Neogranel", "07": "Perigosa (granel sólido)",
 		"08": "Perigosa (granel líquido)", "09": "Perigosa (carga frigorificada)",
-		"10": "Perigosa (conteinerizada)", "11": "Perigosa (carga geral)",
+		"10": "Perigosa (conteinerizada)", "11": "Perigosa (carga geral)", "12": "Granel pressurizada",
 	}
 	weightLabels = map[string]string{"01": "KG", "02": "TON"}
 )
@@ -68,11 +68,12 @@ func buildMDFeContext(root *xmlNode, canceled bool) (map[string]any, error) {
 			seals = append(seals, value)
 		}
 	}
-	contingency := ide.value("tpEmis") == "2"
+	// Off-line (tpEmis 2) já autorizado imprime o protocolo e perde a faixa de contingência.
 	protocol := map[string]any(nil)
-	if !contingency && prot != nil {
+	if prot != nil {
 		protocol = map[string]any{"nProt": prot.value("nProt"), "dhRecbto": dateTimeBR(prot.value("dhRecbto"))}
 	}
+	contingency := ide.value("tpEmis") == "2" && protocol == nil
 	predominant := inf.child("prodPred")
 	total := inf.child("tot")
 	additional := inf.child("infAdic")
@@ -110,7 +111,7 @@ func buildMDFeContext(root *xmlNode, canceled bool) (map[string]any, error) {
 		"brand": map[string]any{"logo_b64": "", "box_bg": defaultBoxBackground},
 		"text": map[string]any{
 			"gerado_por": "Gerado por", "damdfe": "DAMDFE", "damdfe_desc": "DOCUMENTO AUXILIAR DO MANIFESTO ELETRÔNICO DE DOCUMENTOS FISCAIS",
-			"homologacao": "EMITIDO EM AMBIENTE DE HOMOLOGAÇÃO – SEM VALOR FISCAL", "contingencia": "EMISSÃO EM CONTINGÊNCIA",
+			"homologacao": "EMITIDO EM AMBIENTE DE HOMOLOGAÇÃO - SEM VALOR FISCAL", "contingencia": "EMISSÃO EM CONTINGÊNCIA",
 			"protocolo": "PROTOCOLO DE AUTORIZAÇÃO DE USO", "cancelada": "CANCELADA",
 		},
 	}, nil

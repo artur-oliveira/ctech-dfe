@@ -205,6 +205,8 @@ func message(fe validator.FieldError) string {
 		return "chave de acesso inválida (" + AccessKeyReason(key, accessKeyModels(fe.Param())...) + "): " + key
 	case "cfop":
 		return "CFOP deve ter 4 dígitos"
+	case "cfop_cte":
+		return "CFOP do CT-e inválido (4 dígitos, iniciando em 1, 2, 3, 5, 6 ou 7, e os dois últimos não podem ser 00)"
 	case "ncm":
 		return "NCM deve ter 8 dígitos"
 	case "cest":

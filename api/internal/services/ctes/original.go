@@ -208,7 +208,7 @@ type CteChargeBody struct {
 	IBSCBS        *CteIBSCBS         `json:"ibs_cbs"`
 	AuthorizedXML []CteAuthorizedXML `json:"authorized_xml" validate:"omitempty,max=10,dive"`
 	// CFOP da prestação: regra fiscal, nunca presumido.
-	CFOP           *string `json:"cfop" validate:"omitempty,cfop"`
+	CFOP           *string `json:"cfop" validate:"omitempty,cfop_cte"`
 	AdditionalInfo *string `json:"additional_info" validate:"omitempty,max=2000"`
 }
 

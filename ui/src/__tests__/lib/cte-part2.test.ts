@@ -117,6 +117,22 @@ describe('carta de correção: grupos fechados', () => {
     expect(correctionGroup('ObsCont')?.repeats).toBe(true);
     expect(correctionGroup('rem')?.repeats).toBeFalsy();
   });
+  it('campos seguem o leiaute: xFant só em rem; endereço no grupo enderXxx', () => {
+    const has = (g: string, f: string) => correctionGroup(g)?.fields.some((x) => x.value === f);
+    expect(has('rem', 'xFant')).toBe(true);
+    for (const g of ['dest', 'exped', 'receb']) expect(has(g, 'xFant')).toBe(false);
+    for (const g of ['rem', 'dest', 'exped', 'receb']) expect(has(g, 'xLgr')).toBe(false);
+    for (const g of ['enderReme', 'enderDest', 'enderExped', 'enderReceb']) expect(has(g, 'xLgr')).toBe(true);
+  });
+  it('CFOP segue o padrão do XSD (final 00 recusado)', () => {
+    const body = {...emptyCteForm('00'), nfeKeys: [KEY], takerRole: 'remetente' as const, freightTotal: '100.00'};
+    const bad = (cfop: string) => {
+      const r = cteEmitBodySchema.safeParse({...body, cfop});
+      return !r.success && r.error.issues.some((i) => i.path.includes('cfop'));
+    };
+    expect(bad('5000')).toBe(true);
+    expect(bad('5353')).toBe(false);
+  });
   it('todo grupo tem campos e nomes únicos', () => {
     expect(new Set(CTE_CORRECTION_GROUPS.map((g) => g.value)).size).toBe(CTE_CORRECTION_GROUPS.length);
     expect(CTE_CORRECTION_GROUPS.every((g) => g.fields.length > 0)).toBe(true);

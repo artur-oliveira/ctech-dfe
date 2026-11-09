@@ -58,3 +58,26 @@ func FirstIE(person map[string]any) string {
 	}
 	return ""
 }
+
+// IEForUF returns the IE registered for uf only (no fallback to another UF), digits only. "ISENTO" or
+// punctuation-only values yield "", because the MDF-e XSD TIe is [0-9]{2,14}.
+func IEForUF(person map[string]any, uf string) string {
+	regs, _ := person["state_registrations"].([]any)
+	for _, r := range regs {
+		rm, ok := r.(map[string]any)
+		if !ok || rm["uf"] != uf {
+			continue
+		}
+		v, _ := rm["state_registration"].(string)
+		var b []byte
+		for i := 0; i < len(v); i++ {
+			if v[i] >= '0' && v[i] <= '9' {
+				b = append(b, v[i])
+			}
+		}
+		if len(b) >= 2 && len(b) <= 14 {
+			return string(b)
+		}
+	}
+	return ""
+}

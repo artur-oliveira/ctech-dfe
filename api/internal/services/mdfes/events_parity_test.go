@@ -53,3 +53,20 @@ func TestEventBodies_ParidadeComXSD(t *testing.T) {
 		}
 	}
 }
+
+// B-01: qtdViagens/nroViagem sem zeros a esquerda ("1") violavam [0-9]{5} do XSD.
+func TestEventBodies_PagamentoViagensSemZeros(t *testing.T) {
+	ec := &eventContext{environment: 2, cnpj: "12345678000195", docTag: "CNPJ"}
+	s := &MdfeService{}
+	infPag, err := buildInfPag([]MdfePayment{{CPF: sp("12345678909"), Name: sp("Fulano"),
+		Components: []MdfePaymentComponent{{Type: "01", Value: "100.00"}}, ContractValue: "100.00",
+		PaymentType: "0", Bank: MdfePaymentBank{PIX: sp("fulano@example.com")}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := s.buildEventEnvelope(ec, parityKey, TpEventoPagamentoOper, 1,
+		payTransportDet(parityProt, MdfePaymentTrips{Total: "1", Number: "1"}, infPag))
+	for _, v := range dfecheck.EventFindings("mdfe", body) {
+		t.Errorf("%s %s: %s", v.Path, v.Code, v.Message)
+	}
+}

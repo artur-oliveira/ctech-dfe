@@ -15,6 +15,7 @@ import (
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"
 	"gopkg.aoctech.app/dfe/api/internal/services/dfecheck"
+	"gopkg.aoctech.app/dfe/go-dfe/uftz"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
@@ -37,8 +38,8 @@ type NfeEmitBody struct {
 	// do total do documento. Valores explícitos no request vencem a expansão.
 	PaymentTermID  *string          `json:"payment_term_id" validate:"omitempty"`
 	SelfIssuance   bool             `json:"self_issuance"`
-	Products       []NfeProductItem `json:"products" validate:"required,min=1,dive"`
-	Payments       []NfePaymentItem `json:"payments" validate:"omitempty,dive"`
+	Products       []NfeProductItem `json:"products" validate:"required,min=1,max=990,dive"`
+	Payments       []NfePaymentItem `json:"payments" validate:"omitempty,max=100,dive"`
 	AdditionalInfo *string          `json:"additional_info" validate:"omitempty,max=5000"`
 	NatOp          *string          `json:"nat_op" validate:"omitempty,max=60"`
 	// FinNFe 5 (nota de crédito) e 6 (nota de débito) são da reforma tributária (NT 2025.002) e exigem
@@ -49,7 +50,7 @@ type NfeEmitBody struct {
 	TpNF           *string            `json:"tp_nf" validate:"omitempty,oneof=0 1"`
 	Transport      *NfeTransportItem  `json:"transport" validate:"omitempty"`
 	CobrFat        *NfeFatItem        `json:"cobr_fat" validate:"omitempty"`
-	CobrDuplicatas []NfeDuplicataItem `json:"cobr_duplicatas" validate:"omitempty,dive"`
+	CobrDuplicatas []NfeDuplicataItem `json:"cobr_duplicatas" validate:"omitempty,max=120,dive"`
 	VTroco         *string            `json:"v_troco" validate:"omitempty,money"`
 	// TpNFDebito (01 a 08) e TpNFCredito (01 a 06) são o tipo da nota de débito e de crédito. Vencem o da
 	// natureza de operação, como todo valor explícito do pedido.
@@ -194,7 +195,7 @@ type NfeProductItem struct {
 	VeicNMotor *string          `json:"veic_n_motor" validate:"omitempty"`
 	VeicCCor   *string          `json:"veic_c_cor" validate:"omitempty"`
 	VeicXCor   *string          `json:"veic_x_cor" validate:"omitempty"`
-	Armas      []map[string]any `json:"armas" validate:"omitempty"`
+	Armas      []map[string]any `json:"armas" validate:"omitempty,max=500"`
 	// ImportDeclarations liga o item às adições da DI que o representam
 	// (prod/DI). nAdicao e nSeqAdic saem do vínculo, nunca do request.
 	ImportDeclarations []NfeItemDIBody `json:"import_declarations" validate:"omitempty,max=100,dive"`
@@ -274,7 +275,7 @@ type NfeDetExportBody struct {
 
 // NfePaymentItem is a payment method in an NF-e emission request.
 type NfePaymentItem struct {
-	PaymentType string         `json:"payment_type" validate:"required,oneof=01 02 03 04 05 10 11 12 13 14 15 16 17 18 19 20 21 22 90 99"`
+	PaymentType string         `json:"payment_type" validate:"required,oneof=01 02 03 04 05 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 90 91 99"`
 	Value       string         `json:"value" validate:"required,money"`
 	IndPag      *string        `json:"ind_pag" validate:"omitempty,oneof=0 1"`
 	DPag        *string        `json:"d_pag" validate:"omitempty"`
@@ -484,7 +485,8 @@ func (s *NfeService) Emit(ctx context.Context, orgPK string, req NfeEmitBody, us
 		return nil, err
 	}
 
-	now := time.Now()
+	// dhEmi e o AAMM da chave são horário local da UF do emitente, não o fuso do processo (UTC em Lambda).
+	now := uftz.Now(extractEmitUFFromItem(orgItem))
 	accessKey, err := generateAccessKey(orgPK, orgItem, serie, currentNumber, now, nfModel55, mode.TpEmis)
 	if err != nil {
 		return nil, err
@@ -970,6 +972,11 @@ func generateAccessKey(orgPK string, org map[string]types.AttributeValue, serie,
 	}
 	if len(cnpj) > 14 {
 		cnpj = cnpj[:14]
+	}
+	// Emitente pessoa física: o CPF (11) ocupa as posições 7-20 com "000" à esquerda (N28-10 / MOC, chave
+	// de acesso); preencher à direita muda o documento da chave.
+	if len(cnpj) == 11 {
+		cnpj = "000" + cnpj
 	}
 	for len(cnpj) < 14 {
 		cnpj += "0"

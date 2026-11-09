@@ -12,7 +12,7 @@ export const vehicleSetSchema = z.object({
   tractor_sk: z.string().min(1, 'Escolha o veículo de tração'),
   trailer_sks: z.array(z.string()).max(MAX_TRAILERS, `Máximo ${MAX_TRAILERS} reboques`),
   driver_docs: z.array(z.string()),
-  rntrc: z.string().regex(/^\d{8,12}$/, 'RNTRC: 8 a 12 dígitos').optional().or(z.literal('')),
+  rntrc: z.string().regex(/^\d{8}$/, 'RNTRC: 8 dígitos').optional().or(z.literal('')),
   ciot: z.string().max(20).optional().or(z.literal('')),
 });
 

@@ -74,7 +74,7 @@ func buildICMSSN(origin, csosn string, vProd decimal.Decimal, cfg map[string]any
 		// CSOSN 500 é a revenda de mercadoria com ST já retida: os mesmos
 		// valores retidos e o mesmo ICMS efetivo do ICMS60 do regime normal.
 		node := map[string]any{"orig": origin, "CSOSN": csosn}
-		addSTRetida(node, cfg)
+		addSTRetida(node, cfg, true)
 		addICMSEfetivo(node, vProd, cfg)
 		return map[string]any{"ICMSSN500": node}
 	case "101":
@@ -287,6 +287,8 @@ func buildICMSNormal(origin, cst string, vProd decimal.Decimal, cfg map[string]a
 		}
 		if qBCMono != "" {
 			node["qBCMono"] = qBCMono
+			// vICMSMonoReten já usa esta mesma quantidade; ela precisa estar no item para o total qBCMonoReten.
+			node["qBCMonoReten"] = qBCMono
 		}
 		if pRed := cfgStrPtr(cfg, "icms_p_red_ad_rem"); pRed != nil {
 			if motRed := cfgStrPtr(cfg, "icms_mot_red_ad_rem"); motRed != nil {
@@ -319,7 +321,7 @@ func buildICMSNormal(origin, cst string, vProd decimal.Decimal, cfg map[string]a
 		if cst == "41" {
 			if vBCSTRet := cfgStrPtr(cfg, "icms_v_bc_st_ret"); vBCSTRet != nil && *vBCSTRet != "" {
 				node := map[string]any{"orig": origin, "CST": cst}
-				addSTRetida(node, cfg)
+				addSTRetida(node, cfg, false)
 				if v := cfgStrPtr(cfg, "icms_v_bc_st_dest"); v != nil && *v != "" {
 					node["vBCSTDest"] = *v
 					node["vICMSSTDest"] = cfgStr(cfg, "icms_v_icms_st_dest", "0.00")
@@ -369,7 +371,7 @@ func buildICMSNormal(origin, cst string, vProd decimal.Decimal, cfg map[string]a
 
 	case "60":
 		node := map[string]any{"orig": origin, "CST": cst}
-		addSTRetida(node, cfg)
+		addSTRetida(node, cfg, true)
 		addICMSEfetivo(node, vProd, cfg)
 		return map[string]any{"ICMS60": node}
 
@@ -417,7 +419,9 @@ func buildICMSNormal(origin, cst string, vProd decimal.Decimal, cfg map[string]a
 
 // ─── IPI ─────────────────────────────────────────────────────────────────────
 
-var ipiCSTTributado = map[string]bool{"50": true, "51": true}
+// ipiCSTTributado: CSTs do IPITrib no XSD (IPI/IPITrib/CST enum 00, 49, 50, 99); os demais
+// (01 a 05, 51 a 55) são IPINT.
+var ipiCSTTributado = map[string]bool{"00": true, "49": true, "50": true, "99": true}
 
 func buildIPI(ipiCST string, vProd, qty decimal.Decimal, cfg, item map[string]any) map[string]any {
 	if ipiCST == "" {
@@ -489,7 +493,7 @@ func buildCOFINSST(cfg map[string]any, vProd decimal.Decimal) map[string]any {
 
 // ─── IS ──────────────────────────────────────────────────────────────────────
 
-func buildIS(isCST string, vProd decimal.Decimal, isAliq *string, cfg map[string]any) map[string]any {
+func buildIS(isCST string, vProd decimal.Decimal, isAliq *string, cfg map[string]any, qTrib decimal.Decimal) map[string]any {
 	if isCST == "" {
 		return nil
 	}
@@ -515,7 +519,7 @@ func buildIS(isCST string, vProd decimal.Decimal, isAliq *string, cfg map[string
 		}
 		if unidTrib != nil {
 			node["uTrib"] = *unidTrib
-			node["qTrib"] = "0.0000"
+			node["qTrib"] = q4(qTrib.RoundBank(4))
 		}
 		node["vIS"] = vIS
 	}
@@ -524,6 +528,18 @@ func buildIS(isCST string, vProd decimal.Decimal, isAliq *string, cfg map[string
 
 // ─── PIS ─────────────────────────────────────────────────────────────────────
 
+// qtdeValues: PISQtde/COFINSQtde (CST 03) têm "Base de Calculo = Quantidade Vendida x Alíquota
+// por Unidade de Produto" (XSD): qBCProd é a quantidade tributável do item e o valor é
+// qBCProd x vAliqProd.
+func qtdeValues(qTrib decimal.Decimal, aliqUnid *string) (qBC, aUnid, v string) {
+	aUnid = "0.0000"
+	if aliqUnid != nil {
+		aUnid = *aliqUnid
+	}
+	qBCd := qTrib.RoundBank(4)
+	return q4(qBCd), aUnid, q2(qBCd.Mul(d(aUnid)).RoundBank(2))
+}
+
 var pisOutrCSTs = map[string]bool{
 	"49": true, "50": true, "51": true, "52": true, "53": true, "54": true,
 	"55": true, "56": true, "60": true, "61": true, "62": true, "63": true,
@@ -531,17 +547,14 @@ var pisOutrCSTs = map[string]bool{
 	"72": true, "73": true, "74": true, "75": true, "98": true, "99": true,
 }
 
-func buildPIS(cst string, vProd decimal.Decimal, aliq, aliqUnid *string) map[string]any {
+func buildPIS(cst string, vProd decimal.Decimal, aliq, aliqUnid *string, qTrib decimal.Decimal) map[string]any {
 	switch cst {
 	case "04", "05", "06", "07", "08", "09":
 		return map[string]any{"PISNT": map[string]any{"CST": cst}}
 	case "03":
-		aUnid := "0.0000"
-		if aliqUnid != nil {
-			aUnid = *aliqUnid
-		}
+		qBC, aUnid, v := qtdeValues(qTrib, aliqUnid)
 		return map[string]any{"PISQtde": map[string]any{
-			"CST": cst, "qBCProd": "0.0000", "vAliqProd": aUnid, "vPIS": "0.00",
+			"CST": cst, "qBCProd": qBC, "vAliqProd": aUnid, "vPIS": v,
 		}}
 	}
 	pPIS := "0.00"
@@ -558,17 +571,14 @@ func buildPIS(cst string, vProd decimal.Decimal, aliq, aliqUnid *string) map[str
 
 // ─── COFINS ───────────────────────────────────────────────────────────────────
 
-func buildCOFINS(cst string, vProd decimal.Decimal, aliq, aliqUnid *string) map[string]any {
+func buildCOFINS(cst string, vProd decimal.Decimal, aliq, aliqUnid *string, qTrib decimal.Decimal) map[string]any {
 	switch cst {
 	case "04", "05", "06", "07", "08", "09":
 		return map[string]any{"COFINSNT": map[string]any{"CST": cst}}
 	case "03":
-		aUnid := "0.0000"
-		if aliqUnid != nil {
-			aUnid = *aliqUnid
-		}
+		qBC, aUnid, v := qtdeValues(qTrib, aliqUnid)
 		return map[string]any{"COFINSQtde": map[string]any{
-			"CST": cst, "qBCProd": "0.0000", "vAliqProd": aUnid, "vCOFINS": "0.00",
+			"CST": cst, "qBCProd": qBC, "vAliqProd": aUnid, "vCOFINS": v,
 		}}
 	}
 	pCOFINS := "0.00"
@@ -701,9 +711,8 @@ func addICMSEfetivo(node map[string]any, vProd decimal.Decimal, cfg map[string]a
 	}
 	pRed := cfgStr(cfg, "icms_p_red_bc_efet", "0.00")
 	vBCEfet := vProd.Mul(decimal.NewFromInt(1).Sub(d(pRed).Div(decimal.NewFromInt(100)))).RoundBank(2)
-	if pRed != "" && pRed != "0.00" {
-		node["pRedBCEfet"] = pRed
-	}
+	// O grupo é tudo ou nada no XSD: pRedBCEfet é obrigatório junto dos outros três.
+	node["pRedBCEfet"] = pRed
 	node["vBCEfet"] = q2(vBCEfet)
 	node["pICMSEfet"] = *pICMSEfet
 	node["vICMSEfet"] = q2(vBCEfet.Mul(d(*pICMSEfet)).Div(decimal.NewFromInt(100)).RoundBank(2))
@@ -712,10 +721,14 @@ func addICMSEfetivo(node map[string]any, vProd decimal.Decimal, cfg map[string]a
 // addSTRetida acrescenta os valores do ICMS-ST retido anteriormente
 // (vBCSTRet, pST, vICMSSTRet e o FCP-ST retido). São os mesmos campos, com o
 // mesmo significado, em ICMS60, ICMSST e ICMSSN500.
-func addSTRetida(node map[string]any, cfg map[string]any) {
-	if vBCSTRet := cfgStrPtr(cfg, "icms_v_bc_st_ret"); vBCSTRet != nil && *vBCSTRet != "" {
+//
+// pSTRequired: em ICMS60 e ICMSSN500 o grupo [vBCSTRet, pST, vICMSSTRet] é tudo ou nada com pST
+// obrigatório; sem pST o grupo inteiro fica de fora (não se inventa alíquota). Em ICMSST pST é opcional.
+func addSTRetida(node map[string]any, cfg map[string]any, pSTRequired bool) {
+	pST := cfgStrPtr(cfg, "icms_p_st")
+	if vBCSTRet := cfgStrPtr(cfg, "icms_v_bc_st_ret"); vBCSTRet != nil && *vBCSTRet != "" && (pST != nil || !pSTRequired) {
 		node["vBCSTRet"] = *vBCSTRet
-		if pST := cfgStrPtr(cfg, "icms_p_st"); pST != nil && *pST != "" {
+		if pST != nil {
 			node["pST"] = *pST
 		}
 		node["vICMSSTRet"] = cfgStr(cfg, "icms_v_icms_st_ret", "0.00")

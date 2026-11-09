@@ -108,11 +108,11 @@ export function RailModalFields({value, onChange}: {
                  className="w-full h-11 rounded-md border border-gray-300 px-3 text-sm"/>
         </Field>
         <Field id="rail-ori" label="Estação de origem">
-          <Input id="rail-ori" maxLength={100} className="w-full"
+          <Input id="rail-ori" maxLength={3} className="w-full"
                  value={value.origin_station} onChange={(e) => patch({origin_station: e.target.value})}/>
         </Field>
         <Field id="rail-dest" label="Estação de destino">
-          <Input id="rail-dest" maxLength={100} className="w-full"
+          <Input id="rail-dest" maxLength={3} className="w-full"
                  value={value.dest_station} onChange={(e) => patch({dest_station: e.target.value})}/>
         </Field>
       </div>
@@ -146,11 +146,11 @@ export function RailModalFields({value, onChange}: {
                      value={w.series} onChange={(e) => patchWagon(i, {series: e.target.value})}/>
             </Field>
             <Field id={`rail-num-${i}`} label="Número">
-              <Input id={`rail-num-${i}`} maxLength={9} className="w-full"
+              <Input id={`rail-num-${i}`} maxLength={8} className="w-full"
                      value={w.number} onChange={(e) => patchWagon(i, {number: e.target.value})}/>
             </Field>
             <Field id={`rail-seq-${i}`} label="Sequência (opcional)">
-              <Input id={`rail-seq-${i}`} maxLength={2} className="w-full"
+              <Input id={`rail-seq-${i}`} maxLength={3} className="w-full"
                      value={w.sequence ?? ''} onChange={(e) => patchWagon(i, {sequence: e.target.value})}/>
             </Field>
             <Field id={`rail-pbc-${i}`} label="Peso base de cálculo (t)">

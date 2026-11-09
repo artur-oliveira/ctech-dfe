@@ -27,14 +27,14 @@ type MdfeEmitBody struct {
 	// Documents são as NF-e ou CT-e transportados (um tipo só). Vazio só no carregamento posterior.
 	Documents []MdfeDocRef `json:"documents" validate:"omitempty,max=20000,dive"`
 
-	UFStart string   `json:"uf_start" validate:"omitempty,uf"`   // optional override; derived from docs when empty
-	UFEnd   string   `json:"uf_end" validate:"omitempty,uf"`     // optional override; derived from docs when empty
-	Route   []string `json:"route" validate:"omitempty,dive,uf"` // intermediate UFs between UFStart/UFEnd (exclusive)
+	UFStart string   `json:"uf_start" validate:"omitempty,ufex"`          // optional override; derived from docs when empty
+	UFEnd   string   `json:"uf_end" validate:"omitempty,ufex"`            // optional override; derived from docs when empty
+	Route   []string `json:"route" validate:"omitempty,max=25,dive,ufex"` // intermediate UFs between UFStart/UFEnd (exclusive)
 
 	// Optional ordering overrides for loading/unloading municipalities. When
 	// empty, the order is derived from the referenced documents (first-seen).
-	Loadings   []MdfeMun `json:"loadings" validate:"omitempty,dive"`
-	Unloadings []MdfeMun `json:"unloadings" validate:"omitempty,dive"`
+	Loadings   []MdfeMun `json:"loadings" validate:"omitempty,max=50,dive"`
+	Unloadings []MdfeMun `json:"unloadings" validate:"omitempty,max=1000,dive"`
 
 	// VehicleSetID expande para vehicle, trailers, drivers, rntrc e ciot.
 	// Cada um continua sobrescrevível individualmente no mesmo request.
@@ -42,7 +42,7 @@ type MdfeEmitBody struct {
 
 	Vehicle  MdfeVehicle   `json:"vehicle"`
 	Trailers []MdfeTrailer `json:"trailers" validate:"omitempty,max=3,dive"`
-	Drivers  []MdfeDriver  `json:"drivers" validate:"omitempty,dive"`
+	Drivers  []MdfeDriver  `json:"drivers" validate:"omitempty,max=10,dive"`
 
 	Predominant *MdfeProdPred  `json:"predominant" validate:"omitempty"` // optional override; auto-derived otherwise
 	BulkCargo   *MdfeBulkCargo `json:"bulk_cargo" validate:"omitempty"`  // required when exactly one document
@@ -53,7 +53,7 @@ type MdfeEmitBody struct {
 	// 2 transportador de carga própria (só NF-e), 3 CT-e globalizado (só NF-e e só dentro de uma UF).
 	// Sem ele vale o do documento: CT-e é 1, NF-e é 2.
 	EmitterType *string `json:"emitter_type" validate:"omitempty,oneof=1 2 3"`
-	RNTRC       *string `json:"rntrc" validate:"omitempty,rntrc"`
+	RNTRC       *string `json:"rntrc" validate:"omitempty,len=8,numeric"`
 	// CIOT é o CIOT único legado (12 dígitos); sem CIOTs, vira um item cujo
 	// responsável é o emitente. CIOTs substitui o legado e aceita vários, cada
 	// um com o seu responsável pela geração (infANTT/infCIOT, 0-n).
@@ -125,7 +125,7 @@ type MdfeEmitBody struct {
 type MdfeTollBody struct {
 	TollProviderID string `json:"toll_provider_id" validate:"required"`
 	NCompra        string `json:"n_compra" validate:"required,max=20"`
-	VValePed       string `json:"v_vale_ped" validate:"required,money"`
+	VValePed       string `json:"v_vale_ped" validate:"required,money2"`
 }
 
 // MdfeCIOT é um CIOT do manifesto: o código de 12 dígitos e o CPF (11) ou CNPJ (14)
@@ -143,7 +143,7 @@ type MdfeCIOT struct {
 type MdfeContractorBody struct {
 	PersonDoc      string `json:"person_doc" validate:"required"`
 	ContractNumber string `json:"contract_number" validate:"omitempty,max=20"`
-	ContractValue  string `json:"contract_value" validate:"omitempty,money"`
+	ContractValue  string `json:"contract_value" validate:"omitempty,money2"`
 }
 
 // MdfeInsuranceBody aponta uma apólice do cadastro e traz as averbações desta
@@ -190,6 +190,9 @@ func validateModalPayload(modal string, req MdfeEmitBody) error {
 		if req.Rail == nil {
 			return problem.BadRequest("modal ferroviário exige os dados do trem (rail)")
 		}
+		if req.Rail.DhTrem != "" && normalizeDhTrem(req.Rail.DhTrem) == "" {
+			return problem.BadRequest("data/hora do trem inválida; use AAAA-MM-DDThh:mm:ss com fuso em hora cheia")
+		}
 	case ModalAquaviario:
 		if req.Water == nil {
 			return problem.BadRequest("modal aquaviário exige os dados da embarcação (water)")
@@ -218,13 +221,13 @@ type MdfePaymentBody struct {
 	PersonDoc  string                 `json:"person_doc" validate:"required"`
 	Components []MdfePaymentComponent `json:"components" validate:"required,min=1,dive"`
 	// ContractValue é vContrato; PaymentType é indPag (0 à vista, 1 a prazo).
-	ContractValue string `json:"contract_value" validate:"required,decimalv"`
+	ContractValue string `json:"contract_value" validate:"required,money2"`
 	PaymentType   string `json:"payment_type" validate:"required,oneof=0 1"`
 
-	AdvanceValue    *string `json:"advance_value" validate:"omitempty,decimalv"`    // vAdiant
-	AdvanceRequest  *string `json:"advance_request" validate:"omitempty,oneof=0 1"` // indAntecipaAdiant
-	AdvanceKind     *string `json:"advance_kind" validate:"omitempty,oneof=0 1 2"`  // tpAntecip
-	HighPerformance *string `json:"high_performance" validate:"omitempty,oneof=1"`  // indAltoDesemp
+	AdvanceValue    *string `json:"advance_value" validate:"omitempty,money2"`     // vAdiant
+	AdvanceRequest  *string `json:"advance_request" validate:"omitempty,oneof=1"`  // indAntecipaAdiant
+	AdvanceKind     *string `json:"advance_kind" validate:"omitempty,oneof=0 1 2"` // tpAntecip
+	HighPerformance *string `json:"high_performance" validate:"omitempty,oneof=1"` // indAltoDesemp
 
 	// Prazo: quantas parcelas, de quantos em quantos dias, a primeira quantos
 	// dias depois da emissão.
@@ -301,7 +304,7 @@ type MdfeOwner struct {
 	Name     string `json:"name" validate:"omitempty,max=60"`
 	IE       string `json:"ie" validate:"omitempty,max=20"`
 	UF       string `json:"uf" validate:"omitempty,uf"`
-	RNTRC    string `json:"rntrc" validate:"omitempty,rntrc"`
+	RNTRC    string `json:"rntrc" validate:"omitempty,len=8,numeric"`
 	TpProp   string `json:"tp_prop" validate:"omitempty,oneof=0 1 2"` // 0=TAC Agregado, 1=TAC Independente, 2=Outros
 	TpTransp string `json:"tp_transp" validate:"omitempty"`           // optional CTC(3) override for a CNPJ owner
 }
@@ -330,6 +333,26 @@ type MdfeBulkCargo struct {
 	LonLoading   *string `json:"lon_loading" validate:"omitempty"`
 	LatUnloading *string `json:"lat_unloading" validate:"omitempty"`
 	LonUnloading *string `json:"lon_unloading" validate:"omitempty"`
+}
+
+// validateBulkCargo aplica o choice do XSD em infLotacao: cada local leva CEP ou latitude e longitude, nunca os dois.
+func validateBulkCargo(b *MdfeBulkCargo) error {
+	if b == nil {
+		return nil
+	}
+	for _, l := range []struct {
+		name, cep string
+		lat, lon  *string
+	}{{"carregamento", b.CEPLoading, b.LatLoading, b.LonLoading}, {"descarregamento", b.CEPUnloading, b.LatUnloading, b.LonUnloading}} {
+		hasLat, hasLon := l.lat != nil && *l.lat != "", l.lon != nil && *l.lon != ""
+		if hasLat != hasLon {
+			return problem.BadRequest("lotação, local de " + l.name + ": informe latitude e longitude juntas")
+		}
+		if l.cep != "" && hasLat {
+			return problem.BadRequest("lotação, local de " + l.name + ": informe CEP ou latitude e longitude, não ambos")
+		}
+	}
+	return nil
 }
 
 // resolvedOwner is the validated third-party owner ready for the prop builder.
@@ -400,6 +423,9 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 			return nil, err
 		}
 		docType = dt
+	}
+	if err := validateBulkCargo(req.BulkCargo); err != nil {
+		return nil, err
 	}
 	if len(req.Documents) == 1 && req.BulkCargo == nil {
 		return nil, problem.BadRequest("MDF-e com documento único (carga lotação) exige CEP de carregamento e descarregamento")
@@ -505,6 +531,12 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 	trailers, err := s.resolveTrailers(ctx, orgPK, req.Trailers)
 	if err != nil {
 		return nil, err
+	}
+
+	for i := range trailers {
+		if trailers[i].Prop, err = resolveOwner(firstOwner(nil, trailers[i].Owner, emitterDoc), emitterDoc); err != nil {
+			return nil, err
+		}
 	}
 
 	owner, err := resolveOwner(firstOwner(req.Vehicle.Owner, resolvedVehicle.Owner, emitterDoc), emitterDoc)
@@ -736,6 +768,15 @@ const (
 	fieldCodeInvalidAccessKey = "invalid_access_key"
 )
 
+// checkDocUsable recusa documento cancelado na base própria (F33/F40/F48, rejeições 673, 677 e 657).
+// Não existe situação "denegado" no repositório; se passar a existir, entra aqui.
+func checkDocUsable(accessKey, status string) error {
+	if status == services.StatusCancelled {
+		return problem.BadRequest("documento " + accessKey + " está cancelado e não pode ser manifestado")
+	}
+	return nil
+}
+
 // resolveCargo loads each referenced document, downloads + parses its XML, and
 // aggregates carregamento/descarregamento, totals and the predominant product.
 func (s *MdfeService) resolveCargo(ctx context.Context, orgPK, envPrefix, docType string, req MdfeEmitBody) (*resolvedCargo, error) {
@@ -759,6 +800,9 @@ func (s *MdfeService) resolveCargo(ctx context.Context, orgPK, envPrefix, docTyp
 		}
 		if item == nil {
 			return nil, problem.NotFound("documento não encontrado: " + ref.AccessKey)
+		}
+		if err := checkDocUsable(ref.AccessKey, strAttr(item, "status")); err != nil {
+			return nil, err
 		}
 		s3Key := strAttr(item, "xml_s3_key")
 		if s3Key == "" {
@@ -922,6 +966,8 @@ type resolvedVehicle struct {
 	// default para veicTracao/prop quando a emissão não traz um proprietário —
 	// antes este dado era cadastrado e depois redigitado a cada emissão.
 	Owner *MdfeOwner
+	// Prop é o proprietário de terceiro do reboque (veicReboque/prop), resolvido na emissão.
+	Prop *resolvedOwner
 }
 
 // resolvedToll é um vale-pedágio da viagem já cruzado com o cadastro: o que é
@@ -956,11 +1002,15 @@ func (s *MdfeService) resolveTolls(ctx context.Context, orgPK string, tolls []Md
 		if !ok {
 			return nil, problem.NotFound("fornecedora de vale-pedágio não encontrada: " + t.TollProviderID)
 		}
+		tp := strAttr(provider, "tp_vale_ped")
+		if tp != "" && tp != "01" && tp != "04" { // cadastro legado (02/03): fora do XSD
+			return nil, problem.BadRequest("fornecedora de vale-pedágio com tipo do vale inválido (" + tp + "); edite o cadastro e escolha TAG ou Leitura de placa")
+		}
 		out = append(out, resolvedToll{
 			CNPJForn:  strAttr(provider, "cnpj_forn"),
 			CNPJPg:    strAttr(provider, "cnpj_pg"),
 			CPFPg:     strAttr(provider, "cpf_pg"),
-			TpValePed: strAttr(provider, "tp_vale_ped"),
+			TpValePed: tp,
 			NCompra:   t.NCompra,
 			VValePed:  t.VValePed,
 		})
@@ -1121,6 +1171,9 @@ func (s *MdfeService) resolveVehicle(ctx context.Context, orgPK string, v MdfeVe
 		}
 		if out.TpRod == "" {
 			out.TpRod = strAttr(vehicle, "wheelset")
+			if out.TpRod == "99" { // cadastro legado "Outros"; o XSD só vai de 01 a 06
+				out.TpRod = "06"
+			}
 		}
 		if out.TpCar == "" {
 			out.TpCar = strAttr(vehicle, "bodywork")
@@ -1174,6 +1227,9 @@ func (s *MdfeService) resolveTrailers(ctx context.Context, orgPK string, trailer
 		}
 		if c := strconv.Itoa(intAttr(vehicle, "cap_kg", 0)); c != "0" {
 			rv.CapKG = c
+		}
+		if owner, ok := vehicle["owner"].(*types.AttributeValueMemberM); ok {
+			rv.Owner = ownerFromRegistry(owner.Value)
 		}
 		out = append(out, rv)
 	}

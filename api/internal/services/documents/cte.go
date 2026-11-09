@@ -29,8 +29,9 @@ const (
 
 var (
 	cteModalLabels = map[string]string{"01": "Rodoviário", "02": "Aéreo", "03": "Aquaviário", "04": "Ferroviário", "05": "Dutoviário", "06": "Multimodal"}
-	cteTypeLabels  = map[string]string{"0": "Normal", "1": "Complemento de Valores", "2": "Anulação", "3": "Substituto"}
-	cteServLabels  = map[string]string{"0": "Normal", "1": "Subcontratação", "2": "Redespacho", "3": "Redespacho Intermediário", "4": "Serviço Vinculado a Multimodal"}
+	// "2" (Anulação) does not exist in the v4.00 XSD (tpCTe 0, 1, 3); kept only to label received legacy XML.
+	cteTypeLabels = map[string]string{"0": "Normal", "1": "Complemento de Valores", "2": "Anulação", "3": "Substituto"}
+	cteServLabels = map[string]string{"0": "Normal", "1": "Subcontratação", "2": "Redespacho", "3": "Redespacho Intermediário", "4": "Serviço Vinculado a Multimodal"}
 	// tpServ of the CT-e OS (cteOS_v4.00.xsd): 6 transporte de pessoas, 7 valores, 8 excesso de bagagem.
 	cteOSServLabels = map[string]string{"6": "Transporte de Pessoas", "7": "Transporte de Valores", "8": "Excesso de Bagagem"}
 	// respSeg of seg (MOC Anexo II, section 4): the DACTE OS prints the insured only for 4 and 5.
@@ -68,19 +69,39 @@ func cteTaker(inf, ide *xmlNode) map[string]any {
 	return map[string]any{"has": false}
 }
 
-// cteLoad converts every infQ to the DACTE fields: kg for 01/02 (ton x 1000), m3 for 00, volumes for 03.
+// cteWeightKind maps a tpMed to the Annex II weight box it feeds ("kg", "kg_base", "kg_afer"); "" when the Annex has
+// no box for it (PESO DECLARADO, CUBADO, AFORADO, LITRAGEM, CAIXAS): those are never summed into another box.
+func cteWeightKind(tpMed string) string {
+	t := strings.ToUpper(strings.TrimSpace(tpMed))
+	switch {
+	case strings.Contains(t, "BRUTO"):
+		return "kg"
+	case strings.Contains(t, "BASE"):
+		return "kg_base"
+	case strings.Contains(t, "AFERIDO"), strings.Contains(t, "AUFERIDO"):
+		return "kg_afer"
+	}
+	return ""
+}
+
+// cteLoad converts every infQ to the DACTE fields (MOC Anexo II, section 3): one weight box per tpMed (Peso Bruto,
+// Peso Base de Calculo, Peso Aferido; ton x 1000), m3 for cUnid 00, volumes for 03.
 func cteLoad(infCarga *xmlNode) map[string]any {
-	kg, vol, m3 := decimal.Zero, decimal.Zero, decimal.Zero
+	kg := map[string]decimal.Decimal{}
+	vol, m3 := decimal.Zero, decimal.Zero
 	for _, q := range infCarga.childrenNamed("infQ") {
 		v, err := decimal.NewFromString(q.value("qCarga"))
 		if err != nil {
 			continue
 		}
 		switch q.value("cUnid") {
-		case cteUnitKg:
-			kg = kg.Add(v)
-		case cteUnitTon:
-			kg = kg.Add(v.Mul(decimal.NewFromInt(tonToKg)))
+		case cteUnitKg, cteUnitTon:
+			if k := cteWeightKind(q.value("tpMed")); k != "" {
+				if q.value("cUnid") == cteUnitTon {
+					v = v.Mul(decimal.NewFromInt(tonToKg))
+				}
+				kg[k] = kg[k].Add(v)
+			}
 		case cteUnitM3:
 			m3 = m3.Add(v)
 		case cteUnitUnits:
@@ -89,7 +110,8 @@ func cteLoad(infCarga *xmlNode) map[string]any {
 	}
 	return map[string]any{
 		"pred": infCarga.value("proPred"), "outras": infCarga.value("xOutCat"), "valor": moneyBR(infCarga.value("vCarga")),
-		"kg": kg.StringFixed(3), "m3": m3.StringFixed(3), "vol": vol.StringFixed(0),
+		"kg": kg["kg"].StringFixed(3), "kg_base": kg["kg_base"].StringFixed(3), "kg_afer": kg["kg_afer"].StringFixed(3),
+		"m3": m3.StringFixed(3), "vol": vol.StringFixed(0),
 	}
 }
 
@@ -158,11 +180,13 @@ func buildCTeContext(root *xmlNode, cancelled bool) (map[string]any, error) {
 	emit := inf.child("emit")
 	ender := emit.child("enderEmit")
 	norm := inf.child("infCTeNorm")
-	contingency := ide.value("tpEmis") == tpEmisCTeOffline
+	// Anexo II 2.1: the Protocolo de Autorizacao de Uso received from SEFAZ is always printed; the contingency
+	// legend only stands for an offline CT-e that has no protocol yet.
 	protocol := map[string]any(nil)
-	if !contingency && prot != nil {
+	if prot != nil && prot.value("nProt") != "" {
 		protocol = map[string]any{"nProt": prot.value("nProt"), "dhRecbto": dateTimeBR(prot.value("dhRecbto"))}
 	}
+	contingency := ide.value("tpEmis") == tpEmisCTeOffline && protocol == nil
 	comps := make([]map[string]any, 0)
 	for _, c := range inf.child("vPrest").childrenNamed("Comp") {
 		comps = append(comps, map[string]any{"nome": c.value("xNome"), "valor": moneyBR(c.value("vComp"))})
@@ -228,11 +252,13 @@ func buildCTeOSContext(root *xmlNode, cancelled bool) (map[string]any, error) {
 	emit := inf.child("emit")
 	ender := emit.child("enderEmit")
 	norm := inf.child("infCTeNorm")
-	contingency := ide.value("tpEmis") == tpEmisCTeOffline
+	// Anexo II 2.1: the Protocolo de Autorizacao de Uso received from SEFAZ is always printed; the contingency
+	// legend only stands for an offline CT-e that has no protocol yet.
 	protocol := map[string]any(nil)
-	if !contingency && prot != nil {
+	if prot != nil && prot.value("nProt") != "" {
 		protocol = map[string]any{"nProt": prot.value("nProt"), "dhRecbto": dateTimeBR(prot.value("dhRecbto"))}
 	}
+	contingency := ide.value("tpEmis") == tpEmisCTeOffline && protocol == nil
 	comps := make([]map[string]any, 0)
 	for _, c := range inf.child("vPrest").childrenNamed("Comp") {
 		comps = append(comps, map[string]any{"nome": c.value("xNome"), "valor": moneyBR(c.value("vComp"))})

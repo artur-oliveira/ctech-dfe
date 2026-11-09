@@ -248,6 +248,10 @@ func buildDest(receiver, destPerson map[string]any, receiverSK, destUF string, i
 		dest["IE"] = destIE
 		dest["indIEDest"] = indIEDestContrib
 	}
+	// E18 (N28-10): inscrição na Suframa do destinatário, exigida com motDesICMS=7; XSD [0-9]{8,9}.
+	if isuf := anyStr(destPerson, "isuf_emit", ""); isuf != "" {
+		dest["ISUF"] = isuf
+	}
 	if email := services.FirstEmail(destPerson); email != "" {
 		dest["email"] = email
 	}

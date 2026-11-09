@@ -10,8 +10,7 @@ import {validateCNPJ, validateCPF, cleanDocument} from '@/lib/utils/validators';
 /** tpValePed — como o vale foi adquirido. */
 export const TP_VALE_PED_OPTIONS = [
   {value: '01', label: '01 · TAG'},
-  {value: '02', label: '02 · Cupom'},
-  {value: '03', label: '03 · Cartão'},
+  {value: '04', label: '04 · Leitura de placa'},
 ];
 
 export const tollProviderSchema = z.object({
@@ -19,7 +18,7 @@ export const tollProviderSchema = z.object({
   cnpj_forn: z.string().refine((v) => validateCNPJ(cleanDocument(v)), 'CNPJ inválido'),
   cnpj_pg: z.string().optional().or(z.literal('')),
   cpf_pg: z.string().optional().or(z.literal('')),
-  tp_vale_ped: z.enum(['01', '02', '03']).optional().or(z.literal('')),
+  tp_vale_ped: z.enum(['01', '04']).optional().or(z.literal('')),
 }).superRefine((v, ctx) => {
   // CNPJPg e CPFPg são um choice no XSD: no máximo um pagador.
   if (v.cnpj_pg && v.cpf_pg) {

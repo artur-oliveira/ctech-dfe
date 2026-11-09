@@ -569,7 +569,7 @@ contrário `persistIncoming` reescreve silenciosamente para `1`.
   `uf_start`/`uf_end`, `ibge_code`/`city` (municipalities), `cep_loading`/`cep_unloading`.
   Do not reintroduce Portuguese keys (`condutores`, `carregamento`, `percurso`, `uf_ini`,
   `c_mun`, `cep_carrega`, etc.).
-- **`tpTransp` ↔ `prop` (rule F25/cStat 745):** `ide/tpTransp` may ONLY be present when the
+- **`tpTransp` ↔ `prop` (rule F20/cStat 745):** `ide/tpTransp` may ONLY be present when the
   traction vehicle has a third-party owner (`veicTracao/prop`). For carga própria (own
   registered vehicle, no owner) BOTH `prop` and `tpTransp` MUST be omitted — emitting
   `tpTransp` without `prop` is rejected. Derivation (`builder.go:tpTranspFor`): CPF owner ⇒
@@ -598,7 +598,7 @@ contrário `persistIncoming` reescreve silenciosamente para `1`.
   porque quem opera um caminhão pode mudar de viagem para viagem. Duas regras não negociáveis: um
   cadastro incompleto (falta `cpf_cnpj`, `rntrc` ou `name`) é ignorado — `prop` pela metade é
   rejeição da SEFAZ; e proprietário cadastrado **igual ao emitente** é frota própria, não vira
-  `prop` e deixa `ide/tpTransp` intacto (F18/F19/F25).
+  `prop` e deixa `ide/tpTransp` intacto (F18/F19/F20).
 
 ## Cadastros reutilizáveis na emissão
 
@@ -1459,3 +1459,18 @@ enviados só um certificado descartável e uma chave falsa, e a ANTT respondeu 4
 - Worker `ciot-operation`: rejeição de negócio da ANTT (HTTP 422 do egress) é terminal e a função retorna sucesso; transporte, 5xx e 502
   liberam a lease e retornam erro. Chave do gerador e URL de contingência vêm do SSM por invocação e nunca entram em log, resultado SNS
   ou corpo de auditoria de outra chamada. Só este worker lê `/ctech-dfe/*/ciot/*`; o egress não tem acesso ao SSM.
+
+## CT-e: leiaute dos modais e DACTE
+
+- Todo modal novo do CT-e entra no `xsdorder` com escopo `infCTeNorm:infModal:<modal>` e no `TestXSDOrderMatchesCTeModalSpecs`; chave sem escopo é do MDF-e.
+- DACTE: nunca somar `infQ` de `tpMed` diferentes; o protocolo recebido sempre é impresso (Anexo II 2.1).
+
+- **MDF-e, auditoria MOC (2026-11-09):** enumerações de cadastro seguem o XSD (tpValePed 01|04, tpRod 01..06,
+  RNTRC 8 dígitos); NFF (`infSolicNFF`, `tpEmis=3`) e PAA (`infPAA`, `procEmi=4`) estão fora do escopo até decisão do dono.
+
+- **NF-e, auditoria MOC (2026-11-09, `docs/specs/2026-11-09-auditoria-moc-nfe.md`):** IPITrib só para CST 00, 49, 50, 99 (os demais são IPINT);
+  PIS/COFINS CST 03 usa `qBCProd` = quantidade tributável; grupos opcionais do XSD saem inteiros ou não saem (ICMS60/ICMSSN500 levam
+  `pRedBCEfet` com `0.00` e só emitem `[vBCSTRet, pST, vICMSSTRet]` com `pST`); `ICMSTot` soma `vFCPSTRet` e as tags monofásicas dos itens
+  e o `vNF` só abate `vICMSDeson` de item com `indDeduzDeson=1` e soma `vICMSMonoReten`. `tPag` 23, 24 e 91 valem na API e na UI.
+  UI: CST do ICMS e `motDesICMS` seguem o XSD por CST (`ui/src/lib/data/is.ts`). `dhEmi` e o AAMM da chave usam o fuso da UF do emitente
+  (`go-dfe/uftz`); CPF no emitente entra na chave como `000`+CPF; `dest/ISUF` sai de `person.isuf_emit` do destinatário.

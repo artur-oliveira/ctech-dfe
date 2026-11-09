@@ -7,7 +7,7 @@ import (
 
 func TestLoadAllSpecs(t *testing.T) {
 	for _, n := range []string{"nfe", "mdfe", "cte", "cteos", "ctesimp", "mdfe_rodo", "mdfe_aereo", "mdfe_aquav", "mdfe_ferrov",
-		"cte_rodo", "cte_rodoos", "cte_aereo", "cte_aquav", "cte_duto", "cte_multimodal"} {
+		"cte_rodo", "cte_rodoos", "cte_aereo", "cte_aquav", "cte_ferrov", "cte_duto", "cte_multimodal"} {
 		if _, err := Load(n); err != nil {
 			t.Errorf("%s: %v", n, err)
 		}

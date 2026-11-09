@@ -75,7 +75,7 @@ func cteIdeRules() []Rule {
 		}),
 		cteCond("G008", 586, ModeWarn, "dhCont e xJust só podem ser informados em contingência offline", func(inf map[string]any) bool {
 			ide := sub(inf, "ide")
-			return !cteIn(cteS(ide, "tpEmis"), "2", "5") && (ide["dhCont"] != nil || ide["xJust"] != nil)
+			return cteS(ide, "tpEmis") != "2" && (ide["dhCont"] != nil || ide["xJust"] != nil)
 		}),
 		cteCond("G008b", 937, ModeWarn, "dhCont e xJust não podem ser informados na emissão normal", func(inf map[string]any) bool {
 			ide := sub(inf, "ide")
@@ -83,7 +83,7 @@ func cteIdeRules() []Rule {
 		}),
 		cteCond("G009", 587, ModeWarn, "dhCont e xJust devem ser informados em contingência offline", func(inf map[string]any) bool {
 			ide := sub(inf, "ide")
-			return cteIn(cteS(ide, "tpEmis"), "2", "5") && (cteS(ide, "dhCont") == "" || cteS(ide, "xJust") == "")
+			return cteS(ide, "tpEmis") == "2" && (cteS(ide, "dhCont") == "" || cteS(ide, "xJust") == "")
 		}),
 		cteCond("G010", 588, ModeWarn, "dhCont posterior a dhEmi", func(inf map[string]any) bool {
 			ide := sub(inf, "ide")

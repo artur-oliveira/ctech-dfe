@@ -29,10 +29,10 @@
   .boxes .val { display: block; font-weight: bold; }
   .list td { padding: 1.5pt 3pt 1.5pt 0; border-bottom: 0.4pt dashed #999; }
   .list .head td { color: #333; border-bottom: 0.6pt solid #000; }
-  .qr-band { min-height: 22mm; }
-  .qr { width: 22mm; display: block; margin-left: auto; }
+  .qr-band { min-height: 28mm; }
+  .qr { width: 22mm; padding: 3mm; background: #fff; display: block; margin-left: auto; } /* Anexo II 2.18: 22mm de conteudo + 3mm de quiet zone */
   .barcode-band { min-height: 15mm; }
-  .barcode { width: 100%; display: block; }
+  .barcode { width: 100%; height: 18mm; display: block; } /* Anexo II 2.17: barra de 1,5 a 2,5 cm */
   .chave { letter-spacing: 0.2pt; }
   .banner { font-weight: bold; text-align: center; margin: 4pt 0; }
   .foot-line { position: absolute; top: 286mm; left: 8mm; width: 194mm; font-size: 6pt; color: #555; font-style: italic; text-align: right; }
@@ -84,7 +84,7 @@
     <div class="section">Tipo do serviço</div>
     <div>{{ ctx.ide.tpServ }}</div>
     <div class="section">Protocolo de autorização de uso</div>
-    <div>{% if ctx.is_contingencia %}<span class="b">{{ ctx.legend_contingencia }}</span>{% elif ctx.protocolo %}{{ ctx.protocolo.nProt }} - {{ ctx.protocolo.dhRecbto }}{% endif %}</div>
+    <div>{% if ctx.protocolo %}{{ ctx.protocolo.nProt }} - {{ ctx.protocolo.dhRecbto }}{% elif ctx.is_contingencia %}<span class="b">{{ ctx.legend_contingencia }}</span>{% endif %}</div>
     <div class="section">CFOP - Natureza da operação</div>
     <div>{{ ctx.ide.cfop }} - {{ ctx.ide.natOp }}</div>
   </td>

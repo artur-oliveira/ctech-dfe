@@ -23,7 +23,7 @@ import {
 } from '@/lib/data/ibs_cbs_reform';
 import {IPI_CST_OPTIONS} from '@/lib/data/ipi';
 import {UF_OPTIONS} from '@/lib/schemas/entity';
-import {ICMS_MOT_DESONE_OPTIONS, IS_CST_OPTIONS} from '@/lib/data/is';
+import {icmsMotDesOptions, icmsMotDesStOptions, IS_CST_OPTIONS, ICMS_MOT_DES_BY_CST} from '@/lib/data/is';
 import {CSOSN_OPTIONS} from '@/lib/data/csosn';
 import {ICMS_CST_OPTIONS} from '@/lib/data/icms';
 import {PIS_COFINS_OPTIONS} from '@/lib/data/pis_cofins';
@@ -34,7 +34,7 @@ import {useIcmsAliqPreview} from '@/lib/hooks/useIcmsAliqPreview';
 // Ficam aqui, junto do editor que os usa, e são reexportados para o ProductForm
 // (que ainda os consulta ao montar a linha de cfop_config).
 export const ICMS_MONO_CSTS = new Set(['02', '15', '53', '61']);
-export const ICMS_TAXED_CSTS = new Set(['00', '10', '20', '30', '51', '70', '90']);
+export const ICMS_TAXED_CSTS = new Set(['00', '10', '20', '51', '70', '90']);
 export const ICMS_ST_CSTS = new Set(['10', '30', '70']);
 export const CSOSN_CRED = new Set(['101', '201', '900']);
 export const CSOSN_ST = new Set(['201', '202', '203']);
@@ -54,8 +54,11 @@ export const ISSQN_IND_ISS_OPTIONS = [
 /** Campos condicionais do ICMS por CST — espelha a tabela do leiaute. */
 export function icmsConditionalFields(cst: string) {
   return {
-    showPRedBC: ['20', '40', '70'].includes(cst),
-    showMotDeSon: ['40', '41', '50', '51'].includes(cst),
+    // XSD: pRedBC existe em ICMS20, 51, 70 e 90 (não em ICMS40); motDesICMS em 20, 30, 40/41/50, 70 e 90 (não em 51).
+    showPRedBC: ['20', '51', '70', '90'].includes(cst),
+    showMotDeSon: cst in ICMS_MOT_DES_BY_CST,
+    // Obrigatório só na desoneração pura; nos demais o grupo é opcional no XSD.
+    motDesRequired: ['40', '41', '50'].includes(cst),
     showPDif: cst === '51',
   };
 }
@@ -204,7 +207,7 @@ export function TaxFieldsEditor({
   const aliqDiverges = !!systemAliq && !!value.icms_aliq_override &&
     value.icms_aliq_override !== systemAliq.icms_aliq;
 
-  const {showPRedBC, showMotDeSon, showPDif} = icmsConditionalFields(value.icms ?? '');
+  const {showPRedBC, showMotDeSon, motDesRequired, showPDif} = icmsConditionalFields(value.icms ?? '');
   const cfopHint = getCfopHint(value.cfop);
   const showSt = (!simples && !!value.icms && ICMS_ST_CSTS.has(value.icms)) ||
     (simples && !!value.csosn && ICMS_ST_CSTS.has(value.csosn));
@@ -238,7 +241,7 @@ export function TaxFieldsEditor({
               <Combobox value={value.icms ?? ''}
                              onValueChange={(v) => onChange((r) => ({
                                ...r, icms: v,
-                               icms_p_red_bc: '', icms_mot_des: '', icms_p_dif: '',
+                               icms_p_red_bc: '', icms_mot_des: '', icms_mot_des_st: '', icms_p_dif: '',
                                icms_aliq_override: '', icms_fcp_override: '',
                                icms_st_mva: '', icms_st_aliq: '', icms_st_fcp_aliq: '',
                              }))}
@@ -287,10 +290,10 @@ export function TaxFieldsEditor({
               </TaxField>
             )}
             {showMotDeSon && (
-              <TaxField label="Motivo desoneração *">
+              <TaxField label={motDesRequired ? 'Motivo desoneração *' : 'Motivo desoneração'}>
                 <OptionsSelect value={value.icms_mot_des ?? ''}
                                onValueChange={(v) => onChange((r) => ({...r, icms_mot_des: v}))}
-                               options={ICMS_MOT_DESONE_OPTIONS} placeholder="Motivo"/>
+                               options={icmsMotDesOptions(value.icms ?? '')} placeholder="Motivo"/>
               </TaxField>
             )}
             {showPDif && (
@@ -391,11 +394,13 @@ export function TaxFieldsEditor({
                               placeholder="0.0000"
                               onChange={(v) => onChange((r) => ({...r, icms_st_fcp_aliq: v}))}/>
               </TaxField>
-              <TaxField label="Motivo desoneração da ST">
-                <OptionsSelect value={value.icms_mot_des_st ?? ''}
-                               onValueChange={(v) => onChange((r) => ({...r, icms_mot_des_st: v}))}
-                               options={ICMS_MOT_DESONE_OPTIONS} placeholder="Não desonerada"/>
-              </TaxField>
+              {icmsMotDesStOptions(value.icms ?? '').length > 0 && (
+                <TaxField label="Motivo desoneração da ST">
+                  <OptionsSelect value={value.icms_mot_des_st ?? ''}
+                                 onValueChange={(v) => onChange((r) => ({...r, icms_mot_des_st: v}))}
+                                 options={icmsMotDesStOptions(value.icms ?? '')} placeholder="Não desonerada"/>
+                </TaxField>
+              )}
               <TaxField label="% Redução BC ST">
                 <NumericInput value={value.icms_st_red_bc ?? ''} decimal integerPlaces={3} decimalPlaces={4}
                               placeholder="0.0000"

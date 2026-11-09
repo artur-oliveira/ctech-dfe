@@ -67,7 +67,7 @@ export const cteEmitBodySchema = z.object({
     message: 'Escolha a pessoa que paga o frete', path: ['person_id'],
   }),
   freight: freightSchema,
-  cfop: z.string().regex(/^[5-7]\d{3}$/, 'Escolha o CFOP da prestação'),
+  cfop: z.string().regex(/^[123567]\d(\d[1-9]|[1-9]\d)$/, 'Escolha o CFOP da prestação'),
   icms: icmsSchema.optional(),
   overrides: z.object({
     sender_person_id: z.string().min(1).optional(),
@@ -89,7 +89,7 @@ export const cteEmitBodySchema = z.object({
 /** Valor e tributos que o complementar, o substituto e o CT-e OS repetem (OpenAPI `CteChargeProps`). */
 const chargeShape = {
   freight: freightSchema,
-  cfop: z.string().regex(/^[5-7]\d{3}$/, 'Escolha o CFOP da prestação'),
+  cfop: z.string().regex(/^[123567]\d(\d[1-9]|[1-9]\d)$/, 'Escolha o CFOP da prestação'),
   icms: icmsSchema.optional(),
   ibs_cbs: ibsCbsSchema.optional(),
   authorized_xml: authorizedXmlSchema.optional(),

@@ -32,7 +32,7 @@ const (
 // MdfePaymentComponent is one component of the freight payment (`Comp`).
 type MdfePaymentComponent struct {
 	Type        string  `json:"type" validate:"required,oneof=01 02 03 04 99"` // tpComp
-	Value       string  `json:"value" validate:"required,decimalv"`            // vComp
+	Value       string  `json:"value" validate:"required,money2"`              // vComp
 	Description *string `json:"description" validate:"omitempty,max=60"`       // xComp — obrigatório quando type = 99
 }
 
@@ -40,16 +40,16 @@ type MdfePaymentComponent struct {
 type MdfePaymentInstallment struct {
 	Number  string `json:"number" validate:"required,max=3"`     // nParcela
 	DueDate string `json:"due_date" validate:"required,isodate"` // dVenc (AAAA-MM-DD)
-	Value   string `json:"value" validate:"required,decimalv"`   // vParcela
+	Value   string `json:"value" validate:"required,money2"`     // vParcela
 }
 
 // MdfePaymentBank is the payment account (`infBanc`) — choice entre
 // banco+agência, CNPJ da instituição de pagamento, ou chave PIX.
 type MdfePaymentBank struct {
-	BankCode   *string `json:"bank_code" validate:"omitempty,len=3,numeric"`    // codBanco
-	AgencyCode *string `json:"agency_code" validate:"omitempty,max=10,numeric"` // codAgencia
-	IPEFCNPJ   *string `json:"ipef_cnpj" validate:"omitempty,cnpj"`             // CNPJIPEF
-	PIX        *string `json:"pix" validate:"omitempty,max=250"`                // PIX
+	BankCode   *string `json:"bank_code" validate:"omitempty,min=3,max=5,numeric"` // codBanco (XSD 3 a 5)
+	AgencyCode *string `json:"agency_code" validate:"omitempty,max=10,numeric"`    // codAgencia
+	IPEFCNPJ   *string `json:"ipef_cnpj" validate:"omitempty,cnpj"`                // CNPJIPEF
+	PIX        *string `json:"pix" validate:"omitempty,min=2,max=60"`              // PIX (XSD 2 a 60)
 }
 
 // MdfePayment is one payee of the transport operation (`infPag`).
@@ -59,10 +59,10 @@ type MdfePayment struct {
 	// Choice CPF | CNPJ | idEstrangeiro — exatamente um.
 	CPF       *string `json:"cpf" validate:"omitempty,cpf"`
 	CNPJ      *string `json:"cnpj" validate:"omitempty,cnpj"`
-	ForeignID *string `json:"foreign_id" validate:"omitempty,max=20"`
+	ForeignID *string `json:"foreign_id" validate:"omitempty,min=2,max=20"`
 
 	Components    []MdfePaymentComponent `json:"components" validate:"required,min=1,dive"`
-	ContractValue string                 `json:"contract_value" validate:"required,decimalv"` // vContrato
+	ContractValue string                 `json:"contract_value" validate:"required,money2"` // vContrato
 
 	// indPag: 0 = à vista, 1 = a prazo. A prazo exige ao menos uma parcela.
 	PaymentType string `json:"payment_type" validate:"required,oneof=0 1"`
@@ -71,9 +71,9 @@ type MdfePayment struct {
 	// eventos de pagamento vem sempre nil.
 	HighPerformance *string `json:"high_performance" validate:"omitempty,oneof=1"`
 
-	AdvanceValue   *string `json:"advance_value" validate:"omitempty,decimalv"`    // vAdiant
-	AdvanceRequest *string `json:"advance_request" validate:"omitempty,oneof=0 1"` // indAntecipaAdiant
-	AdvanceKind    *string `json:"advance_kind" validate:"omitempty,oneof=0 1 2"`  // tpAntecip
+	AdvanceValue   *string `json:"advance_value" validate:"omitempty,money2"`     // vAdiant
+	AdvanceRequest *string `json:"advance_request" validate:"omitempty,oneof=1"`  // indAntecipaAdiant
+	AdvanceKind    *string `json:"advance_kind" validate:"omitempty,oneof=0 1 2"` // tpAntecip
 
 	Installments []MdfePaymentInstallment `json:"installments" validate:"omitempty,dive"` // infPrazo
 	Bank         MdfePaymentBank          `json:"bank"`
@@ -178,11 +178,14 @@ func buildInfBanc(b MdfePaymentBank, idx int) (map[string]any, error) {
 		"pagamento %d: informe PIX, CNPJ da instituição de pagamento ou banco + agência", idx))
 }
 
+// padTrips zero-pads to the XSD pattern [0-9]{5} of qtdViagens/nroViagem.
+func padTrips(v string) string { return fmt.Sprintf("%05s", v) }
+
 func payTransportDet(nProt string, trips MdfePaymentTrips, infPag []map[string]any) map[string]any {
 	return map[string]any{"evPagtoOperMDFe": map[string]any{
 		"descEvento": descEventoPagtoOper,
 		"nProt":      nProt,
-		"infViagens": map[string]any{"qtdViagens": trips.Total, "nroViagem": trips.Number},
+		"infViagens": map[string]any{"qtdViagens": padTrips(trips.Total), "nroViagem": padTrips(trips.Number)},
 		"infPag":     infPag,
 	}}
 }

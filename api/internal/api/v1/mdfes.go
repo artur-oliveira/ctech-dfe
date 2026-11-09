@@ -132,7 +132,7 @@ func RegisterMDFes(router fiber.Router, svc *mdfesvc.MdfeService, userSvc *servi
 	g.Post("/:access_key/close", perm.Require("create.mdfe_events"), func(c fiber.Ctx) error {
 		var body struct {
 			CMun           string `json:"ibge_code" validate:"required,ibge"`
-			UF             string `json:"uf" validate:"required,uf"`
+			UF             string `json:"uf" validate:"required,ufex"`
 			ByThirdParty   bool   `json:"by_third_party"`
 			SequenceNumber int    `json:"sequence_number" validate:"omitempty,gte=1"`
 		}

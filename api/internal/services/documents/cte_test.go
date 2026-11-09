@@ -14,7 +14,7 @@ import (
 const testCTeKey = "35260812345678000190570010000000011000000019"
 
 func sampleCTeXML() string {
-	return `<cteProc xmlns="http://www.portalfiscal.inf.br/cte"><CTe><infCte Id="CTe` + testCTeKey + `"><ide><mod>57</mod><serie>1</serie><nCT>1</nCT><dhEmi>2026-08-29T12:00:00-03:00</dhEmi><tpEmis>1</tpEmis><tpAmb>2</tpAmb><tpCTe>0</tpCTe><tpServ>0</tpServ><modal>01</modal><CFOP>6353</CFOP><natOp>PRESTACAO DE SERVICO DE TRANSPORTE</natOp><xMunIni>Sao Paulo</xMunIni><UFIni>SP</UFIni><xMunFim>Rio de Janeiro</xMunFim><UFFim>RJ</UFFim><toma3><toma>0</toma></toma3></ide><compl><xObs>Observacao teste</xObs></compl><emit><CNPJ>12345678000190</CNPJ><IE>123</IE><xNome>TRANSPORTADORA TESTE</xNome><enderEmit><xLgr>Rua A</xLgr><nro>1</nro><xBairro>Centro</xBairro><xMun>Sao Paulo</xMun><CEP>01001000</CEP><UF>SP</UF></enderEmit></emit><rem><CNPJ>98765432000110</CNPJ><IE>456</IE><xNome>REMETENTE TESTE</xNome><enderReme><xLgr>Rua B</xLgr><nro>2</nro><xBairro>Centro</xBairro><xMun>Sao Paulo</xMun><CEP>01001000</CEP><UF>SP</UF><xPais>Brasil</xPais></enderReme></rem><dest><CPF>11122233344</CPF><xNome>DESTINATARIO TESTE</xNome><enderDest><xLgr>Rua C</xLgr><nro>3</nro><xBairro>Centro</xBairro><xMun>Rio de Janeiro</xMun><CEP>20000000</CEP><UF>RJ</UF></enderDest></dest><vPrest><vTPrest>1500.50</vTPrest><vRec>1500.50</vRec><Comp><xNome>FRETE VALOR</xNome><vComp>1500.50</vComp></Comp></vPrest><imp><ICMS><ICMS00><CST>00</CST><vBC>1500.50</vBC><pICMS>12.00</pICMS><vICMS>180.06</vICMS></ICMS00></ICMS></imp><infCTeNorm><infCarga><vCarga>10000.00</vCarga><proPred>MERCADORIA TESTE</proPred><infQ><cUnid>02</cUnid><tpMed>PESO</tpMed><qCarga>2.5000</qCarga></infQ><infQ><cUnid>03</cUnid><tpMed>VOLUMES</tpMed><qCarga>10.0000</qCarga></infQ></infCarga><infDoc><infNFe><chave>` + testNFeKey + `</chave></infNFe></infDoc><infModal versaoModal="4.00"><rodo><RNTRC>12345678</RNTRC></rodo></infModal></infCTeNorm></infCte><infCTeSupl><qrCodCTe>https://example.invalid/cte?chCTe=` + testCTeKey + `</qrCodCTe></infCTeSupl></CTe><protCTe><infProt><chCTe>` + testCTeKey + `</chCTe><nProt>135260000000009</nProt><dhRecbto>2026-08-29T12:00:01-03:00</dhRecbto></infProt></protCTe></cteProc>`
+	return `<cteProc xmlns="http://www.portalfiscal.inf.br/cte"><CTe><infCte Id="CTe` + testCTeKey + `"><ide><mod>57</mod><serie>1</serie><nCT>1</nCT><dhEmi>2026-08-29T12:00:00-03:00</dhEmi><tpEmis>1</tpEmis><tpAmb>2</tpAmb><tpCTe>0</tpCTe><tpServ>0</tpServ><modal>01</modal><CFOP>6353</CFOP><natOp>PRESTACAO DE SERVICO DE TRANSPORTE</natOp><xMunIni>Sao Paulo</xMunIni><UFIni>SP</UFIni><xMunFim>Rio de Janeiro</xMunFim><UFFim>RJ</UFFim><toma3><toma>0</toma></toma3></ide><compl><xObs>Observacao teste</xObs></compl><emit><CNPJ>12345678000190</CNPJ><IE>123</IE><xNome>TRANSPORTADORA TESTE</xNome><enderEmit><xLgr>Rua A</xLgr><nro>1</nro><xBairro>Centro</xBairro><xMun>Sao Paulo</xMun><CEP>01001000</CEP><UF>SP</UF></enderEmit></emit><rem><CNPJ>98765432000110</CNPJ><IE>456</IE><xNome>REMETENTE TESTE</xNome><enderReme><xLgr>Rua B</xLgr><nro>2</nro><xBairro>Centro</xBairro><xMun>Sao Paulo</xMun><CEP>01001000</CEP><UF>SP</UF><xPais>Brasil</xPais></enderReme></rem><dest><CPF>11122233344</CPF><xNome>DESTINATARIO TESTE</xNome><enderDest><xLgr>Rua C</xLgr><nro>3</nro><xBairro>Centro</xBairro><xMun>Rio de Janeiro</xMun><CEP>20000000</CEP><UF>RJ</UF></enderDest></dest><vPrest><vTPrest>1500.50</vTPrest><vRec>1500.50</vRec><Comp><xNome>FRETE VALOR</xNome><vComp>1500.50</vComp></Comp></vPrest><imp><ICMS><ICMS00><CST>00</CST><vBC>1500.50</vBC><pICMS>12.00</pICMS><vICMS>180.06</vICMS></ICMS00></ICMS></imp><infCTeNorm><infCarga><vCarga>10000.00</vCarga><proPred>MERCADORIA TESTE</proPred><infQ><cUnid>02</cUnid><tpMed>PESO BRUTO</tpMed><qCarga>2.5000</qCarga></infQ><infQ><cUnid>03</cUnid><tpMed>VOLUMES</tpMed><qCarga>10.0000</qCarga></infQ></infCarga><infDoc><infNFe><chave>` + testNFeKey + `</chave></infNFe></infDoc><infModal versaoModal="4.00"><rodo><RNTRC>12345678</RNTRC></rodo></infModal></infCTeNorm></infCte><infCTeSupl><qrCodCTe>https://example.invalid/cte?chCTe=` + testCTeKey + `</qrCodCTe></infCTeSupl></CTe><protCTe><infProt><chCTe>` + testCTeKey + `</chCTe><nProt>135260000000009</nProt><dhRecbto>2026-08-29T12:00:01-03:00</dhRecbto></infProt></protCTe></cteProc>`
 }
 
 func TestDACTEContextFields(t *testing.T) {
@@ -44,6 +44,40 @@ func TestDACTEContextFields(t *testing.T) {
 	}
 	if !strings.HasPrefix(data["qr_uri"].(string), dataURIPNGPrefix) {
 		t.Fatal("QR Code missing")
+	}
+}
+
+// Anexo II secao 3: Peso Bruto, Peso Base de Calculo e Peso Aferido sao caixas distintas, uma por tpMed; antes
+// o DACTE somava tudo em "Peso bruto" (CT-e de terceiros com varios infQ imprimia 2200 kg).
+func TestDACTEWeightsSplitByTpMed(t *testing.T) {
+	x := strings.Replace(sampleCTeXML(), `<infQ><cUnid>03</cUnid>`, `<infQ><cUnid>01</cUnid><tpMed>PESO BASE DE CÁLCULO</tpMed><qCarga>1200.0000</qCarga></infQ><infQ><cUnid>01</cUnid><tpMed>PESO AFERIDO</tpMed><qCarga>900.0000</qCarga></infQ><infQ><cUnid>01</cUnid><tpMed>PESO DECLARADO</tpMed><qCarga>77.0000</qCarga></infQ><infQ><cUnid>03</cUnid>`, 1)
+	root, err := parseXML([]byte(x))
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := buildCTeContext(root, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := data["carga"].(map[string]any)
+	if c["kg"] != "2500.000" || c["kg_base"] != "1200.000" || c["kg_afer"] != "900.000" {
+		t.Fatalf("carga = %v", c)
+	}
+}
+
+// Offline (tpEmis 2) already authorized: the protocol is printed and the contingency legend is dropped.
+func TestDACTEOfflineAuthorizedShowsProtocol(t *testing.T) {
+	x := strings.Replace(sampleCTeXML(), "<tpEmis>1</tpEmis>", "<tpEmis>2</tpEmis>", 1)
+	root, err := parseXML([]byte(x))
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := buildCTeContext(root, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p, _ := data["protocolo"].(map[string]any); p["nProt"] != "135260000000009" || data["is_contingencia"] != false {
+		t.Fatalf("protocol = %v contingencia = %v", data["protocolo"], data["is_contingencia"])
 	}
 }
 

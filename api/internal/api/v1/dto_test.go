@@ -658,3 +658,29 @@ func TestNfceConfigRequiresCSCUnlessV3(t *testing.T) {
 		t.Error("qr_code_version 4 must fail")
 	}
 }
+
+// Auditoria MOC MDF-e: M-03 (tpValePed 01|04), M-04 (tpRod 01..06), m-09 (RNTRC 8 dígitos).
+func TestMDFeEnumDTOs_FollowXSD(t *testing.T) {
+	prov := func(tp string) *TollProviderBody {
+		return &TollProviderBody{Name: "Fornecedora", CNPJForn: "11222333000181", TpValePed: &tp}
+	}
+	veh := func(w string) *VehicleCreateBody {
+		return &VehicleCreateBody{Plate: "ABC1D23", PlateUf: "SP", Role: "tractor", Wheelset: w}
+	}
+	cases := []struct {
+		name string
+		v    any
+		ok   bool
+	}{
+		{"vale 01", prov("01"), true}, {"vale 04", prov("04"), true},
+		{"vale 02", prov("02"), false}, {"vale 03", prov("03"), false},
+		{"tpRod 06", veh("06"), true}, {"tpRod 99", veh("99"), false},
+		{"rntrc 8", &VehicleOwnerBody{CpfCnpj: "11222333000181", Rntrc: "12345678", Name: "Fulano", Type: "TAC"}, true},
+		{"rntrc 12", &VehicleOwnerBody{CpfCnpj: "11222333000181", Rntrc: "123456789012", Name: "Fulano", Type: "TAC"}, false},
+	}
+	for _, c := range cases {
+		if got := validation.Struct(c.v) == nil; got != c.ok {
+			t.Errorf("%s: valid=%v, want %v", c.name, got, c.ok)
+		}
+	}
+}

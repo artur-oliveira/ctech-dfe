@@ -572,6 +572,27 @@ var envicte = map[string][]string{
 	"occ":                      {"serie", "nOcc", "dEmi", "emiOcc"},
 	"emiOcc":                   {"CNPJ", "cInt", "IE", "UF", "fone"},
 
+	// Demais modais do CT-e (cteModalAereo, cteModalAquaviario, cteModalFerroviario, cteModalDutoviario e
+	// cteMultiModal, v4.00). Sempre com o escopo completo: "aereo", "aquav" e "ferrov" sem escopo são os do MDF-e
+	// (outro leiaute) e "duto" e "multimodal" não existiriam. O teste de paridade confere cada grupo com o spec.
+	"infCTeNorm:infModal:aereo":                              {"nMinu", "nOCA", "dPrevAereo", "natCarga", "tarifa", "peri"},
+	"infCTeNorm:infModal:aereo:natCarga":                     {"xDime", "cInfManu"},
+	"infCTeNorm:infModal:aereo:tarifa":                       {"CL", "cTar", "vTar"},
+	"infCTeNorm:infModal:aereo:peri":                         {"nONU", "qTotEmb", "infTotAP"},
+	"infCTeNorm:infModal:aereo:peri:infTotAP":                {"qTotProd", "uniAP"},
+	"infCTeNorm:infModal:aquav":                              {"vPrest", "vAFRMM", "xNavio", "balsa", "nViag", "direc", "irin", "detCont", "tpNav"},
+	"infCTeNorm:infModal:aquav:detCont":                      {"nCont", "lacre", "infDoc"},
+	"infCTeNorm:infModal:aquav:detCont:infDoc:infNF":         {"serie", "nDoc", "unidRat"},
+	"infCTeNorm:infModal:aquav:detCont:infDoc:infNFe":        {"chave", "unidRat"},
+	"infCTeNorm:infModal:ferrov":                             {"tpTraf", "trafMut", "fluxo"},
+	"infCTeNorm:infModal:ferrov:trafMut":                     {"respFat", "ferrEmi", "vFrete", "chCTeFerroOrigem", "ferroEnv"},
+	"infCTeNorm:infModal:ferrov:trafMut:ferroEnv":            {"CNPJ", "cInt", "IE", "xNome", "enderFerro"},
+	"infCTeNorm:infModal:ferrov:trafMut:ferroEnv:enderFerro": {"xLgr", "nro", "xCpl", "xBairro", "cMun", "xMun", "CEP", "UF"},
+	"infCTeNorm:infModal:duto":                               {"vTar", "dIni", "dFim", "classDuto", "tpContratacao", "codPontoEntrada", "codPontoSaida", "nContrato"},
+	"infCTeNorm:infModal:multimodal":                         {"COTM", "indNegociavel", "seg"},
+	"infCTeNorm:infModal:multimodal:seg":                     {"infSeg", "nApol", "nAver"},
+	"infCTeNorm:infModal:multimodal:seg:infSeg":              {"xSeg", "CNPJ"},
+
 	// ── CT-e OS (mod 67, cteOS_v4.00.xsd): chaves com escopo "CTeOS:" porque a ordem difere da do CT-e 57 ──
 	"CTeOS":        {"infCte", "infCTeSupl", "Signature"},
 	"CTeOS:infCte": {"ide", "compl", "emit", "toma", "vPrest", "imp", "pgtoVinc", "infCTeNorm", "infCteComp", "autXML", "infRespTec"},

@@ -121,8 +121,8 @@ type PersonObjectBody struct {
 	// IDEstrangeiro repetido no objeto person para que o builder da NF-e o
 	// encontre onde já lê o resto da identidade.
 	IDEstrangeiro *string `json:"id_estrangeiro" validate:"omitempty,max=20"`
-	// Inscrição Suframa do emitente (emit/ISUFEmit, reforma tributária).
-	IsufEmit *string `json:"isuf_emit" validate:"omitempty,max=9,number"`
+	// Inscrição Suframa (emit/ISUFEmit, dest/ISUF); XSD [0-9]{8,9}.
+	IsufEmit *string `json:"isuf_emit" validate:"omitempty,min=8,max=9,number"`
 	// FreightRetention é o perfil de ICMS retido pelo remetente sobre o frete
 	// (NF-e transp/retTransp). Fica na pessoa porque é da transportadora.
 	FreightRetention *FreightRetentionBody `json:"freight_retention" validate:"omitempty"`
@@ -422,7 +422,7 @@ type VehicleSetBody struct {
 	TrailerSKs []string `json:"trailer_sks" validate:"omitempty,max=3,dive,required"`
 	// DriverDocs são CPFs de pessoas do cadastro, tipicamente com papel driver.
 	DriverDocs []string `json:"driver_docs" validate:"omitempty,dive,cpf"`
-	RNTRC      *string  `json:"rntrc" validate:"omitempty,rntrc"`
+	RNTRC      *string  `json:"rntrc" validate:"omitempty,len=8,numeric"`
 	CIOT       *string  `json:"ciot" validate:"omitempty"`
 }
 
@@ -436,7 +436,7 @@ type VehicleSetBody struct {
 type PaymentTermBody struct {
 	Name string `json:"name" validate:"required,min=2,max=120"`
 	// PaymentType usa o mesmo domínio de NfePaymentItem.PaymentType.
-	PaymentType string `json:"payment_type" validate:"required,oneof=01 02 03 04 05 10 11 12 13 14 15 16 17 18 19 20 21 22 90 99"`
+	PaymentType string `json:"payment_type" validate:"required,oneof=01 02 03 04 05 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 90 91 99"`
 	// IndPag: 0 à vista, 1 a prazo. Ausente, é derivado das parcelas.
 	IndPag       *string        `json:"ind_pag" validate:"omitempty,oneof=0 1"`
 	Installments int            `json:"installments" validate:"required,min=1,max=120"`
@@ -801,8 +801,8 @@ type TollProviderBody struct {
 	// Pagador do vale, quando não é o emitente. Um dos dois, nunca ambos.
 	CNPJPg *string `json:"cnpj_pg" validate:"omitempty,cnpj,excluded_with=CPFPg"`
 	CPFPg  *string `json:"cpf_pg" validate:"omitempty,cpf,excluded_with=CNPJPg"`
-	// TpValePed: 01 TAG, 02 cupom, 03 cartão.
-	TpValePed *string `json:"tp_vale_ped" validate:"omitempty,oneof=01 02 03"`
+	// TpValePed (XSD valePed/disp/tpValePed): 01 TAG, 04 leitura de placa.
+	TpValePed *string `json:"tp_vale_ped" validate:"omitempty,oneof=01 04"`
 }
 
 // CargoUnitBody é o body de POST/PUT /cargo-units.
@@ -1326,7 +1326,7 @@ type SubstituteCancelBody struct {
 // nenhum grupo prop é gerado, e ide/tpTransp fica exatamente como sempre ficou.
 type VehicleOwnerBody struct {
 	CpfCnpj string `json:"cpf_cnpj" validate:"required,cpfcnpj"`
-	Rntrc   string `json:"rntrc" validate:"required,rntrc"`
+	Rntrc   string `json:"rntrc" validate:"required,len=8,numeric"`
 	Name    string `json:"name" validate:"required,min=2,max=255"`
 	Type    string `json:"type" validate:"required,oneof=TAC ETC CTC"`
 }
@@ -1338,7 +1338,7 @@ type VehicleCreateBody struct {
 	Plate    string            `json:"plate" validate:"required,placa"`
 	PlateUf  string            `json:"plate_uf" validate:"required,uf"`
 	Role     string            `json:"role" validate:"required,oneof=tractor trailer"`
-	Wheelset string            `json:"wheelset" validate:"omitempty"`
+	Wheelset string            `json:"wheelset" validate:"omitempty,oneof=01 02 03 04 05 06"`
 	Bodywork string            `json:"bodywork" validate:"omitempty"`
 	Renavam  string            `json:"renavam" validate:"omitempty,renavam"`
 	Weight   int               `json:"weight" validate:"omitempty,gte=0"`
@@ -1353,7 +1353,7 @@ type VehicleUpdateBody struct {
 	Plate    *string           `json:"plate" validate:"omitempty,placa"`
 	PlateUf  *string           `json:"plate_uf" validate:"omitempty,uf"`
 	Role     *string           `json:"role" validate:"omitempty,oneof=tractor trailer"`
-	Wheelset *string           `json:"wheelset" validate:"omitempty"`
+	Wheelset *string           `json:"wheelset" validate:"omitempty,oneof=01 02 03 04 05 06"`
 	Bodywork *string           `json:"bodywork" validate:"omitempty"`
 	Renavam  *string           `json:"renavam" validate:"omitempty,renavam"`
 	Weight   *int              `json:"weight" validate:"omitempty,gte=0"`

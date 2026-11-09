@@ -7,7 +7,7 @@ export const WHEELSET_OPTIONS = [
   { value: '03', label: 'Cavalo Mecânico' },
   { value: '04', label: 'VAN' },
   { value: '05', label: 'Utilitário' },
-  { value: '99', label: 'Outros' },
+  { value: '06', label: 'Outros' },
 ];
 
 export const BODYWORK_OPTIONS = [
@@ -34,7 +34,7 @@ export {UF_OPTIONS} from '@/lib/schemas/entity';
 
 const ownerSchema = z.object({
   cpf_cnpj: z.string().min(11, 'CPF/CNPJ obrigatório').max(14),
-  rntrc: z.string().regex(/^\d{8,12}$/, 'RNTRC deve ter 8–12 dígitos'),
+  rntrc: z.string().regex(/^\d{8}$/, 'RNTRC deve ter 8 dígitos'),
   name: z.string().min(2, 'Mínimo 2 caracteres').max(255),
   type: z.enum(['TAC', 'ETC', 'CTC'], { error: 'Tipo inválido' }),
 });

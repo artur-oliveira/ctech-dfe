@@ -219,3 +219,26 @@ Sem divergência em CST do ICMS (`00 20 40 41 51 60 90 SN` nos dois), papéis de
 3. M2 e M3 antes de qualquer modal novo; depois M6 por modal (cada um com tabela de ordem, spec, regras, builder, UI e guia).
 4. M7 (regras P0 e OS no catálogo) junto de cada tipo novo.
 5. Decisão do dono sobre M8 e sobre CT-e Simplificado e GTV-e.
+
+## 9. Status das correções (2026-11-09)
+
+| ID | Estado | Nota |
+|---|---|---|
+| M1 | fora do escopo | Gate/dfecheck: agente posterior |
+| M2 | corrigido | tabelas `infCTeNorm:infModal:<modal>` para aereo, aquav, ferrov, duto, multimodal; `TestXSDOrderMatchesCTeModalSpecs` estrito (inclui `cte_rodo`). `ctesimp` e eventos não construídos seguem fora da paridade |
+| M3 | corrigido | alvo `ferrov` em `gen/main.go`, `specs/cte_ferrov.json`, `TestLoadAllSpecs` |
+| M4 | corrigido | `cteLoad` separa Peso Bruto, Base de Cálculo e Aferido; teste `TestDACTEWeightsSplitByTpMed`. `tpMed` sem caixa no Anexo não é impresso |
+| M5 | corrigido | protocolo impresso com `tpEmis=2`; `TestDACTEOfflineAuthorizedShowsProtocol` |
+| M6 | backlog | cobertura do builder (modais 02 a 06, tpServ 1 a 4, infDoc/infModal ampliados, Simplificado, GTV-e) |
+| M7 | pendente | sem texto do MOC Anexo I no repositório, nenhuma regra P0 nova foi acrescentada (nada inventado) |
+| M8 | backlog | OS tpCTe 1/3 e modais 02 a 04: decisão do dono |
+| m1 | corrigido | G008 e G009 só com `tpEmis=2` |
+| m2 | pendente | campos omitidos do DACTE; sem render visual não se prova a posição |
+| m3 | parcial | QR 22 mm + 3 mm de margem e barras de 18 mm (Anexo 2.17 e 2.18); marca d'água de homologação (2.20) não alterada, exige render |
+| m4 | mantido | rótulo "Anulação" só rotula XML legado (comentário no código) |
+| m5 | corrigido | grupos `enderXxx`; `xFant` só em rem |
+| m6 | corrigido | validador `cfop_cte` (API) e regex da UI |
+| m7 | corrigido | 422 para `p_red_bc` fora de CST 20 e 90 |
+| m8, m9 | não tratados | documentação antiga e lista de UFs da G024 (sem fonte) |
+
+Não implementado por instrução: `dhEmi` com fuso da UF (helper compartilhado em go-dfe, outro agente).

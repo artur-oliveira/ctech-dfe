@@ -68,3 +68,17 @@ func TestTheAccessKeyIsUnchangedOnALegacyKey(t *testing.T) {
 		t.Errorf("issuer positions = %q", got)
 	}
 }
+
+// F-10 (auditoria MOC NF-e): emitente pessoa física leva "000"+CPF nas posições 7-20 da chave, não o CPF
+// seguido de zeros.
+func TestAccessKeyCPFIssuerIsLeftPadded(t *testing.T) {
+	now := time.Date(2026, 8, 29, 12, 0, 0, 0, time.UTC)
+	org := orgWithUFAndTaxID("SP", "52998224725", "cpf")
+	key, err := generateAccessKey(rekeyCompanyKey, org, 1, 1, now, nfModel55, tpEmisNormal)
+	if err != nil {
+		t.Fatalf("generateAccessKey: %v", err)
+	}
+	if got := key[6:20]; got != "00052998224725" {
+		t.Errorf("posições 7-20 = %q, want 00052998224725", got)
+	}
+}

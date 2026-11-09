@@ -137,3 +137,20 @@ func TestNfseValidators(t *testing.T) {
 		}
 	}
 }
+
+// XSD do CT-e: ide/CFOP nao aceita final 00 (5000 passava em cfop).
+func TestCFOPCTePattern(t *testing.T) {
+	type s struct {
+		C string `json:"c" validate:"required,cfop_cte"`
+	}
+	for _, v := range []string{"5000", "5100", "4353", "535", "53a3"} {
+		if Struct(s{v}) == nil {
+			t.Errorf("%s deveria ser recusado", v)
+		}
+	}
+	for _, v := range []string{"5351", "7358", "5932", "6101"} {
+		if p := Struct(s{v}); p != nil {
+			t.Errorf("%s deveria passar: %+v", v, p.Errors)
+		}
+	}
+}

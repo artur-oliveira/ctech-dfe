@@ -171,3 +171,34 @@ Revisão das 95 regras de `rules_mdfe.go` contra o gap doc. Sem erro de condiç�
 2. M-01 (promover códigos de schema ao `Gate` e criar o gate de eventos), depois M-02, M-05, M-06, M-07.
 3. M-08 e M-09 (cobertura de UI e reboque de terceiro), M-10 (F85 a F88 e teste de completude).
 4. Decisão do dono sobre M-12 e atualização de `CONDUCT.md` (IDs trocados, m-13).
+
+## 7. Status das correcoes (2026-11-09)
+
+Corrigidos, cada um com teste de regressao (paridade contra os specs gerados do XSD via `dfecheck`, ou teste unitario):
+
+| Achado | Correcao |
+|---|---|
+| B-01 | `payTransportDet` preenche `qtdViagens` e `nroViagem` com zeros a esquerda (5 digitos); teste `TestEventBodies_PagamentoViagensSemZeros` |
+| M-02 | `emit/IE` so da UF do `enderEmit` (`services.IEForUF`), `ISENTO` e IE de outra UF omitem a tag |
+| M-03 | `tp_vale_ped` `01|04` no DTO, Zod e rotulos; cadastro legado 02/03 e recusado na emissao (400) |
+| M-04 | `wheelset` `01..06` no DTO e na UI (Outros = 06); legado `99` sai como `06` |
+| M-05 | `ufex` em `uf_start`, `uf_end`, `route` e no encerramento (`cUF=99`) |
+| M-07 | documento cancelado na base e recusado em `resolveCargo` (`denegado` nao existe como situacao local) |
+| M-09 | `owner` do reboque cadastrado vira `veicReboque/prop` |
+| M-11 | `dhTrem` normalizado para `TDateTimeUTC` (segundos, fuso `-03:00` por padrao) e validado |
+| m-01 | `infLotacao` CEP ou lat+lon (validacao e builder) |
+| m-03, m-04 | DAMDFE: rotulo `tpCarga=12` ("Granel pressurizada", texto do XSD); protocolo impresso no off-line ja autorizado |
+| m-05 | travessao curto do texto de homologacao trocado por hifen (MOC transcrito) |
+| m-07, m-08, m-09 | `indAntecipaAdiant` so `1`; PIX 2..60; `codBanco` 3..5; `idEstrangeiro` 2..20; valores de `infPag`/vale/contrato `money2`; RNTRC 8 digitos (DTO e Zod) |
+| m-10 | ferroviario: `xOri`/`xDest` max 3, `serie`/`tpVag` `len=3`, `nVag` max 8 numerico, `nSeq` max 3 numerico (DTO e UI) |
+| m-12 | limites `condutor` 10, `infPercurso` 25, `infMunCarrega` 50, `infMunDescarga` 1000 |
+| m-13 | IDs de regra corrigidos (F20 em vez de F25; F64 em vez de F21) em codigo, DOCS e CONDUCT |
+
+Nao corrigidos:
+
+- M-01 (Gate de schema, gate de eventos) e F44/F85 a F88 no catalogo: pertencem ao agente do Gate/validador. F44: o texto transcrito ("modal aquaviario e UF AM ou AP") nao diz se a UF e de carga, descarga ou ambas; F85 a F88 tem texto truncado no gap doc e dependem de `ListUnclosed` (nao ligado ao `Emit`; a regra exige a tabela local e a consulta, sem texto completo no repo).
+- M-06 (F55): a evidencia do relatorio e a propria transcricao do gap doc, que nao fixa o modal/tpEmit; pergunta aberta: o texto F55 do MOC 3.00b exige `infLotacao` fora da condicao `mdfePagGate`?
+- M-08 (UI so emite NF-e) e M-12 (`infSolicNFF`, `infPAA`, `procEmi=4`, `tpEmis=3`): backlog separado, nao construidos.
+- m-20 / dhEmi com fuso da UF do emitente: depende do helper compartilhado de fuso (outro agente); `trip_start` segue `-03:00`.
+- m-02, m-06, m-11 (24 h, `cMun` x UF), m-14 a m-19: sem texto de regra ou Anexo II no repo, ou fora do escopo pedido.
+- Teste do `cUF=99` no encerramento nao foi escrito (`Close` exige repositorios/egress); a constante e o ramo sao triviais.

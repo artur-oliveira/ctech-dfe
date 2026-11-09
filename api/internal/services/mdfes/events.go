@@ -158,6 +158,9 @@ func (s *MdfeService) Cancel(ctx context.Context, orgPK, accessKey, justificatio
 	return s.dispatchEvent(ctx, ec, accessKey, TpEventoCancelamento, seq, body, StatusCancelPending, userID, userName)
 }
 
+// cUFForeign é o cUF do exterior em evEncMDFe (TCodUfIBGE_EX).
+const cUFForeign = "99"
+
 // Close dispatches an encerramento event (110112). cMun/UF identify where the
 // trip ended; when omitted, UF defaults to the MDF-e UFFim.
 func (s *MdfeService) Close(ctx context.Context, orgPK, accessKey, cMun, uf string, byThirdParty bool, seq int, userID, userName string) (map[string]types.AttributeValue, error) {
@@ -173,6 +176,9 @@ func (s *MdfeService) Close(ctx context.Context, orgPK, accessKey, cMun, uf stri
 		uf = strAttr(ec.mdfe, "uf_fim")
 	}
 	cUF, ok := services.UFCode[uf]
+	if uf == services.UFForeign { // evEncMDFe/cUF é TCodUfIBGE_EX: 99 = exterior
+		cUF, ok = cUFForeign, true
+	}
 	if !ok {
 		return nil, problem.BadRequest("UF de encerramento inválida: " + uf)
 	}

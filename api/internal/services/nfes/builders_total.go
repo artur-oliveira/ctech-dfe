@@ -15,7 +15,13 @@ type totals struct {
 	VBC, VICMS, VICMSDeson, VFCP, VBCST, VICMSST, VFCPST decimal.Decimal
 	VPIS, VCOFINS, VIPI, VFrete, VSeg, VOutro            decimal.Decimal
 	VICMSUFDest, VFCPUFDest                              decimal.Decimal
-	VServ, VBCISSQN, VISSQN, VPISISSQN, VCOFINSISSQN     decimal.Decimal
+	// VFCPSTRet: FCP-ST retido anteriormente (ICMSTot/vFCPSTRet, sempre emitido). VICMSDesonDeduz é só o
+	// vICMSDeson dos itens com indDeduzDeson=1, o que abate o vNF. Mono soma, por tag do ICMSTot
+	// (qBCMono, vICMSMono, qBCMonoReten, vICMSMonoReten, qBCMonoRet, vICMSMonoRet), o que os itens
+	// trouxeram; a chave só existe quando algum item trouxe a tag (são opcionais no XSD).
+	VFCPSTRet, VICMSDesonDeduz                       decimal.Decimal
+	Mono                                             map[string]decimal.Decimal
+	VServ, VBCISSQN, VISSQN, VPISISSQN, VCOFINSISSQN decimal.Decimal
 	// Restante do ISSQNtot: deduções, descontos e ISS retido, somados dos itens.
 	VDeducaoISSQN, VOutroISSQN                decimal.Decimal
 	VDescIncondISSQN, VDescCondISSQN, VISSRet decimal.Decimal
@@ -90,6 +96,7 @@ func (t *totals) dropGroups(strip map[string]bool) {
 	z := decimal.Zero
 	if strip["ICMS"] {
 		t.VBC, t.VICMS, t.VICMSDeson, t.VFCP, t.VBCST, t.VICMSST, t.VFCPST = z, z, z, z, z, z, z
+		t.VFCPSTRet, t.VICMSDesonDeduz, t.Mono = z, z, nil
 	}
 	if strip["ICMSUFDest"] {
 		t.VICMSUFDest, t.VFCPUFDest = z, z
@@ -110,6 +117,22 @@ func (t *totals) dropGroups(strip map[string]bool) {
 		t.HasISSQN = false
 		t.VServ, t.VBCISSQN, t.VISSQN, t.VDeducaoISSQN, t.VOutroISSQN = z, z, z, z, z
 		t.VDescIncondISSQN, t.VDescCondISSQN, t.VISSRet = z, z, z
+	}
+}
+
+// monoTags: tags monofásicas do item que somam no ICMSTot, na ordem do XSD.
+var monoTags = []string{"qBCMono", "vICMSMono", "qBCMonoReten", "vICMSMonoReten", "qBCMonoRet", "vICMSMonoRet"}
+
+// addMono soma no total as tags monofásicas que o item emitiu (ICMS02, 15, 53 e 61).
+func (t *totals) addMono(icms map[string]any) {
+	for _, tag := range monoTags {
+		if _, ok := icms[tag]; !ok {
+			continue
+		}
+		if t.Mono == nil {
+			t.Mono = map[string]decimal.Decimal{}
+		}
+		t.Mono[tag] = t.Mono[tag].Add(dv(icms, tag))
 	}
 }
 
@@ -157,10 +180,10 @@ func buildTotal(t totals, now time.Time, retTrib map[string]any) map[string]any 
 	// MOC W16-10 (rej. 610): vNF = vProd + vServ - vDesc - vICMSDeson + vST + vFCPST
 	// + vFrete + vSeg + vOutro + vII + vIPI + vIPIDevol. Products reúne produtos e
 	// serviços, então já carrega o vServ.
-	// ponytail: sem vICMSMonoReten nem PISST/COFINSST (indSomaPISST/indSomaCOFINSST),
-	// que o builder ainda não emite; entram junto com esses grupos.
-	vNF := t.Products.Sub(t.Discount).Sub(t.VICMSDeson).
-		Add(t.VICMSST).Add(t.VFCPST).
+	// vICMSDeson só abate com indDeduzDeson=1 (XSD); vICMSMonoReten soma (nfeVNF).
+	// ponytail: sem PISST/COFINSST (indSomaPISST/indSomaCOFINSST), que o builder ainda não emite.
+	vNF := t.Products.Sub(t.Discount).Sub(t.VICMSDesonDeduz).
+		Add(t.Mono["vICMSMonoReten"]).Add(t.VICMSST).Add(t.VFCPST).
 		Add(t.VFrete).Add(t.VSeg).Add(t.VOutro).
 		Add(t.VII).Add(t.VIPI).Add(t.VIPIDevol).
 		RoundBank(2)
@@ -176,7 +199,7 @@ func buildTotal(t totals, now time.Time, retTrib map[string]any) map[string]any 
 		"vBCST":      q2(t.VBCST.RoundBank(2)),
 		"vST":        q2(t.VICMSST.RoundBank(2)),
 		"vFCPST":     q2(t.VFCPST.RoundBank(2)),
-		"vFCPSTRet":  "0.00",
+		"vFCPSTRet":  q2(t.VFCPSTRet.RoundBank(2)),
 		"vProd":      q2(vProdTot.RoundBank(2)),
 		"vFrete":     q2(t.VFrete.RoundBank(2)),
 		"vSeg":       q2(t.VSeg.RoundBank(2)),
@@ -194,6 +217,12 @@ func buildTotal(t totals, now time.Time, retTrib map[string]any) map[string]any 
 		icmsTot["vFCPUFDest"] = q2(t.VFCPUFDest.RoundBank(2))
 		icmsTot["vICMSUFDest"] = q2(t.VICMSUFDest.RoundBank(2))
 		icmsTot["vICMSUFRemet"] = "0.00"
+	}
+
+	for _, tag := range monoTags {
+		if v, ok := t.Mono[tag]; ok {
+			icmsTot[tag] = q2(v.RoundBank(2))
+		}
 	}
 
 	totalNode := map[string]any{"ICMSTot": icmsTot}

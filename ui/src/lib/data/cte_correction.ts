@@ -13,12 +13,17 @@ export interface CteCorrectionGroup {
   fields: { value: string; label: string }[]
 }
 
-const PARTY_FIELDS = [
+// Campos do próprio grupo da pessoa (rem, dest, exped, receb); xFant só existe em rem no leiaute.
+const partyFields = (withFant: boolean) => [
   {value: 'xNome', label: 'Razão social ou nome'},
-  {value: 'xFant', label: 'Nome fantasia'},
+  ...(withFant ? [{value: 'xFant', label: 'Nome fantasia'}] : []),
   {value: 'IE', label: 'Inscrição estadual'},
   {value: 'fone', label: 'Telefone'},
   {value: 'email', label: 'E-mail'},
+];
+
+// Endereço: grupo enderReme, enderDest, enderExped ou enderReceb, filho da pessoa.
+const ADDRESS_FIELDS = [
   {value: 'xLgr', label: 'Logradouro'},
   {value: 'nro', label: 'Número'},
   {value: 'xCpl', label: 'Complemento'},
@@ -45,10 +50,14 @@ export const CTE_CORRECTION_GROUPS: CteCorrectionGroup[] = [
     {value: 'xCampo', label: 'Identificação do campo'},
     {value: 'xTexto', label: 'Texto'},
   ]},
-  {value: 'rem', label: 'Remetente (rem)', fields: PARTY_FIELDS},
-  {value: 'dest', label: 'Destinatário (dest)', fields: PARTY_FIELDS},
-  {value: 'exped', label: 'Expedidor (exped)', fields: PARTY_FIELDS},
-  {value: 'receb', label: 'Recebedor (receb)', fields: PARTY_FIELDS},
+  {value: 'rem', label: 'Remetente (rem)', fields: partyFields(true)},
+  {value: 'enderReme', label: 'Endereço do remetente (enderReme)', fields: ADDRESS_FIELDS},
+  {value: 'dest', label: 'Destinatário (dest)', fields: partyFields(false)},
+  {value: 'enderDest', label: 'Endereço do destinatário (enderDest)', fields: ADDRESS_FIELDS},
+  {value: 'exped', label: 'Expedidor (exped)', fields: partyFields(false)},
+  {value: 'enderExped', label: 'Endereço do expedidor (enderExped)', fields: ADDRESS_FIELDS},
+  {value: 'receb', label: 'Recebedor (receb)', fields: partyFields(false)},
+  {value: 'enderReceb', label: 'Endereço do recebedor (enderReceb)', fields: ADDRESS_FIELDS},
   {value: 'infCarga', label: 'Informações da carga (infCarga)', fields: [
     {value: 'proPred', label: 'Produto predominante'},
     {value: 'xOutCat', label: 'Outras características da carga'},

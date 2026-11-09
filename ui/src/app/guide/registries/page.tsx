@@ -189,6 +189,12 @@ export default function GuideCadastros() {
                 </GuideTerm>
               </GuideTerms>
               <p>
+                No regime normal, o CST do ICMS lista os 15 códigos do leiaute (inclusive 02, 10, 15, 30, 53 e 61).
+                Os campos de cada CST seguem o leiaute: o motivo de desoneração oferece só os valores aceitos
+                naquele CST, e o percentual de redução de BC aparece nos CSTs 20, 51, 70 e 90. A inscrição Suframa
+                do destinatário (8 ou 9 dígitos) sai na nota quando cadastrada.
+              </p>
+              <p>
                 A natureza marcada como padrão já vem selecionada em toda emissão nova. Sobrescrever
                 um campo na nota sempre vence o que veio do cadastro.
               </p>

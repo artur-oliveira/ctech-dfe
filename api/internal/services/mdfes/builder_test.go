@@ -7,6 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 
 	"gopkg.aoctech.app/dfe/api/internal/services"
+	"gopkg.aoctech.app/dfe/api/internal/services/dfecheck"
 )
 
 // baseParams returns a minimal valid buildParams for rodoviário emission.
@@ -191,7 +192,7 @@ func TestResolveOwner(t *testing.T) {
 		t.Error("expected error when RNTRC missing")
 	}
 	if _, err := resolveOwner(&MdfeOwner{CNPJ: "12345678000190", Name: "SELF", RNTRC: "1"}, emitterDoc); err == nil {
-		t.Error("expected error when owner equals emitter (F21)")
+		t.Error("expected error when owner equals emitter (F64)")
 	}
 	o, err := resolveOwner(&MdfeOwner{CPF: "987.654.321-00", Name: "OK", RNTRC: "87654321"}, emitterDoc)
 	if err != nil {
@@ -346,5 +347,51 @@ func TestBuildEmitStillWorksOnALegacyKey(t *testing.T) {
 	got := buildEmit(org, map[string]any{}, "CNPJ_11222333000181")
 	if got["CNPJ"] != "11222333000181" {
 		t.Fatalf("CNPJ = %v", got["CNPJ"])
+	}
+}
+
+// M-02: IE só da UF do enderEmit; ISENTO e IE de outra UF não saem (TIe [0-9]{2,14}).
+func TestBuildEmit_IEPorUF(t *testing.T) {
+	org := map[string]types.AttributeValue{"name": &types.AttributeValueMemberS{Value: "Emp"}}
+	person := func(regs ...any) map[string]any {
+		return map[string]any{
+			"addresses":           []any{map[string]any{"state_federation": "SP"}},
+			"state_registrations": regs,
+		}
+	}
+	reg := func(uf, ie string) any { return map[string]any{"uf": uf, "state_registration": ie} }
+	cases := []struct {
+		name string
+		p    map[string]any
+		want string
+	}{
+		{"outra UF primeiro", person(reg("RJ", "111111111"), reg("SP", "111.222.333.444")), "111222333444"},
+		{"so outra UF", person(reg("RJ", "111111111")), ""},
+		{"isento", person(reg("SP", "ISENTO")), ""},
+	}
+	for _, c := range cases {
+		got, _ := buildEmit(org, c.p, "CNPJ_11222333000181")["IE"].(string)
+		if got != c.want {
+			t.Errorf("%s: IE=%q, want %q", c.name, got, c.want)
+		}
+	}
+}
+
+// M-09: reboque de terceiro sai com veicReboque/prop, válido no XSD.
+func TestBuildRodo_ReboqueComProp(t *testing.T) {
+	p := baseParams(nil)
+	p.trailers = []resolvedVehicle{{Placa: "ABC1D23", Tara: "1000", CapKG: "5000", TpCar: "01", UF: "SP",
+		Prop: &resolvedOwner{CNPJ: "11222333000181", RNTRC: "12345678", Name: "Terceiro", TpProp: "2"}}}
+	body := BuildMDFe(p)["MDFe"].(map[string]any)
+	modal := body["infMDFe"].(map[string]any)["infModal"].(map[string]any)
+	rodo := modal["rodo"].(map[string]any)
+	prop, ok := rodo["veicReboque"].([]map[string]any)[0]["prop"].(map[string]any)
+	if !ok || prop["RNTRC"] != "12345678" {
+		t.Fatalf("prop ausente no reboque: %#v", rodo["veicReboque"])
+	}
+	for _, v := range dfecheck.Shadow("mdfe_rodo", "mdfe_rodo", "teste", rodo) {
+		if v.Code != "required" && v.Code != "choice_missing" && v.Code != "rule" {
+			t.Errorf("%s %s: %s", v.Path, v.Code, v.Message)
+		}
 	}
 }

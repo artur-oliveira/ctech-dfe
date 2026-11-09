@@ -54,6 +54,7 @@ func TestValidateDevolucaoRecusaForaDaDevolucao(t *testing.T) {
 func TestBuildTotal_VNFeVProdPeloMOC(t *testing.T) {
 	tt := newTotals(decimal.RequireFromString("1000.00"), decimal.RequireFromString("50.00"))
 	tt.VICMSDeson = decimal.RequireFromString("10.00")
+	tt.VICMSDesonDeduz = decimal.RequireFromString("10.00")
 	tt.VICMSST = decimal.RequireFromString("20.00")
 	tt.VFCPST = decimal.RequireFromString("2.00")
 	tt.VFrete = decimal.RequireFromString("30.00")

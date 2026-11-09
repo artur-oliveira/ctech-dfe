@@ -156,6 +156,12 @@ func TestResolveICMS(t *testing.T) {
 	if g := n90["ICMS90"].(map[string]any); g["vICMS"] != "0.12" {
 		t.Fatalf("90 = %+v", n90)
 	}
+	red10 := "10.00"
+	for _, cst := range []string{"00", "60"} {
+		if _, err := resolveICMS(&CteICMS{CST: cst, PICMS: &p125, PRedBC: &red10}, 3, base); err == nil {
+			t.Fatalf("CST %s com p_red_bc deveria ser recusado (pRedBC só existe em 20 e 90)", cst)
+		}
+	}
 	if _, err := resolveICMS(nil, 3, base); code(err) != CodeICMSRequired {
 		t.Fatalf("regime normal sem ICMS: %v", err)
 	}

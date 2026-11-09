@@ -285,3 +285,23 @@ func mustParse(t *testing.T, x string) *xmlNode {
 	}
 	return root
 }
+
+// m-03 e m-04: tpCarga 12 tem rótulo; MDF-e off-line já autorizado imprime o protocolo e perde a faixa.
+func TestDAMDFEOfflineAuthorizedShowsProtocolAndCargo12(t *testing.T) {
+	x := strings.Replace(sampleMDFeXML(), "<tpEmis>1</tpEmis>", "<tpEmis>2</tpEmis>", 1)
+	x = strings.Replace(x, "<tpCarga>05</tpCarga>", "<tpCarga>12</tpCarga>", 1)
+	root, err := parseXML([]byte(x))
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := buildMDFeContext(root, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p, _ := data["protocolo"].(map[string]any); p["nProt"] != "935260000000001" || data["is_contingencia"] != false {
+		t.Fatalf("protocol = %v contingencia = %v", data["protocolo"], data["is_contingencia"])
+	}
+	if l := data["prodPred"].(map[string]any)["tpCarga_label"]; l != "Granel pressurizada" {
+		t.Fatalf("tpCarga_label = %v", l)
+	}
+}
