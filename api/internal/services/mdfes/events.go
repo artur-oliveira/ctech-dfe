@@ -10,6 +10,7 @@ import (
 	"gopkg.aoctech.app/dfe/api/internal/dfeproblem"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"
+	"gopkg.aoctech.app/dfe/go-dfe/uftz"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
@@ -98,6 +99,9 @@ func (s *MdfeService) dispatchEvent(
 	body map[string]any, newDocStatus string, userID, userName string,
 ) (map[string]types.AttributeValue, error) {
 	dfecheck.ShadowEvent("mdfe", accessKey, body)
+	if err := dfecheck.EventProblem("MDF-e", dfecheck.GateEvent("mdfe", body)); err != nil {
+		return nil, err
+	}
 	event, err := s.eventRepo.CreateEvent(ctx, accessKey, eventType, seq, StatusPending, nil, nil, nil, userID, userName)
 	if err != nil {
 		return nil, err
@@ -185,7 +189,7 @@ func (s *MdfeService) Close(ctx context.Context, orgPK, accessKey, cMun, uf stri
 	if cMun == "" {
 		return nil, problem.BadRequest("informe o município de encerramento (cMun)")
 	}
-	body := s.buildEventEnvelope(ec, accessKey, TpEventoEncerramento, seq, closeDet(nProt, cUF, cMun, byThirdParty, time.Now()))
+	body := s.buildEventEnvelope(ec, accessKey, TpEventoEncerramento, seq, closeDet(nProt, cUF, cMun, byThirdParty, uftz.Now(uf)))
 	return s.dispatchEvent(ctx, ec, accessKey, TpEventoEncerramento, seq, body, StatusClosePending, userID, userName)
 }
 
@@ -232,12 +236,12 @@ func cancelDet(nProt, justification string) map[string]any {
 	return map[string]any{"evCancMDFe": map[string]any{"descEvento": "Cancelamento", "nProt": nProt, "xJust": justification}}
 }
 
-// closeDet: evEncMDFe. dtEnc é a data no fuso de Brasília (a Lambda roda em UTC).
+// closeDet: evEncMDFe. dtEnc é a data local da UF de encerramento (now vem de uftz.Now(uf); a Lambda roda em UTC).
 func closeDet(nProt, cUF, cMun string, byThirdParty bool, now time.Time) map[string]any {
 	ev := map[string]any{
 		"descEvento": "Encerramento",
 		"nProt":      nProt,
-		"dtEnc":      now.In(time.FixedZone("BRT", -3*60*60)).Format("2006-01-02"),
+		"dtEnc":      now.Format("2006-01-02"),
 		"cUF":        cUF,
 		"cMun":       cMun,
 	}
@@ -282,7 +286,7 @@ func (s *MdfeService) buildEventEnvelope(ec *eventContext, accessKey, tpEvento s
 		"cOrgao":     accessKey[0:2],
 		"tpAmb":      fmt.Sprintf("%d", ec.environment),
 		"chMDFe":     accessKey,
-		"dhEvento":   dhEvento(),
+		"dhEvento":   uftz.Now(ec.emitUF).Format(layoutDateTimeTZ),
 		"tpEvento":   tpEvento,
 		"nSeqEvento": fmt.Sprintf("%d", seq),
 		"detEvento":  detEvento,

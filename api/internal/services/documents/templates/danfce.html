@@ -54,8 +54,10 @@
     .logo-band { min-height: 12mm; margin-bottom: 2pt; }
     .logo { max-width: 30mm; max-height: 12mm; display: block; margin: 0 auto; }
 
-    .qr-band { min-height: 20mm; }
-    .qr { width: 20mm; display: block; }
+    /* Manual 3.1.5: QR of at least 25 mm in total (22 mm of content + safe margin). The image carries a 10%
+       margin per side, so 28 mm gives 22.4 mm of content. Centered layout (Manual figure 5). */
+    .qr-band { min-height: 28mm; }
+    .qr { width: 28mm; }
     .auth td { padding: 0.5pt 0; }
 
     .banner { font-weight: bold; text-align: center; margin: 3pt 0; }
@@ -73,7 +75,7 @@
         {% if emit.logo_b64 %}
         <div class="logo-band"><img class="logo" src="{{ emit.logo_b64 }}" alt="logo"></div>
         {% endif %}
-        <div>CNPJ: {{ emit.cnpj }}</div>
+        <div>{{ emit.doc_label }}: {{ emit.cnpj }}</div>
         <div class="b">{{ emit.nome }}</div>
         <div>{{ emit.endereco }}</div>
         <div class="doc-auxiliar">{{ text.doc_auxiliar }}</div>
@@ -136,20 +138,24 @@
             <td class="b">Valor total</td>
             <td class="num b">R$ {{ totals.vProd }}</td>
         </tr>
-        {% if totals.has_acrescimo_desconto %}
+        {% if totals.has_desconto %}
         <tr>
             <td>Descontos</td>
             <td class="num">R$ {{ totals.vDesc }}</td>
         </tr>
+        {% endif %}
+        {% if totals.has_acrescimo %}
         <tr>
             <td>Acréscimos</td>
-            <td class="num">R$ {{ totals.vFrete }}</td>
+            <td class="num">R$ {{ totals.vAcrescimos }}</td>
         </tr>
         {% endif %}
+        {% if totals.has_acrescimo_desconto %}
         <tr>
             <td class="b">Valor a pagar</td>
             <td class="num b">R$ {{ totals.vNF }}</td>
         </tr>
+        {% endif %}
         <tr class="sep">
             <td>Forma pagamento</td>
             <td class="num">Valor pago (R$)</td>
@@ -175,42 +181,17 @@
         <div>{{ chave_fmt }}</div>
     </div>
 
-    {# Divisões V a VII — QR Code ao lado do consumidor, identificação e protocolo #}
-    <table class="block">
-        <colgroup>
-            <col style="width:40%">
-            <col style="width:60%">
-        </colgroup>
-        <tr>
-            <td>
-                <div class="qr-band"><img class="qr" src="{{ qr_uri }}" alt="QR Code"></div>
-            </td>
-            <td>
-                <table class="auth">
-                    <tr>
-                        <td class="b">{{ consumidor }}</td>
-                    </tr>
-                    <tr>
-                        <td class="b">NFC-e nº {{ ident.nNF }} Série {{ ident.serie }}</td>
-                    </tr>
-                    {% if protocolo %}
-                    <tr>
-                        <td class="b">Protocolo de autorização: {{ protocolo.nProt }}</td>
-                    </tr>
-                    <tr>
-                        <td class="b">Data de autorização: {{ protocolo.dhRecbto }}</td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td class="b">Data de emissão: {{ ident.dhEmi }}
-                            {%- if via.label %} - {{ via.label }}{% endif %}
-                        </td>
-                    </tr>
-                    {% endif %}
-                </table>
-            </td>
-        </tr>
-    </table>
+    {# Divisões V a VII: consumidor, identificação, protocolo e QR Code centralizado (Manual figura 5) #}
+    <div class="block center">
+        <div class="b">{{ consumidor }}</div>
+        <div class="b">NFC-e nº {{ ident.nNF }} Série {{ ident.serie }} {{ ident.dhEmi }}
+            {%- if via.label %} - {{ via.label }}{% endif %}</div>
+        {% if protocolo %}
+        <div class="b">Protocolo de autorização: {{ protocolo.nProt }}</div>
+        <div class="b">Data de autorização: {{ protocolo.dhRecbto }}</div>
+        {% endif %}
+    </div>
+    <div class="qr-band block center"><img class="qr" src="{{ qr_uri }}" alt="QR Code"></div>
 
     {% if is_contingencia %}
     <div class="banner">{{ text.cont_l1 }}<br>{{ text.cont_l2 }}</div>

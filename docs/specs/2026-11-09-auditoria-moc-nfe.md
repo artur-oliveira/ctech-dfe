@@ -251,6 +251,8 @@ de esquema, exceto onde indicado) e `ui/src/__tests__/lib/data/icms-moc.test.ts`
 | F-15 | Parcial | rotulos de PIS/COFINS pelo XSD, 03 e 05 adicionados; CSTs 50 a 75 e 98 de `PISOutr` nao oferecidos (o editor nao tem os campos). |
 | F-19 | Parcial | tetos de `det` (990), `detPag` (100), `dup` (120) e `armas` (500). Faltam DI, adi, forDia, defensivo. |
 | F-24 | Corrigido | rotulos 17, 18, 20 e 90 pela tabela oficial. |
-| F-12, F-13, F-14 | Fora do escopo | validador e Gate (agente seguinte). |
+| F-12 | Corrigido | `validate.go`: nomes repetidos em braços da mesma choice (`shared`) não escolhem braço; teste `TestChoiceSharedElementIPIIsNotAConflict` (ICMS+IPITrib/IPINT) e o contorno em `moc_nfe_fixes_test.go` removido. |
+| F-13 | Corrigido | gerador marca `grp`/`greq` por sequence opcional, validador exige o grupo inteiro; `TestOptionalSequenceAllOrNothing` (ICMS60 pICMSEfet sem pRedBCEfet, vBCSTRet sem pST, grupo aninhado do ICMS90). |
+| F-14 | Corrigido (schema) | Gate recusa `required`, `choice_*`, `max_occurs`, `pattern`, `enum`, `length` e tamanhos, por tipo (`DFE_GATE_SCHEMA_NFE`/`_NFCE`; padrão `shadow` por decisão do dono: rollout shadow primeiro, depois promover tipo a tipo com `block`). Regras ModeBlock do catálogo (26) seguem fora do mapa da API: decisão pendente (CONDUCT.md). `unknown_tag` continua só aviso. |
 | F-16, F-17, F-18, F-20, F-21, F-22, F-23, F-25 | Nao corrigido | ver o relatorio de entrega: exigem decisao de produto ou fonte (MOC), ou sao maiores que um ajuste. |
 

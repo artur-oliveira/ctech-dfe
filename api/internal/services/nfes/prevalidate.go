@@ -79,7 +79,11 @@ func gateEnviNFe(enviNFe map[string]any, model string) error {
 	if model == nfModel65 {
 		block = blockRulesNFCe
 	}
-	found := dfecheck.GateEnviNFe(enviNFe, block)
+	gate := dfecheck.GateEnviNFe
+	if model == nfModel65 {
+		gate = dfecheck.GateEnviNFCe
+	}
+	found := gate(enviNFe, block)
 	if len(found) == 0 {
 		return nil
 	}
@@ -89,6 +93,10 @@ func gateEnviNFe(enviNFe map[string]any, model string) error {
 			errs = append(errs, problem.Field(v.Rule, fieldCodeFiscalRule,
 				fmt.Sprintf("regra %s do MOC (rejeição %d): %s", v.Rule, v.CStat, v.Message),
 				"rule", v.Rule, "cstat", v.CStat))
+			continue
+		}
+		if v.Code != validate.CodeMinLength && v.Code != validate.CodeMaxLength {
+			errs = append(errs, dfecheck.SchemaFieldError(v))
 			continue
 		}
 		entity, field, item := lengthTarget(v.Path)

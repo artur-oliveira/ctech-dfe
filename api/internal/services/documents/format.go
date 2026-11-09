@@ -35,6 +35,35 @@ func moneyBR(value string) string {
 	return integer + "," + parts[1]
 }
 
+// quantityBR formats a quantity or unit value keeping the XML decimals (XSD TDec_1104v and TDec_1110v allow up
+// to 4 and 10): trailing zeros beyond minPlaces are dropped, so 4.8990 prints "4,899" and never rounds to 2.
+func quantityBR(value string, minPlaces int32) string {
+	amount, err := decimal.NewFromString(strings.TrimSpace(value))
+	if err != nil {
+		return ""
+	}
+	parts := strings.SplitN(amount.String(), ".", 2) // String() already drops trailing zeros
+	integer := parts[0]
+	frac := ""
+	if len(parts) == 2 {
+		frac = parts[1]
+	}
+	for int32(len(frac)) < minPlaces {
+		frac += "0"
+	}
+	start := 0
+	if strings.HasPrefix(integer, "-") {
+		start = 1
+	}
+	for i := len(integer) - 3; i > start; i -= 3 {
+		integer = integer[:i] + "." + integer[i:]
+	}
+	if frac == "" {
+		return integer
+	}
+	return integer + "," + frac
+}
+
 // percentBR formata um percentual fiscal no padrão pt-BR, preservando as casas
 // decimais que vieram no XML — o XSD usa de 2 a 3 casas conforme o campo, e
 // arredondar aqui mudaria o número impresso em relação ao documento assinado.

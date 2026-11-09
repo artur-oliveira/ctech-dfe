@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/base64"
 	"fmt"
+	"image"
+	"image/draw"
 	"image/png"
 	"strconv"
 	"strings"
@@ -35,6 +37,37 @@ func qrDataURI(value string) (string, error) {
 		return "", fmt.Errorf("encode QR Code: %w", err)
 	}
 	return imageDataURI(boombarcode.Scale(code, 360, 360))
+}
+
+// qrQuietPct is the safe margin (quiet zone) per side, as a share of the total image: Manual DANFE NFC-e
+// 3.1.5 asks 10% of the total dimension above 25 mm. The content stays at 80% of the image.
+const qrQuietPct = 10
+
+// qrDataURIQuiet is qrDataURI with the Manual's quiet zone drawn into the image, so the printed size of the
+// image is the size the Manual measures (minimum 25 mm in total, 22 mm of content).
+func qrDataURIQuiet(value string) (string, error) {
+	if value == "" {
+		return "", fmt.Errorf("QR Code payload is empty")
+	}
+	code, err := qr.Encode(value, qr.M, qr.Auto)
+	if err != nil {
+		return "", fmt.Errorf("encode QR Code: %w", err)
+	}
+	const content = 360
+	scaled, err := boombarcode.Scale(code, content, content)
+	if err != nil {
+		return "", fmt.Errorf("scale barcode: %w", err)
+	}
+	margin := content * qrQuietPct / (100 - 2*qrQuietPct)
+	size := content + 2*margin
+	canvas := image.NewGray(image.Rect(0, 0, size, size))
+	draw.Draw(canvas, canvas.Bounds(), image.White, image.Point{}, draw.Src)
+	draw.Draw(canvas, image.Rect(margin, margin, margin+content, margin+content), scaled, scaled.Bounds().Min, draw.Src)
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, canvas); err != nil {
+		return "", fmt.Errorf("encode barcode PNG: %w", err)
+	}
+	return dataURIPNGPrefix + base64.StdEncoding.EncodeToString(buf.Bytes()), nil
 }
 
 func dadosNFeCode(cuf, emissionType, document, totalCents string, hasICMS, hasICMSST bool, emissionDay string) string {

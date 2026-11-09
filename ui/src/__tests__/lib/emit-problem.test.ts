@@ -96,4 +96,15 @@ describe('emitFailure com recusa local', () => {
   it('erro comum continua só com o detail', () => {
     expect(emitFailure(new ApiError(400, 'ruim', {code: 'bad_request'}), 'falhou')).toEqual({message: 'ruim'});
   });
+
+  it('schema_invalid mostra o caminho e o motivo que a api escreveu', () => {
+    const issues = parseEmitIssues({
+      code: 'fiscal_prevalidation',
+      errors: [{field: 'NFe/infNFe/ide/cUF', code: 'schema_invalid', message: 'NFe/infNFe/ide/cUF: valor fora do formato do leiaute',
+        params: {xml_path: 'NFe/infNFe/ide/cUF', reason: 'pattern'}}],
+    });
+    expect(issues).toHaveLength(1);
+    expect(issues![0].text).toBe('NFe/infNFe/ide/cUF: valor fora do formato do leiaute.');
+    expect(issues![0].target).toBe('documento');
+  });
 });

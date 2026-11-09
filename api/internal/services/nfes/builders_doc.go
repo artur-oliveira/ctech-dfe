@@ -510,6 +510,11 @@ func BuildEnviNFe(
 			VSeg:        vSegItem,
 			VOutro:      vOutroItem,
 		})
+		// NFC-e (modelo 65): veicProd e arma são grupos vedados (J01-10 rej. 736, L01-10 rej. 738).
+		if isNFCe {
+			delete(prod, "veicProd")
+			delete(prod, "arma")
+		}
 		// I17d cAtivSN (NT 2026.005): atividade do Simples Nacional do item, só para
 		// quem é do Simples ou está com a opção pendente.
 		if isSNIssuer(orgCRT, tpRegimeIBSCBS) {
@@ -576,8 +581,13 @@ func BuildEnviNFe(
 				"COFINS": cofinsBuilt,
 			}
 
+			// NFC-e: IPI é grupo vedado (O01-10, rejeição 742); o perfil fiscal do produto pode trazer ipi_cst
+			// de uma NF-e, então o builder do modelo 65 não emite o grupo nem soma o vIPI.
 			ipiCST := cfgStr(cfopEntry, "ipi_cst", "")
-			ipiNode := buildIPI(ipiCST, vBCIBSCBS, qty, cfopEntry, item)
+			var ipiNode map[string]any
+			if !isNFCe {
+				ipiNode = buildIPI(ipiCST, vBCIBSCBS, qty, cfopEntry, item)
+			}
 			if ipiNode != nil {
 				if ipiData, ok := ipiNode["IPI"].(map[string]any); ok {
 					if ipiTrib, ok := ipiData["IPITrib"].(map[string]any); ok {
@@ -596,7 +606,10 @@ func BuildEnviNFe(
 			imposto["IBSCBS"] = gIBSCBS
 		}
 
-		if iiNode := buildII(item, vProdDec); iiNode != nil {
+		// NFC-e: II (P01-10, rej. 743), PISST (R01-10, rej. 746) e COFINSST (T01-10, rej. 749) são vedados.
+		if isNFCe {
+			pisSTNode, cofinsSTNode = nil, nil
+		} else if iiNode := buildII(item, vProdDec); iiNode != nil {
 			imposto["II"] = iiNode
 			t.VII = t.VII.Add(dField(iiNode, "vII"))
 		}

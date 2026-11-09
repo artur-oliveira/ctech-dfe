@@ -265,7 +265,7 @@ func (p buildParams) buildInfModal() map[string]any {
 	case ModalAquaviario:
 		modal["aquav"] = buildAquav(p.water, p.emptyUnits)
 	case ModalFerroviario:
-		modal["ferrov"] = buildFerrov(p.rail)
+		modal["ferrov"] = buildFerrov(p.rail, p.now.Location())
 	default:
 		modal["rodo"] = p.buildRodo()
 	}

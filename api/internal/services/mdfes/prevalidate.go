@@ -54,13 +54,7 @@ func gateMDFe(body map[string]any) error {
 				"rule", v.Rule, "cstat", v.CStat))
 			continue
 		}
-		code, what := dfecheck.FieldCodeTooLong, "no máximo"
-		if v.Code == validate.CodeMinLength {
-			code, what = dfecheck.FieldCodeTooShort, "ao menos"
-		}
-		errs = append(errs, problem.Field(v.Path, code,
-			fmt.Sprintf("%s tem %d caracteres; o leiaute aceita %s %d", v.Path, v.Got, what, v.Limit),
-			"xml_path", v.Path, "limit", v.Limit, "got", v.Got))
+		errs = append(errs, dfecheck.SchemaFieldError(v))
 	}
 	return problem.UnprocessableEntityFields(
 		"o MDF-e não passa nas validações do leiaute e do MOC; corrija os itens apontados antes de emitir", errs...,

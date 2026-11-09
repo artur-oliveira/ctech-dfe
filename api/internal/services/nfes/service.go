@@ -204,6 +204,10 @@ func (s *NfeService) Cancel(ctx context.Context, orgPK, accessKey, justification
 		return nil, err
 	}
 
+	body, err := gateNFeEvent(accessKey, buildCancelBody(accessKey, ectx.docTag, ectx.cnpj, ectx.environment, sefazProtocol, justification, sequenceNumber))
+	if err != nil {
+		return nil, err
+	}
 	event, err := s.eventRepo.CreateEvent(ctx, accessKey, TpEventoCancelamento, sequenceNumber, StatusPending, nil, nil, nil, userID, userName)
 	if err != nil {
 		return nil, err
@@ -227,7 +231,7 @@ func (s *NfeService) Cancel(ctx context.Context, orgPK, accessKey, justification
 		CertS3Key:        ectx.cert.s3Key, CertPassword: ectx.cert.password,
 		DocType: "nfe", SefazService: "RecepcaoEvento",
 		Contingency:     svcAuthorizerForKey(accessKey),
-		Body:            shadowNFeEvent(accessKey, buildCancelBody(accessKey, ectx.docTag, ectx.cnpj, ectx.environment, sefazProtocol, justification, sequenceNumber)),
+		Body:            body,
 		EventsTableName: aws.String("nfe_events"),
 		EventType:       aws.String(TpEventoCancelamento),
 		SequenceNumber:  &sequenceNumber,
@@ -258,6 +262,10 @@ func (s *NfeService) CorrectionLetter(ctx context.Context, orgPK, accessKey, cor
 		return nil, err
 	}
 
+	body, err := gateNFeEvent(accessKey, buildCCeBody(accessKey, ectx.docTag, ectx.cnpj, ectx.environment, correctionText, sequenceNumber))
+	if err != nil {
+		return nil, err
+	}
 	event, err := s.eventRepo.CreateEvent(ctx, accessKey, TpEventoCCe, sequenceNumber, StatusPending, nil, nil, nil, userID, userName)
 	if err != nil {
 		return nil, err
@@ -272,7 +280,7 @@ func (s *NfeService) CorrectionLetter(ctx context.Context, orgPK, accessKey, cor
 		SefazEnvironment: ectx.sefazEnv,
 		CertS3Key:        ectx.cert.s3Key, CertPassword: ectx.cert.password,
 		DocType: "nfe", SefazService: "RecepcaoEvento",
-		Body:            shadowNFeEvent(accessKey, buildCCeBody(accessKey, ectx.docTag, ectx.cnpj, ectx.environment, correctionText, sequenceNumber)),
+		Body:            body,
 		EventsTableName: aws.String("nfe_events"),
 		EventType:       aws.String(TpEventoCCe),
 		SequenceNumber:  &sequenceNumber,
@@ -299,6 +307,10 @@ func (s *NfeService) Manifestation(ctx context.Context, orgPK, accessKey, eventT
 		return nil, err
 	}
 
+	body, err := gateNFeEvent(accessKey, buildManifestBody(accessKey, ectx.docTag, ectx.cnpj, ectx.environment, eventType, sequenceNumber, justification))
+	if err != nil {
+		return nil, err
+	}
 	event, err := s.eventRepo.CreateEvent(ctx, accessKey, eventType, sequenceNumber, StatusPending, nil, nil, nil, userID, userName)
 	if err != nil {
 		return nil, err
@@ -313,7 +325,7 @@ func (s *NfeService) Manifestation(ctx context.Context, orgPK, accessKey, eventT
 		SefazEnvironment: ectx.sefazEnv,
 		CertS3Key:        ectx.cert.s3Key, CertPassword: ectx.cert.password,
 		DocType: "nfe", SefazService: "RecepcaoEvento",
-		Body:            shadowNFeEvent(accessKey, buildManifestBody(accessKey, ectx.docTag, ectx.cnpj, ectx.environment, eventType, sequenceNumber, justification)),
+		Body:            body,
 		EventsTableName: aws.String("nfe_events"),
 		EventType:       aws.String(eventType),
 		SequenceNumber:  &sequenceNumber,

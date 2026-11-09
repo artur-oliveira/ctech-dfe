@@ -15,6 +15,7 @@ import (
 
 	"gopkg.aoctech.app/dfe/api/internal/services"
 	"gopkg.aoctech.app/dfe/api/internal/services/nfexml"
+	"gopkg.aoctech.app/dfe/go-dfe/uftz"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/shopspring/decimal"
@@ -202,7 +203,7 @@ func (s *CteService) CteOsEmit(ctx context.Context, orgPK string, req CteOsEmitB
 	if err != nil {
 		return nil, err
 	}
-	p, err := osParams(req, emit, taker, crt, time.Now())
+	p, err := osParams(req, emit, taker, crt, uftz.Now(emit.Addr.UF))
 	if err != nil {
 		return nil, err
 	}

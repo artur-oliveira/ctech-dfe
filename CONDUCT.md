@@ -1474,3 +1474,18 @@ enviados só um certificado descartável e uma chave falsa, e a ANTT respondeu 4
   e o `vNF` só abate `vICMSDeson` de item com `indDeduzDeson=1` e soma `vICMSMonoReten`. `tPag` 23, 24 e 91 valem na API e na UI.
   UI: CST do ICMS e `motDesICMS` seguem o XSD por CST (`ui/src/lib/data/is.ts`). `dhEmi` e o AAMM da chave usam o fuso da UF do emitente
   (`go-dfe/uftz`); CPF no emitente entra na chave como `000`+CPF; `dest/ISUF` sai de `person.isuf_emit` do destinatário.
+
+- **Portão de schema por tipo, padrão shadow (2026-11-09).** `dfecheck.Gate` sabe recusar em 422 `fiscal_prevalidation` os
+  achados deterministas do XSD (`required`, `choice_*`, `max_occurs`, `pattern`, `enum`, `length`, tamanhos) de NF-e, NFC-e,
+  CT-e, CT-e OS e MDF-e, e `GateEvent` os dos eventos (NF-e, CT-e, MDF-e), antes de gravar o evento, mas por decisão do dono o
+  padrão de todos os tipos é `shadow`: os achados só vão ao log e só o tamanho continua recusando, como antes. Rollout: shadow
+  primeiro, observar `dfecheck: achado pré-SEFAZ` em homologação, depois promover tipo a tipo com
+  `DFE_GATE_SCHEMA_<TIPO>=block` (ou `DFE_GATE_SCHEMA=block`); modos `off|shadow|warn|block`. Os testes de paridade provam que todo
+  corpo válido de builder tem zero achados (`events_parity_test.go`, `gate_schema_test.go`, `f3_test.go`), o que sustenta a
+  promoção. Recuar um tipo promovido: `shadow` na variável do Lambda, sem deploy de código.
+  `unknown_tag`, `attr_required` e os numéricos (`total_digits`, `fraction_digits`, `min/max_inclusive`) ficam fora: tag
+  desconhecida pode ser NT ainda sem XSD vendorizado (overlay) e os padrões TDec já cobrem casas e faixa. Mensagens trazem só
+  caminho XML e motivo (sem o valor, que pode ser PII). O `Mode` de regra do catálogo (26 block na NF-e) é metadado: a api só
+  recusa o que `blockRules` lista; promover as 26 (DV de CNPJ/CPF e GTIN, chave A03-10/B23-10) é decisão pendente, ver o relatório.
+  Validador: sequence opcional do XSD é tudo-ou-nada (`grp`/`greq` no spec) e elemento repetido em braços da mesma choice não conta
+  braço (IPI de `imposto`); regenerar os specs com `go run gen/main.go` (em `go-dfe/validate`) depois de mexer no gerador.

@@ -5,8 +5,9 @@
  * (`problem.FieldError`: `field`, `code`, `message`, `params`):
  * - `invalid_decimal`: número malformado num cadastro; `field` é a chave lida.
  * - `registration_incomplete`: cadastro sem um dado que o leiaute exige; `params.entity` diz qual.
- * - `fiscal_prevalidation`: regra do MOC em block (`fiscal_rule`, `params.rule`/`params.cstat`) ou texto fora do
- *   tamanho do leiaute (`too_long`/`too_short`, `params.entity`/`limit`/`got`/`item`/`xml_path`).
+ * - `fiscal_prevalidation`: regra do MOC em block (`fiscal_rule`, `params.rule`/`params.cstat`), texto fora do
+ *   tamanho do leiaute (`too_long`/`too_short`, `params.entity`/`limit`/`got`/`item`/`xml_path`) ou outro achado
+ *   do XSD (`schema_invalid`: padrão, enum, obrigatório, alternativa, ocorrência; `params.xml_path`/`reason`).
  *
  * O MDF-e (`api/internal/services/mdfes/prevalidate.go` e `emit.go`) usa o mesmo `fiscal_prevalidation` com as regras
  * da série F do MOC do MDF-e, mais `invalid_access_key` (chave de documento transportado, `params.access_key`) e o 422
@@ -32,6 +33,7 @@ const TAG_CPF_CNPJ = 'cpfcnpj';
 const FIELD_TOO_LONG = 'too_long';
 const FIELD_TOO_SHORT = 'too_short';
 const FIELD_FISCAL_RULE = 'fiscal_rule';
+const FIELD_SCHEMA_INVALID = 'schema_invalid';
 
 const EMIT_PROBLEM_CODES = new Set([
   PROBLEM_INVALID_DECIMAL, PROBLEM_REGISTRATION_INCOMPLETE, PROBLEM_FISCAL_PREVALIDATION, PROBLEM_INVALID_ACCESS_KEY,
@@ -231,6 +233,15 @@ function issueFrom(problemCode: string, e: ApiFieldError, doc: EmitDoc): EmitIss
       hint: family?.hint,
       target: family?.target ?? 'documento',
       field,
+    };
+  }
+
+  if (e.code === FIELD_SCHEMA_INVALID) {
+    // A api já escreve a frase em pt-BR com o caminho XML e o motivo, sem o valor recusado.
+    return {
+      text: `${e.message ?? field}.`,
+      hint: 'O documento montado não segue o leiaute oficial; confira o cadastro ou o campo apontado e emita de novo.',
+      target: 'documento', field,
     };
   }
 

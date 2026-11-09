@@ -6,9 +6,9 @@ package ctes
 
 import (
 	"context"
-	"time"
 
 	"gopkg.aoctech.app/dfe/api/internal/services"
+	"gopkg.aoctech.app/dfe/go-dfe/uftz"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
@@ -34,7 +34,7 @@ func (s *CteService) Complement(ctx context.Context, orgPK string, req CteComple
 		return nil, err
 	}
 	pk := services.EnvToPrefix(environment) + "#" + orgPK
-	now := time.Now()
+	now := uftz.Now(emit.Addr.UF)
 
 	origs := make([]*original, 0, len(req.OriginalKeys))
 	for _, k := range req.OriginalKeys {

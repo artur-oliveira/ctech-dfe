@@ -13,6 +13,7 @@ import (
 	"gopkg.aoctech.app/dfe/api/internal/services"
 	"gopkg.aoctech.app/dfe/api/internal/services/dfecheck"
 	"gopkg.aoctech.app/dfe/api/internal/validation"
+	"gopkg.aoctech.app/dfe/go-dfe/uftz"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/shopspring/decimal"
@@ -190,7 +191,7 @@ func validateModalPayload(modal string, req MdfeEmitBody) error {
 		if req.Rail == nil {
 			return problem.BadRequest("modal ferroviário exige os dados do trem (rail)")
 		}
-		if req.Rail.DhTrem != "" && normalizeDhTrem(req.Rail.DhTrem) == "" {
+		if req.Rail.DhTrem != "" && normalizeDhTrem(req.Rail.DhTrem, time.UTC) == "" {
 			return problem.BadRequest("data/hora do trem inválida; use AAAA-MM-DDThh:mm:ss com fuso em hora cheia")
 		}
 	case ModalAquaviario:
@@ -569,7 +570,7 @@ func (s *MdfeService) Emit(ctx context.Context, orgPK string, req MdfeEmitBody, 
 		return nil, err
 	}
 
-	now := time.Now()
+	now := uftz.Now(emitUF) // dhEmi e AAMM da chave são horário local da UF do emitente
 
 	infPag, err := s.resolveMdfePayments(ctx, orgPK, req.Payments, now)
 	if err != nil {

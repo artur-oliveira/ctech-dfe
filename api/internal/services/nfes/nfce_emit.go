@@ -13,6 +13,7 @@ import (
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"
 	"gopkg.aoctech.app/dfe/api/internal/services/dfecheck"
+	"gopkg.aoctech.app/dfe/go-dfe/uftz"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
@@ -39,6 +40,23 @@ const (
 	nfceTpNF     = "1" // saída
 )
 
+// tPag que a NFC-e não aceita (MOC YA02-10 e YA02-40).
+const (
+	tPagDuplicata    = "14"
+	tPagSemPagamento = "90"
+)
+
+// checkNfcePayments: YA02-10 (rejeição 857) e YA02-40 (rejeição 899), a SEFAZ recusa tPag 14 e 90 no
+// modelo 65; recusar aqui antes de gastar número e cota.
+func checkNfcePayments(payments []NfePaymentItem) error {
+	for _, p := range payments {
+		if p.PaymentType == tPagDuplicata || p.PaymentType == tPagSemPagamento {
+			return problem.BadRequest("meio de pagamento " + p.PaymentType + " não é permitido em NFC-e (YA02-10 e YA02-40)")
+		}
+	}
+	return nil
+}
+
 // Emit resolves NFC-e data, builds the enviNFe (modelo 65) with QR Code,
 // reserves a fiscal number, persists the record, and dispatches to the worker.
 func (s *NfceService) Emit(ctx context.Context, orgPK string, req NfceEmitBody, userID, userName string) (_ map[string]types.AttributeValue, err error) {
@@ -49,6 +67,10 @@ func (s *NfceService) Emit(ctx context.Context, orgPK string, req NfceEmitBody, 
 	}
 	if len(req.Payments) == 0 {
 		return nil, problem.BadRequest("pelo menos uma forma de pagamento é obrigatória")
+	}
+
+	if err := checkNfcePayments(req.Payments); err != nil {
+		return nil, err
 	}
 
 	// Consumer is optional; when present it must be a CPF (pessoa física).
@@ -96,7 +118,11 @@ func (s *NfceService) Emit(ctx context.Context, orgPK string, req NfceEmitBody, 
 	envPrefix := envToPrefix(environment)
 	serie := intAttr(configItem, fmt.Sprintf("%s_current_serie", envPrefix), 1)
 	currentNumber := intAttr(configItem, fmt.Sprintf("%s_current_number", envPrefix), 0)
-	cscID := fmt.Sprintf("%d", intAttr(configItem, fmt.Sprintf("%s_csc_id", envPrefix), 0))
+	// Id ausente fica "", não "0": buildNFCeSupl recusa o QR v2 sem id em vez de montar idCSC=0.
+	cscID := ""
+	if id := intAttr(configItem, fmt.Sprintf("%s_csc_id", envPrefix), 0); id > 0 {
+		cscID = fmt.Sprintf("%d", id)
+	}
 	csc := strAttr(configItem, fmt.Sprintf("%s_csc", envPrefix))
 	qrVersion := intAttr(configItem, "qr_code_version", qrCodeVersionV2)
 
@@ -149,7 +175,8 @@ func (s *NfceService) Emit(ctx context.Context, orgPK string, req NfceEmitBody, 
 		return nil, err
 	}
 
-	now := time.Now()
+	// dhEmi, AAMM da chave e dia do QR offline são do fuso da UF do emitente (Manual 3.1.7; auditoria NFC-e M2).
+	now := uftz.Now(emitUF)
 	accessKey, err := generateAccessKey(orgPK, orgItem, serie, currentNumber, now, nfModel65, mode.TpEmis)
 	if err != nil {
 		return nil, err

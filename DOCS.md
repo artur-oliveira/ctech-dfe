@@ -175,8 +175,13 @@ DAMDFE (58) and DACTE (57) from the stored authorized XML. It uses Folio for HTM
 the embedded templates, and pure-Go QR/CODE-128 generation. There is no Lambda,
 certificate, browser process, or external asset fetch in this path.
 
+DANFC-e (Manual DANFE NFC-e 6.0): emission date and time always printed, in the issuer UF clock (`go-dfe/uftz`); QR of 28 mm with
+a 10% quiet zone (`qrDataURIQuiet`); "Acréscimos" = vFrete + vSeg + vOutro; `vUnCom` and `qCom` keep the XML decimals; an offline
+(`tpEmis=9`) NFC-e that already has an `infProt` (cStat 100/150) prints the protocol and drops the "pendente" banner. NFC-e
+issuance omits IPI, II, PISST, COFINSST, `veicProd` and `arma` and refuses tPag 14 and 90 (YA02-10, YA02-40).
+
 The first request performs `HeadObject`, renders on a miss, and stores the PDF at
-`{org_pk}/pdfs/v2/{nfe|nfce|mdfe|cte}/{access_key}-{state}[-{format}].pdf` with the tag
+`{org_pk}/pdfs/v3/{nfe|nfce|mdfe|cte}/{access_key}-{state}[-{format}].pdf` with the tag
 `cache=auxiliary-document`. `If-None-Match: *` avoids overwrite races and
 `singleflight` coalesces misses inside one API process. The S3 lifecycle expires
 tagged current versions after 30 days and noncurrent versions after one day.
@@ -1703,8 +1708,10 @@ Regras em block: exterior (E03a-10/20/30/60, E10-30, E12-10, E14-30, E16a-20, E1
 `idDest` (I08-30/40/50), isento (E16a-30, E17-30), crédito/débito (B25-30, B25-65, B25-80, B25-100, B25-110, B25-120,
 B25.1-10/20, B25.2-10/20/30/40) e pagamento (YA03-20 866, YA09-10 869, YA03-30 904; YA03-10 865 só na NFC-e, porque o
 MOC marca o modelo 55 como implementação futura). Regras facultativas (E14-10, E14-20, I08-60) ficam no shadow.
-O tamanho vem do schema gerado dos XSDs (`dfecheck.Gate`, códigos `min_length`/`max_length`); o valor nunca é
-truncado. Na NFC-e o `vTroco` é a soma dos `vPag` menos o `vNF` do documento montado (`setTroco`), e o total gravado é
+O schema gerado dos XSDs também recusa (ver "Portão de schema" em go-dfe/validate): tamanho com `too_long`/`too_short`, e
+os demais achados deterministas com `code` `schema_invalid` (`field` = caminho XML, `params.xml_path`, `params.reason` =
+`pattern`/`enum`/`required`/`choice_conflict`/`choice_missing`/`max_occurs`/`length`; a mensagem em pt-BR nomeia caminho e
+motivo, nunca o valor recusado). O valor nunca é truncado. Na NFC-e o `vTroco` é a soma dos `vPag` menos o `vNF` do documento montado (`setTroco`), e o total gravado é
 o `vNF`.
 
 **Canal de venda (`ide/indIntermed` + `infNFe/infIntermed`).** É a operação que diz o canal, não a
@@ -2636,16 +2643,29 @@ Pacote `go-dfe/validate` valida o dicionário que os builders produzem antes de 
   `specs/evento_{cte,mdfe}_<grupo>.json`, raiz `evXxx`) e o envelope (`evento_nfe_envEvento`, `evento_cte_eventoCTe`,
   `evento_mdfe_eventoMDFe`), a partir dos XSDs de evento vendorizados em `go-dfe/schemas` (README e `SHA256SUMS` lá).
   `base64Binary` conta bytes decodificados (hash SHA-1 de 28 caracteres = 20 bytes). `dfecheck.EventFindings`/`ShadowEvent`
-  validam envelope e detEvento do corpo que o builder produz (shadow nos despachos de evento de NF-e, CT-e e MDF-e; nunca
-  bloqueia). Testes de paridade: `events_parity_test.go` em `api/internal/services/{nfes,ctes,mdfes}` e
+  validam envelope e detEvento do corpo que o builder produz (shadow nos despachos de evento de NF-e, CT-e e MDF-e).
+  `dfecheck.GateEvent` + `EventProblem` recusam (em modo `block`; no padrão shadow só registram) o corpo de evento fora do XSD com 422 `fiscal_prevalidation` antes de gravar
+  o evento (NF-e: `gateNFeEvent`; CT-e e MDF-e: início de `dispatchEvent`), no modo `nfe_event`/`cte_event`/`mdfe_event`. Testes de paridade: `events_parity_test.go` em `api/internal/services/{nfes,ctes,mdfes}` e
   `TestXSDOrderMatchesEventSpecs` em `go-dfe/validate`. Eventos sem XSD vendorizado: NF-e 110130, 110131, 110150, 110300.
 - **Integração (shadow)**: `api/internal/services/dfecheck` valida o documento no emit de NF-e, NFC-e e MDF-e e só
   registra no log (`dfecheck: achado pré-SEFAZ`); nunca bloqueia nem devolve erro. **Portão (block)**:
   `dfecheck.Gate`/`GateEnviNFe`/`GateMDFe` devolve só as regras que o chamador promove a `block` (listas em
-  `api/internal/services/nfes/prevalidate.go` e `api/internal/services/mdfes/prevalidate.go`) e os achados de tamanho (`min_length`/`max_length`, com `Limit` e `Got`
-  na `Violation`); falha aberto se o validador quebrar. `Spec.Lengths(path)` expõe os tamanhos do leiaute, e
+  `api/internal/services/{nfes,ctes,mdfes}/prevalidate.go`) e os achados de schema que o modo do tipo promove
+  (`dfecheck.SchemaMode`, ver abaixo; `Limit` e `Got` na `Violation` de tamanho); falha aberto se o validador quebrar.
+  **Portão de schema, por tipo** (`dfecheck.Kind`: `nfe`, `nfce`, `cte`, `cteos`, `mdfe`, `nfe_event`, `cte_event`,
+  `mdfe_event`). **Padrão de todos: `shadow`** (decisão do dono, 2026-11-09; rollout shadow primeiro, depois promover tipo a tipo
+  com `DFE_GATE_SCHEMA_<TIPO>=block`). Modo `block` recusa `required`, `choice_conflict`, `choice_missing`, `max_occurs`,
+  `pattern`, `enum`, `length`, `min_length` e `max_length`; `shadow` (padrão) e `warn` recusam só tamanho (a política
+  anterior) e mandam o resto ao log `dfecheck: achado pré-SEFAZ` (caminho e motivo, sem o valor); `off` não recusa nada. Fora de block em qualquer modo: `unknown_tag` (aviso; o overlay das NTs pode estar
+  atrás do XSD), `attr_required`, `total_digits`, `fraction_digits`, `min_inclusive`, `max_inclusive`. Interruptor sem
+  deploy de código: `DFE_GATE_SCHEMA_<TIPO>` (por exemplo `DFE_GATE_SCHEMA_NFCE=shadow`) ou `DFE_GATE_SCHEMA` para os
+  tipos sem variável própria; valor desconhecido é ignorado. A escolha das regras do MOC em block continua por id nos
+  `blockRules` (o `Mode` do catálogo é só o padrão da regra: a api só recusa o que o mapa lista; o teste
+  `TestBlockRulesExistInCatalog` garante que todo id do mapa existe). `Spec.Lengths(path)` expõe os tamanhos do leiaute, e
   `api/internal/api/v1/dto_layout_limits_test.go` compara com eles as tags dos DTOs de cadastro. Subir uma regra a warn/block é
-  decisão por regra depois de observar o log em produção. Os modais do MDF-e (rodo, aereo, aquav, ferrov) são validados com esquema próprio. O CT-e (`dfecheck.ShadowCTe`) valida o `<CTe>` e o modal `rodo` (`cte_rodo`); as regras do CT-e recebem o `<CTe>` como as das outras famílias.
+  decisão por regra depois de observar o log em produção. Os modais do MDF-e (rodo, aereo, aquav, ferrov) são validados com esquema próprio. Validador (F-12/F-13): o gerador marca cada filho de `sequence minOccurs=0` com `grp` (grupo) e `greq` (obrigatório do
+  grupo); o validador exige os `greq` quando algum irmão do grupo aparece (tudo-ou-nada, ex. `pRedBCEfet,vBCEfet,pICMSEfet,vICMSEfet`
+  do ICMS60). Elemento com o mesmo nome em braços diferentes da mesma choice (`IPI` em `imposto`) não escolhe braço. O CT-e (`dfecheck.ShadowCTe`) valida o `<CTe>` e o modal `rodo` (`cte_rodo`); as regras do CT-e recebem o `<CTe>` como as das outras famílias.
 
 ## 5. ui — Frontend
 

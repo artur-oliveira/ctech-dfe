@@ -72,13 +72,17 @@ export const mdfeConfigSchema = z.object({
 export const QR_CODE_VERSIONS = ['2', '3'] as const;
 export const QR_CODE_VERSION_WITHOUT_CSC = '3';
 
+// Manual DANFE NFC-e 4.6: CSC de 16 a 36 caracteres alfanuméricos; id de até 6 dígitos.
+const cscField = z.string().regex(/^([A-Za-z0-9]{16,36})?$/, 'CSC com 16 a 36 letras e números');
+const cscIdField = z.string().regex(/^\d{0,6}$/, 'ID do CSC inválido (até 6 dígitos)');
+
 export const nfceConfigSchema = z.object({
   ...baseFields,
   qr_code_version: z.enum(QR_CODE_VERSIONS),
-  prod_csc: z.string().max(36, 'Máximo 36 caracteres'),
-  prod_csc_id: z.string().regex(/^\d*$/, 'ID do CSC inválido'),
-  hom_csc: z.string().max(36, 'Máximo 36 caracteres'),
-  hom_csc_id: z.string().regex(/^\d*$/, 'ID do CSC inválido'),
+  prod_csc: cscField,
+  prod_csc_id: cscIdField,
+  hom_csc: cscField,
+  hom_csc_id: cscIdField,
 }).superRefine((v, ctx) => {
   // Espelha o backend: o CSC só é obrigatório quando o QR Code não é o da versão 3.
   if (v.qr_code_version === QR_CODE_VERSION_WITHOUT_CSC) return;

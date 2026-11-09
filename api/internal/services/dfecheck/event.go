@@ -1,9 +1,11 @@
 package dfecheck
 
 import (
+	"fmt"
 	"log/slog"
 	"strings"
 
+	"gopkg.aoctech.app/api-commons/problem"
 	"gopkg.aoctech.app/dfe/go-dfe/validate"
 )
 
@@ -75,4 +77,73 @@ func ShadowEvent(doc, accessKey string, body map[string]any) (found []validate.V
 			"path", v.Path, "code", v.Code)
 	}
 	return found
+}
+
+// GateEvent é o portão do corpo de evento (NF-e, CT-e, MDF-e): os achados de schema que o modo de KindXEvent
+// recusa (blocks). Os eventos não têm regras de catálogo. Falha aberta como Gate.
+func GateEvent(doc string, body map[string]any) (found []validate.Violation) {
+	defer func() {
+		if r := recover(); r != nil {
+			slog.Error("dfecheck: portão de evento falhou", "doc", doc, "panic", r)
+			found = nil
+		}
+	}()
+	mode := SchemaMode(Kind(doc + "_event"))
+	for _, v := range EventFindings(doc, body) {
+		if blocks(mode, v.Code) {
+			found = append(found, v)
+		}
+	}
+	return found
+}
+
+// EventProblem monta o 422 fiscal_prevalidation dos achados do portão de evento, ou nil sem achados. label é o
+// documento em pt-BR ("a NF-e"); só caminho e motivo vão na mensagem, nunca o valor recusado.
+func EventProblem(label string, found []validate.Violation) error {
+	if len(found) == 0 {
+		return nil
+	}
+	return problem.UnprocessableEntityFields(
+		"o evento de "+label+" não passa nas validações do leiaute; corrija os itens apontados antes de enviar",
+		SchemaFieldErrors(found)...,
+	).WithCode(CodeFiscalPrevalidation)
+}
+
+// SchemaFieldErrors converte achados de schema em errors[] (field = caminho XML, code = código do achado do
+// validador ou too_long/too_short, params xml_path, mais limit/got nos de tamanho). Mensagem em pt-BR sem o valor.
+func SchemaFieldErrors(found []validate.Violation) []problem.FieldError {
+	errs := make([]problem.FieldError, 0, len(found))
+	for _, v := range found {
+		errs = append(errs, SchemaFieldError(v))
+	}
+	return errs
+}
+
+// SchemaFieldError traduz um achado de schema (nunca de regra) em FieldError.
+func SchemaFieldError(v validate.Violation) problem.FieldError {
+	switch v.Code {
+	case validate.CodeMaxLength:
+		return problem.Field(v.Path, FieldCodeTooLong,
+			fmt.Sprintf("%s tem %d caracteres; o leiaute aceita no máximo %d", v.Path, v.Got, v.Limit),
+			"xml_path", v.Path, "limit", v.Limit, "got", v.Got)
+	case validate.CodeMinLength:
+		return problem.Field(v.Path, FieldCodeTooShort,
+			fmt.Sprintf("%s tem %d caracteres; o leiaute aceita ao menos %d", v.Path, v.Got, v.Limit),
+			"xml_path", v.Path, "limit", v.Limit, "got", v.Got)
+	}
+	reasons := map[string]string{
+		validate.CodeRequired:       "campo obrigatório ausente no leiaute",
+		validate.CodeChoiceConflict: "só uma das alternativas do leiaute pode ser informada",
+		validate.CodeChoiceMissing:  "falta informar uma das alternativas do leiaute",
+		validate.CodeMaxOccurs:      "repetido mais vezes do que o leiaute permite",
+		validate.CodePattern:        "valor fora do formato do leiaute",
+		validate.CodeEnum:           "valor fora da lista permitida pelo leiaute",
+		validate.CodeLength:         "tamanho diferente do exigido pelo leiaute",
+	}
+	reason := reasons[v.Code]
+	if reason == "" {
+		reason = "fora do leiaute"
+	}
+	return problem.Field(v.Path, FieldCodeSchema, fmt.Sprintf("%s: %s", v.Path, reason),
+		"xml_path", v.Path, "reason", v.Code, "limit", v.Limit, "got", v.Got)
 }

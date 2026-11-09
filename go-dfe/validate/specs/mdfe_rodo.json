@@ -704,6 +704,8 @@
        "n": "IE",
        "min": 0,
        "max": 1,
+       "grp": 7,
+       "greq": true,
        "s": {
         "base": "string",
         "pattern": [
@@ -715,6 +717,8 @@
        "n": "UF",
        "min": 0,
        "max": 1,
+       "grp": 7,
+       "greq": true,
        "s": {
         "base": "string",
         "enum": [
@@ -957,7 +961,7 @@
        "n": "CPF",
        "min": 1,
        "max": 1,
-       "choice": 7,
+       "choice": 8,
        "arm": 1,
        "s": {
         "base": "string",
@@ -970,7 +974,7 @@
        "n": "CNPJ",
        "min": 1,
        "max": 1,
-       "choice": 7,
+       "choice": 8,
        "arm": 2,
        "s": {
         "base": "string",
@@ -1007,6 +1011,8 @@
        "n": "IE",
        "min": 0,
        "max": 1,
+       "grp": 9,
+       "greq": true,
        "s": {
         "base": "string",
         "pattern": [
@@ -1018,6 +1024,8 @@
        "n": "UF",
        "min": 0,
        "max": 1,
+       "grp": 9,
+       "greq": true,
        "s": {
         "base": "string",
         "enum": [
@@ -1068,7 +1076,7 @@
      ],
      "choices": [
       {
-       "id": 7,
+       "id": 8,
        "min": 1
       }
      ]

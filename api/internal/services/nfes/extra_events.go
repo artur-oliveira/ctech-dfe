@@ -217,7 +217,9 @@ func (s *NfeService) dispatchExtraEvent(
 	ctx context.Context, ectx *nfeEventContext, nfe map[string]types.AttributeValue, uf string,
 	accessKey, eventType string, seq int, body map[string]any, userID, userName string,
 ) (map[string]types.AttributeValue, error) {
-	shadowNFeEvent(accessKey, body)
+	if _, err := gateNFeEvent(accessKey, body); err != nil {
+		return nil, err
+	}
 	event, err := s.eventRepo.CreateEvent(ctx, accessKey, eventType, seq, StatusPending, nil, nil, nil, userID, userName)
 	if err != nil {
 		return nil, err
@@ -241,8 +243,12 @@ func (s *NfeService) dispatchExtraEvent(
 	return nfe, nil
 }
 
-// shadowNFeEvent confere o corpo do evento contra o XSD e só registra (nunca bloqueia); devolve o corpo.
-func shadowNFeEvent(accessKey string, body map[string]any) map[string]any {
+// gateNFeEvent registra os achados do corpo do evento (shadow) e recusa com 422 fiscal_prevalidation os de schema
+// que o modo de dfecheck.KindNFeEvent promove a block; devolve o corpo. Chamar antes de gravar o evento.
+func gateNFeEvent(accessKey string, body map[string]any) (map[string]any, error) {
 	dfecheck.ShadowEvent("nfe", accessKey, body)
-	return body
+	if err := dfecheck.EventProblem("NF-e", dfecheck.GateEvent("nfe", body)); err != nil {
+		return nil, err
+	}
+	return body, nil
 }

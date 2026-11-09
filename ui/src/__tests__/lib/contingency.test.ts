@@ -69,9 +69,16 @@ describe('nfceConfigSchema: CSC e versão do QR Code', () => {
     expect(nfceConfigSchema.safeParse({...base, qr_code_version: '3'}).success).toBe(true);
   });
 
+  it('CSC fora de 16 a 36 alfanuméricos ou id com mais de 6 dígitos falha (Manual 4.6)', () => {
+    const ok = {...base, qr_code_version: '2', prod_csc: 'ABCDEF0123456789', prod_csc_id: '1', hom_csc: 'ABCDEF0123456789', hom_csc_id: '1'};
+    expect(nfceConfigSchema.safeParse({...ok, prod_csc: 'ABC'}).success).toBe(false);
+    expect(nfceConfigSchema.safeParse({...ok, hom_csc: 'ABCDEF-123456789'}).success).toBe(false);
+    expect(nfceConfigSchema.safeParse({...ok, prod_csc_id: '1234567'}).success).toBe(false);
+  });
+
   it('versão 2 com CSC completo passa', () => {
     expect(nfceConfigSchema.safeParse({
-      ...base, qr_code_version: '2', prod_csc: 'A', prod_csc_id: '1', hom_csc: 'B', hom_csc_id: '1',
+      ...base, qr_code_version: '2', prod_csc: 'ABCDEF0123456789', prod_csc_id: '1', hom_csc: 'FEDCBA9876543210', hom_csc_id: '1',
     }).success).toBe(true);
   });
 });

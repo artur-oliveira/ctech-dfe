@@ -525,6 +525,8 @@
        "n": "dhCont",
        "min": 0,
        "max": 1,
+       "grp": 1,
+       "greq": true,
        "s": {
         "base": "string",
         "pattern": [
@@ -536,6 +538,8 @@
        "n": "xJust",
        "min": 0,
        "max": 1,
+       "grp": 1,
+       "greq": true,
        "s": {
         "base": "string",
         "pattern": [
@@ -1045,7 +1049,7 @@
        "n": "CNPJ",
        "min": 1,
        "max": 1,
-       "choice": 1,
+       "choice": 2,
        "arm": 1,
        "s": {
         "base": "string",
@@ -1058,7 +1062,7 @@
        "n": "CPF",
        "min": 1,
        "max": 1,
-       "choice": 1,
+       "choice": 2,
        "arm": 2,
        "s": {
         "base": "string",
@@ -1288,7 +1292,7 @@
      ],
      "choices": [
       {
-       "id": 1,
+       "id": 2,
        "min": 1
       }
      ]
@@ -1378,7 +1382,7 @@
          "n": "ICMS00",
          "min": 1,
          "max": 1,
-         "choice": 2,
+         "choice": 3,
          "arm": 1,
          "c": [
           {
@@ -1431,7 +1435,7 @@
          "n": "ICMS20",
          "min": 1,
          "max": 1,
-         "choice": 2,
+         "choice": 3,
          "arm": 2,
          "c": [
           {
@@ -1493,6 +1497,8 @@
            "n": "vICMSDeson",
            "min": 0,
            "max": 1,
+           "grp": 4,
+           "greq": true,
            "s": {
             "base": "string",
             "pattern": [
@@ -1504,6 +1510,8 @@
            "n": "cBenef",
            "min": 0,
            "max": 1,
+           "grp": 4,
+           "greq": true,
            "s": {
             "base": "string",
             "pattern": [
@@ -1518,7 +1526,7 @@
          "n": "ICMS45",
          "min": 1,
          "max": 1,
-         "choice": 2,
+         "choice": 3,
          "arm": 3,
          "c": [
           {
@@ -1538,6 +1546,8 @@
            "n": "vICMSDeson",
            "min": 0,
            "max": 1,
+           "grp": 5,
+           "greq": true,
            "s": {
             "base": "string",
             "pattern": [
@@ -1549,6 +1559,8 @@
            "n": "cBenef",
            "min": 0,
            "max": 1,
+           "grp": 5,
+           "greq": true,
            "s": {
             "base": "string",
             "pattern": [
@@ -1563,7 +1575,7 @@
          "n": "ICMS90",
          "min": 1,
          "max": 1,
-         "choice": 2,
+         "choice": 3,
          "arm": 4,
          "c": [
           {
@@ -1636,6 +1648,8 @@
            "n": "vICMSDeson",
            "min": 0,
            "max": 1,
+           "grp": 6,
+           "greq": true,
            "s": {
             "base": "string",
             "pattern": [
@@ -1647,6 +1661,8 @@
            "n": "cBenef",
            "min": 0,
            "max": 1,
+           "grp": 6,
+           "greq": true,
            "s": {
             "base": "string",
             "pattern": [
@@ -1661,7 +1677,7 @@
          "n": "ICMSOutraUF",
          "min": 1,
          "max": 1,
-         "choice": 2,
+         "choice": 3,
          "arm": 5,
          "c": [
           {
@@ -1723,6 +1739,8 @@
            "n": "vICMSDeson",
            "min": 0,
            "max": 1,
+           "grp": 7,
+           "greq": true,
            "s": {
             "base": "string",
             "pattern": [
@@ -1734,6 +1752,8 @@
            "n": "cBenef",
            "min": 0,
            "max": 1,
+           "grp": 7,
+           "greq": true,
            "s": {
             "base": "string",
             "pattern": [
@@ -1748,7 +1768,7 @@
          "n": "ICMSSN",
          "min": 1,
          "max": 1,
-         "choice": 2,
+         "choice": 3,
          "arm": 6,
          "c": [
           {
@@ -1779,7 +1799,7 @@
          "n": "gICMSPrevistoPagtoAntecip",
          "min": 1,
          "max": 1,
-         "choice": 2,
+         "choice": 3,
          "arm": 7,
          "c": [
           {
@@ -1798,7 +1818,7 @@
        ],
        "choices": [
         {
-         "id": 2,
+         "id": 3,
          "min": 1
         }
        ]
@@ -2769,7 +2789,7 @@
      "n": "infCTeNorm",
      "min": 1,
      "max": 1,
-     "choice": 3,
+     "choice": 8,
      "arm": 1,
      "c": [
       {
@@ -2819,7 +2839,7 @@
          "n": "nDoc",
          "min": 1,
          "max": 1,
-         "choice": 4,
+         "choice": 9,
          "arm": 1,
          "s": {
           "base": "string",
@@ -2834,7 +2854,7 @@
          "n": "serie",
          "min": 0,
          "max": 1,
-         "choice": 4,
+         "choice": 9,
          "arm": 1,
          "s": {
           "base": "string",
@@ -2849,7 +2869,7 @@
          "n": "subserie",
          "min": 0,
          "max": 1,
-         "choice": 4,
+         "choice": 9,
          "arm": 1,
          "s": {
           "base": "string",
@@ -2864,7 +2884,7 @@
          "n": "dEmi",
          "min": 1,
          "max": 1,
-         "choice": 4,
+         "choice": 9,
          "arm": 1,
          "s": {
           "base": "string",
@@ -2877,7 +2897,7 @@
          "n": "vDoc",
          "min": 0,
          "max": 1,
-         "choice": 4,
+         "choice": 9,
          "arm": 1,
          "s": {
           "base": "string",
@@ -2890,7 +2910,7 @@
          "n": "chBPe",
          "min": 1,
          "max": 1,
-         "choice": 4,
+         "choice": 9,
          "arm": 2,
          "s": {
           "base": "string",
@@ -2903,7 +2923,7 @@
        ],
        "choices": [
         {
-         "id": 4,
+         "id": 9,
          "min": 1
         }
        ]
@@ -3185,7 +3205,7 @@
      "n": "infCteComp",
      "min": 1,
      "max": 10,
-     "choice": 3,
+     "choice": 8,
      "arm": 2,
      "c": [
       {
@@ -3211,7 +3231,7 @@
        "n": "CNPJ",
        "min": 1,
        "max": 1,
-       "choice": 5,
+       "choice": 10,
        "arm": 1,
        "s": {
         "base": "string",
@@ -3224,7 +3244,7 @@
        "n": "CPF",
        "min": 1,
        "max": 1,
-       "choice": 5,
+       "choice": 10,
        "arm": 2,
        "s": {
         "base": "string",
@@ -3236,7 +3256,7 @@
      ],
      "choices": [
       {
-       "id": 5,
+       "id": 10,
        "min": 1
       }
      ]
@@ -3298,6 +3318,8 @@
        "n": "idCSRT",
        "min": 0,
        "max": 1,
+       "grp": 11,
+       "greq": true,
        "s": {
         "base": "string",
         "pattern": [
@@ -3309,6 +3331,8 @@
        "n": "hashCSRT",
        "min": 0,
        "max": 1,
+       "grp": 11,
+       "greq": true,
        "s": {
         "base": "base64Binary",
         "len": 20
@@ -3319,7 +3343,7 @@
    ],
    "choices": [
     {
-     "id": 3,
+     "id": 8,
      "min": 1
     }
    ]

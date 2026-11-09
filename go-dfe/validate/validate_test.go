@@ -140,3 +140,81 @@ func TestLengthsAndSizedViolation(t *testing.T) {
 	}
 	t.Fatal("max_length de dest/xNome não encontrado")
 }
+
+func impostoDoc(imp map[string]any) map[string]any {
+	return map[string]any{"infNFe": map[string]any{"det": []any{map[string]any{"imposto": imp}}}}
+}
+
+func findingsAt(t *testing.T, imp map[string]any, _ string) map[string]bool {
+	t.Helper()
+	s, err := Load("nfe")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]bool{}
+	for _, v := range s.Validate(impostoDoc(imp), Options{Skip: []string{"Signature"}}) {
+		if strings.Contains(v.Path, "/imposto") {
+			got[strings.TrimPrefix(v.Path, "NFe/infNFe/det/imposto")+"|"+v.Code] = true
+		}
+	}
+	return got
+}
+
+// F-12: IPI existe nos dois braços da choice de imposto (ICMS,IPI?,II? | IPI?,ISSQN); sozinho ele não escolhe braço.
+func TestChoiceSharedElementIPIIsNotAConflict(t *testing.T) {
+	for _, ipi := range []map[string]any{
+		{"cEnq": "999", "IPITrib": map[string]any{"CST": "50", "vBC": "100.00", "pIPI": "5.0000", "vIPI": "5.00"}},
+		{"cEnq": "999", "IPINT": map[string]any{"CST": "53"}},
+	} {
+		imp := map[string]any{"ICMS": map[string]any{"ICMSSN102": map[string]any{"orig": "0", "CSOSN": "102"}}, "IPI": ipi}
+		if got := findingsAt(t, imp, ""); got["|choice_conflict"] || got["|choice_missing"] {
+			t.Errorf("ICMS + IPI é válido: %v", got)
+		}
+		// ISSQN + IPI (braço 2) também.
+		imp = map[string]any{"IPI": ipi, "ISSQN": map[string]any{"vBC": "1.00"}}
+		if got := findingsAt(t, imp, ""); got["|choice_conflict"] {
+			t.Errorf("IPI + ISSQN é válido: %v", got)
+		}
+	}
+	// Conflito real continua: ICMS (braço 1) com ISSQN (braço 2).
+	imp := map[string]any{"ICMS": map[string]any{"ICMSSN102": map[string]any{"orig": "0", "CSOSN": "102"}}, "ISSQN": map[string]any{"vBC": "1.00"}}
+	if got := findingsAt(t, imp, ""); !got["|choice_conflict"] {
+		t.Errorf("ICMS com ISSQN deve conflitar: %v", got)
+	}
+}
+
+// F-13 (e F-03 da NF-e): sequência opcional do XSD é tudo-ou-nada. Os dois grupos incompletos do ICMS60 saem
+// do construtor antigo: pICMSEfet sem pRedBCEfet e vBCSTRet sem pST.
+func TestOptionalSequenceAllOrNothing(t *testing.T) {
+	icms := func(f map[string]any) map[string]any {
+		f["orig"], f["CST"] = "0", "60"
+		return map[string]any{"ICMS": map[string]any{"ICMS60": f}}
+	}
+	got := findingsAt(t, icms(map[string]any{"pICMSEfet": "12.00", "vBCEfet": "100.00", "vICMSEfet": "12.00"}), "")
+	if !got["/ICMS/ICMS60/pRedBCEfet|required"] {
+		t.Errorf("grupo Efet sem pRedBCEfet: %v", got)
+	}
+	got = findingsAt(t, icms(map[string]any{"vBCSTRet": "100.00", "vICMSSTRet": "18.00"}), "")
+	if !got["/ICMS/ICMS60/pST|required"] {
+		t.Errorf("grupo STRet sem pST: %v", got)
+	}
+	// Grupos inteiros e grupo ausente: nenhum achado.
+	ok := icms(map[string]any{"vBCSTRet": "100.00", "pST": "18.00", "vICMSSTRet": "18.00",
+		"pRedBCEfet": "0.00", "vBCEfet": "100.00", "pICMSEfet": "12.00", "vICMSEfet": "12.00"})
+	for k := range findingsAt(t, ok, "") {
+		if strings.HasSuffix(k, "|required") {
+			t.Errorf("grupo completo não pode acusar: %s", k)
+		}
+	}
+	for k := range findingsAt(t, icms(map[string]any{}), "") {
+		if strings.HasSuffix(k, "|required") {
+			t.Errorf("grupo ausente não pode acusar: %s", k)
+		}
+	}
+	// Grupo aninhado (ICMS90: vICMSOp, pDif, vICMSDif dentro do grupo de modBC) tem o seu próprio tudo-ou-nada.
+	got = findingsAt(t, map[string]any{"ICMS": map[string]any{"ICMS90": map[string]any{"orig": "0", "CST": "90",
+		"modBC": "3", "vBC": "1.00", "pICMS": "1.00", "vICMS": "0.01", "vICMSOp": "1.00"}}}, "")
+	if !got["/ICMS/ICMS90/pDif|required"] || !got["/ICMS/ICMS90/vICMSDif|required"] {
+		t.Errorf("grupo aninhado de diferimento: %v", got)
+	}
+}

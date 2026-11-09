@@ -35,8 +35,6 @@ func mocDoc(t *testing.T, cfg map[string]any) (imposto, total map[string]any) {
 		switch v.Code {
 		case "required", "choice_missing", "rule":
 			continue
-		case "choice_conflict": // F-12: falso positivo do validador em todo item com IPI (outro escopo)
-			continue
 		}
 		t.Errorf("esquema: %s %s: %s", v.Path, v.Code, v.Message)
 	}

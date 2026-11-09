@@ -8,7 +8,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	"gopkg.aoctech.app/api-commons/problem"
 	"gopkg.aoctech.app/dfe/api/internal/awsclient"
@@ -358,12 +357,6 @@ func extractEmitUF(org map[string]types.AttributeValue) string {
 		}
 	}
 	return ""
-}
-
-// dhEvento returns the current time in BRT with offset, as required by SEFAZ events.
-func dhEvento() string {
-	brt := time.FixedZone("BRT", -3*60*60)
-	return time.Now().In(brt).Format("2006-01-02T15:04:05-07:00")
 }
 
 // envPrefixFromPK extracts the environment prefix ("prod"/"hom") from a doc PK.

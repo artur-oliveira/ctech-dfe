@@ -136,6 +136,8 @@
        "n": "IE",
        "min": 0,
        "max": 1,
+       "grp": 4,
+       "greq": true,
        "s": {
         "base": "string",
         "pattern": [
@@ -148,6 +150,8 @@
        "n": "UF",
        "min": 0,
        "max": 1,
+       "grp": 4,
+       "greq": true,
        "s": {
         "base": "string",
         "enum": [

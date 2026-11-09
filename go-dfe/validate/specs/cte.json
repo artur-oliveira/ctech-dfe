@@ -804,6 +804,8 @@
        "n": "dhCont",
        "min": 0,
        "max": 1,
+       "grp": 3,
+       "greq": true,
        "s": {
         "base": "string",
         "pattern": [
@@ -815,6 +817,8 @@
        "n": "xJust",
        "min": 0,
        "max": 1,
+       "grp": 3,
+       "greq": true,
        "s": {
         "base": "string",
         "pattern": [
@@ -1063,7 +1067,7 @@
          "n": "semData",
          "min": 1,
          "max": 1,
-         "choice": 3,
+         "choice": 4,
          "arm": 1,
          "c": [
           {
@@ -1083,7 +1087,7 @@
          "n": "comData",
          "min": 1,
          "max": 1,
-         "choice": 3,
+         "choice": 4,
          "arm": 2,
          "c": [
           {
@@ -1116,7 +1120,7 @@
          "n": "noPeriodo",
          "min": 1,
          "max": 1,
-         "choice": 3,
+         "choice": 4,
          "arm": 3,
          "c": [
           {
@@ -1158,7 +1162,7 @@
          "n": "semHora",
          "min": 1,
          "max": 1,
-         "choice": 4,
+         "choice": 5,
          "arm": 1,
          "c": [
           {
@@ -1178,7 +1182,7 @@
          "n": "comHora",
          "min": 1,
          "max": 1,
-         "choice": 4,
+         "choice": 5,
          "arm": 2,
          "c": [
           {
@@ -1211,7 +1215,7 @@
          "n": "noInter",
          "min": 1,
          "max": 1,
-         "choice": 4,
+         "choice": 5,
          "arm": 3,
          "c": [
           {
@@ -1252,11 +1256,11 @@
        ],
        "choices": [
         {
-         "id": 3,
+         "id": 4,
          "min": 1
         },
         {
-         "id": 4,
+         "id": 5,
          "min": 1
         }
        ]
@@ -1379,7 +1383,7 @@
        "n": "CNPJ",
        "min": 1,
        "max": 1,
-       "choice": 5,
+       "choice": 6,
        "arm": 1,
        "s": {
         "base": "string",
@@ -1392,7 +1396,7 @@
        "n": "CPF",
        "min": 1,
        "max": 1,
-       "choice": 5,
+       "choice": 6,
        "arm": 2,
        "s": {
         "base": "string",
@@ -1636,7 +1640,7 @@
      ],
      "choices": [
       {
-       "id": 5,
+       "id": 6,
        "min": 1
       }
      ]
@@ -1650,7 +1654,7 @@
        "n": "CNPJ",
        "min": 1,
        "max": 1,
-       "choice": 6,
+       "choice": 7,
        "arm": 1,
        "s": {
         "base": "string",
@@ -1663,7 +1667,7 @@
        "n": "CPF",
        "min": 1,
        "max": 1,
-       "choice": 6,
+       "choice": 7,
        "arm": 2,
        "s": {
         "base": "string",
@@ -1893,7 +1897,7 @@
      ],
      "choices": [
       {
-       "id": 6,
+       "id": 7,
        "min": 1
       }
      ]
@@ -1907,7 +1911,7 @@
        "n": "CNPJ",
        "min": 1,
        "max": 1,
-       "choice": 7,
+       "choice": 8,
        "arm": 1,
        "s": {
         "base": "string",
@@ -1920,7 +1924,7 @@
        "n": "CPF",
        "min": 1,
        "max": 1,
-       "choice": 7,
+       "choice": 8,
        "arm": 2,
        "s": {
         "base": "string",
@@ -2137,7 +2141,7 @@
      ],
      "choices": [
       {
-       "id": 7,
+       "id": 8,
        "min": 1
       }
      ]
@@ -2151,7 +2155,7 @@
        "n": "CNPJ",
        "min": 1,
        "max": 1,
-       "choice": 8,
+       "choice": 9,
        "arm": 1,
        "s": {
         "base": "string",
@@ -2164,7 +2168,7 @@
        "n": "CPF",
        "min": 1,
        "max": 1,
-       "choice": 8,
+       "choice": 9,
        "arm": 2,
        "s": {
         "base": "string",
@@ -2381,7 +2385,7 @@
      ],
      "choices": [
       {
-       "id": 8,
+       "id": 9,
        "min": 1
       }
      ]
@@ -2395,7 +2399,7 @@
        "n": "CNPJ",
        "min": 1,
        "max": 1,
-       "choice": 9,
+       "choice": 10,
        "arm": 1,
        "s": {
         "base": "string",
@@ -2408,7 +2412,7 @@
        "n": "CPF",
        "min": 1,
        "max": 1,
-       "choice": 9,
+       "choice": 10,
        "arm": 2,
        "s": {
         "base": "string",
@@ -2636,7 +2640,7 @@
      ],
      "choices": [
       {
-       "id": 9,
+       "id": 10,
        "min": 1
       }
      ]
@@ -2726,7 +2730,7 @@
          "n": "ICMS00",
          "min": 1,
          "max": 1,
-         "choice": 10,
+         "choice": 11,
          "arm": 1,
          "c": [
           {
@@ -2779,7 +2783,7 @@
          "n": "ICMS20",
          "min": 1,
          "max": 1,
-         "choice": 10,
+         "choice": 11,
          "arm": 2,
          "c": [
           {
@@ -2841,6 +2845,8 @@
            "n": "vICMSDeson",
            "min": 0,
            "max": 1,
+           "grp": 12,
+           "greq": true,
            "s": {
             "base": "string",
             "pattern": [
@@ -2852,6 +2858,8 @@
            "n": "cBenef",
            "min": 0,
            "max": 1,
+           "grp": 12,
+           "greq": true,
            "s": {
             "base": "string",
             "pattern": [
@@ -2866,7 +2874,7 @@
          "n": "ICMS45",
          "min": 1,
          "max": 1,
-         "choice": 10,
+         "choice": 11,
          "arm": 3,
          "c": [
           {
@@ -2886,6 +2894,8 @@
            "n": "vICMSDeson",
            "min": 0,
            "max": 1,
+           "grp": 13,
+           "greq": true,
            "s": {
             "base": "string",
             "pattern": [
@@ -2897,6 +2907,8 @@
            "n": "cBenef",
            "min": 0,
            "max": 1,
+           "grp": 13,
+           "greq": true,
            "s": {
             "base": "string",
             "pattern": [
@@ -2911,7 +2923,7 @@
          "n": "ICMS60",
          "min": 1,
          "max": 1,
-         "choice": 10,
+         "choice": 11,
          "arm": 4,
          "c": [
           {
@@ -2973,6 +2985,8 @@
            "n": "vICMSDeson",
            "min": 0,
            "max": 1,
+           "grp": 14,
+           "greq": true,
            "s": {
             "base": "string",
             "pattern": [
@@ -2984,6 +2998,8 @@
            "n": "cBenef",
            "min": 0,
            "max": 1,
+           "grp": 14,
+           "greq": true,
            "s": {
             "base": "string",
             "pattern": [
@@ -2998,7 +3014,7 @@
          "n": "ICMS90",
          "min": 1,
          "max": 1,
-         "choice": 10,
+         "choice": 11,
          "arm": 5,
          "c": [
           {
@@ -3071,6 +3087,8 @@
            "n": "vICMSDeson",
            "min": 0,
            "max": 1,
+           "grp": 15,
+           "greq": true,
            "s": {
             "base": "string",
             "pattern": [
@@ -3082,6 +3100,8 @@
            "n": "cBenef",
            "min": 0,
            "max": 1,
+           "grp": 15,
+           "greq": true,
            "s": {
             "base": "string",
             "pattern": [
@@ -3096,7 +3116,7 @@
          "n": "ICMSOutraUF",
          "min": 1,
          "max": 1,
-         "choice": 10,
+         "choice": 11,
          "arm": 6,
          "c": [
           {
@@ -3158,6 +3178,8 @@
            "n": "vICMSDeson",
            "min": 0,
            "max": 1,
+           "grp": 16,
+           "greq": true,
            "s": {
             "base": "string",
             "pattern": [
@@ -3169,6 +3191,8 @@
            "n": "cBenef",
            "min": 0,
            "max": 1,
+           "grp": 16,
+           "greq": true,
            "s": {
             "base": "string",
             "pattern": [
@@ -3183,7 +3207,7 @@
          "n": "ICMSSN",
          "min": 1,
          "max": 1,
-         "choice": 10,
+         "choice": 11,
          "arm": 7,
          "c": [
           {
@@ -3214,7 +3238,7 @@
          "n": "gICMSPrevistoPagtoAntecip",
          "min": 1,
          "max": 1,
-         "choice": 10,
+         "choice": 11,
          "arm": 8,
          "c": [
           {
@@ -3233,7 +3257,7 @@
        ],
        "choices": [
         {
-         "id": 10,
+         "id": 11,
          "min": 1
         }
        ]
@@ -4142,7 +4166,7 @@
      "n": "infCTeNorm",
      "min": 1,
      "max": 1,
-     "choice": 11,
+     "choice": 17,
      "arm": 1,
      "c": [
       {
@@ -4256,7 +4280,7 @@
          "n": "infNF",
          "min": 1,
          "max": -1,
-         "choice": 12,
+         "choice": 18,
          "arm": 1,
          "c": [
           {
@@ -4450,7 +4474,7 @@
            "n": "infUnidCarga",
            "min": 0,
            "max": -1,
-           "choice": 13,
+           "choice": 19,
            "arm": 1,
            "c": [
             {
@@ -4517,7 +4541,7 @@
            "n": "infUnidTransp",
            "min": 0,
            "max": -1,
-           "choice": 13,
+           "choice": 19,
            "arm": 2,
            "c": [
             {
@@ -4651,7 +4675,7 @@
          ],
          "choices": [
           {
-           "id": 13,
+           "id": 19,
            "min": 1
           }
          ]
@@ -4660,7 +4684,7 @@
          "n": "infNFe",
          "min": 1,
          "max": -1,
-         "choice": 12,
+         "choice": 18,
          "arm": 2,
          "c": [
           {
@@ -4703,7 +4727,7 @@
            "n": "infUnidCarga",
            "min": 0,
            "max": -1,
-           "choice": 14,
+           "choice": 20,
            "arm": 1,
            "c": [
             {
@@ -4770,7 +4794,7 @@
            "n": "infUnidTransp",
            "min": 0,
            "max": -1,
-           "choice": 14,
+           "choice": 20,
            "arm": 2,
            "c": [
             {
@@ -4904,7 +4928,7 @@
          ],
          "choices": [
           {
-           "id": 14,
+           "id": 20,
            "min": 1
           }
          ]
@@ -4913,7 +4937,7 @@
          "n": "infOutros",
          "min": 1,
          "max": -1,
-         "choice": 12,
+         "choice": 18,
          "arm": 3,
          "c": [
           {
@@ -4994,7 +5018,7 @@
            "n": "infUnidCarga",
            "min": 0,
            "max": -1,
-           "choice": 15,
+           "choice": 21,
            "arm": 1,
            "c": [
             {
@@ -5061,7 +5085,7 @@
            "n": "infUnidTransp",
            "min": 0,
            "max": -1,
-           "choice": 15,
+           "choice": 21,
            "arm": 2,
            "c": [
             {
@@ -5195,7 +5219,7 @@
          ],
          "choices": [
           {
-           "id": 15,
+           "id": 21,
            "min": 1
           }
          ]
@@ -5204,7 +5228,7 @@
          "n": "infDCe",
          "min": 1,
          "max": -1,
-         "choice": 12,
+         "choice": 18,
          "arm": 4,
          "c": [
           {
@@ -5224,7 +5248,7 @@
        ],
        "choices": [
         {
-         "id": 12,
+         "id": 18,
          "min": 1
         }
        ]
@@ -5243,7 +5267,7 @@
            "n": "CNPJ",
            "min": 1,
            "max": 1,
-           "choice": 16,
+           "choice": 22,
            "arm": 1,
            "s": {
             "base": "string",
@@ -5256,7 +5280,7 @@
            "n": "CPF",
            "min": 1,
            "max": 1,
-           "choice": 16,
+           "choice": 22,
            "arm": 2,
            "s": {
             "base": "string",
@@ -5269,6 +5293,8 @@
            "n": "IE",
            "min": 0,
            "max": 1,
+           "grp": 23,
+           "greq": true,
            "s": {
             "base": "string",
             "pattern": [
@@ -5281,6 +5307,8 @@
            "n": "UF",
            "min": 0,
            "max": 1,
+           "grp": 23,
+           "greq": true,
            "s": {
             "base": "string",
             "enum": [
@@ -5337,7 +5365,7 @@
              "n": "idDocAntPap",
              "min": 1,
              "max": -1,
-             "choice": 17,
+             "choice": 24,
              "arm": 1,
              "c": [
               {
@@ -5413,7 +5441,7 @@
              "n": "idDocAntEle",
              "min": 1,
              "max": -1,
-             "choice": 17,
+             "choice": 24,
              "arm": 2,
              "c": [
               {
@@ -5433,7 +5461,7 @@
            ],
            "choices": [
             {
-             "id": 17,
+             "id": 24,
              "min": 1
             }
            ]
@@ -5441,7 +5469,7 @@
          ],
          "choices": [
           {
-           "id": 16,
+           "id": 22,
            "min": 1
           }
          ]
@@ -5737,7 +5765,7 @@
      "n": "infCteComp",
      "min": 1,
      "max": 10,
-     "choice": 11,
+     "choice": 17,
      "arm": 2,
      "c": [
       {
@@ -5763,7 +5791,7 @@
        "n": "CNPJ",
        "min": 1,
        "max": 1,
-       "choice": 18,
+       "choice": 25,
        "arm": 1,
        "s": {
         "base": "string",
@@ -5776,7 +5804,7 @@
        "n": "CPF",
        "min": 1,
        "max": 1,
-       "choice": 18,
+       "choice": 25,
        "arm": 2,
        "s": {
         "base": "string",
@@ -5788,7 +5816,7 @@
      ],
      "choices": [
       {
-       "id": 18,
+       "id": 25,
        "min": 1
       }
      ]
@@ -5850,6 +5878,8 @@
        "n": "idCSRT",
        "min": 0,
        "max": 1,
+       "grp": 26,
+       "greq": true,
        "s": {
         "base": "string",
         "pattern": [
@@ -5861,6 +5891,8 @@
        "n": "hashCSRT",
        "min": 0,
        "max": 1,
+       "grp": 26,
+       "greq": true,
        "s": {
         "base": "base64Binary",
         "len": 20
@@ -5947,7 +5979,7 @@
    ],
    "choices": [
     {
-     "id": 11,
+     "id": 17,
      "min": 1
     }
    ]

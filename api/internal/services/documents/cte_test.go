@@ -294,7 +294,7 @@ func TestDACTEA5(t *testing.T) {
 	} else if _, ok := err.(*FormatNotAllowedError); !ok {
 		t.Fatalf("err = %v", err)
 	}
-	if a, b := cacheKey("O", DocTypeCTe, testCTeKey, StateActive, ""), cacheKey("O", DocTypeCTe, testCTeKey, StateActive, FormatA5); a == b || !strings.Contains(a, "/v2/") {
+	if a, b := cacheKey("O", DocTypeCTe, testCTeKey, StateActive, ""), cacheKey("O", DocTypeCTe, testCTeKey, StateActive, FormatA5); a == b || !strings.Contains(a, "/v3/") {
 		t.Fatalf("cache keys %q %q", a, b)
 	}
 }

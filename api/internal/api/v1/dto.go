@@ -1425,14 +1425,15 @@ type MdfeConfigBody struct {
 //
 // QrCodeVersion picks the QR Code layout (NT 2025.001): 2 (default, needs the CSC) or 3
 // (no CSC). The CSC fields are required only for version 2 (validateNfceConfig); they are
-// omitempty so a v3 PUT without them does not overwrite a stored CSC with "".
+// omitempty so a v3 PUT without them does not overwrite a stored CSC with "". Manual DANFE NFC-e 4.6: CSC of
+// 16 to 36 alphanumeric characters, id of up to 6 digits.
 type NfceConfigBody struct {
 	fiscalConfigBase
 	QrCodeVersion int    `json:"qr_code_version,omitempty" validate:"omitempty,oneof=2 3"`
-	ProdCsc       string `json:"prod_csc,omitempty" validate:"omitempty,max=36"`
-	ProdCscID     int    `json:"prod_csc_id,omitempty" validate:"omitempty,gt=0"`
-	HomCsc        string `json:"hom_csc,omitempty" validate:"omitempty,max=36"`
-	HomCscID      int    `json:"hom_csc_id,omitempty" validate:"omitempty,gt=0"`
+	ProdCsc       string `json:"prod_csc,omitempty" validate:"omitempty,min=16,max=36,alphanum"`
+	ProdCscID     int    `json:"prod_csc_id,omitempty" validate:"omitempty,gt=0,lte=999999"`
+	HomCsc        string `json:"hom_csc,omitempty" validate:"omitempty,min=16,max=36,alphanum"`
+	HomCscID      int    `json:"hom_csc_id,omitempty" validate:"omitempty,gt=0,lte=999999"`
 }
 
 // nfceQRCodeV3 is the QR Code version that does not use the CSC.

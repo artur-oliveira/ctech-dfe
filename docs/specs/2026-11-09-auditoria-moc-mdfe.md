@@ -196,9 +196,10 @@ Corrigidos, cada um com teste de regressao (paridade contra os specs gerados do 
 
 Nao corrigidos:
 
-- M-01 (Gate de schema, gate de eventos) e F44/F85 a F88 no catalogo: pertencem ao agente do Gate/validador. F44: o texto transcrito ("modal aquaviario e UF AM ou AP") nao diz se a UF e de carga, descarga ou ambas; F85 a F88 tem texto truncado no gap doc e dependem de `ListUnclosed` (nao ligado ao `Emit`; a regra exige a tabela local e a consulta, sem texto completo no repo).
+- M-01 corrigido (padrao shadow; promover tipo a tipo com `block`): Gate de schema em block (`DFE_GATE_SCHEMA_MDFE`) e gate de eventos (`GateEvent`, `DFE_GATE_SCHEMA_MDFE_EVENT`), testes `gate_schema_test.go`. Pendente: F44/F85 a F88 no catalogo (abaixo).
+- F44/F85 a F88 no catalogo: pertencem ao agente do Gate/validador. F44: o texto transcrito ("modal aquaviario e UF AM ou AP") nao diz se a UF e de carga, descarga ou ambas; F85 a F88 tem texto truncado no gap doc e dependem de `ListUnclosed` (nao ligado ao `Emit`; a regra exige a tabela local e a consulta, sem texto completo no repo).
 - M-06 (F55): a evidencia do relatorio e a propria transcricao do gap doc, que nao fixa o modal/tpEmit; pergunta aberta: o texto F55 do MOC 3.00b exige `infLotacao` fora da condicao `mdfePagGate`?
 - M-08 (UI so emite NF-e) e M-12 (`infSolicNFF`, `infPAA`, `procEmi=4`, `tpEmis=3`): backlog separado, nao construidos.
-- m-20 / dhEmi com fuso da UF do emitente: depende do helper compartilhado de fuso (outro agente); `trip_start` segue `-03:00`.
+- m-20 (corrigido): `dhEmi`, AAMM da chave, `dhEvento`, `dtEnc` do encerramento e "gerado em" do DAMDFE usam `go-dfe/uftz` (UF do emitente; no encerramento, a UF de encerramento). `dhTrem` sem fuso assume o fuso da UF do emitente (antes `-03:00` fixo); fuso informado pelo usuario nao e alterado. `trip_start` nao tem default no codigo (so repassa o valor do usuario), nada a mudar. Regressao: `mdfes/moc_uftz_test.go` e `modals_test.go`.
 - m-02, m-06, m-11 (24 h, `cMun` x UF), m-14 a m-19: sem texto de regra ou Anexo II no repo, ou fora do escopo pedido.
 - Teste do `cUF=99` no encerramento nao foi escrito (`Close` exige repositorios/egress); a constante e o ramo sao triviais.

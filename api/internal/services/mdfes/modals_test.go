@@ -2,8 +2,10 @@ package mdfes
 
 import (
 	"testing"
+	"time"
 
 	"gopkg.aoctech.app/dfe/api/internal/services/dfecheck"
+	"gopkg.aoctech.app/dfe/go-dfe/uftz"
 )
 
 // TestValidateModalPayload cobre o contrato de cada modal habilitado: escolher
@@ -100,7 +102,7 @@ func TestBuildFerrov(t *testing.T) {
 			{PesoBC: "1000.000", PesoR: "1100.000", Serie: "A", NVag: "1", TU: "10.000"},
 			{PesoBC: "2000.000", PesoR: "2100.000", Serie: "B", NVag: "2", TU: "20.000", TpVag: "GDT", NSeq: "02"},
 		},
-	})
+	}, time.UTC)
 	trem := got["trem"].(map[string]any)
 	if trem["qVag"] != "2" {
 		t.Fatalf("qVag = %v, want 2", trem["qVag"])
@@ -148,15 +150,42 @@ func TestBuildFerrov_DhTremNormalizado(t *testing.T) {
 		"01/05/2026":                "",
 	}
 	for in, want := range cases {
-		if got := normalizeDhTrem(in); got != want {
+		if got := normalizeDhTrem(in, uftz.Location("SP")); got != want {
 			t.Errorf("normalizeDhTrem(%q)=%q, want %q", in, got, want)
 		}
 	}
 	trem := buildFerrov(&MdfeRailModal{XPref: "ABC", DhTrem: "2026-05-01T10:30", XOri: "AAA", XDest: "BBB",
-		Wagons: []MdfeRailWagon{{PesoBC: "1", PesoR: "1", Serie: "ABC", NVag: "1", TU: "1"}}})
+		Wagons: []MdfeRailWagon{{PesoBC: "1", PesoR: "1", Serie: "ABC", NVag: "1", TU: "1"}}}, time.UTC)
 	for _, v := range dfecheck.Shadow("mdfe_ferrov", "mdfe_ferrov", "t", trem) {
 		if v.Code != "required" {
 			t.Errorf("%s %s: %s", v.Path, v.Code, v.Message)
 		}
+	}
+}
+
+// Regressão: o fuso padrão do dhTrem vem da UF do emitente (antes era -03:00 fixo).
+func TestNormalizeDhTrem_FusoDaUF(t *testing.T) {
+	cases := []struct{ uf, in, want string }{
+		{"AM", "2026-05-01T10:30", "2026-05-01T10:30:00-04:00"},
+		{"AC", "2026-05-01T10:30:15", "2026-05-01T10:30:15-05:00"},
+		{"SP", "2026-05-01T10:30", "2026-05-01T10:30:00-03:00"},
+		{"AM", "2026-05-01T10:30:15+01:00", "2026-05-01T10:30:15+01:00"}, // fuso explícito não muda
+	}
+	for _, c := range cases {
+		if got := normalizeDhTrem(c.in, uftz.Location(c.uf)); got != c.want {
+			t.Errorf("%s %q = %q, want %q", c.uf, c.in, got, c.want)
+		}
+	}
+}
+
+// Regressão: dhEvento e dtEnc saem no fuso da UF do emitente; 23:30 em AM (UTC-4) já é o dia seguinte em UTC.
+func TestEventoFusoDaUF(t *testing.T) {
+	ref := time.Date(2026, 1, 1, 3, 30, 0, 0, time.UTC) // 31/12 23:30 em AM
+	am := ref.In(uftz.Location("AM"))
+	if got := closeDet("1", "13", "1302603", false, am)["evEncMDFe"].(map[string]any)["dtEnc"]; got != "2025-12-31" {
+		t.Errorf("dtEnc = %v, want 2025-12-31", got)
+	}
+	if got := am.Format(layoutDateTimeTZ); got != "2025-12-31T23:30:00-04:00" {
+		t.Errorf("dhEvento = %s", got)
 	}
 }

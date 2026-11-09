@@ -45,5 +45,12 @@ export const PAYMENT_OPTIONS: PaymentOption[] = Object.entries(NF_PAYMENT_TYPES)
   .sort((a, b) =>
     GROUP_ORDER.indexOf(a.group) - GROUP_ORDER.indexOf(b.group) || parseInt(a.value) - parseInt(b.value));
 
+/** tPag vedados na NFC-e: 14 Duplicata Mercantil (YA02-10, rejeição 857) e 90 Sem Pagamento (YA02-40, rejeição 899). */
+export const NFCE_FORBIDDEN_PAYMENT_TYPES: readonly string[] = ['14', '90'];
+
+/** tPag oferecidos na NFC-e: a tabela completa sem os códigos que a SEFAZ rejeita nesse modelo. */
+export const NFCE_PAYMENT_OPTIONS: PaymentOption[] = PAYMENT_OPTIONS.filter(
+  (o) => !NFCE_FORBIDDEN_PAYMENT_TYPES.includes(o.value));
+
 /** Quick-pick codes for a counter sale — the three an operator reaches for. */
 export const QUICK_PAYMENT_TYPES = ['01', '03', '17'] as const;

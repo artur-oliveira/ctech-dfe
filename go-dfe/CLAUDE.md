@@ -27,7 +27,7 @@ go-dfe/
 ├── autocontingency/            # pure decision logic of the automatic contingency (signals, breaker, state codec, duplicate proof); shared by api and worker, no AWS, no I/O
 ├── request.go                  # Request/Response/Problem — wire contract of the go-dfe-egress Lambda
 ├── schemas/                    # XSDs oficiais vendorizados (documento + eventos), README e SHA256SUMS; fonte de validate/gen
-├── validate/                   # validador pré-SEFAZ; specs/*.json (documentos e evento_*) gerados por gen/main.go
+├── validate/                   # validador pré-SEFAZ; specs/*.json (documentos e evento_*) gerados por gen/main.go; sequence opcional = grupo tudo-ou-nada (grp/greq), IPI em dois braços da choice não conflita
 ├── internal/
 │   ├── certificate/manager.go  # PKCS12 → tls.Certificate + http.Client (mTLS, InsecureSkipVerify — deliberate)
 │   ├── xmlops/

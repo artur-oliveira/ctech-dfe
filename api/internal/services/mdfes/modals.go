@@ -149,7 +149,7 @@ type MdfeRailModal struct {
 	Wagons []MdfeRailWagon `json:"wagons" validate:"required,min=1,dive"`
 }
 
-func buildFerrov(r *MdfeRailModal) map[string]any {
+func buildFerrov(r *MdfeRailModal, loc *time.Location) map[string]any {
 	if r == nil {
 		return map[string]any{}
 	}
@@ -159,7 +159,7 @@ func buildFerrov(r *MdfeRailModal) map[string]any {
 		"xDest": r.XDest,
 		"qVag":  intString(len(r.Wagons)),
 	}
-	setIfStr(trem, "dhTrem", normalizeDhTrem(r.DhTrem))
+	setIfStr(trem, "dhTrem", normalizeDhTrem(r.DhTrem, loc))
 
 	vags := make([]map[string]any, 0, len(r.Wagons))
 	for _, w := range r.Wagons {
@@ -178,20 +178,31 @@ func buildFerrov(r *MdfeRailModal) map[string]any {
 }
 
 // dhTremLayouts são os formatos aceitos para dhTrem (TDateTimeUTC exige segundos e fuso em hora cheia).
-// Sem fuso vale -03:00, o mesmo de dhIniViagem; o formulário (datetime-local) manda AAAA-MM-DDTHH:MM.
-var dhTremLayouts = []struct{ layout, suffix string }{
-	{"2006-01-02T15:04", ":00-03:00"},
-	{"2006-01-02T15:04:05", "-03:00"},
-	{time.RFC3339, ""},
+// local: sem fuso no valor; vale o fuso da UF do emitente (loc), o mesmo de dhEmi. O formulário
+// (datetime-local) manda AAAA-MM-DDTHH:MM.
+var dhTremLayouts = []struct {
+	layout string
+	local  bool
+}{
+	{"2006-01-02T15:04", true},
+	{"2006-01-02T15:04:05", true},
+	{time.RFC3339, false},
 }
 
 // normalizeDhTrem devolve o dhTrem no padrão do XSD, ou "" se o formato não for reconhecido.
-func normalizeDhTrem(v string) string {
+// loc é o fuso da UF do emitente (uftz.Location); um fuso informado pelo usuário nunca é alterado.
+func normalizeDhTrem(v string, loc *time.Location) string {
 	for _, l := range dhTremLayouts {
-		if t, err := time.Parse(l.layout, v); err == nil {
-			if _, off := t.Zone(); l.suffix != "" || off%3600 == 0 {
-				return v + l.suffix
+		if !l.local {
+			if t, err := time.Parse(l.layout, v); err == nil {
+				if _, off := t.Zone(); off%3600 == 0 {
+					return v
+				}
 			}
+			continue
+		}
+		if t, err := time.ParseInLocation(l.layout, v, loc); err == nil {
+			return t.Format("2006-01-02T15:04:05-07:00")
 		}
 	}
 	return ""

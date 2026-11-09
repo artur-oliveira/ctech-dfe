@@ -3,9 +3,9 @@ package documents
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/shopspring/decimal"
+	"gopkg.aoctech.app/dfe/go-dfe/uftz"
 )
 
 const (
@@ -213,7 +213,7 @@ func buildCTeContext(root *xmlNode, cancelled bool) (map[string]any, error) {
 		"chave_fmt": keyBlocks(key), "chave_barcode": barcode, "qr_uri": qrURI, "consulta_url": cteConsultaURL,
 		"protocolo": protocol, "is_contingencia": contingency, "is_homologacao": ide.value("tpAmb") == "2", "is_cancelada": cancelled,
 		"legend_contingencia": dacteContingencyLegend, "legend_homologacao": dacteHomologLegend,
-		"site": "https://dfe.aoctech.app", "gerado_em": time.Now().Format("02/01/2006 15:04:05"),
+		"site": "https://dfe.aoctech.app", "gerado_em": uftz.Now(ender.value("UF")).Format("02/01/2006 15:04:05"),
 	}, nil
 }
 
@@ -308,7 +308,7 @@ func buildCTeOSContext(root *xmlNode, cancelled bool) (map[string]any, error) {
 		"chave_fmt": keyBlocks(key), "chave_barcode": barcode, "qr_uri": qrURI, "consulta_url": cteConsultaURL,
 		"protocolo": protocol, "is_contingencia": contingency, "is_homologacao": ide.value("tpAmb") == "2", "is_cancelada": cancelled,
 		"legend_contingencia": dacteContingencyLegend, "legend_homologacao": dacteHomologLegend,
-		"site": "https://dfe.aoctech.app", "gerado_em": time.Now().Format("02/01/2006 15:04:05"),
+		"site": "https://dfe.aoctech.app", "gerado_em": uftz.Now(ender.value("UF")).Format("02/01/2006 15:04:05"),
 	}, nil
 }
 

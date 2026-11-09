@@ -113,7 +113,11 @@ func (s *NfeService) stageEPEC(ctx context.Context, item map[string]types.Attrib
 	ev := authMsg // billing, certificate and document coordinates are the document's own
 	ev.UF, ev.SefazService, ev.Contingency = epecEventUF, "RecepcaoEvento", ""
 	ev.ExpectedFileName = authMsg.AccessKey + "_" + TpEventoEPEC + "_001"
-	ev.Body = shadowNFeEvent(authMsg.AccessKey, buildEPECBody(docTag, authMsg.CNPJ, environment, sum, epecEventSeq))
+	evBody, err := gateNFeEvent(authMsg.AccessKey, buildEPECBody(docTag, authMsg.CNPJ, environment, sum, epecEventSeq))
+	if err != nil {
+		return nil, err
+	}
+	ev.Body = evBody
 	ev.EventsTableName, ev.EventType, ev.EventSK = aws.String("nfe_events"), aws.String(TpEventoEPEC), aws.String(eventSK)
 	seq := epecEventSeq
 	ev.SequenceNumber = &seq

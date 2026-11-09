@@ -107,11 +107,15 @@ type ChoiceGroup struct {
 }
 
 type Node struct {
-	Name     string        `json:"n"`
-	Min      int           `json:"min"`
-	Max      int           `json:"max"` // -1 = ilimitado
-	Choice   int           `json:"choice,omitempty"`
-	Arm      int           `json:"arm,omitempty"`
+	Name   string `json:"n"`
+	Min    int    `json:"min"`
+	Max    int    `json:"max"` // -1 = ilimitado
+	Choice int    `json:"choice,omitempty"`
+	Arm    int    `json:"arm,omitempty"`
+	// Group identifica a sequence opcional (minOccurs=0) a que o filho pertence: tudo-ou-nada. GroupReq marca
+	// o filho que é obrigatório dentro do grupo (Min vira 0 para o grupo inteiro poder faltar).
+	Group    int           `json:"grp,omitempty"`
+	GroupReq bool          `json:"greq,omitempty"`
 	Simple   *Simple       `json:"s,omitempty"`
 	Attrs    []*Attr       `json:"a,omitempty"`
 	Children []*Node       `json:"c,omitempty"`
@@ -333,7 +337,7 @@ func (w *walker) complexType(n *Node, ct *el) {
 	for _, k := range ct.Kids {
 		switch k.Name {
 		case "sequence", "all":
-			w.particles(n, k, 0, 0)
+			w.particles(n, k, 0, 0, 0)
 		case "choice":
 			w.choice(n, k)
 		case "attribute":
@@ -364,19 +368,26 @@ func (w *walker) attr(a *el) *Attr {
 }
 
 // particles percorre uma sequence: elementos viram filhos de n; choice vira grupo.
-func (w *walker) particles(n *Node, seq *el, choice, arm int) {
+// group é o id da sequence opcional que contém seq (0 se nenhuma): os filhos obrigatórios dela só valem quando
+// algum irmão do grupo aparece. Uma sequence opcional aninhada abre o seu próprio grupo; uma obrigatória herda.
+func (w *walker) particles(n *Node, seq *el, choice, arm, group int) {
 	seqMin, _ := occ(seq)
+	if seqMin == 0 {
+		w.groupID++
+		group = w.groupID
+	}
 	for _, k := range seq.Kids {
 		switch k.Name {
 		case "element":
 			c := w.element(k)
-			if seqMin == 0 {
+			if group != 0 {
+				c.Group, c.GroupReq = group, c.Min >= 1
 				c.Min = 0
 			}
 			c.Choice, c.Arm = choice, arm
 			n.Children = append(n.Children, c)
 		case "sequence":
-			w.particles(n, k, choice, arm)
+			w.particles(n, k, choice, arm, group)
 		case "choice":
 			w.choice(n, k)
 		case "any":
@@ -398,7 +409,7 @@ func (w *walker) choice(n *Node, ch *el) {
 			c.Choice, c.Arm = id, arm
 			n.Children = append(n.Children, c)
 		case "sequence":
-			w.particles(n, k, id, arm)
+			w.particles(n, k, id, arm, 0)
 		case "choice":
 			w.choice(n, k)
 		}

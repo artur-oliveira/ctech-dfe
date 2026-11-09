@@ -11,13 +11,13 @@ import (
 	"gopkg.aoctech.app/dfe/api/internal/services/dfecheck"
 	"regexp"
 	"strings"
-	"time"
 
 	"gopkg.aoctech.app/api-commons/problem"
 	"gopkg.aoctech.app/dfe/api/internal/dfeproblem"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"
 	"gopkg.aoctech.app/dfe/api/internal/services/documents"
+	"gopkg.aoctech.app/dfe/go-dfe/uftz"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
@@ -202,6 +202,9 @@ func (s *CteService) nextSequence(ctx context.Context, accessKey, eventType stri
 func (s *CteService) dispatchEvent(ctx context.Context, ec *eventContext, accessKey, eventType string, seq int,
 	body map[string]any, newDocStatus, userID, userName string) (map[string]types.AttributeValue, error) {
 	dfecheck.ShadowEvent("cte", accessKey, body)
+	if err := dfecheck.EventProblem("CT-e", dfecheck.GateEvent("cte", body)); err != nil {
+		return nil, err
+	}
 	event, err := s.eventRepo.CreateEvent(ctx, accessKey, eventType, seq, eventStatusPending, nil, nil, nil, userID, userName)
 	if err != nil {
 		return nil, err
@@ -365,7 +368,7 @@ func buildEventEnvelope(ec *eventContext, accessKey, tpEvento string, seq int, r
 		"cOrgao":     accessKey[0:2],
 		"tpAmb":      fmt.Sprintf("%d", ec.environment),
 		"chCTe":      accessKey,
-		"dhEvento":   time.Now().In(time.FixedZone("BRT", -3*60*60)).Format(layoutDateTimeTZ),
+		"dhEvento":   uftz.Now(ec.emitUF).Format(layoutDateTimeTZ),
 		"tpEvento":   tpEvento,
 		"nSeqEvento": fmt.Sprintf("%d", seq),
 		"detEvento":  map[string]any{"@versaoEvento": cteVersao, rootTag: det},

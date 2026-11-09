@@ -32,7 +32,7 @@ import {CARD_PAYMENT_TYPES, isPixPaymentType, PaymentCardFields} from '@/compone
 import {NatOpInlineEdit} from '@/components/nfe/NatOpInlineEdit';
 import type {CfopConfigItem, NfceEmit, NfeCardIn, PersonCreate, ProductOut} from '@/lib/types/api';
 import {NF_PAYMENT_TYPES} from '@/lib/types/api';
-import {PAYMENT_OPTIONS, QUICK_PAYMENT_TYPES} from '@/lib/data/payment-options';
+import {NFCE_PAYMENT_OPTIONS, QUICK_PAYMENT_TYPES} from '@/lib/data/payment-options';
 import {buildNatOpFromCfops, getCfopDescription} from '@/lib/data/cfop';
 import {formatCpfCnpj} from '@/lib/utils/document';
 import {maskCpf} from '@/lib/utils/masks';
@@ -562,7 +562,7 @@ export function NfceEmitForm() {
                 setNewPaymentType(v);
                 setShowCardToggle(false);
                 setNewPaymentCard(null);
-              }} options={PAYMENT_OPTIONS}/>
+              }} options={NFCE_PAYMENT_OPTIONS}/>
             </div>
             <div className="flex flex-col gap-1">
               <Label htmlFor="nfce-payment-value" className="text-xs font-medium text-gray-600">Valor</Label>

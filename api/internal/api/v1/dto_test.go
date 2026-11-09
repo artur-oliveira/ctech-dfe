@@ -100,7 +100,7 @@ func TestValidDTOsPass(t *testing.T) {
 		"vehicle":            validVehicle(),
 		"vehicle-all-fields": validVehicleWithAllFields(),
 		"nfe-config":         FiscalConfigBody{fiscalConfigBase{Timezone: "America/Sao_Paulo", Environment: 2}},
-		"nfce-config":        NfceConfigBody{fiscalConfigBase: fiscalConfigBase{Timezone: "America/Sao_Paulo", Environment: 2}, ProdCsc: "CSC", ProdCscID: 1, HomCsc: "CSC", HomCscID: 1},
+		"nfce-config":        NfceConfigBody{fiscalConfigBase: fiscalConfigBase{Timezone: "America/Sao_Paulo", Environment: 2}, ProdCsc: "ABCDEF0123456789", ProdCscID: 1, HomCsc: "ABCDEF0123456789", HomCscID: 1},
 		"nfce-config-v3":     NfceConfigBody{fiscalConfigBase: fiscalConfigBase{Timezone: "America/Sao_Paulo", Environment: 2}, QrCodeVersion: 3},
 	}
 	for name, dto := range cases {
@@ -654,8 +654,30 @@ func TestNfceConfigRequiresCSCUnlessV3(t *testing.T) {
 	if p := validation.Struct(NfceConfigBody{fiscalConfigBase: base}); p == nil {
 		t.Error("v2 (default) without CSC must fail")
 	}
-	if p := validation.Struct(NfceConfigBody{fiscalConfigBase: base, QrCodeVersion: 4, ProdCsc: "x", ProdCscID: 1, HomCsc: "x", HomCscID: 1}); p == nil {
+	if p := validation.Struct(NfceConfigBody{fiscalConfigBase: base, QrCodeVersion: 4, ProdCsc: "ABCDEF0123456789", ProdCscID: 1, HomCsc: "ABCDEF0123456789", HomCscID: 1}); p == nil {
 		t.Error("qr_code_version 4 must fail")
+	}
+}
+
+// Auditoria MOC NFC-e m2 (Manual DANFE NFC-e 4.6): CSC de 16 a 36 alfanuméricos, id de até 6 dígitos.
+func TestNfceConfigCSCFormat(t *testing.T) {
+	base := fiscalConfigBase{Timezone: "America/Sao_Paulo", Environment: 2}
+	ok := "ABCDEF0123456789"
+	mk := func(csc string, id int) NfceConfigBody {
+		return NfceConfigBody{fiscalConfigBase: base, ProdCsc: csc, ProdCscID: id, HomCsc: ok, HomCscID: 1}
+	}
+	if p := validation.Struct(mk(ok, 999999)); p != nil {
+		t.Fatalf("CSC válido recusado: %+v", p.Errors)
+	}
+	for name, body := range map[string]NfceConfigBody{
+		"curto":        mk("ABC", 1),
+		"longo":        mk(strings.Repeat("A", 37), 1),
+		"nao alfanum":  mk("ABCDEF-123456789", 1),
+		"id de 7 digs": mk(ok, 1000000),
+	} {
+		if validation.Struct(body) == nil {
+			t.Errorf("%s: CSC inválido aceito", name)
+		}
 	}
 }
 

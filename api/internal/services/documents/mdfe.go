@@ -3,7 +3,8 @@ package documents
 import (
 	"fmt"
 	"strings"
-	"time"
+
+	"gopkg.aoctech.app/dfe/go-dfe/uftz"
 )
 
 var (
@@ -104,7 +105,7 @@ func buildMDFeContext(root *xmlNode, canceled bool) (map[string]any, error) {
 		"chave_fmt": keyBlocks(key), "chave_raw": digits(key), "chave_barcode": barcode, "qr_uri": qrURI,
 		"protocolo": protocol, "is_contingencia": contingency, "is_homologacao": ide.value("tpAmb") == "2", "is_cancelada": canceled,
 		"msg_fiscal": additional.value("infAdFisco"), "msg_contribuinte": additional.value("infCpl"),
-		"site": "https://dfe.aoctech.app", "gerado_em": time.Now().Format("02/01/2006 15:04:05"),
+		"site": "https://dfe.aoctech.app", "gerado_em": uftz.Now(ender.value("UF")).Format("02/01/2006 15:04:05"),
 		"consulta_url": mdfeConsultaURL,
 		// Presentation knobs the emitente will be able to set; the zero values
 		// keep the stock look until the fiscal_config fields are wired in.

@@ -224,7 +224,7 @@ Sem divergência em CST do ICMS (`00 20 40 41 51 60 90 SN` nos dois), papéis de
 
 | ID | Estado | Nota |
 |---|---|---|
-| M1 | fora do escopo | Gate/dfecheck: agente posterior |
+| M1 | Corrigido (padrao shadow; promover tipo a tipo com `block`) | Gate de schema em block para CT-e e CT-e OS (`DFE_GATE_SCHEMA_CTE`/`_CTEOS`), `TestGateCTeSchemaBlocksPattern` (CFOP 5000) e evento (`TestGateCTeEventSchema`). |
 | M2 | corrigido | tabelas `infCTeNorm:infModal:<modal>` para aereo, aquav, ferrov, duto, multimodal; `TestXSDOrderMatchesCTeModalSpecs` estrito (inclui `cte_rodo`). `ctesimp` e eventos não construídos seguem fora da paridade |
 | M3 | corrigido | alvo `ferrov` em `gen/main.go`, `specs/cte_ferrov.json`, `TestLoadAllSpecs` |
 | M4 | corrigido | `cteLoad` separa Peso Bruto, Base de Cálculo e Aferido; teste `TestDACTEWeightsSplitByTpMed`. `tpMed` sem caixa no Anexo não é impresso |
@@ -241,4 +241,4 @@ Sem divergência em CST do ICMS (`00 20 40 41 51 60 90 SN` nos dois), papéis de
 | m7 | corrigido | 422 para `p_red_bc` fora de CST 20 e 90 |
 | m8, m9 | não tratados | documentação antiga e lista de UFs da G024 (sem fonte) |
 
-Não implementado por instrução: `dhEmi` com fuso da UF (helper compartilhado em go-dfe, outro agente).
+Fuso da UF (corrigido): `dhEmi`, AAMM da chave, `dhEvento` e "gerado em" do DACTE usam `go-dfe/uftz` com a UF do emitente (emissão, OS, complementar, substituto, eventos). Regressão: `ctes/moc_uftz_test.go` (AM, AC, SP na virada do ano). O substituto herda o fuso pelo `emit.Addr.UF`.

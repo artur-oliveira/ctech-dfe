@@ -145,3 +145,28 @@ Estado igual ao gap spec; nada novo, só confirmação: consumidor só CPF (`nfc
 2. M3, M4, M5, M8, M9 (DANFE conforme o Manual).
 3. M6 e M7 (consistência de enums e travas locais, evitam gastar número e cota).
 4. m2 a m11.
+
+## 7. Status das correcoes (NFC-e, 2026-11-09)
+
+Testes: `api/internal/services/nfes/nfce_moc_test.go`, `api/internal/services/documents/renderer_test.go`
+(`TestNFCeContextManual`, `TestNFCeOfflineAuthorizedPrintsProtocol`), `api/internal/api/v1/dto_test.go`
+(`TestNfceConfigCSCFormat`), `ui/src/__tests__/lib/data/payment-options-nfce.test.ts`.
+
+| ID | Status | Nota |
+|---|---|---|
+| M1 | Ja corrigido (fase 1) | `generateAccessKey` usa `000`+CPF; promocao de A03-10 a block fica com o agente do Gate. |
+| M2 | Corrigido | `nfce_emit.go` usa `uftz.Now(emitUF)`: `dhEmi`, AAMM e dia do QR offline no fuso da UF. DANFE converte `dhEmi` e `dhRecbto` para o fuso da UF do emitente. |
+| M3 | Corrigido | data e hora de emissao impressas ao lado de numero e serie, com ou sem protocolo (e "Via do Estabelecimento" ao lado). |
+| M4 | Corrigido | QR de 28 mm com margem de 10% por lado desenhada na imagem (conteudo 22,4 mm; total acima de 25 mm), centralizado (Manual figura 5). `cacheSchemaVersion` = v3. |
+| M5 | Corrigido | protocolo impresso quando existe `infProt` com cStat 100 ou 150, mesmo com `tpEmis=9`; a tarja e a 2a via so enquanto pendente. |
+| M6 | Parcial | UI da NFC-e nao oferece 14 e 90; API recusa 14 e 90 na NFC-e (400, antes de gastar numero); rotulos do DANFE da tabela do portal (com 14, 23, 24, 91). Lista unica da API e da UI ja vinha da fase 1. YA02-10 e YA02-40 continuam Warn no catalogo (agente do Gate). |
+| M7 | Corrigido | builder omite IPI, II, PISST, COFINSST, `veicProd` e `arma` no modelo 65. `ICMSUFDest` ja nao sai (so com idDest 2 e NFC-e e sempre idDest 1); `impostoDevol` so existe com finNFe 4, que a NFC-e nao emite. CST 10/30/70 x CFOP nao tratado (sem fonte do Aplic.). |
+| M8 | Corrigido | "Acrescimos" = vFrete+vSeg+vOutro; cada linha so com valor diferente de zero; "Valor a pagar" so com acrescimo ou desconto (Manual 3.1.3). |
+| M9 | Corrigido | `vUnCom` e `qCom` com as casas do XML (virgula decimal, ponto de milhar); 4,8990 imprime 4,899. |
+| m1 | Corrigido | DANFE imprime "CPF:" com mascara para emitente CPF. |
+| m2 | Corrigido | id do CSC ausente fica vazio (a condicao `cscID == ""` passa a valer); DTO: CSC 16 a 36 alfanumericos, id ate 999999; mesmo na UI (zod). |
+| m5 | Nao corrigido | o texto do Manual diz "igual ou superior" (3.1.6) mas W16-40 esta no catalogo do Gate (fora do escopo); a regra de W16-40 do MOC nao esta no repositorio. |
+| m7 | Corrigido | `paymentLabels` da tabela do portal. |
+| m10 | Corrigido | cabecalho com `xCpl` e CEP. |
+| m3, m4, m6, m8, m9, m11 | Nao corrigido | catalogo/Gate (m3, m4, m9), decisao do dono (m6), fixture com `infNFeSupl` dentro de `infNFe` ainda mascara posicao (m8), texto do gap spec (m11). |
+| Gate (NFC-e, transversal) | Corrigido | `dfecheck.GateEnviNFCe` com modo proprio (`DFE_GATE_SCHEMA_NFCE`, padrao `shadow`: rollout shadow primeiro, depois `block`): schema deterministico recusa; regras A03-10 e B23-10 continuam fora do mapa (decisao pendente, CONDUCT.md). |

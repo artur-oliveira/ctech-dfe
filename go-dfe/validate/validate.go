@@ -96,6 +96,8 @@ type node struct {
 	Max      int           `json:"max"`
 	Choice   int           `json:"choice"`
 	Arm      int           `json:"arm"`
+	Group    int           `json:"grp"`  // sequence opcional do XSD: tudo-ou-nada (0 = nenhuma)
+	GroupReq bool          `json:"greq"` // obrigatório dentro do grupo (Min já é 0)
 	Simple   *simple       `json:"s"`
 	Attrs    []*attr       `json:"a"`
 	Children []*node       `json:"c"`
@@ -103,6 +105,7 @@ type node struct {
 	Any      bool          `json:"any"`
 
 	byName  map[string]*node
+	shared  bool // mesmo nome em braços diferentes da mesma choice (IPI em imposto): não decide o braço
 	overlay bool // acrescentado por overlay.go: fora da ordem do XSD vendorizado
 }
 
@@ -146,6 +149,9 @@ func Load(name string) (*Spec, error) {
 func prepare(n *node) error {
 	n.byName = make(map[string]*node, len(n.Children))
 	for _, c := range n.Children {
+		if o, dup := n.byName[c.Name]; dup && o.Choice != 0 && o.Choice == c.Choice && o.Arm != c.Arm {
+			o.shared, c.shared = true, true
+		}
 		n.byName[c.Name] = c
 		if err := prepare(c); err != nil {
 			return err
@@ -259,11 +265,16 @@ func (v *validator) element(n *node, value any, path string) {
 	}
 
 	armsPresent := map[int]map[int]bool{}
+	groupsPresent := map[int]bool{}
+	validated := map[string]bool{} // o mesmo nome em dois braços valida o valor uma vez só
 	for _, c := range n.Children {
 		cp := path + "/" + c.Name
 		val, present := m[c.Name]
 		count := occurrences(val, present)
-		if present && c.Choice != 0 && count > 0 {
+		if count > 0 && c.Group != 0 {
+			groupsPresent[c.Group] = true
+		}
+		if present && c.Choice != 0 && count > 0 && !c.shared {
 			if armsPresent[c.Choice] == nil {
 				armsPresent[c.Choice] = map[int]bool{}
 			}
@@ -278,12 +289,22 @@ func (v *validator) element(n *node, value any, path string) {
 		if c.Max >= 0 && count > c.Max {
 			v.add(cp, CodeMaxOccurs, SevError, "tag %s aparece %d vezes; o máximo é %d", c.Name, count, c.Max)
 		}
+		if validated[c.Name] {
+			continue
+		}
+		validated[c.Name] = true
 		for i, item := range items(val) {
 			ip := cp
 			if count > 1 {
 				ip = fmt.Sprintf("%s[%d]", cp, i)
 			}
 			v.element(c, item, ip)
+		}
+	}
+	// Sequence opcional do XSD: se algum filho aparece, os obrigatórios do grupo também têm de aparecer.
+	for _, c := range n.Children {
+		if c.GroupReq && groupsPresent[c.Group] && occurrences(m[c.Name], m[c.Name] != nil) == 0 && !v.skip[path+"/"+c.Name] && !c.Any {
+			v.add(path+"/"+c.Name, CodeRequired, SevError, "tag %s é obrigatória em %s quando o grupo é informado", c.Name, n.Name)
 		}
 	}
 	for _, g := range n.Choices {

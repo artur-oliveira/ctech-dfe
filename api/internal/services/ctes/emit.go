@@ -12,6 +12,7 @@ import (
 	"gopkg.aoctech.app/dfe/api/internal/services"
 	"gopkg.aoctech.app/dfe/api/internal/services/dfecheck"
 	"gopkg.aoctech.app/dfe/api/internal/services/nfexml"
+	"gopkg.aoctech.app/dfe/go-dfe/uftz"
 
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
@@ -226,7 +227,7 @@ func (s *CteService) persist(ctx context.Context, orgPK string, cfg map[string]t
 
 	serie := intAttr(cfg, envPrefix+"_current_serie", 1)
 	currentNumber := intAttr(cfg, envPrefix+"_current_number", 0)
-	now := time.Now()
+	now := uftz.Now(emit.Addr.UF) // dhEmi e AAMM da chave são horário local da UF do emitente
 	// tpEmis está na chave: a forma de emissão (normal, off-line 2, SVC 7/8) vem antes dela.
 	cfg = services.PrecheckAutoContingency(ctx, s.configRepo, services.ModelCTe, orgPK, emit.Addr.UF, cfg, now)
 	em, err := resolveCTeEmission(cfg, emit.Addr.UF)

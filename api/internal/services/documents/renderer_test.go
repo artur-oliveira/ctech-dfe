@@ -81,7 +81,8 @@ func TestNFCeOfflineContingencyGeneratesTwoVias(t *testing.T) {
 		t.Fatal(err)
 	}
 	xml := strings.Replace(sampleNFCeXML(), "<tpEmis>1</tpEmis>", "<tpEmis>9</tpEmis>", 1)
-	pdf, err := renderer.Render(context.Background(), DocTypeNFCe, []byte(xml), StateActive, "")
+	xml = xml[:strings.Index(xml, "<protNFe>")] + "</nfeProc>" // pending: no protocol yet
+	pdf, err := renderer.Render(context.Background(), DocTypeNFCe, []byte(xml), StateContingencyPending, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -91,6 +92,71 @@ func TestNFCeOfflineContingencyGeneratesTwoVias(t *testing.T) {
 	}
 	if parsed.PageCount() != 2 {
 		t.Fatalf("offline contingency pages = %d, want 2", parsed.PageCount())
+	}
+}
+
+// Auditoria NFC-e M5: offline NFC-e already authorized prints the protocol, one via, no pending banner.
+func TestNFCeOfflineAuthorizedPrintsProtocol(t *testing.T) {
+	xml := strings.Replace(sampleNFCeXML(), "<tpEmis>1</tpEmis>", "<tpEmis>9</tpEmis>", 1)
+	root, err := parseXML([]byte(xml))
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := buildNFCeContext(root, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if data["is_contingencia"] != false || data["protocolo"] == nil {
+		t.Fatalf("contingency=%v protocol=%v", data["is_contingencia"], data["protocolo"])
+	}
+	if vias := data["vias"].([]map[string]any); len(vias) != 1 {
+		t.Fatalf("vias = %d, want 1", len(vias))
+	}
+}
+
+// Auditoria NFC-e M3, M8, M9, m1, m10 and M2 (local time): DANFE content per the Manual.
+func TestNFCeContextManual(t *testing.T) {
+	x := sampleNFCeXML()
+	x = strings.Replace(x, "<dhEmi>2026-08-29T12:00:00-03:00</dhEmi>", "<dhEmi>2026-08-29T23:30:00+00:00</dhEmi>", 1)
+	x = strings.Replace(x, "<vUnCom>10.00</vUnCom>", "<vUnCom>4.8990</vUnCom>", 1)
+	x = strings.Replace(x, "<qCom>1.0000</qCom>", "<qCom>10.5000</qCom>", 1)
+	x = strings.Replace(x, "<vProd>10.00</vProd><vNF>10.00</vNF>", "<vProd>10.00</vProd><vFrete>1.00</vFrete><vSeg>0.50</vSeg><vOutro>0.25</vOutro><vNF>11.75</vNF>", 1)
+	x = strings.Replace(x, "<CNPJ>12345678000190</CNPJ>", "<CPF>11122233344</CPF>", 1)
+	x = strings.Replace(x, "<UF>SP</UF></enderEmit>", "<UF>SP</UF><CEP>01001000</CEP></enderEmit>", 1)
+	x = strings.Replace(x, "<xLgr>Rua A</xLgr><nro>1</nro>", "<xLgr>Rua A</xLgr><nro>1</nro><xCpl>Sala 2</xCpl>", 1)
+	root, err := parseXML([]byte(x))
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := buildNFCeContext(root, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	totals := data["totals"].(map[string]any)
+	if totals["vAcrescimos"] != "1,75" || totals["has_acrescimo"] != true || totals["has_desconto"] != false {
+		t.Errorf("totals = %v", totals)
+	}
+	item := data["items"].([]map[string]any)[0]
+	if item["vUnCom"] != "4,899" || item["qCom"] != "10,5" {
+		t.Errorf("item = %v", item)
+	}
+	if got := data["ident"].(map[string]any)["dhEmi"]; got != "29/08/2026 20:30:00" {
+		t.Errorf("dhEmi = %v, want local 20:30", got)
+	}
+	emit := data["emit"].(map[string]any)
+	if emit["doc_label"] != "CPF" || emit["cnpj"] != "111.222.333-44" {
+		t.Errorf("emit = %v", emit)
+	}
+	if end := emit["endereco"].(string); !strings.Contains(end, "Sala 2") || !strings.Contains(end, "01001-000") {
+		t.Errorf("endereco = %q", end)
+	}
+	renderer, err := newFolioRenderer()
+	if err != nil {
+		t.Fatal(err)
+	}
+	pdf, err := renderer.Render(context.Background(), DocTypeNFCe, []byte(x), StateActive, "")
+	if err != nil || !bytes.HasPrefix(pdf, []byte("%PDF")) {
+		t.Fatalf("render: %v", err)
 	}
 }
 

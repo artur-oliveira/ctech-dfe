@@ -120,6 +120,10 @@ func (s *NfceService) Cancel(ctx context.Context, orgPK, accessKey, justificatio
 		return nil, err
 	}
 
+	body, err := gateNFeEvent(accessKey, buildCancelBody(accessKey, ectx.docTag, ectx.cnpj, ectx.environment, sefazProtocol, justification, sequenceNumber))
+	if err != nil {
+		return nil, err
+	}
 	event, err := s.eventRepo.CreateEvent(ctx, accessKey, TpEventoCancelamento, sequenceNumber, StatusPending, nil, nil, nil, userID, userName)
 	if err != nil {
 		return nil, err
@@ -134,7 +138,7 @@ func (s *NfceService) Cancel(ctx context.Context, orgPK, accessKey, justificatio
 	}
 
 	if err := s.publishEvent(ctx, ectx, accessKey, TpEventoCancelamento, sequenceNumber, strAttr(event, "sk"),
-		shadowNFeEvent(accessKey, buildCancelBody(accessKey, ectx.docTag, ectx.cnpj, ectx.environment, sefazProtocol, justification, sequenceNumber)),
+		body,
 	); err != nil {
 		return nil, err
 	}
@@ -170,6 +174,10 @@ func (s *NfceService) Substitute(ctx context.Context, orgPK, accessKey, substitu
 		return nil, err
 	}
 
+	body, err := gateNFeEvent(accessKey, buildSubstituteBody(accessKey, ectx.docTag, ectx.cnpj, ectx.environment, sefazProtocol, substituteKey, justification, sequenceNumber, s.tech.Version))
+	if err != nil {
+		return nil, err
+	}
 	event, err := s.eventRepo.CreateEvent(ctx, accessKey, TpEventoCancelamentoSubst, sequenceNumber, StatusPending, nil, nil, nil, userID, userName)
 	if err != nil {
 		return nil, err
@@ -185,7 +193,7 @@ func (s *NfceService) Substitute(ctx context.Context, orgPK, accessKey, substitu
 	}
 
 	if err := s.publishEvent(ctx, ectx, accessKey, TpEventoCancelamentoSubst, sequenceNumber, strAttr(event, "sk"),
-		shadowNFeEvent(accessKey, buildSubstituteBody(accessKey, ectx.docTag, ectx.cnpj, ectx.environment, sefazProtocol, substituteKey, justification, sequenceNumber, s.tech.Version)),
+		body,
 	); err != nil {
 		return nil, err
 	}
