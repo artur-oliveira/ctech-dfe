@@ -113,6 +113,10 @@ func (r *folioRenderer) Render(ctx context.Context, docType string, xmlBytes []b
 	// The CT-e OS (model 67) shares the "cte" doc type but has its own layout (MOC Anexo II, DACTE OS).
 	isCTeOS := docType == DocTypeCTe && root.firstDeep("infCte").child("ide").value("mod") == modelCTeOS
 	if isCTeOS {
+		// Annex II 2.15 lists A5 for the DACTE; section 6 (DACTE OS) shows a single layout.
+		if format == FormatA5 {
+			return nil, &FormatNotAllowedError{Format: format, Reason: "o DACTE OS só tem o leiaute A4 retrato"}
+		}
 		templateName = templateDACTEOS
 	}
 	var data map[string]any

@@ -10,8 +10,9 @@
 {% endmacro %}
 <style>
   @page {
-    size: A4 portrait;
-    margin: 10mm 8mm 14mm 8mm;
+    {% if ctx.format == "a5" %}size: A5 landscape;
+    margin: 6mm 6mm 8mm 6mm;{% else %}size: A4 portrait;
+    margin: 10mm 8mm 14mm 8mm;{% endif %}
     @top-right { content: "FL " counter(page) "/" counter(pages); font-size: 6pt; color: #555; vertical-align: top; }
   }
   body { font-family: Arial, "Helvetica Neue", Helvetica, sans-serif; font-size: 7pt; color: #000; margin: 0; }
@@ -35,7 +36,7 @@
   .barcode { width: 100%; display: block; }
   .chave { letter-spacing: 0.2pt; }
   .banner { font-weight: bold; text-align: center; margin: 4pt 0; }
-  .foot-line { position: absolute; top: 286mm; left: 8mm; width: 194mm; font-size: 6pt; color: #555; font-style: italic; text-align: right; }
+  .foot-line { position: absolute; {% if ctx.format == "a5" %}top: 141mm; left: 6mm; width: 198mm;{% else %}top: 286mm; left: 8mm; width: 194mm;{% endif %} font-size: 6pt; color: #555; font-style: italic; text-align: right; }
   .watermark { position: fixed; top: 30%; left: 0; width: 100%; text-align: center; font-size: 18pt; color: #cfcfcf; font-weight: bold; }
 </style>
 {% if ctx.is_cancelada %}<div class="watermark">CANCELADO</div>{% endif %}
@@ -122,6 +123,25 @@
   {% for d in ctx.docs %}<tr><td>{{ d.tipo }}</td><td class="b">{{ d.emit }}</td><td class="b">{{ d.num }}</td><td>{{ d.chave }}</td></tr>{% endfor %}
 </table>
 
+{% if ctx.modal_info.fluxo.has %}
+<div class="section">Previsão do fluxo da carga</div>
+<table class="boxes block"><tr>
+  <td style="width:34%"><span class="lbl">Sigla ou código interno da filial/porto/estação/aeroporto de origem</span><span class="val">{{ ctx.modal_info.fluxo.orig }}</span></td>
+  <td style="width:33%"><span class="lbl">Passagem</span><span class="val">{{ ctx.modal_info.fluxo.pass }}</span></td>
+  <td style="width:33%"><span class="lbl">Sigla ou código interno da filial/porto/estação/aeroporto de destino</span><span class="val">{{ ctx.modal_info.fluxo.dest }}</span></td>
+</tr></table>
+{% endif %}
+{% if ctx.modal_info.title %}
+<div class="section">{{ ctx.modal_info.title }}</div>
+{% if ctx.modal_info.fields %}<table class="boxes block"><tr>{% for f in ctx.modal_info.fields %}<td><span class="lbl">{{ f.lbl }}</span><span class="val">{{ f.val }}</span></td>{% if loop.index % 3 == 0 and not loop.last %}</tr><tr>{% endif %}{% endfor %}</tr></table>{% endif %}
+{% for tb in ctx.modal_info.tables %}
+<div class="b small">{{ tb.title }}</div>
+<table class="list block">
+  <tr class="head">{% for h in tb.head %}<td>{{ h }}</td>{% endfor %}</tr>
+  {% for row in tb.rows %}<tr>{% for cell in row %}<td>{{ cell }}</td>{% endfor %}</tr>{% endfor %}
+</table>
+{% endfor %}
+{% endif %}
 {% if ctx.rntrc %}<div class="block"><span class="b">Informações específicas do modal rodoviário - RNTRC da empresa:</span> {{ ctx.rntrc }}</div>{% endif %}
 <div class="section">Observações gerais</div>
 <div class="block">{{ ctx.obs }}</div>

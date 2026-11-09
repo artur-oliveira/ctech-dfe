@@ -30,7 +30,8 @@ const (
 	// configures its own colour.
 	defaultBoxBackground = "#dbeaf5"
 
-	cacheSchemaVersion = "v1"
+	// v2: DACTE modal boxes and A5; bumping regenerates every cached PDF (DANFE, DACTE, DAMDFE, NFC-e, DANFSe).
+	cacheSchemaVersion = "v2"
 	cacheTagging       = "cache=auxiliary-document"
 	contentTypePDF     = "application/pdf"
 	putIfAbsent        = "*"

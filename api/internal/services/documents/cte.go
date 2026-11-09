@@ -23,6 +23,8 @@ const (
 	cteUnitM3              = "00"
 	cteUnitUnits           = "03"
 	tonToKg                = 1000
+	// cteMultiple joins repeated XML values (balsas, lacres, manuseio) in one DACTE box.
+	cteMultiple = ", "
 )
 
 var (
@@ -33,6 +35,11 @@ var (
 	cteOSServLabels = map[string]string{"6": "Transporte de Pessoas", "7": "Transporte de Valores", "8": "Excesso de Bagagem"}
 	// respSeg of seg (MOC Anexo II, section 4): the DACTE OS prints the insured only for 4 and 5.
 	cteOSInsurer = map[string]string{"4": "Emitente do CT-e", "5": "Tomador de Serviço"}
+	// Value domains printed by the modal boxes (cteModalFerroviario/cteMultiModal/cteTiposBasico XSD documentation).
+	cteTrafficLabels  = map[string]string{"0": "Próprio", "1": "Mútuo", "2": "Rodoferroviário", "3": "Rodoviário"}
+	cteRailRespLabels = map[string]string{"1": "Ferrovia de origem", "2": "Ferrovia de destino"}
+	cteNegotiable     = map[string]string{"0": "Não negociável", "1": "Negociável"}
+	cteRetiraLabels   = map[string]string{"0": "SIM", "1": "NÃO"}
 	// toma3 codes 0..3 point at rem, exped, receb, dest.
 	cteTomaActor = map[string][2]string{"0": {"rem", "enderReme"}, "1": {"exped", "enderExped"}, "2": {"receb", "enderReceb"}, "3": {"dest", "enderDest"}}
 )
@@ -178,7 +185,7 @@ func buildCTeContext(root *xmlNode, cancelled bool) (map[string]any, error) {
 		"toma": cteTaker(inf, ide), "carga": cteLoad(norm.child("infCarga")),
 		"comps": comps, "vTPrest": moneyBR(inf.child("vPrest").value("vTPrest")), "vRec": moneyBR(inf.child("vPrest").value("vRec")),
 		"imp": cteTax(inf.child("imp")), "docs": cteOriginDocs(norm.child("infDoc")),
-		"rntrc": rodo.child("RNTRC").textOrEmpty(), "obs": inf.child("compl").value("xObs"),
+		"modal_info": cteModalInfo(inf, norm), "rntrc": rodo.child("RNTRC").textOrEmpty(), "obs": inf.child("compl").value("xObs"),
 		"chave_fmt": keyBlocks(key), "chave_barcode": barcode, "qr_uri": qrURI, "consulta_url": cteConsultaURL,
 		"protocolo": protocol, "is_contingencia": contingency, "is_homologacao": ide.value("tpAmb") == "2", "is_cancelada": cancelled,
 		"legend_contingencia": dacteContingencyLegend, "legend_homologacao": dacteHomologLegend,
@@ -277,4 +284,97 @@ func buildCTeOSContext(root *xmlNode, cancelled bool) (map[string]any, error) {
 		"legend_contingencia": dacteContingencyLegend, "legend_homologacao": dacteHomologLegend,
 		"site": "https://dfe.aoctech.app", "gerado_em": time.Now().Format("02/01/2006 15:04:05"),
 	}, nil
+}
+
+// cteJoin joins the values of every child named name under n.
+func cteJoin(n *xmlNode, name string) string {
+	out := make([]string, 0)
+	for _, c := range n.childrenNamed(name) {
+		if v := strings.TrimSpace(c.textOrEmpty()); v != "" {
+			out = append(out, v)
+		}
+	}
+	return strings.Join(out, cteMultiple)
+}
+
+// cteValues reads the child value of each group node.
+func cteValues(groups []*xmlNode, name string) []string {
+	out := make([]string, 0, len(groups))
+	for _, g := range groups {
+		out = append(out, g.value(name))
+	}
+	return out
+}
+
+type cteBox = map[string]any
+
+func cteField(label, value string) cteBox { return cteBox{"lbl": label, "val": value} }
+
+// cteModalInfo builds the modal specific quadro of the DACTE (MOC Anexo II, section 3: "INFORMACOES ESPECIFICAS
+// DO MODAL ..."). Returns title "" for the rodoviario (its RNTRC line is printed apart) or an unknown modal.
+// Dutoviario: the Annex maps every field of the box to "(A ser utilizado no futuro)", so only the heading prints.
+func cteModalInfo(inf, norm *xmlNode) map[string]any {
+	ide := inf.child("ide")
+	modal := norm.child("infModal")
+	fields := make([]cteBox, 0)
+	tables := make([]cteBox, 0)
+	title := ""
+	switch ide.value("modal") {
+	case "02":
+		a := modal.child("aereo")
+		title = "Informações específicas do modal aéreo"
+		fields = append(fields,
+			cteField("Número operacional do conhecimento aéreo", a.value("nOCA")), cteField("Classe", a.child("tarifa").value("CL")),
+			cteField("Código da tarifa", a.child("tarifa").value("cTar")), cteField("Valor da tarifa", moneyBR(a.child("tarifa").value("vTar"))),
+			cteField("Número da minuta", a.value("nMinu")), cteField("Retira", cteRetiraLabels[ide.value("retira")]),
+			cteField("Dados relativos à retirada da carga", ide.value("xDetRetira")),
+			cteField("Característica adicional do serviço", inf.child("compl").value("xCaracSer")),
+			cteField("Data prevista de entrega", dateBR(a.value("dPrevAereo"))),
+			cteField("Natureza da carga: dimensão", a.child("natCarga").value("xDime")),
+			cteField("Natureza da carga: informações do manuseio", cteJoin(a.child("natCarga"), "cInfManu")))
+	case "03":
+		a := modal.child("aquav")
+		title = "Informações específicas do modal aquaviário"
+		fields = append(fields,
+			cteField("Identificação do navio/rebocador", a.value("xNavio")), cteField("Valor do AFRMM", moneyBR(a.value("vAFRMM"))),
+			cteField("Identificação da balsa", strings.Join(cteValues(a.childrenNamed("balsa"), "xBalsa"), cteMultiple)))
+		rows := make([][]string, 0)
+		for _, d := range a.childrenNamed("detCont") {
+			rows = append(rows, []string{d.value("nCont"), strings.Join(cteValues(d.childrenNamed("lacre"), "nLacre"), cteMultiple)})
+		}
+		if len(rows) > 0 {
+			tables = append(tables, cteBox{"title": "Detalhamento do contêiner", "head": []string{"Identificação do contêiner", "Lacre"}, "rows": rows})
+		}
+	case "04":
+		f := modal.child("ferrov")
+		tm := f.child("trafMut")
+		title = "Informações específicas do modal ferroviário"
+		fields = append(fields,
+			cteField("Tipo de tráfego", cteTrafficLabels[f.value("tpTraf")]), cteField("Fluxo ferroviário", f.value("fluxo")),
+			cteField("Ferrovia responsável pelo faturamento", cteRailRespLabels[tm.value("respFat")]),
+			cteField("Ferrovia emitente do CT-e", cteRailRespLabels[tm.value("ferrEmi")]), cteField("Valor do frete", moneyBR(tm.value("vFrete"))))
+		rows := make([][]string, 0)
+		for _, e := range tm.childrenNamed("ferroEnv") {
+			rows = append(rows, []string{maskCPFCNPJ(e.value("CNPJ")), e.value("IE"), e.value("cInt"), e.value("xNome")})
+		}
+		if len(rows) > 0 {
+			tables = append(tables, cteBox{"title": "Informações das ferrovias envolvidas", "head": []string{"CNPJ", "Inscrição estadual", "Cód. interno", "Razão social"}, "rows": rows})
+		}
+	case "05":
+		title = "Informações específicas do modal dutoviário"
+	case "06":
+		m := modal.child("multimodal")
+		seg := m.child("seg")
+		title = "Informações específicas do transporte multimodal de cargas"
+		fields = append(fields,
+			cteField("Número do certificado do operador de transporte multimodal", m.value("COTM")),
+			cteField("Indicador negociável", cteNegotiable[m.value("indNegociavel")]),
+			cteField("Nome da seguradora", seg.child("infSeg").value("xSeg")), cteField("CNPJ da seguradora", maskCPFCNPJ(seg.child("infSeg").value("CNPJ"))),
+			cteField("Número da apólice", seg.value("nApol")), cteField("Número da averbação", seg.value("nAver")))
+	}
+	flow := inf.child("compl").child("fluxo")
+	return map[string]any{
+		"title": title, "fields": fields, "tables": tables,
+		"fluxo": map[string]any{"has": flow != nil, "orig": flow.value("xOrig"), "pass": strings.Join(cteValues(flow.childrenNamed("pass"), "xPass"), cteMultiple), "dest": flow.value("xDest")},
+	}
 }

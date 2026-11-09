@@ -164,7 +164,9 @@ py_dfe/
 F8 (formatos impressos): o parâmetro `format` escolhe o formato; vazio mantém o formato do XML e a chave de cache
 antiga (sem sufixo). Problemas: `400 invalid-document-format` (valor fora da lista do tipo), `422
 document-format-not-allowed` (DANFE simplificado ou etiqueta com EPEC, MOC DANFE 2.11). Impressos também: DACTE A4
-retrato (`cte.go`, `dacte_retrato.html`), DANFE paisagem/simplificado/etiqueta, NFC-e resumida (sem a divisão de
+retrato e A5 paisagem (`format=a5`, MOC DACTE Anexo II 2.14/2.15; o DACTE OS só tem A4 retrato e recusa `a5` com 422; `cte.go`, `dacte_retrato.html`), com os quadros
+específicos de modal do Anexo II seção 3 (aéreo, aquaviário com contêineres, ferroviário com ferrovias envolvidas, multimodal; no
+dutoviário o Anexo marca todos os campos como "a ser utilizado no futuro", então só o título é impresso) e a previsão do fluxo da carga, DANFE paisagem/simplificado/etiqueta, NFC-e resumida (sem a divisão de
 itens) e em mensagem eletrônica (cartão PDF de 80 mm com chave, QR e link), DAMDFE paisagem. O DANFE passa a
 imprimir os valores de FCP por item (infAdProd) e o `vICMSDeson` nas informações complementares (MOC DANFE 2.10.5).
 
@@ -174,7 +176,7 @@ the embedded templates, and pure-Go QR/CODE-128 generation. There is no Lambda,
 certificate, browser process, or external asset fetch in this path.
 
 The first request performs `HeadObject`, renders on a miss, and stores the PDF at
-`{org_pk}/pdfs/v1/{nfe|nfce|mdfe|cte}/{access_key}-{state}[-{format}].pdf` with the tag
+`{org_pk}/pdfs/v2/{nfe|nfce|mdfe|cte}/{access_key}-{state}[-{format}].pdf` with the tag
 `cache=auxiliary-document`. `If-None-Match: *` avoids overwrite races and
 `singleflight` coalesces misses inside one API process. The S3 lifecycle expires
 tagged current versions after 30 days and noncurrent versions after one day.
@@ -2093,7 +2095,7 @@ Escopo: tpCTe 0, tpServ 0, modal 01, emitido a partir de NF-e do cadastro (emiti
 | POST   | `/v1.0/ctes/{access_key}/payment-link` | Vinculação de pagamento (110300, `evVincPgto`), CT-e 57 e CT-e OS 67; corpo `number` (nPag 1 a 990), `transaction_id` (2 a 35), `payment_method` (2 dígitos), `receiver_cnpj` (14), `psp_base_cnpj` (8). Sem trava de autor na api (a SEFAZ confere); roteia ao autorizador normal do CT-e |
 | POST   | `/v1.0/ctes/{access_key}/payment-link-cancel` | Cancela a vinculação (110301, `evCancVincPgto`) por `event_sk` de um 110300 `success`; o protocolo vem do registro |
 | POST   | `/v1.0/ctes/{access_key}/delivery-cancel` | Cancela o comprovante (110181, `kind` receipt) ou o insucesso (110191, `kind` failure) por `event_sk` |
-| GET    | `/v1.0/ctes/{access_key}/dacte` | URL assinada do DACTE em PDF (A4 retrato; CT-e offline pendente sai do XML assinado guardado, com a legenda de contingência), permissão `get.ctes` |
+| GET    | `/v1.0/ctes/{access_key}/dacte` | URL assinada do DACTE em PDF (`?format=retrato|a5`, padrão A4 retrato; CT-e offline pendente sai do XML assinado guardado, com a legenda de contingência), permissão `get.ctes` |
 | GET    | `/v1.0/ctes/{access_key}/events` | Eventos (`cte_events`), permissão `get.cte_events` (escrita: `create.cte_events`) |
 | GET    | `/v1.0/ctes/{access_key}/events/{event_sk}/xml` | URL assinada do XML do evento |
 

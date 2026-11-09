@@ -19,6 +19,8 @@ const (
 	FormatCompleto = "completo"
 	FormatResumido = "resumido"
 	FormatMensagem = "mensagem"
+	// CT-e (MOC DACTE Anexo II, 2.14 and 2.15): A4 portrait (default) and A5 landscape.
+	FormatA5 = "a5"
 
 	templateDANFePaisagem     = "danfe_paisagem.html"
 	templateDANFeSimplificado = "danfe_simplificado.html"
@@ -44,6 +46,7 @@ var templateByFormat = map[string]map[string]string{
 		FormatSimplificado: templateDANFeSimplificado, FormatEtiqueta: templateDANFeSimplificado,
 	},
 	DocTypeMDFe: {FormatRetrato: templateDAMDFE, FormatPaisagem: templateDAMDFEPaisagem},
+	DocTypeCTe:  {FormatRetrato: templateDACTE, FormatA5: templateDACTE},
 	DocTypeNFCe: {FormatCompleto: templateDANFCe, FormatResumido: templateDANFCe, FormatMensagem: templateDANFCeMensagem},
 }
 
@@ -59,6 +62,7 @@ var formatFromTpImp = map[string]func(tpImp string) string{
 		return FormatRetrato
 	},
 	DocTypeMDFe: func(string) string { return FormatRetrato },
+	DocTypeCTe:  func(string) string { return FormatRetrato },
 	DocTypeNFCe: func(tpImp string) string {
 		if tpImp == tpImpNFCeMensagem {
 			return FormatMensagem

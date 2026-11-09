@@ -8,8 +8,12 @@ import (
 	"gopkg.aoctech.app/dfe/api/internal/services/documents"
 )
 
-// GetDACTEURL validates tenant ownership and returns a direct cached PDF download.
-func (s *CteService) GetDACTEURL(ctx context.Context, orgPK, accessKey string) (*documents.Download, error) {
+// GetDACTEURL validates tenant ownership and returns a direct cached PDF download. format "" is A4 portrait;
+// see documents.AllowedFormats(DocTypeCTe).
+func (s *CteService) GetDACTEURL(ctx context.Context, orgPK, accessKey, format string) (*documents.Download, error) {
+	if p := documents.ValidateFormat(documents.DocTypeCTe, format); p != nil {
+		return nil, p
+	}
 	doc, err := s.GetCTe(ctx, orgPK, accessKey)
 	if err != nil {
 		return nil, err
@@ -21,7 +25,7 @@ func (s *CteService) GetDACTEURL(ctx context.Context, orgPK, accessKey string) (
 	if xmlKey == "" {
 		// Offline CT-e not yet authorized: print from the stored signed XML (DACTE em contingência).
 		if signed := services.ContingencySignedXML(doc); signed != "" {
-			return s.documentSvc.GetURL(ctx, orgPK, documents.DocTypeCTe, accessKey, []byte(signed), documents.StateContingencyPending, "")
+			return s.documentSvc.GetURL(ctx, orgPK, documents.DocTypeCTe, accessKey, []byte(signed), documents.StateContingencyPending, format)
 		}
 		return nil, problem.NotFound("XML do CT-e ainda não disponível")
 	}
@@ -29,5 +33,5 @@ func (s *CteService) GetDACTEURL(ctx context.Context, orgPK, accessKey string) (
 	if err != nil {
 		return nil, err
 	}
-	return s.documentSvc.GetURL(ctx, orgPK, documents.DocTypeCTe, accessKey, xmlBytes, documents.CancelledWhen(strAttr(doc, "status") == services.StatusCancelled), "")
+	return s.documentSvc.GetURL(ctx, orgPK, documents.DocTypeCTe, accessKey, xmlBytes, documents.CancelledWhen(strAttr(doc, "status") == services.StatusCancelled), format)
 }

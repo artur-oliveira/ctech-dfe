@@ -290,9 +290,9 @@ Fluxos transversais que faltam (todos novos):
 
 | Formato (MOC seções 2.15-2.17, 4, 5) | Estado | Observação |
 |---|---|---|
-| DACTE A4 retrato (modal rodoviário, aéreo, aquaviário, ferroviário, dutoviário, multimodal, normal) | **feito (F8), rota `GET /v1.0/ctes/{k}/dacte`**: blocos comuns e RNTRC do rodoviário; quadros específicos dos demais modais, veículos novos, produto perigoso, canhoto, verso e folhas adicionais ainda não | existe `danfe_retrato.html` e `damdfe_retrato.html` (folio + gonja, `renderer.go`) como base de layout e macros |
+| DACTE A4 retrato (modal rodoviário, aéreo, aquaviário, ferroviário, dutoviário, multimodal, normal) | **feito (F8), rota `GET /v1.0/ctes/{k}/dacte`**: blocos comuns, RNTRC do rodoviário, quadros específicos de aéreo, aquaviário (contêiner), ferroviário (ferrovias envolvidas) e multimodal, previsão do fluxo; dutoviário só o título (Anexo: "a ser utilizado no futuro"); veículos novos, produto perigoso, canhoto, verso e folhas adicionais ainda não | existe `danfe_retrato.html` e `damdfe_retrato.html` (folio + gonja, `renderer.go`) como base de layout e macros |
 | DACTE A4 paisagem | ausente | o MOC exige mesma disposição proporcional; códigos de barras não reduzem altura |
-| DACTE A5 paisagem e Ofício II (230x330) | ausente | tamanhos mínimo A5 (210x148) e máximo Ofício II; excedente vai na largura e no quadro de componentes/observações |
+| DACTE A5 paisagem e Ofício II (230x330) | **A5 feito (F8)**: `format=a5` (A5 paisagem, mesmo arranjo do retrato, folhas adicionais pela paginação); Ofício II ausente; sem seletor na UI | tamanhos mínimo A5 (210x148) e máximo Ofício II; excedente vai na largura e no quadro de componentes/observações |
 | DACTE de contingência (texto, QR Code com `sign`) | ausente | o modelo FS-DA do MOC está revogado; só offline (`tpEmis=2`) e SVC (impresso como normal) |
 | DACTE OS (modal rodoviário OS; normal; contingência FS-DA revogada) | ausente | 3.2 do MOC correlaciona XML 67 com DACTE OS |
 | **GTV-e (modelo 64)**: o MOC não traz leiaute de documento auxiliar próprio no capítulo DACTE | **lacuna do MOC**: GTV-e aparece só em QR Code e Leiaute. Recomenda-se um "DAGTVE" simples reutilizando o layout do DACTE OS, **depois de confirmar com a UF/NT** | pergunta aberta ao dono do produto |

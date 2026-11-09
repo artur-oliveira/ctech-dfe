@@ -117,9 +117,9 @@ func RegisterCTes(router fiber.Router, svc *ctesvc.CteService, userSvc *services
 		return c.JSON(res)
 	})
 
-	// GET /ctes/:access_key/dacte — cached DACTE PDF URL rendered in-process
+	// GET /ctes/:access_key/dacte?format=retrato|a5 — cached DACTE PDF URL rendered in-process
 	g.Get("/:access_key/dacte", perm.Require("get.ctes"), func(c fiber.Ctx) error {
-		download, err := svc.GetDACTEURL(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"))
+		download, err := svc.GetDACTEURL(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"), c.Query("format"))
 		if err != nil {
 			return sendProblem(c, err)
 		}

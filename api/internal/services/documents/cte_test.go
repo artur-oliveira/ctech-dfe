@@ -3,6 +3,8 @@ package documents
 import (
 	"bytes"
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -122,5 +124,143 @@ func TestDACTEOSContextAndPDF(t *testing.T) {
 	pdf, err := renderer.Render(context.Background(), DocTypeCTe, []byte(sampleCTeOSXML()), StateActive, "")
 	if err != nil || !bytes.HasPrefix(pdf, []byte("%PDF")) {
 		t.Fatalf("render OS: %v", err)
+	}
+}
+
+// dumpIfAsked writes the PDF to $DUMP_DIR for the visual check (unset: no-op).
+func dumpIfAsked(t *testing.T, name string, pdf []byte) {
+	t.Helper()
+	if dir := os.Getenv("DUMP_DIR"); dir != "" {
+		if err := os.WriteFile(filepath.Join(dir, name+".pdf"), pdf, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+const sampleRodoModal = "<rodo><RNTRC>12345678</RNTRC></rodo>"
+
+// cteWithModal swaps the rodoviario sample for another modal (code of ide/modal + the infModal child).
+func cteWithModal(code, infModal string) string {
+	x := strings.Replace(sampleCTeXML(), "<modal>01</modal>", "<modal>"+code+"</modal>", 1)
+	return strings.Replace(x, sampleRodoModal, infModal, 1)
+}
+
+func TestDACTEModalBoxes(t *testing.T) {
+	cases := []struct {
+		name, code, modal, title string
+		wantFields               map[string]string
+		wantRows                 int
+	}{
+		{"aereo", "02", `<aereo><nMinu>123456789</nMinu><nOCA>12345678901</nOCA><dPrevAereo>2026-09-01</dPrevAereo><natCarga><xDime>10x20x30</xDime><cInfManu>01</cInfManu><cInfManu>02</cInfManu></natCarga><tarifa><CL>M</CL><cTar>T1</cTar><vTar>12.50</vTar></tarifa></aereo>`,
+			"Informações específicas do modal aéreo", map[string]string{
+				"Número operacional do conhecimento aéreo": "12345678901", "Classe": "M", "Valor da tarifa": "12,50", "Número da minuta": "123456789",
+				"Data prevista de entrega": "01/09/2026", "Natureza da carga: dimensão": "10x20x30", "Natureza da carga: informações do manuseio": "01, 02",
+			}, 0},
+		{"aquaviario", "03", `<aquav><vPrest>1.00</vPrest><vAFRMM>150.00</vAFRMM><xNavio>NAVIO A</xNavio><balsa><xBalsa>B1</xBalsa></balsa><balsa><xBalsa>B2</xBalsa></balsa><detCont><nCont>CONT1234567</nCont><lacre><nLacre>L1</nLacre></lacre><lacre><nLacre>L2</nLacre></lacre></detCont></aquav>`,
+			"Informações específicas do modal aquaviário", map[string]string{
+				"Identificação do navio/rebocador": "NAVIO A", "Valor do AFRMM": "150,00", "Identificação da balsa": "B1, B2",
+			}, 1},
+		{"ferroviario", "04", `<ferrov><tpTraf>1</tpTraf><trafMut><respFat>1</respFat><ferrEmi>2</ferrEmi><vFrete>99.90</vFrete><ferroEnv><CNPJ>11222333000181</CNPJ><cInt>FE1</cInt><IE>9</IE><xNome>FERROVIA ENVOLVIDA</xNome></ferroEnv></trafMut><fluxo>FLX1</fluxo></ferrov>`,
+			"Informações específicas do modal ferroviário", map[string]string{
+				"Tipo de tráfego": "Mútuo", "Fluxo ferroviário": "FLX1", "Ferrovia responsável pelo faturamento": "Ferrovia de origem",
+				"Ferrovia emitente do CT-e": "Ferrovia de destino", "Valor do frete": "99,90",
+			}, 1},
+		{"dutoviario", "05", `<duto><vTar>1.00</vTar></duto>`, "Informações específicas do modal dutoviário", map[string]string{}, 0},
+		{"multimodal", "06", `<multimodal><COTM>COTM123</COTM><indNegociavel>1</indNegociavel><seg><infSeg><xSeg>SEGURADORA</xSeg><CNPJ>11222333000181</CNPJ></infSeg><nApol>AP1</nApol><nAver>AV1</nAver></seg></multimodal>`,
+			"Informações específicas do transporte multimodal de cargas", map[string]string{
+				"Número do certificado do operador de transporte multimodal": "COTM123", "Indicador negociável": "Negociável",
+				"Nome da seguradora": "SEGURADORA", "Número da apólice": "AP1", "Número da averbação": "AV1",
+			}, 0},
+	}
+	renderer, err := newFolioRenderer()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			xml := cteWithModal(tc.code, tc.modal)
+			root, err := parseXML([]byte(xml))
+			if err != nil {
+				t.Fatal(err)
+			}
+			data, err := buildCTeContext(root, false)
+			if err != nil {
+				t.Fatal(err)
+			}
+			info := data["modal_info"].(map[string]any)
+			if info["title"] != tc.title {
+				t.Fatalf("title = %v", info["title"])
+			}
+			got := map[string]string{}
+			for _, f := range info["fields"].([]cteBox) {
+				got[f["lbl"].(string)] = f["val"].(string)
+			}
+			for k, v := range tc.wantFields {
+				if got[k] != v {
+					t.Errorf("%s = %q, want %q", k, got[k], v)
+				}
+			}
+			rows := 0
+			for _, tb := range info["tables"].([]cteBox) {
+				rows += len(tb["rows"].([][]string))
+			}
+			if rows != tc.wantRows {
+				t.Errorf("table rows = %d, want %d", rows, tc.wantRows)
+			}
+			pdf, err := renderer.Render(context.Background(), DocTypeCTe, []byte(xml), StateActive, "")
+			if err != nil || !bytes.HasPrefix(pdf, []byte("%PDF")) {
+				t.Fatalf("render: %v", err)
+			}
+			dumpIfAsked(t, "dacte_"+tc.name, pdf)
+		})
+	}
+}
+
+func TestDACTERodoviarioHasNoModalBox(t *testing.T) {
+	root, _ := parseXML([]byte(sampleCTeXML()))
+	data, _ := buildCTeContext(root, false)
+	if data["modal_info"].(map[string]any)["title"] != "" {
+		t.Fatal("rodoviario prints only the RNTRC line")
+	}
+}
+
+func TestDACTEFlow(t *testing.T) {
+	x := strings.Replace(sampleCTeXML(), "<xObs>", "<fluxo><xOrig>ORI</xOrig><pass><xPass>P1</xPass></pass><pass><xPass>P2</xPass></pass><xDest>DES</xDest></fluxo><xObs>", 1)
+	root, _ := parseXML([]byte(x))
+	data, _ := buildCTeContext(root, false)
+	f := data["modal_info"].(map[string]any)["fluxo"].(map[string]any)
+	if f["orig"] != "ORI" || f["pass"] != "P1, P2" || f["dest"] != "DES" || f["has"] != true {
+		t.Fatalf("fluxo = %v", f)
+	}
+}
+
+func TestDACTEA5(t *testing.T) {
+	if ValidateFormat(DocTypeCTe, FormatA5) != nil || ValidateFormat(DocTypeCTe, FormatPaisagem) == nil {
+		t.Fatal("cte formats: retrato and a5 only")
+	}
+	renderer, err := newFolioRenderer()
+	if err != nil {
+		t.Fatal(err)
+	}
+	pdf, err := renderer.Render(context.Background(), DocTypeCTe, []byte(sampleCTeXML()), StateActive, FormatA5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	parsed, err := reader.Parse(pdf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A5 landscape: 210 x 148 mm = 595.3 x 419.5 pt.
+	if page, _ := parsed.Page(0); page.MediaBox.Width() < 590 || page.MediaBox.Width() > 600 || page.MediaBox.Height() < 415 || page.MediaBox.Height() > 424 {
+		t.Fatalf("not A5 landscape: %.1f x %.1f", page.MediaBox.Width(), page.MediaBox.Height())
+	}
+	dumpIfAsked(t, "dacte_a5", pdf)
+	if _, err := renderer.Render(context.Background(), DocTypeCTe, []byte(sampleCTeOSXML()), StateActive, FormatA5); err == nil {
+		t.Fatal("DACTE OS must refuse A5")
+	} else if _, ok := err.(*FormatNotAllowedError); !ok {
+		t.Fatalf("err = %v", err)
+	}
+	if a, b := cacheKey("O", DocTypeCTe, testCTeKey, StateActive, ""), cacheKey("O", DocTypeCTe, testCTeKey, StateActive, FormatA5); a == b || !strings.Contains(a, "/v2/") {
+		t.Fatalf("cache keys %q %q", a, b)
 	}
 }

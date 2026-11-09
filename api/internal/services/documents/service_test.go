@@ -132,7 +132,7 @@ func TestCacheKeySeparatesDocumentStates(t *testing.T) {
 		keys[key] = state
 	}
 	active := cacheKey("CNPJ_12345678000190", DocTypeNFe, testNFeKey, StateActive, "")
-	want := "pdfs/nfe/CNPJ_12345678000190/v1/" + testNFeKey + "-active.pdf"
+	want := "pdfs/nfe/CNPJ_12345678000190/v2/" + testNFeKey + "-active.pdf"
 	if active != want {
 		t.Fatalf("active cache key = %q, want %q", active, want)
 	}

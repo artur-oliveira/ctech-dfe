@@ -270,6 +270,12 @@ paths:
       summary: Baixa o DACTE em PDF
       description: A4 retrato. O CT-e OS (modelo 67) sai no leiaute do DACTE OS (MOC Anexo II, seção 6). CT-e offline ainda não autorizado sai da cópia assinada guardada, com a legenda de contingência.
       operationId: getCteDacte
+      parameters:
+        - name: format
+          in: query
+          required: false
+          description: "Formato impresso. Vazio: A4 retrato. a5: A5 paisagem (MOC DACTE Anexo II 2.15); o DACTE OS recusa a5 com 422 document-format-not-allowed. Valor fora da lista: 400 invalid-document-format."
+          schema: { type: string, enum: [ retrato, a5 ] }
       responses:
         '200': { $ref: '#/components/responses/CachedPdfDownload' }
         '401': { $ref: '#/components/responses/Unauthorized' }
