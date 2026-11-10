@@ -11,27 +11,44 @@ import {useFiscalConfig} from '@/lib/hooks/useFiscalConfig';
 import {queryKeys} from '@/lib/api/query-keys';
 import type {EmitFailure} from '@/lib/billing/notice';
 import {PersonPicker} from '@/components/persons/PersonPicker';
-import {EmitConfirmModal} from '@/components/ui/emit-confirm-modal';
+import {FormWizard, ReviewSection, focusFirstInvalid, useWizard, type WizardStep} from '@/components/ui/form-wizard';
 import {EmitError} from '@/components/ui/emit-error';
 import {HomologationBanner} from '@/components/ui/homologation-banner';
 import {
+  CTE_CHARGE_ERROR_CODES,
   CTE_SUBSTITUTE_LIMIT_DAYS,
   CTE_SUBSTITUTE_SEFAZ_DAYS,
   CTE_SUBSTITUTE_TAKER_ROLES,
   CTE_TAKER_LABELS,
   CTE_SUBSTITUTE_NEEDS_PERSON,
+  CTE_TAKER_ERROR_CODES,
 } from '@/lib/constants/cte';
 import {cteComplementBodySchema, cteSubstituteBodySchema} from '@/lib/schemas/cte';
-import {buildChargeBody, chargeMissing, cteDocFailure, daysSince, ibsCbsComplete, substituteWindow} from '@/lib/utils/cte';
+import {
+  buildChargeBody, chargeMissingItems, cteDocFailure, cteErrorStep, daysSince, ibsCbsComplete, stepOfCodes, substituteWindow,
+  type StepIssue,
+} from '@/lib/utils/cte';
 import {cn} from '@/lib/utils';
 import {formatCurrency} from '@/lib/utils/helpers';
 import type {CteDetailOut, CteTakerRole, PersonItemOut} from '@/lib/types/api';
-import {CteActionBar} from './CteActionBar';
 import {CteChargeExtras, useCteCharge} from './CteCharge';
-import {CteSection} from './CteBlock';
-import {CteFreightFields} from './CteFreightFields';
+import {CTE_SURFACE, CteSection} from './CteBlock';
+import {StepIssues, useStepIssues} from './StepIssues';
+import {CteFreightFields, icmsSummary} from './CteFreightFields';
+import {OriginalSummary} from './CteOriginalGate';
 
 export type CteChangeMode = 'complement' | 'substitute'
+
+const STEP_ORIGINAL = 'original';
+const STEP_TAKER = 'taker';
+const STEP_VALUE = 'value';
+const STEP_REVIEW = 'review';
+const ERROR_STEP_BY_CODE = {
+  ...stepOfCodes(STEP_TAKER, CTE_TAKER_ERROR_CODES),
+  ...stepOfCodes(STEP_VALUE, CTE_CHARGE_ERROR_CODES),
+  substitution_window_expired: STEP_ORIGINAL,
+};
+const ERROR_STEP_BY_TARGET = {aut_xml: STEP_VALUE} as const;
 
 const COPY = {
   complement: {
@@ -62,10 +79,10 @@ function WhenToUse({mode, original}: { mode: CteChangeMode; original: CteDetailO
   const deadline = substituteWindow(days);
   const other = mode === 'complement' ? 'substitute' : 'complement';
   return (
-    <section aria-label="Quando usar" className="rounded-xl border border-gray-200 bg-white p-4 md:p-5 space-y-2 text-sm text-gray-700">
+    <section aria-label="Quando usar" className={`${CTE_SURFACE} space-y-2 text-sm text-gray-700`}>
       {mode === 'complement' ? (
         <>
-          <h2 className="text-base font-semibold text-gray-900">Quando usar o complemento</h2>
+          <h3 className="text-base font-semibold text-gray-900">Quando usar o complemento</h3>
           <p>
             Use quando o valor cobrado no CT-e original ficou abaixo do devido e falta cobrar a diferença. O complemento
             só soma valor: remetente, destinatário, percurso e tomador repetem os do original, lidos do XML dele.
@@ -76,7 +93,7 @@ function WhenToUse({mode, original}: { mode: CteChangeMode; original: CteDetailO
         </>
       ) : (
         <>
-          <h2 className="text-base font-semibold text-gray-900">Quando usar o substituto</h2>
+          <h3 className="text-base font-semibold text-gray-900">Quando usar o substituto</h3>
           <p>
             Use para trocar um CT-e autorizado por outro, com valor ou tributos corrigidos e, se preciso, outro tomador.
             Carga e NF-e repetem as do original, lidas do XML dele.
@@ -174,18 +191,21 @@ export function CteChangeForm({mode, original}: { mode: CteChangeMode; original:
   const copy = COPY[mode];
   const charge = useCteCharge(original.origin ?? null, original.destination ?? null);
   const [taker, setTaker] = useState<TakerState>({change: false, role: null, person: null});
-  const [confirmOpen, setConfirmOpen] = useState(false);
   const [failure, setFailure] = useState<EmitFailure | null>(null);
+  const [failureStep, setFailureStep] = useState(STEP_REVIEW);
 
   const deadline = substituteWindow(daysSince(original.dh_emi ?? original.created_at));
-  const missing = [
-    ...chargeMissing(charge.state, mode === 'complement' ? 'valor complementar' : 'frete'),
-    ...(mode === 'substitute' && taker.change && !taker.role ? ['Escolha o novo tomador'] : []),
-    ...(mode === 'substitute' && taker.role && CTE_SUBSTITUTE_NEEDS_PERSON.has(taker.role) && !taker.person
-      ? ['Escolha a pessoa que paga o frete'] : []),
-    ...(mode === 'substitute' && deadline === 'expired' ? ['O prazo para substituir acabou'] : []),
-    ...(charge.state.ibsCbs && !ibsCbsComplete(charge.state.ibsCbs) ? ['Complete o IBS/CBS ou desligue o bloco'] : []),
+  const substitute = mode === 'substitute';
+  const items: StepIssue[] = [
+    ...(substitute && deadline === 'expired' ? [{step: STEP_ORIGINAL, text: 'O prazo para substituir acabou'}] : []),
+    ...(substitute && taker.change && !taker.role ? [{step: STEP_TAKER, text: 'Escolha o novo tomador'}] : []),
+    ...(substitute && taker.role && CTE_SUBSTITUTE_NEEDS_PERSON.has(taker.role) && !taker.person
+      ? [{step: STEP_TAKER, text: 'Escolha a pessoa que paga o frete'}] : []),
+    ...chargeMissingItems(charge.state, mode === 'complement' ? 'valor complementar' : 'frete', STEP_VALUE),
+    ...(charge.state.ibsCbs && !ibsCbsComplete(charge.state.ibsCbs)
+      ? [{step: STEP_VALUE, text: 'Complete o IBS/CBS ou desligue o bloco'}] : []),
   ];
+  const issues = useStepIssues(items);
 
   const emit = useMutation({
     mutationFn: () => {
@@ -207,32 +227,82 @@ export function CteChangeForm({mode, original}: { mode: CteChangeMode; original:
       toast.success(copy.success);
       router.push('/cte');
     },
-    onError: (err) => setFailure(cteDocFailure(err, copy.fallback)),
+    onError: (err) => {
+      const f = cteDocFailure(err, copy.fallback);
+      const step = cteErrorStep(err, f, ERROR_STEP_BY_CODE, ERROR_STEP_BY_TARGET, STEP_REVIEW);
+      setFailure(f);
+      setFailureStep(step);
+      wizard.goTo(step);
+    },
   });
+
+  const failureAt = (step: string) => <EmitError failure={failureStep === step ? failure : null}/>;
+  const cfopLabel = charge.freight.cfopOptions.find((o) => o.value === charge.freight.cfop)?.label;
+  const takerText = taker.change && taker.role
+    ? `${CTE_TAKER_LABELS[taker.role]}${taker.person ? ` · ${taker.person.name}` : ''}` : 'O mesmo do original';
+
+  const steps: WizardStep[] = [
+    // O alerta do prazo já está no próprio passo (WhenToUse), então não repete a pendência.
+    {id: STEP_ORIGINAL, label: 'Original', validate: () => issues.validate(STEP_ORIGINAL), content: (
+      <>
+        <OriginalSummary doc={original}/>
+        <WhenToUse mode={mode} original={original}/>
+        {failureAt(STEP_ORIGINAL)}
+      </>
+    )},
+    ...(substitute ? [{id: STEP_TAKER, label: 'Tomador', validate: () => issues.validate(STEP_TAKER), content: (
+      <>
+        <TakerChange original={original} value={taker} onChange={setTaker}/>
+        <StepIssues items={issues.of(STEP_TAKER)}/>
+        {failureAt(STEP_TAKER)}
+      </>
+    )}] : []),
+    {id: STEP_VALUE, label: 'Valores', validate: () => issues.validate(STEP_VALUE), content: (
+      <>
+        <CteFreightFields {...charge.freight} title={copy.freightTitle} hint={copy.freightHint} totalLabel={copy.totalLabel}/>
+        <CteChargeExtras charge={charge} xmlErrors={failure?.issues?.filter((i) => i.target === 'aut_xml').map((i) => i.text)}/>
+        <StepIssues items={issues.of(STEP_VALUE)}/>
+        {failureAt(STEP_VALUE)}
+      </>
+    )},
+    {id: STEP_REVIEW, label: 'Revisão', content: (w) => (
+      <>
+        <p className="text-sm text-gray-600">Confira os dados antes de emitir o {copy.docLabel}.</p>
+        <div className="grid gap-x-8 gap-y-4 md:grid-cols-2">
+          <ReviewSection title="CT-e original" stepId={STEP_ORIGINAL} wizard={w} items={[
+            ['Número', `${original.number} · série ${original.serie}`],
+            ['Tomador atual', original.taker?.name ?? ''],
+          ]}/>
+          {substitute && <ReviewSection title="Tomador" stepId={STEP_TAKER} wizard={w} items={[['Novo tomador', takerText]]}/>}
+          <ReviewSection title="Valores" stepId={STEP_VALUE} wizard={w} items={[
+            [copy.totalLabel, charge.freight.total ? formatCurrency(charge.freight.total) : ''],
+            ['CFOP', cfopLabel ?? ''],
+            ['ICMS', icmsSummary(charge.freight.total, charge.freight.icms)],
+          ]}/>
+        </div>
+        {failureAt(STEP_REVIEW)}
+      </>
+    )},
+  ];
+  const wizard = useWizard(steps);
+
+  const submit = () => {
+    setFailure(null);
+    const bad = issues.firstInvalid(steps.slice(0, -1).map((s) => s.id));
+    if (bad) {
+      toast.error('Confira os campos destacados.');
+      wizard.goTo(bad);
+      focusFirstInvalid();
+      return;
+    }
+    emit.mutate();
+  };
 
   return (
     <div className="space-y-4">
       <HomologationBanner environment={config?.environment}/>
-      <WhenToUse mode={mode} original={original}/>
-      {mode === 'substitute' && <TakerChange original={original} value={taker} onChange={setTaker}/>}
-      <CteFreightFields {...charge.freight} title={copy.freightTitle} hint={copy.freightHint} totalLabel={copy.totalLabel}/>
-      <CteChargeExtras charge={charge} xmlErrors={failure?.issues?.filter((i) => i.target === 'aut_xml').map((i) => i.text)}/>
-      <EmitError failure={failure}/>
-      <CteActionBar label={copy.barLabel} amount={charge.freight.total} missing={missing} pending={emit.isPending}
-                    buttonLabel={copy.emitLabel} onEmit={() => { setFailure(null); setConfirmOpen(true); }}/>
-      <EmitConfirmModal
-        open={confirmOpen} onClose={() => setConfirmOpen(false)}
-        onConfirm={() => { setConfirmOpen(false); emit.mutate(); }}
-        docLabel={copy.docLabel}
-        summary={[
-          {label: 'CT-e original', value: `${original.number} · série ${original.serie}`},
-          {label: copy.totalLabel, value: charge.freight.total ? formatCurrency(charge.freight.total) : '-'},
-          ...(mode === 'substitute' ? [{
-            label: 'Tomador',
-            value: taker.change && taker.role ? CTE_TAKER_LABELS[taker.role] : 'O mesmo do original',
-          }] : []),
-        ]}
-      />
+      <FormWizard wizard={wizard} steps={steps} onSubmit={submit} submitting={emit.isPending}
+                  submitLabel={copy.emitLabel} onCancel={() => router.push('/cte')}/>
     </div>
   );
 }

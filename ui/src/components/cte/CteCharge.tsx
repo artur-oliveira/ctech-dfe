@@ -8,6 +8,7 @@ import {useAuth} from '@/lib/hooks/useAuth';
 import {CTE_IBSCBS_CRT, CTE_ICMS_SN, CTE_SN_CRTS} from '@/lib/constants/cte';
 import {cteCfopOptions, type CteChargeState, type CteFreightLine, type CteIbsCbsState, type CteIcmsState} from '@/lib/utils/cte';
 import type {CtePlace} from '@/lib/types/api';
+import {CollapsibleSection} from '@/components/ui/collapsible-section';
 import {AuthorizedXmlFields, type AuthorizedXmlEntry} from '@/components/mdfe/AuthorizedXmlFields';
 import {CteIbsCbsFields} from './CteIbsCbsFields';
 
@@ -60,7 +61,13 @@ export function CteChargeExtras({charge, xmlErrors}: { charge: CteCharge; xmlErr
       {charge.showIbsCbs && (
         <CteIbsCbsFields value={charge.ibsCbs} onChange={charge.setIbsCbs} freightTotal={charge.freight.total}/>
       )}
-      <AuthorizedXmlFields entries={charge.authorizedXml} onChange={charge.setAuthorizedXml} errors={xmlErrors}/>
+      <CollapsibleSection title="Quem mais baixa o XML (opcional)"
+                          badge={charge.authorizedXml.length > 0 ? <span className="text-xs text-brand-700">{charge.authorizedXml.length}</span> : undefined}>
+        {/* O bloco compartilhado com o MDF-e traz moldura própria; dentro da disclosure ela sobra. */}
+        <div className="[&>div]:rounded-none [&>div]:border-0 [&>div]:p-0">
+          <AuthorizedXmlFields entries={charge.authorizedXml} onChange={charge.setAuthorizedXml} errors={xmlErrors}/>
+        </div>
+      </CollapsibleSection>
     </section>
   );
 }

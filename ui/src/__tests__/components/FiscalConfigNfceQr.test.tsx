@@ -14,7 +14,7 @@ describe('FiscalConfigForm: versão do QR Code da NFC-e', () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     render(<FiscalConfigForm variant="nfce" initialData={cfg({qr_code_version: 3, prod_csc: '', prod_csc_id: 0, hom_csc: '', hom_csc_id: 0})} onSave={onSave}/>);
     expect(screen.getAllByText(/CSC \(token\) \(opcional\)/)).toHaveLength(2);
-    fireEvent.click(screen.getByRole('button', {name: 'Salvar configuração'}));
+    fireEvent.click(screen.getByRole('button', {name: 'Salvar alterações'}));
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     const body = onSave.mock.calls[0][0];
     expect(body.qr_code_version).toBe(3);
@@ -25,7 +25,7 @@ describe('FiscalConfigForm: versão do QR Code da NFC-e', () => {
   it('na versão 2 sem CSC de produção o formulário não salva', async () => {
     const onSave = vi.fn();
     render(<FiscalConfigForm variant="nfce" initialData={cfg({qr_code_version: 2, prod_csc: '', prod_csc_id: 0})} onSave={onSave}/>);
-    await userEvent.click(screen.getByRole('button', {name: 'Salvar configuração'}));
+    await userEvent.click(screen.getByRole('button', {name: 'Salvar alterações'}));
     expect((await screen.findAllByText('CSC obrigatório')).length).toBeGreaterThan(0);
     expect(onSave).not.toHaveBeenCalled();
   });

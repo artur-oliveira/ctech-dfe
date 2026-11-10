@@ -159,7 +159,7 @@ describe('EmissionSection', () => {
       await userEvent.click(screen.getByRole('checkbox', {name: /Entrar em contingência sozinho/}));
       expect(screen.getByRole('checkbox', {name: /Entrar em contingência sozinho/})).toBeChecked();
       rerender(<EmissionSection key="emission-nfce" doc="nfce" pk="1" config={NFCE} autoAvailable/>);
-      expect(screen.getAllByRole('region', {name: 'Forma de emissão'})).toHaveLength(1);
+      expect(screen.getAllByRole('combobox', {name: /Forma de emissão atual de/})).toHaveLength(1);
       expect(screen.getAllByRole('checkbox')).toHaveLength(1);
       expect(screen.getByRole('checkbox', {name: /Entrar em contingência sozinho/})).not.toBeChecked();
     });

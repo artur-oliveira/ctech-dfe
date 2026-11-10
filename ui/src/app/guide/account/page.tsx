@@ -160,9 +160,18 @@ export default function GuideConta() {
             'Uma aba por tipo de documento, cada uma com ambiente, série, numeração e o que só ela exige.',
           image: {
             src: '/guide/fiscal-config.webp',
-            alt: 'Configuração fiscal com abas por tipo de documento e numeração separada por ambiente',
+            alt: 'Configuração fiscal com abas por tipo de documento, trilho de seções à esquerda e a barra Salvar alterações',
           },
           body: (
+            <>
+            <p>
+              Dentro de cada aba, um trilho de seções à esquerda (no celular, um seletor) mostra uma seção por vez:
+              Ambiente, Numeração e série, Responsável técnico e Forma de emissão, mais CSC e QR Code na NFC-e e
+              Manifesto no MDF-e; a NFS-e tem Provedor e ambiente, Município e numeração e, com o provedor
+              ABRASF, uma seção própria. Um ponto na seção indica alteração não salva e um número, erros de
+              validação; <b>Salvar alterações</b> grava tudo de uma vez e, se houver erro, abre a seção e leva
+              o foco ao campo. A forma de emissão tem o próprio botão Aplicar.
+            </p>
             <p>
               NF-e e CT-e mostram também o NSU da distribuição; NFC-e acrescenta a versão do QR Code e o CSC; MDF-e, o
               Canal Verde, a mensagem ao fisco e o RNTRC da transportadora (8 dígitos, da ANTT; opcional
@@ -170,6 +179,7 @@ export default function GuideConta() {
               emissão. Produção e homologação têm série e número atual
               independentes, então testar nunca queima numeração válida.
             </p>
+            </>
           ),
         },
         {
@@ -205,7 +215,7 @@ export default function GuideConta() {
             'Opcional e desligada por padrão: o sistema troca a forma de emissão sozinho quando a SEFAZ cai e volta a Normal quando ela se recupera.',
           image: {
             src: '/guide/fiscal-config-auto-contingency.webp',
-            alt: 'Bloco Forma de emissão da NF-e com Entrar em contingência sozinho ligado e o seletor obrigatório da contingência usada na troca',
+            alt: 'Seção Forma de emissão da NF-e com Entrar em contingência sozinho ligado e o seletor obrigatório da contingência usada na troca',
           },
           body: (
             <>

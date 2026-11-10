@@ -284,6 +284,37 @@ Use `CurrencyInput` (`@/components/ui/currency-input`) for all monetary fields.
 
 ---
 
+## Wizard de formularios
+
+Formulario grande cabe numa tela por passo (1366x768 sem rolar a pagina; 4 a 7 campos, grade de 2 colunas no desktop).
+Casca: `src/components/ui/form-wizard.tsx`; referencia: `components/ciot/CiotEmitForm.tsx`; testes em `__tests__/ui/form-wizard.test.tsx`.
+
+- **Quando usar.** Wizard: criacao/emissao com mais de ~8 campos que seguem uma sequencia (CIOT, CT-e, MDF-e). Settings-rail
+  (navegacao lateral por secao): configuracao que se edita aos poucos e fora de ordem (fiscal-config). Pagina unica: ate ~8
+  campos. Campo opcional/avancado vai num `CollapsibleSection` dentro do passo.
+- **API.**
+  ```tsx
+  const steps: WizardStep[] = [
+    {id, label, validate?: () => boolean, content: ReactNode | ((wizard) => ReactNode)},
+    ...,  // o ultimo passo e a Revisao
+  ];
+  const wizard = useWizard(steps);   // {index, step, isLast, reached, goTo(id|n), back(), next()}
+  <FormWizard wizard={wizard} steps={steps} onSubmit={...} submitLabel="Declarar" submitting={pending}
+              onCancel={...}>{modais}</FormWizard>
+  ```
+  `validate` mostra os erros do passo e devolve se esta valido (padrao do CIOT: rodar o schema zod inteiro e filtrar os erros
+  pelo passo dono do campo, `KEY_STEP`). Erro sem campo que o dono (422 da API) ou submissao final invalida: `wizard.goTo(id)`
+  e, para focar o primeiro campo, `focusFirstInvalid()` (procura `role="alert"` com id `{campo}-error`, o que o `Field` ja emite).
+  `ReviewSection` monta o bloco da revisao com o "Editar" que chama `goTo`.
+- **Comportamento da casca.** Todos os passos ficam montados (so o atual aparece), entao estado local e rascunho sobrevivem.
+  Continuar com erro nao avanca e foca o campo invalido; Voltar e livre; o indicador so pula ate o passo ja visitado; Enter num campo
+  avanca (so o ultimo passo envia); a troca de passo leva o foco ao titulo e anuncia por `aria-live`; fade de 150 ms so com
+  `motion-safe`. Rodape fixo (`bottom-(--bottomnav-height)`, safe-area), Voltar e Continuar lado a lado no mobile.
+- **Fora da casca (por passo).** Nada de card dentro de card: o passo ja e uma superficie. Captura do guia dos passos alem do
+  primeiro precisa de fixture que chegue la sem digitar (o CIOT usa `?rectify=`).
+
+---
+
 ## Theme
 
 The brand scale is the `--brand-*` custom properties in `src/app/globals.css` (primary `brand-600` `#1c6c55`,
@@ -353,3 +384,10 @@ There are NO exceptions.
 Any modification affecting behavior, architecture, APIs, integrations, configuration, deployment, security, business rules, or developer workflow MUST include the corresponding documentation update in the same change.
 
 - **Bundle budget:** `npm run bundle:check` (run after `npm run build`; CI does it) holds each route's first-load JS to `bundle-budget.json` +8%. Re-pin with `npm run bundle:pin` only in a deliberate commit that states why the number moved.
+
+## Settings-rail (configuracao editada no lugar)
+
+`src/components/ui/settings-rail.tsx`: `useSettingsRail(form, order, sectionOf, initial?)` + `<SettingsRail sections active onSelect .../>`.
+Trilho de secoes (desktop) ou `<select>` (mobile), uma secao visivel por vez (todas montadas), barra "Salvar alterações" com
+marca de alterado/erros por secao; `onInvalid` do `handleSubmit` abre a primeira secao com erro e foca o campo (`[name]`/id).
+Secao com acao propria (`ownsSave`) esconde a barra. Uso: `components/fiscal-config/*`; testes em `__tests__/ui/settings-rail.test.tsx`.

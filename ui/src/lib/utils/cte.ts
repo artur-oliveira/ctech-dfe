@@ -1,6 +1,7 @@
 import {CITIES} from '@/lib/data/cities';
 import {ApiError} from '@/lib/api/client';
 import {emitFailure, type EmitFailure} from '@/lib/billing/notice';
+import type {EmitTarget} from '@/lib/api/emit-problem';
 import {
   CTE_CFOP_SCOPE_INTER,
   CTE_DOC_ERRORS,
@@ -229,48 +230,87 @@ export function cteSummary(derive: CteDeriveOut, o: CteOverrides): string {
   return parts.join(' · ');
 }
 
-/**
- * O que falta para emitir, em linguagem de quem preenche. Vazio = pode emitir.
- * A barra de ação mostra o primeiro item; o botão fica desabilitado enquanto houver algum.
- */
-export function cteMissing(
+/** Pendência de um formulário em passos: o passo dono, o texto e (se houver) o id do campo para o foco. */
+export interface StepIssue {
+  step: string
+  text: string
+  field?: string
+}
+
+/** Passos de pendência da emissão a partir de NF-e (ids dos passos do `CteEmitForm`). */
+export const CTE_STEP_NOTES = 'notes';
+export const CTE_STEP_PARTIES = 'parties';
+export const CTE_STEP_FREIGHT = 'freight';
+
+/** Pendências da emissão, cada uma com o passo dono. A ordem é a de preenchimento. */
+export function cteMissingItems(
   state: CteFormState,
   derive: CteDeriveOut | undefined,
   deriving: boolean,
-): string[] {
-  if (state.nfeKeys.length === 0) return ['Escolha ao menos uma nota'];
-  if (deriving || !derive) return ['Aguarde a leitura das notas'];
+): StepIssue[] {
+  if (state.nfeKeys.length === 0) return [{step: CTE_STEP_NOTES, text: 'Escolha ao menos uma nota', field: 'cte-notes-picker'}];
+  if (deriving || !derive) return [{step: CTE_STEP_NOTES, text: 'Aguarde a leitura das notas'}];
 
-  const missing: string[] = [];
+  const missing: StepIssue[] = [];
   const role = effectiveTakerRole(state, derive);
   const t = cteTransport(derive, state.overrides);
-  if (!role) missing.push('Escolha quem paga o frete');
-  else if (CTE_TAKER_NEEDS_PERSON.has(role) && !state.takerPerson) missing.push('Escolha a pessoa que paga o frete');
+  const parties = (text: string) => missing.push({step: CTE_STEP_PARTIES, text});
+  if (!role) parties('Escolha quem paga o frete');
+  else if (CTE_TAKER_NEEDS_PERSON.has(role) && !state.takerPerson) parties('Escolha a pessoa que paga o frete');
 
-  missing.push(...chargeMissing(state, 'frete'));
+  missing.push(...chargeMissingItems(state, 'frete', CTE_STEP_FREIGHT));
 
-  if (!t.senderName) missing.push('Escolha o remetente');
-  if (!t.recipientName) missing.push('Escolha o destinatário');
-  if (!t.weightKg) missing.push('Informe o peso da carga');
-  if (state.ibsCbs && !ibsCbsComplete(state.ibsCbs)) missing.push('Complete o IBS/CBS ou desligue o bloco');
+  if (!t.senderName) parties('Escolha o remetente');
+  if (!t.recipientName) parties('Escolha o destinatário');
+  if (!t.weightKg) parties('Informe o peso da carga');
+  if (state.ibsCbs && !ibsCbsComplete(state.ibsCbs)) missing.push({step: CTE_STEP_FREIGHT, text: 'Complete o IBS/CBS ou desligue o bloco'});
   return missing;
 }
+
+/**
+ * O que falta para emitir, em linguagem de quem preenche. Vazio = pode emitir.
+ */
+export const cteMissing = (state: CteFormState, derive: CteDeriveOut | undefined, deriving: boolean): string[] =>
+  cteMissingItems(state, derive, deriving).map((i) => i.text);
 
 /** Parte da emissão que o complementar, o substituto e o CT-e OS repetem: valor, CFOP e ICMS. */
 export type CteChargeState = Pick<CteFormState, 'freightTotal' | 'components' | 'icms' | 'cfop' | 'ibsCbs' | 'authorizedXml'>
 
-/** O que falta no valor, no CFOP e no ICMS; `noun` é o que o valor representa ("frete", "valor complementar"). */
-export function chargeMissing(state: CteChargeState, noun: string): string[] {
-  const missing: string[] = [];
+/** O que falta no valor, no CFOP e no ICMS, já com o passo `step` e o campo; `noun` é o que o valor representa. */
+export function chargeMissingItems(state: CteChargeState, noun: string, step: string): StepIssue[] {
+  const missing: StepIssue[] = [];
+  const add = (text: string, field?: string) => missing.push({step, text, field});
   const total = toCents(state.freightTotal);
-  if (total <= 0) missing.push(`Informe o valor do ${noun}`);
-  else if (componentsTotal(state.components) >= total) missing.push(`Componentes somam mais que o ${noun}`);
-  if (state.components.some((c) => !c.name || toCents(c.value) <= 0)) missing.push(`Complete os componentes do ${noun}`);
+  if (total <= 0) add(`Informe o valor do ${noun}`, 'cte-freight-total');
+  else if (componentsTotal(state.components) >= total) add(`Componentes somam mais que o ${noun}`, 'cte-freight-total');
+  if (state.components.some((c) => !c.name || toCents(c.value) <= 0)) add(`Complete os componentes do ${noun}`);
 
-  if (!state.cfop) missing.push('Escolha o CFOP da prestação');
-  if (!state.icms.cst) missing.push('Escolha o CST do ICMS');
-  else if (!CTE_CST_WITHOUT_RATE.has(state.icms.cst) && !state.icms.p_icms) missing.push('Informe a alíquota do ICMS');
+  if (!state.cfop) add('Escolha o CFOP da prestação', 'cte-cfop');
+  if (!state.icms.cst) add('Escolha o CST do ICMS', 'cte-icms-cst');
+  else if (!CTE_CST_WITHOUT_RATE.has(state.icms.cst) && !state.icms.p_icms) add('Informe a alíquota do ICMS', 'cte-icms-rate');
   return missing;
+}
+
+/** O que falta no valor, no CFOP e no ICMS; `noun` é o que o valor representa ("frete", "valor complementar"). */
+export const chargeMissing = (state: CteChargeState, noun: string): string[] =>
+  chargeMissingItems(state, noun, '').map((i) => i.text);
+
+/** `{code: passo}` para uma lista de códigos 422 que moram no mesmo passo. */
+export const stepOfCodes = (step: string, codes: readonly string[]): Record<string, string> =>
+  Object.fromEntries(codes.map((c) => [c, step]));
+
+/**
+ * Passo dono de uma recusa 422: o `code` (CTE_DOC_ERRORS) manda; sem ele vale o alvo da recusa local (`aut_xml`...);
+ * sem os dois, `fallback` (a revisão, onde o erro aparece).
+ */
+export function cteErrorStep(
+  err: unknown, failure: EmitFailure, byCode: Record<string, string>, byTarget: Partial<Record<EmitTarget, string>>,
+  fallback: string,
+): string {
+  const code = err instanceof ApiError ? (err.raw as {code?: unknown} | undefined)?.code : undefined;
+  if (typeof code === 'string' && byCode[code]) return byCode[code];
+  const target = failure.issues?.map((i) => i.target).find((t) => byTarget[t]);
+  return (target && byTarget[target]) || fallback;
 }
 
 /** Valor, CFOP, ICMS, IBS/CBS e autXML no formato do corpo das rotas de emissão. */

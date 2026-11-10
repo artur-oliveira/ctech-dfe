@@ -9,7 +9,7 @@ import {
   type CteOsFederalTaxKey,
 } from '@/lib/constants/cte';
 import {personTaxId} from '@/lib/utils/document';
-import {cityPlace, chargeMissing, buildChargeBody, fromCents, toCents, type CteChargeState} from '@/lib/utils/cte';
+import {cityPlace, chargeMissingItems, buildChargeBody, fromCents, toCents, type CteChargeState, type StepIssue} from '@/lib/utils/cte';
 import type {CteOsDocRef, CteOsEmitBody, CteOsPlace, CteOsServiceType, PersonItemOut, VehicleOut} from '@/lib/types/api';
 
 /** Estado da tela do CT-e OS (modelo 67). Contrato: `POST /v1.0/ctes/os`, OpenAPI `CteOsEmitBody`. */
@@ -114,49 +114,61 @@ const isKey = (v: string) => new RegExp(`^\\d{${CTE_ACCESS_KEY_LENGTH}}$`).test(
 /** Data e hora local do `datetime-local` em RFC 3339 com fuso, sem milissegundos. */
 export const tripAtToIso = (local: string): string => new Date(local).toISOString().replace(/\.\d{3}Z$/, 'Z');
 
-/** O que falta para emitir, em linguagem de quem preenche. Vazio = pode emitir. */
-export function cteOsMissing(s: CteOsState, charge: CteChargeState): string[] {
+/** Passos do `CteOsForm` (o de dados do tipo é `road` em pessoas e bagagem, `docs` em bagagem e valores). */
+export const OS_STEP_SERVICE = 'service';
+export const OS_STEP_ROUTE = 'route';
+export const OS_STEP_ROAD = 'road';
+export const OS_STEP_DOCS = 'docs';
+export const OS_STEP_CHARGE = 'charge';
+
+/** O que falta para emitir, cada pendência com o passo dono, na ordem de preenchimento. */
+export function cteOsMissingItems(s: CteOsState, charge: CteChargeState): StepIssue[] {
   const t = s.serviceType;
-  if (!t) return ['Escolha o tipo de serviço'];
-  const m: string[] = [];
-  if (!s.taker) m.push('Escolha o tomador do serviço');
-  if (!s.description.trim()) m.push('Descreva o serviço');
-  if (osNeedsOrigin(t) && !s.origin) m.push('Escolha a origem');
-  if (osNeedsDestination(t) && !s.destination) m.push('Escolha o destino');
+  if (!t) return [{step: OS_STEP_SERVICE, text: 'Escolha o tipo de serviço', field: 'cte-os-service-type'}];
+  const m: StepIssue[] = [];
+  const add = (step: string, text: string, field?: string) => m.push({step, text, field});
+  if (!s.taker) add(OS_STEP_ROUTE, 'Escolha o tomador do serviço');
+  if (!s.description.trim()) add(OS_STEP_SERVICE, 'Descreva o serviço', 'cte-os-desc');
+  if (osNeedsOrigin(t) && !s.origin) add(OS_STEP_ROUTE, 'Escolha a origem', 'cte-os-origin');
+  if (osNeedsDestination(t) && !s.destination) add(OS_STEP_ROUTE, 'Escolha o destino', 'cte-os-destination');
 
   if (osHasRoad(t)) {
     const kind = s.registrationKind;
-    if (!kind) m.push('Escolha entre TAF e registro estadual');
-    else if (kind === 'taf' && s.taf.length !== CTE_OS_TAF_LENGTH) m.push(`Informe o TAF com ${CTE_OS_TAF_LENGTH} dígitos`);
+    if (!kind) add(OS_STEP_ROAD, 'Escolha entre TAF e registro estadual', 'cte-os-reg-kind');
+    else if (kind === 'taf' && s.taf.length !== CTE_OS_TAF_LENGTH) add(OS_STEP_ROAD, `Informe o TAF com ${CTE_OS_TAF_LENGTH} dígitos`, 'cte-os-taf');
     else if (kind === 'state_registration' && s.stateRegistration.length !== CTE_OS_STATE_REGISTRATION_LENGTH) {
-      m.push(`Informe o registro estadual com ${CTE_OS_STATE_REGISTRATION_LENGTH} dígitos`);
+      add(OS_STEP_ROAD, `Informe o registro estadual com ${CTE_OS_STATE_REGISTRATION_LENGTH} dígitos`);
     }
   }
   if (osHasCharter(t)) {
-    if (!s.charterType) m.push('Escolha o tipo de fretamento');
-    else if (s.charterType === CTE_OS_CHARTER_EVENTUAL && !s.tripAt) m.push('Informe a data e a hora da viagem');
+    if (!s.charterType) add(OS_STEP_ROAD, 'Escolha o tipo de fretamento', 'cte-os-charter');
+    else if (s.charterType === CTE_OS_CHARTER_EVENTUAL && !s.tripAt) add(OS_STEP_ROAD, 'Informe a data e a hora da viagem');
   }
   if (t === 'baggage') {
-    if (s.docRefs.length === 0) m.push('Informe ao menos um documento referenciado');
+    if (s.docRefs.length === 0) add(OS_STEP_DOCS, 'Informe ao menos um documento referenciado');
     else if (s.docRefs.some((d) => (d.mode === 'bpe' ? !isKey(d.bpe_key) : !d.number || !d.issued_on))) {
-      m.push('Complete os documentos referenciados');
+      add(OS_STEP_DOCS, 'Complete os documentos referenciados');
     }
   }
   if (t === 'values') {
-    if (s.gtve.length === 0) m.push('Informe ao menos uma GTV-e');
+    if (s.gtve.length === 0) add(OS_STEP_DOCS, 'Informe ao menos uma GTV-e');
     else if (s.gtve.some((g) => !isKey(g.key) || g.components.length === 0
       || g.components.some((c) => !c.type || toCents(c.value) <= 0
         || (c.type === CTE_OS_GTVE_COMPONENT_OTHERS && !c.name.trim())))) {
-      m.push('Complete as GTV-e e os componentes');
+      add(OS_STEP_DOCS, 'Complete as GTV-e e os componentes');
     }
   }
-  m.push(...chargeMissing(charge, 'frete'));
+  m.push(...chargeMissingItems(charge, 'frete', OS_STEP_CHARGE));
   if (t === 'values' && s.gtve.length > 0 && toCents(charge.freightTotal) > 0 && !gtveTotalCloses(s.gtve, charge.freightTotal)) {
-    m.push('A soma das GTV-e precisa fechar com o frete');
+    add(OS_STEP_CHARGE, 'A soma das GTV-e precisa fechar com o frete', 'cte-freight-total');
   }
-  if (osInssRequired(s) && toCents(s.federal.inss) <= 0) m.push('Informe o INSS dos tributos federais');
+  if (osInssRequired(s) && toCents(s.federal.inss) <= 0) add(OS_STEP_CHARGE, 'Informe o INSS dos tributos federais', 'cte-os-fed-inss');
   return m;
 }
+
+/** O que falta para emitir, em linguagem de quem preenche. Vazio = pode emitir. */
+export const cteOsMissing = (s: CteOsState, charge: CteChargeState): string[] =>
+  cteOsMissingItems(s, charge).map((i) => i.text);
 
 const docRefBody = (d: CteOsDocLine): CteOsDocRef => d.mode === 'bpe'
   ? {bpe_key: d.bpe_key}

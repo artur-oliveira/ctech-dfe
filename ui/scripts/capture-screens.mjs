@@ -45,6 +45,8 @@ const CTE_OS_KEY = ctesFixture[10].sk;
 const NFSE_ID = nfsesFixture[0].sk;
 // CIOT: [0] declarado (carga lotação, com aviso ao transportador).
 const CIOT_ID = ciotsFixture[0].id;
+// [5] fracionada em vigor: a retificação abre preenchida e válida, e os passos seguintes ficam alcançáveis.
+const CIOT_RECTIFY_ID = ciotsFixture[5].id;
 
 /**
  * Passos de preparação. Cada um é `{tipo: alvo}`:
@@ -53,8 +55,27 @@ const CIOT_ID = ciotsFixture[0].id;
  *   waitText  — espera texto aparecer em qualquer lugar da página
  *   waitAt    — espera o seletor CSS existir
  *   scrollAt  — rola até o seletor CSS
+ *   fillAt    — `[seletor, texto]`: foca o campo e digita o texto (dispara o onChange do React)
  *   pause     — espera N ms (último recurso; prefira waitText/waitAt)
  */
+// Passos repetidos das capturas dos formulários em passos do CT-e.
+const CTE_NEXT = {click: 'Continuar'};
+const addCteNote = (n) => [{click: 'Adicionar nota autorizada'}, {click: `Nº ${n} ·`}];
+const pickCity = (id, search, label) => [
+  {clickAt: id}, {fillAt: ['input[aria-label="Buscar município..."]', search]}, {click: label},
+];
+/** CT-e OS: serviço (tipo e descrição) e partes (tomador e trajeto); termina no passo seguinte à rota. */
+const osToRoute = (type, withOrigin) => [
+  {clickAt: `input[name="cte-os-service"][value="${type}"]`},
+  {fillAt: ['#cte-os-desc', 'Fretamento turístico']},
+  CTE_NEXT, {waitText: 'Quem paga o serviço?'},
+  {fillAt: ['[data-wizard-panel="route"] input[placeholder^="Buscar pessoa"]', 'Cli']},
+  {click: 'Cliente Exemplo LTDA'},
+  ...(withOrigin ? pickCity('#cte-os-origin', 'São Paulo', 'São Paulo / SP') : []),
+  ...pickCity('#cte-os-destination', 'Belo Horizonte', 'Belo Horizonte / MG'),
+  CTE_NEXT,
+];
+
 const CAPTURES = [
   // ── Visão geral ──────────────────────────────────────────────────────────
   {slug: 'dashboard', route: '/dashboard', waitText: 'Acesso rápido'},
@@ -163,31 +184,20 @@ const CAPTURES = [
   {
     slug: 'cte-emit',
     route: '/cte/emit',
-    steps: [
-      {click: 'Adicionar nota autorizada'}, {click: 'Nº 1001 ·'},
-      {click: 'Adicionar nota autorizada'}, {click: 'Nº 1002 ·'},
-      {waitText: 'Frete CIF na nota'},
-    ],
+    steps: [...addCteNote(1001), ...addCteNote(1002), {waitText: '338,5 kg'}],
   },
   {
     slug: 'cte-emit-fob',
     route: '/cte/emit',
-    steps: [
-      {click: 'Adicionar nota autorizada'}, {click: 'Nº 4821 ·'},
-      {click: 'Adicionar nota autorizada'}, {click: 'Nº 4822 ·'},
-      {waitText: 'Frete FOB na nota'},
-      // A faixa de resumo e o bloco do tomador inteiros no quadro, com o selo da sugestão.
-      {scrollAt: '[aria-label="Notas escolhidas"]'},
-    ],
+    steps: [...addCteNote(4821), ...addCteNote(4822), {waitText: '2 notas ·'}, {pause: 800}, CTE_NEXT, {waitText: 'Frete FOB na nota'}],
   },
   {
     slug: 'cte-emit-mixed',
     route: '/cte/emit',
     steps: [
-      {click: 'Adicionar nota autorizada'}, {click: 'Nº 1001 ·'},
-      {click: 'Adicionar nota autorizada'}, {click: 'Nº 4821 ·'},
+      ...addCteNote(1001), ...addCteNote(4821), {waitText: '2 notas ·'}, {pause: 800}, CTE_NEXT,
       {waitText: 'Notas com remetentes diferentes.'},
-      {scrollAt: '#cte-freight'},
+      {scrollAt: '#cte-transport'},
     ],
   },
   {
@@ -231,7 +241,7 @@ const CAPTURES = [
     slug: 'cte-emit-ibscbs',
     route: '/cte/emit?mock=regime-normal',
     steps: [
-      {click: 'Adicionar nota autorizada'}, {click: 'Nº 1001 ·'},
+      ...addCteNote(1001), {waitText: 'kg'}, CTE_NEXT, {waitText: 'Sugerido'}, CTE_NEXT,
       {waitText: 'IBS e CBS (opcional)'},
       {clickAt: 'details:has([data-testid="cte-ibscbs-summary"]) summary'},
       {clickAt: 'details:has([data-testid="cte-ibscbs-summary"]) input[type="checkbox"]'},
@@ -243,7 +253,7 @@ const CAPTURES = [
     slug: 'cte-substitute',
     route: `/cte/substitute?key=${CTE_KEY}`,
     steps: [
-      {waitText: 'Quando usar o substituto'},
+      {waitText: 'Quando usar o substituto'}, CTE_NEXT, {waitText: 'Trocar o tomador?'},
       {clickAt: 'section[aria-labelledby="cte-taker-change"] input[type="checkbox"]'},
       {waitText: 'Informar outro tomador'},
       {scrollAt: '#cte-taker-change'},
@@ -251,20 +261,11 @@ const CAPTURES = [
   },
   {slug: 'cte-detail-related', route: `/cte/detail?key=${CTE_COMPLEMENT_KEY}`, waitText: 'Complementa'},
   {slug: 'cte-os-detail', route: `/cte/detail?key=${CTE_OS_KEY}`, waitText: 'Transporte de pessoas'},
-  {
-    slug: 'cte-os-people',
-    route: '/cte/os',
-    steps: [{clickAt: 'input[name="cte-os-service"][value="people"]'}, {waitText: 'Tipo de fretamento'}],
-  },
+  {slug: 'cte-os-people', route: '/cte/os', steps: [...osToRoute('people', true), {waitText: 'Tipo de fretamento'}]},
   {
     slug: 'cte-os-values',
     route: '/cte/os',
-    steps: [
-      {clickAt: 'input[name="cte-os-service"][value="values"]'},
-      {click: 'Adicionar GTV-e'},
-      {waitText: 'Soma das GTV-e'},
-      {scrollAt: '#cte-os-gtve'},
-    ],
+    steps: [...osToRoute('values', false), {click: 'Adicionar GTV-e'}, {waitText: 'Soma das GTV-e'}],
   },
   {slug: 'mdfe-list', route: '/mdfe', waitText: 'Detalhes'},
   {slug: 'mdfe-emit', route: '/mdfe/emit', waitText: 'tipo de transporte'},
@@ -285,13 +286,16 @@ const CAPTURES = [
 
   // ── CIOT (ANTT) ──────────────────────────────────────────────────────────
   {slug: 'ciot-list', route: '/ciot', waitText: 'Detalhes'},
+  {slug: 'ciot-emit', route: '/ciot/emit', steps: [{waitText: 'Passo 1 de 5'}]},
   {
-    slug: 'ciot-emit',
-    route: '/ciot/emit',
-    steps: [
-      {waitAt: '[aria-label="Usar o veículo ABC1D23"]'}, {clickAt: '[aria-label="Usar o veículo ABC1D23"]'},
-      {waitText: 'Conferir frota na ANTT'}, {scrollAt: '[aria-label="Usar o veículo ABC1D23"]'},
-    ],
+    slug: 'ciot-emit-vehicles',
+    route: `/ciot/emit?rectify=${CIOT_RECTIFY_ID}`,
+    steps: [{waitText: 'Passo 1 de 5'}, {click: 'Continuar'}, {waitText: 'Conferir frota na ANTT'}, {click: 'Conferir frota na ANTT'}],
+  },
+  {
+    slug: 'ciot-emit-review',
+    route: `/ciot/emit?rectify=${CIOT_RECTIFY_ID}`,
+    steps: [{waitText: 'Passo 1 de 5'}, {click: 'Continuar'}, {click: 'Continuar'}, {click: 'Continuar'}, {click: 'Continuar'}, {waitText: 'Retificar CIOT'}],
   },
   {slug: 'ciot-detail', route: `/ciot/detail?id=${CIOT_ID}`, steps: [{waitText: 'Aviso ao transportador'}, {waitText: 'Encerrar'}]},
 
@@ -337,7 +341,7 @@ const CAPTURES = [
   {slug: 'fiscal-config-emission', route: '/fiscal-config?mock=contingency', waitText: 'Em contingência desde'},
   // `?mock=auto-contingency` libera a troca automática enquanto o servidor não a liga; o clique liga o interruptor e abre o seletor do tipo.
   {slug: 'fiscal-config-auto-contingency', route: '/fiscal-config?mock=auto-contingency', waitText: 'Entrar em contingência sozinho',
-    steps: [{clickAt: 'input[type="checkbox"]'}, {waitText: 'Contingência usada na troca automática'}, {scrollAt: 'section[aria-label="Forma de emissão"]'}]},
+    steps: [{clickAt: 'nav[aria-label="Seções da configuração"] li:last-child button'}, {clickAt: '[data-rail-panel="emissao"] input[type="checkbox"]'}, {waitText: 'Contingência usada na troca automática'}, {scrollAt: 'section[aria-label="Forma de emissão"]'}]},
   {slug: 'fiscal-config-nfce-qr', route: '/fiscal-config?tab=nfce', waitText: 'Versão do QR Code'},
   {slug: 'certificates', route: '/certificates', waitText: 'EMPRESA MOCK'},
 
@@ -470,6 +474,16 @@ async function runStep(send, step) {
   if (step.clickAt) {
     await waitFor(send, `Boolean(document.querySelector(${lit(step.clickAt)}))`, `o seletor ${step.clickAt}`);
     return evaluate(send, `document.querySelector(${lit(step.clickAt)}).click()`);
+  }
+  if (step.fillAt) {
+    const [selector, text] = step.fillAt;
+    await waitFor(send, `Boolean(document.querySelector(${lit(selector)}))`, `o seletor ${selector}`);
+    return evaluate(send, `(() => {
+      const el = document.querySelector(${lit(selector)});
+      el.focus();
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, ${lit(text)});
+      el.dispatchEvent(new Event('input', {bubbles: true}));
+    })()`);
   }
   if (step.click) {
     const match = `node => node.textContent?.toLowerCase().includes(${lit(step.click.toLowerCase())}) && !node.disabled`;

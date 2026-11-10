@@ -106,7 +106,7 @@ export function CteTransportData({derive, overrides, onChange, warnings}: Props)
 
   return (
     <section aria-labelledby="cte-transport" className="rounded-xl border border-gray-200 bg-white">
-      <h2 id="cte-transport" className="text-base font-semibold text-gray-900">
+      <h3 id="cte-transport" className="text-base font-semibold text-gray-900">
       <button type="button" aria-expanded={open} aria-controls="cte-transport-panel"
               onClick={() => setUserOpen(!open)}
               className="flex min-h-11 w-full items-center justify-between gap-3 px-4 py-3 text-left md:px-5 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring">
@@ -118,17 +118,17 @@ export function CteTransportData({derive, overrides, onChange, warnings}: Props)
         </span>
         <ChevronDown className={cn('size-4 shrink-0 text-gray-400 transition-transform', open && 'rotate-180')} aria-hidden="true"/>
       </button>
-      </h2>
+      </h3>
 
       {open && (
         <div id="cte-transport-panel" className="space-y-3 border-t border-gray-100 px-4 py-4 md:px-5">
           <CteWarnings warnings={warnings}/>
-          <div className="divide-y divide-gray-100">
+          <div className="grid grid-cols-1 gap-x-8 md:grid-cols-2">
             {rows.map(({field, label, derived, current, empty, editor}) => {
               const edited = field in overrides;
               const isEditing = editing === field;
               return (
-                <div key={field} data-field={field} className="space-y-2 py-3 first:pt-0 last:pb-0">
+                <div key={field} data-field={field} className="space-y-2 border-b border-gray-100 py-2.5">
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
                       <p className="flex items-center gap-2 text-sm text-gray-500">

@@ -46,7 +46,7 @@ interface Props {
 const newLineId = () => `comp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 
 /** Resumo da disclosure de imposto, visível com ela fechada. */
-function icmsSummary(total: string, icms: CteIcmsState): string {
+export function icmsSummary(total: string, icms: CteIcmsState): string {
   if (!icms.cst) return 'Escolha o CST';
   if (icms.cst === 'SN') return 'Simples Nacional';
   if (CTE_CST_WITHOUT_RATE.has(icms.cst)) return `CST ${icms.cst} · sem ICMS destacado`;
@@ -70,16 +70,17 @@ export function CteFreightFields({
 
   return (
     <CteSection id="cte-freight" title={title} hint={hint}>
-      <div className="space-y-1.5">
-        <Label htmlFor="cte-freight-total" className="text-sm font-medium text-gray-700">{totalLabel}</Label>
-        <CurrencyInput id="cte-freight-total" value={total} onChange={onTotal} placeholder="0,00"
-                       allowZero={false} className="w-full sm:max-w-xs"/>
-      </div>
-
-      <div className="space-y-1.5">
-        <Label htmlFor="cte-cfop" className="text-sm font-medium text-gray-700">CFOP da prestação</Label>
-        <Combobox id="cte-cfop" value={cfop} onValueChange={onCfop} options={cfopOptions} fuzzySearch
-                  placeholder="Escolha o CFOP" searchPlaceholder="Código ou descrição..."/>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <Label htmlFor="cte-freight-total" className="text-sm font-medium text-gray-700">{totalLabel}</Label>
+          <CurrencyInput id="cte-freight-total" value={total} onChange={onTotal} placeholder="0,00"
+                         allowZero={false} className="w-full"/>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="cte-cfop" className="text-sm font-medium text-gray-700">CFOP da prestação</Label>
+          <Combobox id="cte-cfop" value={cfop} onValueChange={onCfop} options={cfopOptions} fuzzySearch
+                    placeholder="Escolha o CFOP" searchPlaceholder="Código ou descrição..."/>
+        </div>
       </div>
 
       {components.length > 0 && (

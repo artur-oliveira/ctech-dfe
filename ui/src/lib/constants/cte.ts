@@ -305,3 +305,21 @@ export const CTE_DOC_ERRORS: Record<string, string> = {
   os_inss_required: 'Transporte de pessoas com tomador pessoa jurídica exige o valor do INSS nos tributos federais.',
   os_icms_cst_not_allowed: 'O CT-e OS não tem o CST 60. Escolha outro CST do ICMS.',
 };
+
+/** Códigos 422 que pertencem a um passo dos formulários em passos; o resto cai na revisão. */
+export const CTE_CHARGE_ERROR_CODES = [
+  'cfop_required', 'icms_required', 'icms_rate_required', 'icms_sn_not_allowed', 'components_exceed_total',
+  'freight_total_invalid', 'autxml_invalid', 'os_gtve_total_mismatch', 'os_inss_required', 'os_icms_cst_not_allowed',
+] as const;
+export const CTE_TAKER_ERROR_CODES = [
+  'taker_change_not_requested', 'taker_required', 'taker_role_missing', 'taker_unchanged', 'taker_base_not_in_original',
+  'taker_uf_mismatch', 'taker_person_required', 'person_not_found',
+] as const;
+export const CTE_OS_ROUTE_ERROR_CODES = ['os_taker_required', 'os_place_required', 'os_place_uf_mismatch'] as const;
+export const CTE_OS_ROAD_ERROR_CODES = [
+  'os_road_required', 'os_road_not_allowed', 'os_state_registration_required', 'os_taf_required', 'os_charter_required',
+  'os_trip_at_required', 'os_trip_at_past',
+] as const;
+export const CTE_OS_DOCS_ERROR_CODES = [
+  'os_doc_refs_required', 'os_doc_refs_not_allowed', 'os_bpe_key_invalid', 'os_gtve_required', 'os_gtve_not_allowed', 'os_gtve_invalid',
+] as const;

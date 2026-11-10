@@ -8,7 +8,8 @@ import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui
 import {NumericInput} from '@/components/ui/numeric-input';
 import {OptionsSelect} from '@/components/ui/options-select';
 import {Combobox} from '@/components/ui/combobox';
-import {Button} from '@aoctech/ui';
+import type {ReactNode} from 'react';
+import {SettingsRail, useSettingsRail, type RailSection} from '@/components/ui/settings-rail';
 import {formatDatetimeBR} from '@/lib/utils/dfe';
 import {
   BRAZIL_TIMEZONES,
@@ -64,6 +65,14 @@ function toApiPayload(d: NfseConfigFormData): Record<string, unknown> {
   };
 }
 
+const SEC = {env: 'ambiente', num: 'numeracao', abrasf: 'abrasf'} as const;
+
+function sectionOf(field: string): string {
+  if (field.startsWith('abrasf_')) return SEC.abrasf;
+  if (field === 'c_loc_emi' || field === 'serie' || field.endsWith('_current_number')) return SEC.num;
+  return SEC.env;
+}
+
 export function NfseConfigForm({initialData, onSave, loading = false}: NfseConfigFormProps) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
@@ -86,6 +95,9 @@ export function NfseConfigForm({initialData, onSave, loading = false}: NfseConfi
   const isProd = environment === '1';
   const activeNsu = isProd ? initialData?.prod_nsu : initialData?.hom_nsu;
   const activeLastAt = isProd ? initialData?.prod_last_dist_nsu_at : initialData?.hom_last_dist_nsu_at;
+  const order = [SEC.env, SEC.num, ...(isAbrasf ? [SEC.abrasf] : [])];
+  const rail = useSettingsRail(form, order, sectionOf);
+  const dirty = Object.values(rail.dirtyCount).some(Boolean);
 
   const handleSubmit = form.handleSubmit(async (data) => {
     setSubmitError(null);
@@ -95,19 +107,13 @@ export function NfseConfigForm({initialData, onSave, loading = false}: NfseConfi
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Erro ao salvar');
     }
-  });
+  }, (errs) => rail.onInvalid(errs as Record<string, unknown>));
 
-  return (
-    <Form {...form}>
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {submitError && (
-          <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-            {submitError}
-          </div>
-        )}
-
+  const content: Record<string, ReactNode> = {
+    [SEC.env]: (
+      <>
         {initialData && activeNsu !== undefined && (
-          <div className="rounded-lg bg-gray-50 px-4 py-3 text-sm text-gray-600 space-y-0.5">
+          <div className="space-y-0.5 rounded-lg bg-gray-50 px-4 py-3 text-sm text-gray-600">
             <div>
               <span className="font-medium">Último NSU:</span>{' '}
               {activeNsu.toLocaleString('pt-BR')}
@@ -132,7 +138,7 @@ export function NfseConfigForm({initialData, onSave, loading = false}: NfseConfi
                 {value: 'nacional', label: 'Nacional (ADN)'},
                 {value: 'abrasf204', label: 'ABRASF 2.04 (municipal)'},
               ]}
-              className="w-full max-w-96"
+              className="w-full sm:max-w-96"
             />
             <FormMessage/>
           </FormItem>
@@ -145,59 +151,66 @@ export function NfseConfigForm({initialData, onSave, loading = false}: NfseConfi
           </div>
         )}
 
-        <FormField control={form.control} name="environment" render={({field}) => (
-          <FormItem>
-            <FormLabel>Ambiente ativo</FormLabel>
-            <OptionsSelect
-              id={field.name}
-              value={field.value}
-              onValueChange={field.onChange}
-              options={[
-                {value: '1', label: '1 · Produção'},
-                {value: '2', label: '2 · Homologação'},
-              ]}
-              className="w-full sm:max-w-64"
-            />
-            <FormMessage/>
-          </FormItem>
-        )}/>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <FormField control={form.control} name="environment" render={({field}) => (
+            <FormItem>
+              <FormLabel>Ambiente ativo</FormLabel>
+              <OptionsSelect
+                id={field.name}
+                value={field.value}
+                onValueChange={field.onChange}
+                options={[
+                  {value: '1', label: '1 · Produção'},
+                  {value: '2', label: '2 · Homologação'},
+                ]}
+                className="w-full"
+              />
+              <FormMessage/>
+            </FormItem>
+          )}/>
 
-        <FormField control={form.control} name="timezone" render={({field}) => (
-          <FormItem>
-            <FormLabel>Fuso horário da emissão</FormLabel>
-            <OptionsSelect
-              id={field.name}
-              value={field.value}
-              onValueChange={field.onChange}
-              options={BRAZIL_TIMEZONES.map((timezone) => ({
-                value: timezone,
-                label: TIMEZONE_LABELS[timezone],
-              }))}
-              className="w-full max-w-96"
-            />
-            <FormMessage/>
-          </FormItem>
-        )}/>
+          <FormField control={form.control} name="timezone" render={({field}) => (
+            <FormItem>
+              <FormLabel>Fuso horário da emissão</FormLabel>
+              <OptionsSelect
+                id={field.name}
+                value={field.value}
+                onValueChange={field.onChange}
+                options={BRAZIL_TIMEZONES.map((timezone) => ({
+                  value: timezone,
+                  label: TIMEZONE_LABELS[timezone],
+                }))}
+                className="w-full"
+              />
+              <FormMessage/>
+            </FormItem>
+          )}/>
+        </div>
+      </>
+    ),
+    [SEC.num]: (
+      <>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-[minmax(0,1fr)_10rem]">
+          <FormField control={form.control} name="c_loc_emi" render={({field}) => (
+            <FormItem>
+              <FormLabel>Município emissor</FormLabel>
+              <Combobox id={field.name} value={field.value} onValueChange={field.onChange}
+                        options={CITY_OPTIONS} placeholder="Buscar município"/>
+              <FormMessage/>
+            </FormItem>
+          )}/>
 
-        <FormField control={form.control} name="c_loc_emi" render={({field}) => (
-          <FormItem>
-            <FormLabel>Município emissor</FormLabel>
-            <Combobox id={field.name} value={field.value} onValueChange={field.onChange}
-                      options={CITY_OPTIONS} placeholder="Buscar município"/>
-            <FormMessage/>
-          </FormItem>
-        )}/>
+          {/* NFS-e tem uma única série para os dois ambientes; não é prod/hom split. */}
+          <FormField control={form.control} name="serie" render={({field}) => (
+            <FormItem>
+              <FormLabel>Série</FormLabel>
+              <NumericInput {...field} integerPlaces={5} placeholder="1" onChange={field.onChange}/>
+              <FormMessage/>
+            </FormItem>
+          )}/>
+        </div>
 
-        {/* NFS-e tem uma única série para os dois ambientes; não é prod/hom split. */}
-        <FormField control={form.control} name="serie" render={({field}) => (
-          <FormItem>
-            <FormLabel>Série</FormLabel>
-            <NumericInput {...field} integerPlaces={5} placeholder="1" onChange={field.onChange} className="max-w-40"/>
-            <FormMessage/>
-          </FormItem>
-        )}/>
-
-        <div className="grid grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6">
           <section className="space-y-3">
             <p className="rounded-md bg-emerald-50 px-2 py-1 text-xs font-semibold uppercase tracking-wider text-emerald-700">
               Produção
@@ -224,46 +237,64 @@ export function NfseConfigForm({initialData, onSave, loading = false}: NfseConfi
             )}/>
           </section>
         </div>
-
-        {isAbrasf && (
-          <section className="space-y-3 border-t border-gray-100 pt-4">
-            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">ABRASF 2.04</p>
-            <FormField control={form.control} name="abrasf_endpoint_url" render={({field}) => (
-              <FormItem>
-                <FormLabel>Endpoint do WSDL</FormLabel>
-                <Input {...field} id={field.name} placeholder="https://..."/>
-                <FormMessage/>
-              </FormItem>
-            )}/>
-            <div className="grid grid-cols-2 gap-3">
-              <FormField control={form.control} name="abrasf_wsdl_version" render={({field}) => (
-                <FormItem>
-                  <FormLabel>Versão do WSDL</FormLabel>
-                  <Input {...field} id={field.name} maxLength={10}/>
-                  <FormMessage/>
-                </FormItem>
-              )}/>
-              <FormField control={form.control} name="abrasf_municipality_code" render={({field}) => (
-                <FormItem>
-                  <FormLabel>Código IBGE do município</FormLabel>
-                  <Input {...field} id={field.name} maxLength={7}/>
-                  <FormMessage/>
-                </FormItem>
-              )}/>
-            </div>
-          </section>
-        )}
-
-        <div className="sticky bottom-(--bottomnav-height) z-10 -mx-4 flex items-center justify-between gap-3 border-t border-gray-200 bg-gray-50 px-4 py-3 md:static md:mx-0 md:border-0 md:bg-transparent md:px-0 md:py-0 md:pt-2">
-          {savedAt ? (
-            <p className="text-xs text-muted-foreground">Última atualização {savedAt}</p>
-          ) : (
-            <p className="text-xs text-muted-foreground">NFS-e ainda não configurado</p>
-          )}
-          <Button type="submit" disabled={loading}>
-            {loading ? 'Salvando…' : 'Salvar configuração'}
-          </Button>
+      </>
+    ),
+    [SEC.abrasf]: (
+      <>
+        <FormField control={form.control} name="abrasf_endpoint_url" render={({field}) => (
+          <FormItem>
+            <FormLabel>Endpoint do WSDL</FormLabel>
+            <Input {...field} id={field.name} placeholder="https://..."/>
+            <FormMessage/>
+          </FormItem>
+        )}/>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <FormField control={form.control} name="abrasf_wsdl_version" render={({field}) => (
+            <FormItem>
+              <FormLabel>Versão do WSDL</FormLabel>
+              <Input {...field} id={field.name} maxLength={10}/>
+              <FormMessage/>
+            </FormItem>
+          )}/>
+          <FormField control={form.control} name="abrasf_municipality_code" render={({field}) => (
+            <FormItem>
+              <FormLabel>Código IBGE do município</FormLabel>
+              <Input {...field} id={field.name} maxLength={7}/>
+              <FormMessage/>
+            </FormItem>
+          )}/>
         </div>
+      </>
+    ),
+  };
+
+  const labels: Record<string, string> = {
+    [SEC.env]: 'Provedor e ambiente', [SEC.num]: 'Município e numeração', [SEC.abrasf]: 'ABRASF 2.04',
+  };
+  const sections: RailSection[] = order.map((id) => ({
+    id,
+    label: labels[id],
+    content: content[id],
+    dirty: !!rail.dirtyCount[id],
+    errors: rail.errorCount[id],
+  }));
+
+  return (
+    <Form {...form}>
+      <form onSubmit={handleSubmit} noValidate>
+        <SettingsRail
+          sections={sections}
+          active={rail.active}
+          onSelect={rail.setActive}
+          saving={loading}
+          dirty={dirty}
+          status={savedAt ? `Última atualização ${savedAt}` : 'NFS-e ainda não configurado'}
+          banner={submitError && (
+            <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              {submitError}
+            </div>
+          )}
+        />
       </form>
     </Form>
   );

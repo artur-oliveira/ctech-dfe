@@ -190,7 +190,7 @@ describe('IBS/CBS na emissão', () => {
 
   it('Simples Nacional e MEI nunca veem o bloco; autXML aparece para todos', async () => {
     renderForm(1);
-    await screen.findByText('Autorizados a baixar o XML (opcional)');
+    await screen.findByText('Quem mais baixa o XML (opcional)');
     expect(screen.queryByText('IBS e CBS (opcional)')).toBeNull();
   });
 

@@ -1,6 +1,7 @@
 'use client';
 
 import {useEffect, useState} from 'react';
+import type {ReactNode} from 'react';
 import type {Resolver} from 'react-hook-form';
 import {useForm, useWatch} from 'react-hook-form';
 import {zodResolver} from '@hookform/resolvers/zod';
@@ -9,7 +10,6 @@ import {Textarea} from '@aoctech/ui';
 import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form';
 import {NumericInput} from '@/components/ui/numeric-input';
 import {OptionsSelect} from '@/components/ui/options-select';
-import {Button} from '@aoctech/ui';
 import {formatDatetimeBR} from '@/lib/utils/dfe';
 import {
   BRAZIL_TIMEZONES,
@@ -28,6 +28,7 @@ import {
   TIMEZONE_LABELS,
 } from '@/lib/schemas/fiscal-configs';
 import type {MDFeConfigOut, NFCeConfigOut, NFeConfigOut, NfseConfigOut} from '@/lib/types/api';
+import {SettingsRail, useSettingsRail, type RailSection} from '@/components/ui/settings-rail';
 import {NfseConfigForm} from '@/components/fiscal-config/NfseConfigForm';
 
 type AnyConfigOut = NFeConfigOut | NFCeConfigOut | MDFeConfigOut | null | undefined
@@ -38,6 +39,10 @@ interface FiscalConfigFormProps {
   initialData: AnyConfigOut | NfseConfigOut
   onSave: (data: Record<string, unknown>) => Promise<void>
   loading?: boolean
+  /** Seção "Forma de emissão" (EmissionSection, com Aplicar próprio); entra no trilho sem se misturar ao salvar. */
+  emission?: ReactNode
+  /** Abre a configuração já na forma de emissão (documento em contingência). */
+  emissionAlert?: boolean
 }
 
 const SCHEMA_BY_VARIANT = {
@@ -145,25 +150,59 @@ function toApiPayload(variant: DocVariant, data: AnyFormData): Record<string, un
   return base;
 }
 
-export function FiscalConfigForm({variant, initialData, onSave, loading = false}: FiscalConfigFormProps) {
+export function FiscalConfigForm({variant, initialData, onSave, loading = false, emission, emissionAlert}: FiscalConfigFormProps) {
   // NFS-e não cabe no layout prod/hom-split: série única (não uma por
   // ambiente), com timezone próprio, e o provider troca o conjunto de campos
   // (nacional x abrasf204) em vez de csc x sem-csc. Componente próprio em vez
-  // de forçar o formato aqui — ver NfseConfigForm.tsx.
+  // de forçar o formato aqui; ver NfseConfigForm.tsx.
   if (variant === 'nfse') {
     return <NfseConfigForm initialData={initialData as NfseConfigOut | null} onSave={onSave} loading={loading}/>;
   }
 
   return (
-    <FiscalConfigFormInner variant={variant} initialData={initialData as AnyConfigOut} onSave={onSave} loading={loading}/>
+    <FiscalConfigFormInner variant={variant} initialData={initialData as AnyConfigOut} onSave={onSave} loading={loading}
+                           emission={emission} emissionAlert={emissionAlert}/>
   );
 }
 
-function FiscalConfigFormInner({variant, initialData, onSave, loading = false}: {
+const SEC = {env: 'ambiente', num: 'numeracao', csc: 'csc', manifest: 'manifesto', csrt: 'csrt', emission: 'emissao'} as const;
+
+function sectionOf(field: string): string {
+  if (/_current_(serie|number)$/.test(field)) return SEC.num;
+  if (/_csc(_id)?$/.test(field)) return SEC.csc;
+  if (['rntrc', 'ind_canal_verde', 'ind_carrega_posterior', 'inf_ad_fisco'].includes(field)) return SEC.manifest;
+  if (field === 'csrt' || field === 'csrt_id') return SEC.csrt;
+  return SEC.env;
+}
+
+const ENV_TONE = {
+  prod: {label: 'Produção', cls: 'bg-emerald-50 text-emerald-700'},
+  hom: {label: 'Homologação', cls: 'bg-blue-50 text-blue-700'},
+} as const;
+
+/** Coluna Produção | Homologação: o mesmo conteúdo para cada ambiente. */
+function EnvColumns({children}: { children: (env: 'prod' | 'hom') => ReactNode }) {
+  return (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6">
+      {(['prod', 'hom'] as const).map((env) => (
+        <section key={env} className="space-y-3">
+          <p className={`rounded-md px-2 py-1 text-xs font-semibold uppercase tracking-wider ${ENV_TONE[env].cls}`}>
+            {ENV_TONE[env].label}
+          </p>
+          {children(env)}
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function FiscalConfigFormInner({variant, initialData, onSave, loading = false, emission, emissionAlert}: {
   variant: Exclude<DocVariant, 'nfse'>
   initialData: AnyConfigOut
   onSave: (data: Record<string, unknown>) => Promise<void>
   loading?: boolean
+  emission?: ReactNode
+  emissionAlert?: boolean
 }) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
@@ -190,6 +229,16 @@ function FiscalConfigFormInner({variant, initialData, onSave, loading = false}: 
   const activeNsu = nsuConfig ? (isProd ? nsuConfig.prod_nsu : nsuConfig.hom_nsu) : undefined;
   const activeLastAt = nsuConfig ? (isProd ? nsuConfig.prod_last_dist_nsu_at : nsuConfig.hom_last_dist_nsu_at) : null;
 
+  const order = [
+    SEC.env, SEC.num,
+    ...(showCsc ? [SEC.csc] : []),
+    ...(showMdfeFields ? [SEC.manifest] : []),
+    SEC.csrt,
+    ...(emission ? [SEC.emission] : []),
+  ];
+  const rail = useSettingsRail(form, order, sectionOf, emissionAlert ? SEC.emission : undefined);
+  const dirty = Object.values(rail.dirtyCount).some(Boolean);
+
   const handleSubmit = form.handleSubmit(async (data) => {
     setSubmitError(null);
     try {
@@ -198,20 +247,93 @@ function FiscalConfigFormInner({variant, initialData, onSave, loading = false}: 
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Erro ao salvar');
     }
-  });
+  }, (errs) => rail.onInvalid(errs as Record<string, unknown>));
 
-  return (
-    <Form {...form}>
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {submitError && (
-          <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-            {submitError}
-          </div>
+  const numberField = (env: 'prod' | 'hom') => (
+    <>
+      <FormField
+        control={form.control}
+        name={`${env}_current_serie`}
+        render={({field}) => (
+          <FormItem>
+            <FormLabel>Série</FormLabel>
+            <NumericInput {...field} integerPlaces={3} placeholder="1" onChange={field.onChange}/>
+            <FormMessage/>
+          </FormItem>
         )}
+      />
+      <FormField
+        control={form.control}
+        name={`${env}_current_number`}
+        render={({field}) => (
+          <FormItem>
+            <FormLabel>Número atual a ser emitido</FormLabel>
+            <NumericInput {...field} integerPlaces={9} placeholder="0" onChange={field.onChange}/>
+            <FormMessage/>
+          </FormItem>
+        )}
+      />
+    </>
+  );
 
-        {/* NSU read-only info */}
+  const cscFields = (env: 'prod' | 'hom') => (
+    <>
+      <FormField
+        control={form.control}
+        name={`${env}_csc` as never}
+        render={({field}) => (
+          <FormItem>
+            <FormLabel>CSC (token){cscOptional && ' (opcional)'}</FormLabel>
+            <Input
+              {...field}
+              placeholder="000100000000000000000000000000000001"
+              maxLength={36}
+              className="font-mono text-xs"
+            />
+            <FormMessage/>
+          </FormItem>
+        )}
+      />
+      <FormField
+        control={form.control}
+        name={`${env}_csc_id` as never}
+        render={({field}) => (
+          <FormItem>
+            <FormLabel>Identificador do CSC{cscOptional && ' (opcional)'}</FormLabel>
+            <NumericInput {...field} integerPlaces={10} placeholder="1" onChange={field.onChange}/>
+            <FormMessage/>
+          </FormItem>
+        )}
+      />
+    </>
+  );
+
+  const checkbox = (name: string, title: string, hint: string) => (
+    <FormField
+      control={form.control}
+      name={name as never}
+      render={({field}) => (
+        <FormItem>
+          <label className="flex min-h-11 cursor-pointer items-start gap-2 py-2">
+            <input type="checkbox" checked={!!field.value}
+                   onChange={(e) => field.onChange(e.target.checked)}
+                   className="mt-0.5 size-4 cursor-pointer rounded border-gray-300 text-brand-600"/>
+            <span className="text-sm text-gray-700">
+              {title}
+              <span className="block text-xs text-gray-500">{hint}</span>
+            </span>
+          </label>
+          <FormMessage/>
+        </FormItem>
+      )}
+    />
+  );
+
+  const content: Record<string, ReactNode> = {
+    [SEC.env]: (
+      <>
         {showNsu && nsuConfig && activeNsu !== undefined && (
-          <div className="rounded-lg bg-gray-50 px-4 py-3 text-sm text-gray-600 space-y-0.5">
+          <div className="space-y-0.5 rounded-lg bg-gray-50 px-4 py-3 text-sm text-gray-600">
             <div>
               <span className="font-medium">Último NSU:</span>{' '}
               {activeNsu.toLocaleString('pt-BR')}
@@ -224,51 +346,45 @@ function FiscalConfigFormInner({variant, initialData, onSave, loading = false}: 
             )}
           </div>
         )}
-
-        {/* Fuso horário */}
-        <FormField
-          control={form.control}
-          name="timezone"
-          render={({field}) => (
-            <FormItem>
-              <FormLabel>Fuso horário</FormLabel>
-              <OptionsSelect
-                id={field.name}
-                value={field.value}
-                onValueChange={field.onChange}
-                options={BRAZIL_TIMEZONES.map((tz) => ({
-                  value: tz,
-                  label: TIMEZONE_LABELS[tz],
-                }))}
-                className="w-full max-w-96"
-              />
-              <FormMessage/>
-            </FormItem>
-          )}
-        />
-
-        {/* Ambiente ativo */}
-        <FormField
-          control={form.control}
-          name="environment"
-          render={({field}) => (
-            <FormItem>
-              <FormLabel>Ambiente ativo</FormLabel>
-              <OptionsSelect
-                id={field.name}
-                value={field.value}
-                onValueChange={field.onChange}
-                options={[
-                  {value: '1', label: '1 · Produção'},
-                  {value: '2', label: '2 · Homologação'},
-                ]}
-                className="w-full sm:max-w-64"
-              />
-              <FormMessage/>
-            </FormItem>
-          )}
-        />
-
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <FormField
+            control={form.control}
+            name="timezone"
+            render={({field}) => (
+              <FormItem>
+                <FormLabel>Fuso horário</FormLabel>
+                <OptionsSelect
+                  id={field.name}
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  options={BRAZIL_TIMEZONES.map((tz) => ({value: tz, label: TIMEZONE_LABELS[tz]}))}
+                  className="w-full"
+                />
+                <FormMessage/>
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="environment"
+            render={({field}) => (
+              <FormItem>
+                <FormLabel>Ambiente ativo</FormLabel>
+                <OptionsSelect
+                  id={field.name}
+                  value={field.value}
+                  onValueChange={field.onChange}
+                  options={[
+                    {value: '1', label: '1 · Produção'},
+                    {value: '2', label: '2 · Homologação'},
+                  ]}
+                  className="w-full"
+                />
+                <FormMessage/>
+              </FormItem>
+            )}
+          />
+        </div>
         {showCsc && (
           <FormField
             control={form.control}
@@ -293,145 +409,19 @@ function FiscalConfigFormInner({variant, initialData, onSave, loading = false}: 
             )}
           />
         )}
-
-        {/* Two-column layout: Produção | Homologação */}
-        <div className="grid grid-cols-2 gap-6">
-          {/* Produção */}
-          <section className="space-y-3">
-            <p
-              className="rounded-md bg-emerald-50 px-2 py-1 text-xs font-semibold uppercase tracking-wider text-emerald-700">
-              Produção
-            </p>
-
-            <FormField
-              control={form.control}
-              name="prod_current_serie"
-              render={({field}) => (
-                <FormItem>
-                  <FormLabel>Série</FormLabel>
-                  <NumericInput {...field} integerPlaces={3} placeholder="1" onChange={field.onChange}/>
-                  <FormMessage/>
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="prod_current_number"
-              render={({field}) => (
-                <FormItem>
-                  <FormLabel>Número atual a ser emitido</FormLabel>
-                  <NumericInput {...field} integerPlaces={9} placeholder="0" onChange={field.onChange}/>
-                  <FormMessage/>
-                </FormItem>
-              )}
-            />
-
-            {showCsc && (
-              <>
-                <FormField
-                  control={form.control}
-                  name="prod_csc"
-                  render={({field}) => (
-                    <FormItem>
-                      <FormLabel>CSC (token){cscOptional && ' (opcional)'}</FormLabel>
-                      <Input
-                        {...field}
-                        placeholder="000100000000000000000000000000000001"
-                        maxLength={36}
-                        className="font-mono text-xs"
-                      />
-                      <FormMessage/>
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="prod_csc_id"
-                  render={({field}) => (
-                    <FormItem>
-                      <FormLabel>Identificador do CSC{cscOptional && ' (opcional)'}</FormLabel>
-                      <NumericInput {...field} integerPlaces={10} placeholder="1" onChange={field.onChange}/>
-                      <FormMessage/>
-                    </FormItem>
-                  )}
-                />
-              </>
-            )}
-          </section>
-
-          {/* Homologação */}
-          <section className="space-y-3">
-            <p className="rounded-md bg-blue-50 px-2 py-1 text-xs font-semibold uppercase tracking-wider text-blue-700">
-              Homologação
-            </p>
-
-            <FormField
-              control={form.control}
-              name="hom_current_serie"
-              render={({field}) => (
-                <FormItem>
-                  <FormLabel>Série</FormLabel>
-                  <NumericInput {...field} integerPlaces={3} placeholder="1" onChange={field.onChange}/>
-                  <FormMessage/>
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="hom_current_number"
-              render={({field}) => (
-                <FormItem>
-                  <FormLabel>Número atual a ser emitido</FormLabel>
-                  <NumericInput {...field} integerPlaces={9} placeholder="0" onChange={field.onChange}/>
-                  <FormMessage/>
-                </FormItem>
-              )}
-            />
-
-            {showCsc && (
-              <>
-                <FormField
-                  control={form.control}
-                  name="hom_csc"
-                  render={({field}) => (
-                    <FormItem>
-                      <FormLabel>CSC (token){cscOptional && ' (opcional)'}</FormLabel>
-                      <Input
-                        {...field}
-                        placeholder="000100000000000000000000000000000001"
-                        maxLength={36}
-                        className="font-mono text-xs"
-                      />
-                      <FormMessage/>
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="hom_csc_id"
-                  render={({field}) => (
-                    <FormItem>
-                      <FormLabel>Identificador do CSC{cscOptional && ' (opcional)'}</FormLabel>
-                      <NumericInput {...field} integerPlaces={10} placeholder="1" onChange={field.onChange}/>
-                      <FormMessage/>
-                    </FormItem>
-                  )}
-                />
-              </>
-            )}
-          </section>
-        </div>
-
-        {/* Campos que só existem no leiaute do MDF-e e recorrem em toda emissão. */}
-        {showMdfeFields && (
-          <section className="space-y-3 rounded-lg border border-gray-200 p-3">
-            <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
-              Manifesto (MDF-e)
-            </p>
-            <p className="text-xs text-gray-500">
-              Valem para toda emissão da organização. A observação de uma viagem específica continua
-              sendo preenchida na emissão do manifesto.
-            </p>
+      </>
+    ),
+    [SEC.num]: <EnvColumns>{numberField}</EnvColumns>,
+    [SEC.csc]: <EnvColumns>{cscFields}</EnvColumns>,
+    // Campos que só existem no leiaute do MDF-e e recorrem em toda emissão.
+    [SEC.manifest]: (
+      <>
+        <p className="text-xs text-gray-500">
+          Valem para toda emissão da organização. A observação de uma viagem específica continua
+          sendo preenchida na emissão do manifesto.
+        </p>
+        <div className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
+          <div className="space-y-3">
             <FormField
               control={form.control}
               name={'rntrc' as never}
@@ -439,51 +429,11 @@ function FiscalConfigFormInner({variant, initialData, onSave, loading = false}: 
                 <FormItem>
                   <FormLabel>RNTRC da transportadora (ANTT)</FormLabel>
                   <NumericInput {...field} value={(field.value as string) ?? ''} integerPlaces={8}
-                                inputMode="numeric" placeholder="00000000" className="w-full sm:max-w-xs"
+                                inputMode="numeric" placeholder="00000000" className="w-full"
                                 onChange={field.onChange}/>
                   <p className="text-xs text-gray-500">
                     8 dígitos. Opcional no MDF-e; obrigatório para emitir CT-e rodoviário.
                   </p>
-                  <FormMessage/>
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name={'ind_canal_verde' as never}
-              render={({field}) => (
-                <FormItem>
-                  <label className="flex items-start gap-2 min-h-11 py-2 cursor-pointer">
-                    <input type="checkbox" checked={!!field.value}
-                           onChange={(e) => field.onChange(e.target.checked)}
-                           className="mt-0.5 size-4 cursor-pointer rounded border-gray-300 text-brand-600"/>
-                    <span className="text-sm text-gray-700">
-                      Participa do Canal Verde
-                      <span className="block text-xs text-gray-500">
-                        Programa de circulação simplificada de cargas nas fronteiras estaduais.
-                      </span>
-                    </span>
-                  </label>
-                  <FormMessage/>
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name={'ind_carrega_posterior' as never}
-              render={({field}) => (
-                <FormItem>
-                  <label className="flex items-start gap-2 min-h-11 py-2 cursor-pointer">
-                    <input type="checkbox" checked={!!field.value}
-                           onChange={(e) => field.onChange(e.target.checked)}
-                           className="mt-0.5 size-4 cursor-pointer rounded border-gray-300 text-brand-600"/>
-                    <span className="text-sm text-gray-700">
-                      Inclui carga depois de emitir
-                      <span className="block text-xs text-gray-500">
-                        Os documentos entram por evento de inclusão de DF-e após a autorização.
-                      </span>
-                    </span>
-                  </label>
                   <FormMessage/>
                 </FormItem>
               )}
@@ -501,59 +451,85 @@ function FiscalConfigFormInner({variant, initialData, onSave, loading = false}: 
                 </FormItem>
               )}
             />
-          </section>
-        )}
-
-        {/* Responsável técnico; CSRT (NT 2018.005). Vale para os dois ambientes. */}
-        <section className="space-y-3 rounded-lg border border-gray-200 p-3">
-          <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
-            Responsável técnico (CSRT)
-          </p>
-          <p className="text-xs text-gray-500">
-            Algumas UFs exigem o CSRT. O código é secreto: ele nunca é devolvido pela API, então este
-            campo volta em branco a cada abertura; deixá-lo vazio mantém o que já está gravado.
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <FormField
-              control={form.control}
-              name="csrt_id"
-              render={({field}) => (
-                <FormItem>
-                  <FormLabel>Identificador do CSRT</FormLabel>
-                  <NumericInput {...field} value={field.value ?? ''} integerPlaces={2} placeholder="01"
-                                onChange={field.onChange}/>
-                  <FormMessage/>
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="csrt"
-              render={({field}) => (
-                <FormItem>
-                  <FormLabel>CSRT (36 caracteres)</FormLabel>
-                  <Input {...field} value={field.value ?? ''} maxLength={36}
-                         autoComplete="off" placeholder="Deixe vazio para manter"
-                         className="font-mono text-xs"/>
-                  <FormMessage/>
-                </FormItem>
-              )}
-            />
           </div>
-        </section>
-
-        <div className="sticky bottom-(--bottomnav-height) z-10 -mx-4 flex items-center justify-between gap-3 border-t border-gray-200 bg-gray-50 px-4 py-3 md:static md:mx-0 md:border-0 md:bg-transparent md:px-0 md:py-0 md:pt-2">
-          {savedAt ? (
-            <p className="text-xs text-muted-foreground">Última atualização {savedAt}</p>
-          ) : (
-            <p className="text-xs text-muted-foreground">
-              {LABEL_BY_VARIANT[variant]} ainda não configurado
-            </p>
-          )}
-          <Button type="submit" disabled={loading}>
-            {loading ? 'Salvando…' : 'Salvar configuração'}
-          </Button>
+          <div>
+            {checkbox('ind_canal_verde', 'Participa do Canal Verde',
+              'Programa de circulação simplificada de cargas nas fronteiras estaduais.')}
+            {checkbox('ind_carrega_posterior', 'Inclui carga depois de emitir',
+              'Os documentos entram por evento de inclusão de DF-e após a autorização.')}
+          </div>
         </div>
+      </>
+    ),
+    // Responsável técnico; CSRT (NT 2018.005). Vale para os dois ambientes.
+    [SEC.csrt]: (
+      <>
+        <p className="text-xs text-gray-500">
+          Algumas UFs exigem o CSRT. O código é secreto: ele nunca é devolvido pela API, então este
+          campo volta em branco a cada abertura; deixá-lo vazio mantém o que já está gravado.
+        </p>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <FormField
+            control={form.control}
+            name="csrt_id"
+            render={({field}) => (
+              <FormItem>
+                <FormLabel>Identificador do CSRT</FormLabel>
+                <NumericInput {...field} value={field.value ?? ''} integerPlaces={2} placeholder="01"
+                              onChange={field.onChange}/>
+                <FormMessage/>
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="csrt"
+            render={({field}) => (
+              <FormItem>
+                <FormLabel>CSRT (36 caracteres)</FormLabel>
+                <Input {...field} value={field.value ?? ''} maxLength={36}
+                       autoComplete="off" placeholder="Deixe vazio para manter"
+                       className="font-mono text-xs"/>
+                <FormMessage/>
+              </FormItem>
+            )}
+          />
+        </div>
+      </>
+    ),
+    [SEC.emission]: emission,
+  };
+
+  const labels: Record<string, string> = {
+    [SEC.env]: 'Ambiente', [SEC.num]: 'Numeração e série', [SEC.csc]: 'CSC e QR Code',
+    [SEC.manifest]: 'Manifesto', [SEC.csrt]: 'Responsável técnico', [SEC.emission]: 'Forma de emissão',
+  };
+  const sections: RailSection[] = order.map((id) => ({
+    id,
+    label: labels[id],
+    content: content[id],
+    dirty: !!rail.dirtyCount[id],
+    errors: rail.errorCount[id],
+    alert: id === SEC.emission && emissionAlert,
+    ownsSave: id === SEC.emission,
+  }));
+
+  return (
+    <Form {...form}>
+      <form onSubmit={handleSubmit} noValidate>
+        <SettingsRail
+          sections={sections}
+          active={rail.active}
+          onSelect={rail.setActive}
+          saving={loading}
+          dirty={dirty}
+          status={savedAt ? `Última atualização ${savedAt}` : `${LABEL_BY_VARIANT[variant]} ainda não configurado`}
+          banner={submitError && (
+            <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              {submitError}
+            </div>
+          )}
+        />
       </form>
     </Form>
   );

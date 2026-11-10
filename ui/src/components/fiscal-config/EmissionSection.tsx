@@ -36,7 +36,7 @@ interface EmissionSectionProps {
 
 /**
  * Forma de emissão do documento (normal ou contingência), gravada em `PUT /{doc}-emission`, separada do
- * "Salvar configuração" porque é outro endpoint e muda o que a próxima emissão faz. Só oferece o que a API
+ * "Salvar alterações" porque é outro endpoint e muda o que a próxima emissão faz. Só oferece o que a API
  * listou em `emission_options` para este documento.
  */
 export function EmissionSection({doc, pk, config, autoAvailable = AUTO_CONTINGENCY_AVAILABLE}: EmissionSectionProps) {
@@ -80,9 +80,7 @@ export function EmissionSection({doc, pk, config, autoAvailable = AUTO_CONTINGEN
   };
 
   return (
-    <section className="space-y-3 rounded-lg border border-gray-200 p-3" aria-label="Forma de emissão">
-      <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">Forma de emissão</p>
-
+    <div className="space-y-3">
       {inContingency(config) && (
         <div role="status" className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           <p className="font-medium">
@@ -118,7 +116,7 @@ export function EmissionSection({doc, pk, config, autoAvailable = AUTO_CONTINGEN
             onChange={setReason}
             minLength={EMISSION_REASON_MIN}
             maxLength={EMISSION_REASON_MAX}
-            rows={3}
+            rows={2}
             placeholder="Ex.: SEFAZ do estado fora do ar desde as 10h"
           />
           <p className="text-xs text-gray-500">Vai no XML de cada nota emitida nesta forma, e a data e hora de início é registrada ao confirmar.</p>
@@ -175,12 +173,12 @@ export function EmissionSection({doc, pk, config, autoAvailable = AUTO_CONTINGEN
 
       <EmitError failure={failure}/>
 
-      <div className="flex justify-end">
+      <div className="sticky bottom-(--bottomnav-height) z-10 -mx-4 flex justify-end border-t border-gray-200 bg-gray-50 px-4 py-3 md:bottom-0 md:mx-0 md:bg-white md:px-0">
         <Button type="button" onClick={() => void save()} disabled={!dirty || reasonInvalid || autoMissing || mutation.isPending}
                 className="min-h-11 sm:min-h-0">
           {mutation.isPending ? 'Salvando…' : 'Aplicar forma de emissão'}
         </Button>
       </div>
-    </section>
+    </div>
   );
 }

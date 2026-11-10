@@ -67,6 +67,7 @@ export function CteOsRoad({state, onChange, forcedKind}: RoadProps) {
                 hint={forcedKind
                   ? (forcedKind === 'taf' ? 'Entre UFs, o transporte de pessoas exige o TAF.' : 'Dentro da mesma UF, o transporte de pessoas exige o registro estadual.')
                   : 'Informe o TAF ou o registro estadual.'}>
+      <div className="grid grid-cols-1 gap-x-3 gap-y-4 sm:grid-cols-2">
       {!forcedKind && (
         <div className={FIELD}>
           <p className={LABEL}>Qual documento vale</p>
@@ -118,6 +119,7 @@ export function CteOsRoad({state, onChange, forcedKind}: RoadProps) {
           )}
         </>
       )}
+      </div>
     </CteSection>
   );
 }

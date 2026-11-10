@@ -3,7 +3,7 @@ import {fireEvent, render, screen, waitFor, within} from '@testing-library/react
 import {beforeEach, describe, expect, it, vi} from 'vitest';
 import type {InternalAxiosRequestConfig} from 'axios';
 import {CteEmitForm} from '@/components/cte/CteEmitForm';
-import {apiClient} from '@/lib/api/client';
+import {ApiError, apiClient} from '@/lib/api/client';
 import {mockAdapter} from '@/lib/mock/handler';
 import {nfesFixture, receivedNfesFixture} from '@/lib/mock/fixtures';
 import type {CteDeriveOut, NfeListOut} from '@/lib/types/api';
@@ -48,37 +48,67 @@ function typeMoney(label: string, value: string) {
   fireEvent.blur(input);
 }
 
+const heading = () => screen.getByRole('heading', {level: 2});
+const next = () => fireEvent.click(screen.getByRole('button', {name: 'Continuar'}));
+
 describe('CteEmitForm', () => {
-  it('mostra o derivado: resumo, tomador sugerido e o que falta', async () => {
+  it('Continuar sem nota fica em Notas e diz o que falta; com notas mostra o derivado e avança', async () => {
     renderForm();
-    expect(screen.getByTestId('cte-missing')).toHaveTextContent('Escolha ao menos uma nota');
+    expect(heading()).toHaveTextContent('Notas');
+    next();
+    expect(await screen.findByText('Escolha ao menos uma nota')).toBeInTheDocument();
+    expect(heading()).toHaveTextContent('Notas');
 
     await addNote(1001);
     await addNote(1002);
-
     expect(await screen.findByTestId('cte-summary')).toHaveTextContent(/^2 notas · 338,5 kg · R\$\s3\.769,60 · SP para MG$/);
+    await waitFor(() => expect(screen.queryByText('Escolha ao menos uma nota')).toBeNull());
+    next();
+    await waitFor(() => expect(heading()).toHaveTextContent('Tomador e partes'));
     expect(screen.getByText(/Sugerido · Frete CIF na nota/)).toBeInTheDocument();
     expect(screen.getByRole('radio', {name: /Remetente/})).toBeChecked();
     expect(screen.getByTestId('cte-icms-summary')).toHaveTextContent('Simples Nacional');
-    expect(screen.getByTestId('cte-missing')).toHaveTextContent('Informe o valor do frete');
-    expect(screen.getByRole('button', {name: 'Emitir CT-e'})).toBeDisabled();
   });
 
-  it('notas de remetentes diferentes abrem Dados do transporte com o aviso', async () => {
+  it('o passo do frete não deixa chegar à revisão sem valor e CFOP', async () => {
+    renderForm();
+    await addNote(1001);
+    await screen.findByTestId('cte-summary');
+    next();
+    await waitFor(() => expect(heading()).toHaveTextContent('Tomador e partes'));
+    await screen.findByText(/Sugerido · Frete CIF/);
+    next();
+    await waitFor(() => expect(heading()).toHaveTextContent('Frete'));
+    next();
+    expect(await screen.findByText('Informe o valor do frete')).toBeInTheDocument();
+    expect(screen.getByText('Escolha o CFOP da prestação')).toBeInTheDocument();
+    expect(heading()).toHaveTextContent('Frete');
+    expect(screen.getByRole('button', {name: 'Continuar'})).toBeEnabled();
+  });
+
+  it('notas de remetentes diferentes abrem Dados do transporte com o aviso e travam o passo', async () => {
     renderForm();
     await addNote(1001);
     await addNote(4821);
+    await screen.findByTestId('cte-summary');
+    next();
+    await waitFor(() => expect(heading()).toHaveTextContent('Tomador e partes'));
 
     const transport = screen.getByRole('region', {name: /Dados do transporte/});
     expect(await within(transport).findByText('Notas com remetentes diferentes.')).toBeInTheDocument();
     expect(within(transport).getByText(/Emita um CT-e por remetente/)).toBeInTheDocument();
     expect(screen.getByRole('radio', {name: /Remetente/})).toBeDisabled();
     expect(screen.getByText('As notas não indicam um único responsável pelo frete.')).toBeInTheDocument();
+    next();
+    expect(await screen.findByText('Escolha quem paga o frete')).toBeInTheDocument();
+    expect(heading()).toHaveTextContent('Tomador e partes');
   });
 
   it('edição marca "editado", e voltar ao derivado desfaz', async () => {
     renderForm();
     await addNote(1001);
+    await screen.findByTestId('cte-summary');
+    next();
     await screen.findByText(/Sugerido · Frete CIF/);
 
     fireEvent.click(screen.getByRole('button', {name: /Dados do transporte/}));
@@ -95,23 +125,29 @@ describe('CteEmitForm', () => {
     expect(within(row).getByText('Notebook 15 polegadas')).toBeInTheDocument();
   });
 
-  it('emite com o tomador sugerido, o frete e os overrides', async () => {
-    renderForm();
+  async function fillToReview() {
     await addNote(4821);
     await addNote(4822);
+    await screen.findByTestId('cte-summary');
+    next();
     await screen.findByText(/Sugerido · Frete FOB na nota/);
-
-    typeMoney('Valor total do frete', '620');
-    fireEvent.click(screen.getByText('Escolha o CFOP'));
-    fireEvent.click(await screen.findByRole('option', {name: /^6353 ·/}));
     fireEvent.click(screen.getByRole('button', {name: /Dados do transporte/}));
     fireEvent.click(screen.getByRole('button', {name: 'Editar peso da carga'}));
     fireEvent.change(screen.getByLabelText('Peso da carga em kg'), {target: {value: '1100'}});
+    next();
+    await waitFor(() => expect(heading()).toHaveTextContent('Frete'));
+    typeMoney('Valor total do frete', '620');
+    fireEvent.click(screen.getByText('Escolha o CFOP'));
+    fireEvent.click(await screen.findByRole('option', {name: /^6353 ·/}));
+    next();
+    await waitFor(() => expect(heading()).toHaveTextContent('Revisão'));
+  }
 
-    const emit = screen.getByRole('button', {name: 'Emitir CT-e'});
-    await waitFor(() => expect(emit).toBeEnabled());
-    fireEvent.click(emit);
-    fireEvent.click(await screen.findByRole('button', {name: 'Confirmar e emitir'}));
+  it('emite com o tomador sugerido, o frete e os overrides', async () => {
+    renderForm();
+    await fillToReview();
+    expect(screen.getByText('Tomador')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', {name: 'Emitir CT-e'}));
 
     await waitFor(() => expect(apiClient.emitCte).toHaveBeenCalledTimes(1));
     expect(apiClient.emitCte).toHaveBeenCalledWith({
@@ -123,5 +159,24 @@ describe('CteEmitForm', () => {
       overrides: {cargo: {total_weight_kg: '1100'}},
     });
     await waitFor(() => expect(push).toHaveBeenCalledWith('/cte'));
+  });
+
+  it('a recusa da api sobre o valor volta ao passo do frete, com a mensagem', async () => {
+    vi.spyOn(apiClient, 'emitCte').mockRejectedValue(new ApiError(422, 'O CFOP não confere com o trajeto.', {code: 'cfop_required'}));
+    renderForm();
+    await fillToReview();
+    fireEvent.click(screen.getByRole('button', {name: 'Emitir CT-e'}));
+    await waitFor(() => expect(heading()).toHaveTextContent('Frete'));
+    expect(await screen.findByRole('alert')).toHaveTextContent('O CFOP não confere com o trajeto.');
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it('uma recusa sem passo dono fica na revisão', async () => {
+    vi.spyOn(apiClient, 'emitCte').mockRejectedValue(new ApiError(500, 'Falha da SEFAZ.', {}));
+    renderForm();
+    await fillToReview();
+    fireEvent.click(screen.getByRole('button', {name: 'Emitir CT-e'}));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Falha da SEFAZ.');
+    expect(heading()).toHaveTextContent('Revisão');
   });
 });

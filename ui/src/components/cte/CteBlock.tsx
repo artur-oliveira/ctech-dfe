@@ -27,6 +27,11 @@ export function CteWarnings({warnings}: { warnings: CteDeriveWarning[] }) {
 }
 
 /**
+ * Superfície do bloco: cartão na página, plana dentro de um passo do assistente (o passo já é a superfície).
+ */
+export const CTE_SURFACE = 'rounded-xl border border-gray-200 bg-white p-4 md:p-5 in-data-[wizard-panel]:rounded-none in-data-[wizard-panel]:border-0 in-data-[wizard-panel]:bg-transparent in-data-[wizard-panel]:p-0 md:in-data-[wizard-panel]:p-0';
+
+/**
  * Bloco da tela de emissão: título como pergunta (não eyebrow), apoio opcional
  * e o conteúdo. Mesma superfície dos cartões do app: branco, hairline, 14px.
  */
@@ -39,10 +44,10 @@ export function CteSection({id, title, hint, aside, children}: {
   children: React.ReactNode
 }) {
   return (
-    <section aria-labelledby={id} className="rounded-xl border border-gray-200 bg-white p-4 md:p-5 space-y-4">
+    <section aria-labelledby={id} className={`${CTE_SURFACE} space-y-4 in-data-[wizard-panel]:space-y-3`}>
       <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div className="min-w-0">
-          <h2 id={id} className="text-base font-semibold text-gray-900">{title}</h2>
+          <h3 id={id} className="text-base font-semibold text-gray-900">{title}</h3>
           {hint && <p className="mt-0.5 text-sm text-gray-500">{hint}</p>}
         </div>
         {aside}

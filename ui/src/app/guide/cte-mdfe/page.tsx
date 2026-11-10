@@ -208,13 +208,19 @@ export default function GuideCteMdfe() {
           id: 'ciot-emit',
           title: 'Declarar um CIOT',
           summary:
-            'Escolha o transportador e consulte a situação dele na ANTT; escolha os veículos do cadastro e confira a frota; informe viagem, carga, frete e pagamento.',
+            'A declaração é um assistente de cinco passos, um por tela: transportador, veículos, viagem e carga, frete e pagamento, e a revisão antes de enviar.',
           image: {
             src: '/guide/ciot-emit.webp',
-            alt: 'Formulário de declaração de CIOT, com transportador, RNTRC, veículos, viagem, carga, frete e pagamento',
+            alt: 'Primeiro passo da declaração de CIOT: ambiente, tipo de operação, MDF-e, transportador, RNTRC, contratante e destinatário, com o indicador dos cinco passos acima',
           },
           body: (
             <>
+              <p>
+                O botão <b>Continuar</b> confere os campos do passo e só avança se estiverem certos; os erros aparecem
+                no próprio passo. <b>Voltar</b> e o indicador no alto levam a qualquer passo já visitado, sem perder o
+                que você digitou. Na <b>Revisão</b>, cada bloco tem um <b>Editar</b> que volta ao passo correspondente, e
+                o botão final envia a declaração (ou a retificação, que pede uma confirmação).
+              </p>
               <GuideTerms>
                 <GuideTerm term="Tipo de operação">
                   Carga lotação, carga fracionada ou TAC-Agregado. O tipo muda o que é obrigatório: lotação e
@@ -233,6 +239,9 @@ export default function GuideCteMdfe() {
                   Opcional. Liga o CIOT a um manifesto autorizado.
                 </GuideTerm>
               </GuideTerms>
+              <figure className="my-4 overflow-hidden rounded-lg border border-gray-200">
+                <Image src="/guide/ciot-emit-vehicles.webp" alt="Segundo passo da declaração de CIOT, com os veículos escolhidos, os eixos de cada um e o resultado da conferência da frota na ANTT" width={1280} height={800} sizes="(max-width: 1024px) 100vw, 760px" className="w-full"/>
+              </figure>
               <GuideCallout kind="tip" title="Piso mínimo de frete">
                 Com tipo de carga, eixos e distância informados, a tela mostra o piso mínimo de frete (tabela da ANTT, com
                 a versão e a data de início da vigência), separa a ida do retorno vazio e avisa se o frete está abaixo.
@@ -241,8 +250,11 @@ export default function GuideCteMdfe() {
                 É só um aviso: quem decide é a ANTT, e o piso nunca bloqueia o envio. Se o cálculo estiver{' '}
                 <b>indisponível</b>, a declaração segue normalmente.
               </GuideCallout>
+              <figure className="my-4 overflow-hidden rounded-lg border border-gray-200">
+                <Image src="/guide/ciot-emit-review.webp" alt="Passo de revisão da retificação de CIOT, com os dados agrupados por passo, um Editar em cada grupo e o botão Retificar CIOT" width={1280} height={800} sizes="(max-width: 1024px) 100vw, 760px" className="w-full"/>
+              </figure>
               <GuideCallout kind="tip" title="Se a ANTT recusar">
-                Quando o sistema recusa a declaração antes de enviar, cada regra violada aparece em uma linha, com a
+                Quando o sistema recusa a declaração antes de enviar, a tela volta à Revisão e cada regra violada aparece em uma linha, com a
                 regra e o código da ANTT. Se a ANTT estiver fora do ar na consulta, a tela avisa e deixa você seguir.
               </GuideCallout>
             </>
@@ -292,10 +304,10 @@ export default function GuideCteMdfe() {
           id: 'cte-emit',
           title: 'Emitir CT-e a partir das notas',
           summary:
-            'Uma tela só, com três decisões: quais notas, quem paga o frete e quanto custa. Remetente, destinatário, carga e trajeto saem das notas.',
+            'Quatro passos curtos, cada um numa tela: Notas, Tomador e partes, Frete e Revisão. Remetente, destinatário, carga e trajeto saem das notas.',
           image: {
             src: '/guide/cte-emit.webp',
-            alt: 'Emissão de CT-e com duas notas escolhidas, a faixa de resumo e o remetente sugerido como tomador por frete CIF',
+            alt: 'Primeiro passo da emissão de CT-e, com duas notas escolhidas e a faixa de resumo lida delas',
           },
           body: (
             <>
@@ -310,10 +322,12 @@ export default function GuideCteMdfe() {
                   De 1 a 50 NF-e, sem repetir. Nota não autorizada ou fora do cadastro aparece com um aviso
                   dentro do bloco e o que fazer.
                 </GuideTerm>
-                <GuideTerm term="2. Quem paga o frete">
-                  Remetente, Destinatário, Expedidor, Recebedor ou Outro, cada um com o nome de quem seria.
+                <GuideTerm term="2. Tomador e partes">
+                  Quem paga o frete: Remetente, Destinatário, Expedidor, Recebedor ou Outro, cada um com o nome
+                  de quem seria. Em <b>Dados do transporte</b> ficam remetente, destinatário, trajeto, peso e
+                  produto lidos das notas, que você pode editar.
                 </GuideTerm>
-                <GuideTerm term="3. Valor do frete">
+                <GuideTerm term="3. Frete">
                   O total da prestação e, se quiser, componentes como pedágio e GRIS; o restante vira o
                   componente Frete valor. Logo abaixo, o CFOP da prestação: a lista já vem filtrada para
                   a mesma UF (5) ou entre UFs (6), conforme a origem e o destino; nenhum CFOP é presumido.
@@ -326,9 +340,10 @@ export default function GuideCteMdfe() {
                 40, 41 e 51 dispensam alíquota.
               </GuideCallout>
               <p>
-                A barra fixa no rodapé mostra o total do frete e diz o que ainda falta. <b>Emitir CT-e</b>{' '}
-                só habilita com notas, tomador, valor, CFOP, ICMS, remetente, destinatário e peso resolvidos, e
-                pede confirmação antes de enviar à SEFAZ.
+                <b>Continuar</b> só avança quando o passo está completo e aponta o que falta; <b>Voltar</b> é
+                livre e o indicador no alto leva de volta a qualquer passo já visitado. No passo 4, a <b>Revisão</b>{' '}
+                resume tudo, com <b>Editar</b> em cada bloco, e <b>Emitir CT-e</b> envia à SEFAZ. Se a recusa vier
+                de um campo, a tela volta ao passo dele com a mensagem; as demais aparecem na revisão.
               </p>
               <GuideCallout kind="tip" title="RNTRC antes do primeiro CT-e">
                 O CT-e rodoviário leva o RNTRC da transportadora, cadastrado uma vez em{' '}
@@ -412,7 +427,7 @@ export default function GuideCteMdfe() {
                 suportado nesses regimes e a emissão seria recusada.
               </GuideCallout>
               <p>
-                Logo abaixo fica <b>Autorizados a baixar o XML</b>: contador, embarcador ou quem mais
+                No mesmo passo do frete fica <b>Quem mais baixa o XML (opcional)</b>: contador, embarcador ou quem mais
                 precisa do arquivo. Escolha as pessoas do cadastro (até 10, sem repetir). Quem já é
                 parte do CT-e não entra na lista.
               </p>
@@ -426,12 +441,13 @@ export default function GuideCteMdfe() {
             'No detalhe de um CT-e autorizado e emitido pela sua empresa, Emitir complemento cobra uma diferença de valor e Emitir substituto troca o CT-e por outro corrigido.',
           image: {
             src: '/guide/cte-complement.webp',
-            alt: 'Tela de complemento de CT-e com a explicação de quando usar, o valor complementar, o CFOP e o imposto',
+            alt: 'Primeiro passo do complemento de CT-e, com o resumo do original e a explicação de quando usar',
           },
           body: (
             <>
               <p>
-                Em ambos o CT-e original vem do detalhe (nunca é digitado) e remetente, destinatário,
+                São passos curtos: <b>Original</b> (o resumo do CT-e e quando usar), <b>Tomador</b> (só no
+                substituto), <b>Valores</b> e <b>Revisão</b>. Em ambos o CT-e original vem do detalhe (nunca é digitado) e remetente, destinatário,
                 percurso e tomador são lidos do XML dele. No <b>complemento</b> você informa só o{' '}
                 <b>valor complementar</b>, o CFOP e o ICMS. O original precisa ter no máximo 12 meses, e a
                 SEFAZ confere o limite de 10 complementos por original.
@@ -444,7 +460,7 @@ export default function GuideCteMdfe() {
                 é da SEFAZ e depois disso a emissão é recusada, com o aviso na própria tela.
               </p>
               <figure className="overflow-hidden rounded-xl border border-gray-200 bg-gray-50 shadow-card">
-                <Image src="/guide/cte-substitute.webp" alt="Tela de substituto de CT-e com a troca de tomador aberta" width={1280} height={800} sizes="(max-width: 1024px) 100vw, 760px" className="w-full"/>
+                <Image src="/guide/cte-substitute.webp" alt="Passo Tomador do substituto de CT-e com a troca de tomador aberta" width={1280} height={800} sizes="(max-width: 1024px) 100vw, 760px" className="w-full"/>
               </figure>
               <GuideCallout kind="tip" title="Qual escolher">
                 Faltou cobrar uma diferença: complemento. Valor ou tomador errados no CT-e: substituto.
@@ -480,12 +496,14 @@ export default function GuideCteMdfe() {
             'Em CT-e, Emitir CT-e OS cobre transporte de pessoas, de valores e excesso de bagagem, sem notas.',
           image: {
             src: '/guide/cte-os-people.webp',
-            alt: 'Emissão de CT-e OS com a escolha do tipo de serviço e os blocos de tomador, percurso e transporte rodoviário',
+            alt: 'Passo Rodoviário da emissão de CT-e OS de transporte de pessoas, com o indicador dos cinco passos',
           },
           body: (
             <>
               <p>
-                Escolha o tipo de serviço e o formulário mostra só o que ele pede. O tomador vem sempre do
+                Os passos são <b>Serviço</b>, <b>Partes e rota</b>, os dados do tipo (<b>Rodoviário</b> em
+                pessoas e bagagem, <b>Bilhetes</b> em bagagem, <b>GTV-e</b> em valores), <b>Valores</b> e{' '}
+                <b>Revisão</b>. Escolha o tipo de serviço e só aparecem os passos que ele pede. O tomador vem sempre do
                 cadastro de pessoas. <b>Pessoas</b>: origem e destino, TAF (entre UFs) ou registro
                 estadual (mesma UF), veículo e fretamento; o eventual exige data e hora da viagem, e o INSS
                 é obrigatório com tomador pessoa jurídica. <b>Valores</b>: destino e as GTV-e com seus
@@ -493,7 +511,7 @@ export default function GuideCteMdfe() {
                 de bagagem</b>: os bilhetes referenciados, por chave do BP-e ou número e data.
               </p>
               <figure className="overflow-hidden rounded-xl border border-gray-200 bg-gray-50 shadow-card">
-                <Image src="/guide/cte-os-values.webp" alt="Emissão de CT-e OS de transporte de valores com GTV-e e a soma dos componentes" width={1280} height={800} sizes="(max-width: 1024px) 100vw, 760px" className="w-full"/>
+                <Image src="/guide/cte-os-values.webp" alt="Passo GTV-e da emissão de CT-e OS de transporte de valores, com a soma dos componentes" width={1280} height={800} sizes="(max-width: 1024px) 100vw, 760px" className="w-full"/>
               </figure>
               <GuideCallout kind="tip" title="Nada é presumido">
                 CFOP, CST do ICMS (o CT-e OS não tem o 60) e tomador são sempre escolha sua. A numeração

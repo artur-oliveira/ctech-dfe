@@ -1685,6 +1685,14 @@ export const ciotsFixture = [
       {operation: 'cancel', status: 'cancelled', at: '2026-07-01T15:00:00Z', antt_code: 111},
     ],
   }),
+  // Fracionada em vigor: a única que a retificação aceita (a captura do guia abre `?rectify=` nela).
+  ciotRow('a7b8c9d0e1f2', 'declared', 2, {
+    operation_type: 2,
+    declaration: {...CIOT_DECLARATION, operation_type: 2},
+    history: [
+      {operation: 'declare', status: 'declared', at: '2026-07-10T09:05:00Z', antt_code: 110},
+    ],
+  }),
 ];
 
 /** Resposta da ANTT repassada pela api; o formato de `body` é o do mock, não o contrato real. */

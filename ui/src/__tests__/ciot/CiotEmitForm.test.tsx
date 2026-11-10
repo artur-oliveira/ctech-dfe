@@ -24,6 +24,12 @@ const page = <T,>(items: T[]) => ({items, next_cursor: null, has_next: false, pr
 const BASE = ciotsFixture[0] as unknown as CiotOut;
 const DECLARED: CiotOut = {...BASE, operation_type: 2, declaration: {...BASE.declaration, operation_type: 2}};
 
+/** Do primeiro passo à revisão: a retificação vem válida, então cada Continuar passa. */
+const toReview = async () => {
+  for (let i = 0; i < 4; i++) fireEvent.click(await screen.findByRole('button', {name: 'Continuar'}));
+  return screen.findByRole('button', {name: /Retificar CIOT|Declarar CIOT/});
+};
+
 beforeEach(() => {
   vi.restoreAllMocks();
   push.mockReset();
@@ -37,9 +43,11 @@ describe('CiotEmitForm: declarar', () => {
   it('formulário vazio mostra os erros por campo e não chama a api', async () => {
     const declare = vi.spyOn(apiClient, 'declareCiot');
     wrap(<CiotEmitForm/>);
-    fireEvent.click(await screen.findByRole('button', {name: 'Declarar CIOT'}));
-    expect(await screen.findByText('Escolha ao menos um veículo')).toBeInTheDocument();
-    expect(screen.getAllByText('CPF ou CNPJ inválido').length).toBeGreaterThan(1);
+    fireEvent.click(await screen.findByRole('button', {name: 'Continuar'}));
+    expect((await screen.findAllByText('CPF ou CNPJ inválido')).length).toBeGreaterThan(1);
+    // Fica no primeiro passo e não adianta os erros dos passos seguintes.
+    expect(screen.getByRole('heading', {name: /Transportador/})).toBeInTheDocument();
+    expect(screen.queryByText('Escolha ao menos um veículo')).toBeNull();
     expect(declare).not.toHaveBeenCalled();
   });
 
@@ -55,7 +63,7 @@ describe('CiotEmitForm: declarar', () => {
   it('piso indisponível não impede o formulário de existir', async () => {
     wrap(<CiotEmitForm/>);
     expect(await screen.findByText(/Piso mínimo de frete: informe tipo de carga/)).toBeInTheDocument();
-    expect(screen.getByRole('button', {name: 'Declarar CIOT'})).toBeEnabled();
+    expect(screen.getByRole('button', {name: 'Continuar'})).toBeEnabled();
   });
 
   it('o vínculo com o MDF-e só oferece manifestos autorizados', async () => {
@@ -71,7 +79,7 @@ describe('CiotEmitForm: declarar', () => {
 describe('CiotEmitForm: retificar', () => {
   it('vem preenchido com a declaração e não mostra o vínculo com o MDF-e', async () => {
     wrap(<CiotEmitForm rectifyOf={DECLARED}/>);
-    expect(await screen.findByRole('button', {name: 'Retificar CIOT'})).toBeInTheDocument();
+    expect(await toReview()).toBeInTheDocument();
     expect(screen.getByText('Natureza atual: 1001. Escolha outro NCM só para trocar.')).toBeInTheDocument();
     expect(screen.queryByText('MDF-e da viagem (opcional)')).toBeNull();
   });
@@ -79,7 +87,7 @@ describe('CiotEmitForm: retificar', () => {
   it('pede confirmação e envia o conteúdo sem ambiente', async () => {
     const rectify = vi.spyOn(apiClient, 'rectifyCiot').mockResolvedValue({...DECLARED, pending_operation: 'rectify'});
     wrap(<CiotEmitForm rectifyOf={DECLARED}/>);
-    fireEvent.click(await screen.findByRole('button', {name: 'Retificar CIOT'}));
+    fireEvent.click(await toReview());
     expect(await screen.findByText('Retificar o CIOT?')).toBeInTheDocument();
     expect(rectify).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', {name: 'Confirmar retificação'}));
@@ -97,7 +105,7 @@ describe('CiotEmitForm: retificar', () => {
       errors: [{message: 'O valor do frete deve ser maior que zero.', params: {rule: 'B120', antt_code: 319}}],
     }));
     wrap(<CiotEmitForm rectifyOf={DECLARED}/>);
-    fireEvent.click(await screen.findByRole('button', {name: 'Retificar CIOT'}));
+    fireEvent.click(await toReview());
     fireEvent.click(await screen.findByRole('button', {name: 'Confirmar retificação'}));
     expect(await screen.findByText('O valor do frete deve ser maior que zero. (B120, ANTT 319)')).toBeInTheDocument();
     expect(push).not.toHaveBeenCalled();

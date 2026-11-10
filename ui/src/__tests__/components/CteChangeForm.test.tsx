@@ -49,19 +49,34 @@ async function chooseCfop() {
   fireEvent.click(await screen.findByRole('option', {name: /^6353 ·/}));
 }
 
+const heading = () => screen.getByRole('heading', {level: 2});
+const next = () => fireEvent.click(screen.getByRole('button', {name: 'Continuar'}));
+const atStep = (label: string) => waitFor(() => expect(heading()).toHaveTextContent(label));
+
+/** Preenche o valor e o CFOP e termina na revisão (o substituto passa antes pelo passo do tomador). */
+async function valueToReview(total: string, noun = 'Valor total do frete') {
+  await atStep('Valores');
+  typeMoney(noun, total);
+  await chooseCfop();
+  next();
+  await atStep('Revisão');
+}
+
 describe('complemento', () => {
   it('explica quando usar, pede só o valor complementar e envia a chave do original', async () => {
     renderForm('complement');
+    expect(heading()).toHaveTextContent('Original');
     expect(screen.getByText('Quando usar o complemento')).toBeInTheDocument();
+    expect(screen.getByText(/CT-e original: 31/)).toBeInTheDocument();
     expect(screen.getByRole('link', {name: 'Emitir substituto'})).toHaveAttribute('href', `/cte/substitute?key=${ctesFixture[0].sk}`);
-    expect(screen.getByTestId('cte-missing')).toHaveTextContent('Informe o valor do valor complementar');
+    next();
+    await atStep('Valores');
+    next();
+    expect(await screen.findByText('Informe o valor do valor complementar')).toBeInTheDocument();
+    expect(heading()).toHaveTextContent('Valores');
 
-    typeMoney('Valor complementar', '150');
-    await chooseCfop();
-    const emit = screen.getByRole('button', {name: 'Emitir complemento'});
-    await waitFor(() => expect(emit).toBeEnabled());
-    fireEvent.click(emit);
-    fireEvent.click(await screen.findByRole('button', {name: 'Confirmar e emitir'}));
+    await valueToReview('150', 'Valor complementar');
+    fireEvent.click(screen.getByRole('button', {name: 'Emitir complemento'}));
 
     await waitFor(() => expect(apiClient.complementCte).toHaveBeenCalledTimes(1));
     expect(apiClient.complementCte).toHaveBeenCalledWith({
@@ -70,17 +85,25 @@ describe('complemento', () => {
     await waitFor(() => expect(push).toHaveBeenCalledWith('/cte'));
   });
 
-  it('um 422 com code vira a explicação em pt-BR', async () => {
+  it('um 422 com code sem passo dono vira a explicação em pt-BR na revisão', async () => {
     vi.spyOn(apiClient, 'complementCte').mockRejectedValue(new ApiError(422, 'texto cru', {code: 'original_too_old'}));
     renderForm('complement');
-    typeMoney('Valor complementar', '10');
-    await chooseCfop();
-    const emit = screen.getByRole('button', {name: 'Emitir complemento'});
-    await waitFor(() => expect(emit).toBeEnabled());
-    fireEvent.click(emit);
-    fireEvent.click(await screen.findByRole('button', {name: 'Confirmar e emitir'}));
+    next();
+    await valueToReview('10', 'Valor complementar');
+    fireEvent.click(screen.getByRole('button', {name: 'Emitir complemento'}));
     expect(await screen.findByRole('alert')).toHaveTextContent('mais de 12 meses');
+    expect(heading()).toHaveTextContent('Revisão');
     expect(push).not.toHaveBeenCalled();
+  });
+
+  it('um 422 sobre o valor volta ao passo Valores', async () => {
+    vi.spyOn(apiClient, 'complementCte').mockRejectedValue(new ApiError(422, 'cru', {code: 'components_exceed_total'}));
+    renderForm('complement');
+    next();
+    await valueToReview('10', 'Valor complementar');
+    fireEvent.click(screen.getByRole('button', {name: 'Emitir complemento'}));
+    await atStep('Valores');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Os componentes somam mais que o valor');
   });
 });
 
@@ -88,12 +111,11 @@ describe('substituto', () => {
   it('sem trocar o tomador não envia change_taker; o novo valor vai no corpo', async () => {
     renderForm('substitute');
     expect(screen.getByText('Quando usar o substituto')).toBeInTheDocument();
-    typeMoney('Valor total do frete', '1900');
-    await chooseCfop();
-    const emit = screen.getByRole('button', {name: 'Emitir substituto'});
-    await waitFor(() => expect(emit).toBeEnabled());
-    fireEvent.click(emit);
-    fireEvent.click(await screen.findByRole('button', {name: 'Confirmar e emitir'}));
+    next();
+    await atStep('Tomador');
+    next();
+    await valueToReview('1900');
+    fireEvent.click(screen.getByRole('button', {name: 'Emitir substituto'}));
     await waitFor(() => expect(apiClient.substituteCte).toHaveBeenCalledTimes(1));
     expect(apiClient.substituteCte).toHaveBeenCalledWith({
       original_key: ctesFixture[0].sk, cfop: '6353', freight: {total: '1900.00'}, icms: {cst: 'SN'},
@@ -102,21 +124,24 @@ describe('substituto', () => {
 
   it('trocar o tomador oferece o outro papel e exige a pessoa quando for outro', async () => {
     renderForm('substitute');
+    next();
+    await atStep('Tomador');
     fireEvent.click(screen.getByRole('checkbox', {name: /Informar outro tomador/}));
     // O tomador atual é o remetente: só destinatário e outro são oferecidos.
     expect(screen.queryByRole('radio', {name: /Remetente/})).toBeNull();
     expect(screen.getByRole('radio', {name: /Destinatário/})).toBeInTheDocument();
-    typeMoney('Valor total do frete', '100');
-    await chooseCfop();
-    expect(screen.getByTestId('cte-missing')).toHaveTextContent('Escolha o novo tomador');
+    next();
+    expect(await screen.findByText('Escolha o novo tomador')).toBeInTheDocument();
+    expect(heading()).toHaveTextContent('Tomador');
 
     fireEvent.click(screen.getByRole('radio', {name: /Outro/}));
-    expect(screen.getByTestId('cte-missing')).toHaveTextContent('Escolha a pessoa que paga o frete');
+    expect(await screen.findByText('Escolha a pessoa que paga o frete')).toBeInTheDocument();
+    next();
+    expect(heading()).toHaveTextContent('Tomador');
     fireEvent.click(within(screen.getByRole('region', {name: 'Trocar o tomador?'})).getByRole('button', {name: 'Escolher pessoa'}));
-    const emit = screen.getByRole('button', {name: 'Emitir substituto'});
-    await waitFor(() => expect(emit).toBeEnabled());
-    fireEvent.click(emit);
-    fireEvent.click(await screen.findByRole('button', {name: 'Confirmar e emitir'}));
+    next();
+    await valueToReview('100');
+    fireEvent.click(screen.getByRole('button', {name: 'Emitir substituto'}));
     await waitFor(() => expect(apiClient.substituteCte).toHaveBeenCalledTimes(1));
     expect(apiClient.substituteCte).toHaveBeenCalledWith(expect.objectContaining({
       change_taker: true, taker: {role: 'outro', person_id: 'pessoa-1'},
@@ -125,39 +150,56 @@ describe('substituto', () => {
 
   it('troca para expedidor ou recebedor do original: sem pessoa do cadastro, só o papel', async () => {
     renderForm('substitute');
+    next();
+    await atStep('Tomador');
     fireEvent.click(screen.getByRole('checkbox', {name: /Informar outro tomador/}));
     // Remetente é o atual; o original tem expedidor e recebedor (XML), então os quatro participantes e Outro aparecem.
     for (const r of [/Expedidor/, /Recebedor/, /Destinatário/, /Outro/]) expect(screen.getByRole('radio', {name: r})).toBeInTheDocument();
-    typeMoney('Valor total do frete', '100');
-    await chooseCfop();
     fireEvent.click(screen.getByRole('radio', {name: /Expedidor/}));
     expect(screen.queryByText('Pessoa que paga o frete')).toBeNull();
-    const emit = screen.getByRole('button', {name: 'Emitir substituto'});
-    await waitFor(() => expect(emit).toBeEnabled());
-    fireEvent.click(emit);
-    fireEvent.click(await screen.findByRole('button', {name: 'Confirmar e emitir'}));
+    next();
+    await valueToReview('100');
+    fireEvent.click(screen.getByRole('button', {name: 'Emitir substituto'}));
     await waitFor(() => expect(apiClient.substituteCte).toHaveBeenCalledTimes(1));
     expect(apiClient.substituteCte).toHaveBeenCalledWith(expect.objectContaining({change_taker: true, taker: {role: 'expedidor'}}));
   });
 
-  it('original sem expedidor nem recebedor não os oferece', () => {
+  it('um 422 do tomador volta ao passo Tomador', async () => {
+    vi.spyOn(apiClient, 'substituteCte').mockRejectedValue(new ApiError(422, 'cru', {code: 'taker_unchanged'}));
+    renderForm('substitute');
+    next();
+    await atStep('Tomador');
+    next();
+    await valueToReview('100');
+    fireEvent.click(screen.getByRole('button', {name: 'Emitir substituto'}));
+    await atStep('Tomador');
+    expect(await screen.findByRole('alert')).toHaveTextContent('mesmo do CT-e original');
+  });
+
+  it('original sem expedidor nem recebedor não os oferece', async () => {
     renderForm('substitute', {...original(), expedidor: undefined, recebedor: undefined});
+    next();
+    await atStep('Tomador');
     fireEvent.click(screen.getByRole('checkbox', {name: /Informar outro tomador/}));
     expect(screen.queryByRole('radio', {name: /Expedidor/})).toBeNull();
     expect(screen.queryByRole('radio', {name: /Recebedor/})).toBeNull();
   });
 
-  it('além de 67 dias o prazo acabou: avisa e não deixa emitir', () => {
+  it('além de 67 dias o prazo acabou: avisa e não deixa passar do primeiro passo', async () => {
     const old = {...original(), dh_emi: new Date(Date.now() - 80 * 86_400_000).toISOString()};
     renderForm('substitute', old);
     expect(screen.getByRole('alert')).toHaveTextContent('o prazo para substituir acabou');
-    expect(screen.getByRole('button', {name: 'Emitir substituto'})).toBeDisabled();
+    next();
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
+    expect(heading()).toHaveTextContent('Original');
   });
 
-  it('entre 60 e 67 dias avisa que a SEFAZ decide, sem bloquear', () => {
+  it('entre 60 e 67 dias avisa que a SEFAZ decide, sem bloquear', async () => {
     const old = {...original(), dh_emi: new Date(Date.now() - 63 * 86_400_000).toISOString()};
     renderForm('substitute', old);
-    expect(screen.getByRole('status')).toHaveTextContent('a SEFAZ decide');
+    expect(screen.getByText(/a SEFAZ decide/)).toBeInTheDocument();
+    next();
+    await atStep('Tomador');
   });
 });
 
@@ -172,7 +214,6 @@ describe('porta do CT-e original', () => {
   it('libera o formulário para um CT-e autorizado do emitente', async () => {
     renderGate(ctesFixture[0].sk);
     expect(await screen.findByText('formulário')).toBeInTheDocument();
-    expect(screen.getByText(/CT-e original: 31/)).toBeInTheDocument();
   });
 
   it('recusa um CT-e pendente, um complemento e um CT-e OS, dizendo por quê', async () => {

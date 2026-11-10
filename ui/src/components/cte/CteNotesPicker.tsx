@@ -81,7 +81,7 @@ export function CteNotesPicker({keys, onChange, derive, deriving, error, onRetry
       />
 
       {keys.length > 0 && (
-        <ul aria-label="Notas escolhidas" className="divide-y divide-gray-100 rounded-lg border border-gray-200">
+        <ul aria-label="Notas escolhidas" className="max-h-48 divide-y divide-gray-100 overflow-y-auto rounded-lg border border-gray-200">
           {keys.map((key) => {
             const n = derivedNote(key);
             const listed = byKey.get(key)?.nfe;

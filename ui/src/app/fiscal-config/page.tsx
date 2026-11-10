@@ -13,7 +13,7 @@ import {NoOrgBanner} from '@/components/ui/no-org-banner';
 import {EmissionSection} from '@/components/fiscal-config/EmissionSection';
 import {MOCK_ENABLED} from '@/lib/mock/env';
 import {getMockState} from '@/lib/mock/state';
-import {AUTO_CONTINGENCY_AVAILABLE, EMISSION_DOCS, type EmissionDoc, type EmissionFields} from '@/lib/contingency';
+import {AUTO_CONTINGENCY_AVAILABLE, EMISSION_DOCS, type EmissionDoc, type EmissionFields, inContingency} from '@/lib/contingency';
 import {FiscalConfigForm} from '@/components/fiscal-config/FiscalConfigForm';
 import type {DocVariant} from '@/lib/schemas/fiscal-configs';
 import {Skeleton} from '@aoctech/ui';
@@ -77,12 +77,16 @@ function FiscalConfigContent() {
   
   const active = configByTab[activeTab];
   const queryError = active.query.error?.message;
+  // Sem configuração gravada o PUT de emissão não tem o que alterar (404): a seção só existe com config.
+  const emissionConfig = EMISSION_DOCS.includes(activeTab as EmissionDoc) && active.query.config
+    ? (active.query.config as EmissionFields)
+    : null;
   
   return (
     <RootLayout>
       <div className="p-4 md:p-8">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-4">
           <h1 className="text-2xl font-semibold text-gray-900">Configuração Fiscal</h1>
           <p className="mt-1 text-sm text-gray-500">
             Ambiente, numeração e parâmetros de emissão por tipo de documento
@@ -92,9 +96,9 @@ function FiscalConfigContent() {
         {!selectedOrg ? (
           <NoOrgBanner/>
         ) : (
-          <div className="mx-auto max-w-2xl">
+          <div className="mx-auto max-w-4xl">
             {/* Tabs */}
-            <div className="mb-6 flex gap-1 rounded-xl bg-gray-100 p-1">
+            <div className="mb-3 flex gap-1 rounded-xl bg-gray-100 p-1">
               {TABS.map((tab) => {
                 const isActive = tab.id === activeTab;
                 const {query} = configByTab[tab.id];
@@ -123,7 +127,7 @@ function FiscalConfigContent() {
             </div>
             
             {/* Tab description */}
-            <p className="mb-6 text-sm text-muted-foreground">
+            <p className="mb-3 text-sm text-muted-foreground">
               {TABS.find((t) => t.id === activeTab)?.description}
             </p>
             
@@ -146,17 +150,7 @@ function FiscalConfigContent() {
             
             {/* Form */}
             {!active.query.isPending && (
-              <div className="space-y-6 rounded-xl border border-gray-200 bg-white p-4 sm:p-6">
-                {/* Sem configuração gravada o PUT de emissão não tem o que alterar (404). */}
-                {EMISSION_DOCS.includes(activeTab as EmissionDoc) && active.query.config && (
-                  <EmissionSection
-                    key={`emission-${activeTab}`}
-                    doc={activeTab as EmissionDoc}
-                    pk={pk}
-                    config={active.query.config as EmissionFields}
-                    autoAvailable={AUTO_CONTINGENCY_AVAILABLE || (MOCK_ENABLED && getMockState().autoContingency)}
-                  />
-                )}
+              <div className="rounded-xl border border-gray-200 bg-white p-4 sm:p-6">
                 <FiscalConfigForm
                   key={`form-${activeTab}`}
                   variant={activeTab}
@@ -165,6 +159,16 @@ function FiscalConfigContent() {
                     await active.mutation.mutateAsync(data);
                   }}
                   loading={active.mutation.isPending}
+                  emissionAlert={emissionConfig ? inContingency(emissionConfig) : false}
+                  emission={emissionConfig && (
+                    <EmissionSection
+                      key={`emission-${activeTab}`}
+                      doc={activeTab as EmissionDoc}
+                      pk={pk}
+                      config={emissionConfig}
+                      autoAvailable={AUTO_CONTINGENCY_AVAILABLE || (MOCK_ENABLED && getMockState().autoContingency)}
+                    />
+                  )}
                 />
               </div>
             )}

@@ -3340,10 +3340,10 @@ nem mapas locais de status de evento em telas de detalhe.
 
 ### CT-e: emissão rodoviária a partir de NF-e (`/cte/emit`)
 
-Uma tela só (`components/cte/CteEmitForm.tsx`), sem wizard, dentro de `RequireFiscalConfig variant="cte"`. Contrato:
+Wizard de 4 passos (`components/cte/CteEmitForm.tsx`, casca `ui/form-wizard.tsx`: Notas, Tomador e partes, Frete, Revisão), dentro de `RequireFiscalConfig variant="cte"`. Cada passo valida suas pendências (`cteMissingItems` marca o passo dono; `useStepIssues`/`StepIssues`); o `EmitConfirmModal` saiu, a Revisão é a confirmação. Recusa da API volta ao passo dono (`cteErrorStep`: `code` via `stepOfCodes`, ou alvo `aut_xml`/`partes`/`documento`), senão fica na Revisão. Contrato:
 `docs/specs/2026-11-05-cte-emissao-rodoviaria.md`.
 
-- **Blocos**: notas (Combobox das NF-e autorizadas emitidas e recebidas, faixa de resumo `N notas · peso · valor ·
+- **Blocos (um por passo)**: notas (Combobox das NF-e autorizadas emitidas e recebidas, faixa de resumo `N notas · peso · valor ·
   UF para UF`); quem paga o frete (escolha segmentada, sugestão do `derive` com o motivo; expedidor, recebedor e outro
   via `PersonPicker`); valor (total, componentes fixos, CFOP filtrado por escopo 5 ou 6, "Imposto" com CST, alíquota e
   ICMS ao vivo); dados do transporte (recolhido, um override por campo, "editado" e "Voltar ao derivado").
@@ -3409,7 +3409,10 @@ Limites do leiaute numa fonte só, `ui/src/lib/constants/layout-limits.ts` (`LAY
   original e recusa o que não é autorizado, do emitente, normal ou substituto) e `/cte/os` (nav: ferramenta do contexto CT-e).
   Os botões "Emitir complemento" e "Emitir substituto" ficam nas ações do detalhe, com a permissão `create.ctes`.
   Tudo em `components/cte/` (`CteChangeForm`, `CteOsForm`, `CteOsFields`, `CteCharge`, `CteKindBadge`); o valor, o CFOP e o
-  ICMS vêm de `useCteCharge`, que a emissão a partir de NF-e também usa.
+  ICMS vêm de `useCteCharge`, que a emissão a partir de NF-e também usa. Os três formulários são wizards: complemento
+  Original, Valores, Revisão; substituto acrescenta Tomador; CT-e OS tem Serviço, Partes e rota, Rodoviário (pessoas e
+  bagagem), Bilhetes (bagagem) ou GTV-e (valores), Valores e Revisão (`cteOsMissingItems` traz o passo dono de cada
+  pendência). O resumo do original (`OriginalSummary`) é o 1º passo; o gate só o mostra quando recusa.
 - **API**: `POST /v1.0/ctes/complement`, `/substitute`, `/os` (`apiClient.complementCte`, `substituteCte`, `emitCteOs`), todos 202
   `pending`. Substituto: `change_taker` + `taker` só quando o usuário troca; a UI oferece remetente, expedidor, recebedor,
   destinatário (só os que o detalhe do original traz) e `outro` (pessoa do cadastro, o único que pede `person_id`), sem o papel do
@@ -3449,8 +3452,10 @@ Limites do leiaute numa fonte só, `ui/src/lib/constants/layout-limits.ts` (`LAY
 
 ### Contingência na UI
 
-Em Configuração Fiscal, as abas NF-e, NFC-e, CT-e e MDF-e têm o bloco "Forma de emissão"
-(`components/fiscal-config/EmissionSection.tsx`), que lê `emission_type`, `emission_options`, `auto_contingency`,
+Em Configuração Fiscal, as abas NF-e, NFC-e, CT-e e MDF-e têm a seção "Forma de emissão" do trilho de seções
+(`components/fiscal-config/EmissionSection.tsx`; o trilho é `components/ui/settings-rail.tsx`: uma seção por vez, seletor no
+mobile, barra "Salvar alterações" com marca de alterado/erro por seção e roteamento do erro para a seção e o campo; a
+forma de emissão fica fora do salvar, com o próprio "Aplicar", e abre primeiro quando o documento está em contingência), que lê `emission_type`, `emission_options`, `auto_contingency`,
 `contingency_since` e `contingency_reason` do GET da configuração e grava com
 `PUT /v1.0/organizations/{org}/{nfe,nfce,cte,mdfe}-emission` (`apiClient.putEmission`).
 
@@ -3905,7 +3910,7 @@ identifier is never produced by the API; the worker obtains it from the generato
 ### CIOT UI (`ui/`)
 
 Screens `/ciot` (list, status filter chips applied client-side to the loaded page, environment select defaulting to the MDF-e
-fiscal config), `/ciot/emit` (declare; with `?rectify={id}` the same form is prefilled from `declaration` and confirms before
+fiscal config), `/ciot/emit` (declare as a 5-step wizard, `FormWizard`: Transportador, Veículos, Viagem e carga, Frete e pagamento, Revisão; with `?rectify={id}` the same form is prefilled from `declaration` and confirms before
 `POST .../rectification`; full load is refused client-side, B121) and `/ciot/detail?id=` (status, carrier warning with print,
 `last_error`, history, cancel with the 24 h hint, close with weight (full load) or trips and route (TAC-Agregado)). Registered
 under the MDF-e context in `nav.tsx`. Permissions gate the screens and buttons (`list|get|create|update.ciots`,
@@ -3919,7 +3924,7 @@ under the MDF-e context in `nav.tsx`. Permissions gate the screens and buttons (
 - Realtime: `dfe_result` with `table_name=ciots` invalidates `ciots` list and detail (`access_key` is `CIOT_{id}`) and toasts via
   `resolveCiotToast`; a lifecycle rejection arrives with the old status plus `internal_code`.
 - Mock flags: `?mock=floor-unverified` (floor answers 503; computed by default), `?mock=ciot-invalid` (422 `ciot_validation`), `?mock=antt-down` (503 on carrier
-  queries). Guide: three sections in `/guide/cte-mdfe`, captures `ciot-list|emit|detail`.
+  queries). Guide: three sections in `/guide/cte-mdfe`, captures `ciot-list|emit|emit-vehicles|emit-review|detail` (the emit ones past step 1 use `?rectify=` on the mock fixture `ciotsFixture[5]`, the only rectifiable one). Shell API: `ui/CLAUDE.md`, "Wizard de formularios".
 
 ### CIOT worker
 
