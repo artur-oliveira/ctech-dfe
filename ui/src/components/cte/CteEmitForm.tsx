@@ -25,6 +25,7 @@ import {
   CTE_STEP_FREIGHT,
   CTE_STEP_NOTES,
   CTE_STEP_PARTIES,
+  CTE_STEP_TRANSPORT,
   effectiveTakerRole,
   placeLabel,
   stepOfCodes,
@@ -43,7 +44,7 @@ import {CteTransportData} from './CteTransportData';
 import {CteChargeExtras, useCteCharge} from './CteCharge';
 
 const STEP_REVIEW = 'review';
-const STEP_ORDER = [CTE_STEP_NOTES, CTE_STEP_PARTIES, CTE_STEP_FREIGHT];
+const STEP_ORDER = [CTE_STEP_NOTES, CTE_STEP_PARTIES, CTE_STEP_TRANSPORT, CTE_STEP_FREIGHT];
 /** Recusas da api que um passo resolve; o resto aparece na revisão. */
 const ERROR_STEP_BY_CODE = stepOfCodes(CTE_STEP_FREIGHT, CTE_CHARGE_ERROR_CODES);
 const ERROR_STEP_BY_TARGET = {aut_xml: CTE_STEP_FREIGHT, partes: CTE_STEP_PARTIES, documento: CTE_STEP_NOTES} as const;
@@ -51,7 +52,7 @@ const ERROR_STEP_BY_TARGET = {aut_xml: CTE_STEP_FREIGHT, partes: CTE_STEP_PARTIE
 const sameKeys = (a: string[], b: string[]) => a.length === b.length && a.every((k, i) => k === b[i]);
 
 /**
- * Emissão de CT-e rodoviário a partir de NF-e, em passos (notas, tomador e partes, frete, revisão). Três decisões
+ * Emissão de CT-e rodoviário a partir de NF-e, em passos (notas, tomador, transporte, frete, revisão). Três decisões
  * do usuário (notas, tomador, valor); o resto vem do `derive` e aceita override.
  * Contrato: docs/specs/2026-11-05-cte-emissao-rodoviaria.md.
  */
@@ -135,16 +136,22 @@ export function CteEmitForm() {
         {failureAt(CTE_STEP_NOTES)}
       </>
     )},
-    {id: CTE_STEP_PARTIES, label: 'Tomador e partes', validate: () => issues.validate(CTE_STEP_PARTIES), content: (
+    {id: CTE_STEP_PARTIES, label: 'Tomador', validate: () => issues.validate(CTE_STEP_PARTIES), content: (
       <>
         <CteTakerChoice role={role} suggestion={derive?.taker_suggestion ?? null} loaded={!!derive}
                         senderName={transport.senderName} recipientName={transport.recipientName}
                         person={takerPerson} onRole={chooseRole} onPerson={setTakerPerson}
                         warnings={warningsFor(derive?.warnings, 'taker')}/>
-        <CteTransportData derive={derive} overrides={overrides} onChange={setOverrides}
-                          warnings={warningsFor(derive?.warnings, 'transport')}/>
         <StepIssues items={issues.of(CTE_STEP_PARTIES)}/>
         {failureAt(CTE_STEP_PARTIES)}
+      </>
+    )},
+    {id: CTE_STEP_TRANSPORT, label: 'Transporte', validate: () => issues.validate(CTE_STEP_TRANSPORT), content: (
+      <>
+        <CteTransportData derive={derive} overrides={overrides} onChange={setOverrides}
+                          warnings={warningsFor(derive?.warnings, 'transport')}/>
+        <StepIssues items={issues.of(CTE_STEP_TRANSPORT)}/>
+        {failureAt(CTE_STEP_TRANSPORT)}
       </>
     )},
     {id: CTE_STEP_FREIGHT, label: 'Frete', validate: () => issues.validate(CTE_STEP_FREIGHT), content: (
@@ -162,8 +169,10 @@ export function CteEmitForm() {
           <ReviewSection title="Notas" stepId={CTE_STEP_NOTES} wizard={w} items={[
             ['Resumo', derive ? cteSummary(derive, overrides) : ''],
           ]}/>
-          <ReviewSection title="Tomador e partes" stepId={CTE_STEP_PARTIES} wizard={w} items={[
-            ['Tomador', role ? `${CTE_TAKER_LABELS[role]}${takerName ? ` · ${takerName}` : ''}` : ''],
+          <ReviewSection title="Tomador" stepId={CTE_STEP_PARTIES} wizard={w} items={[
+            ['Quem paga', role ? `${CTE_TAKER_LABELS[role]}${takerName ? ` · ${takerName}` : ''}` : ''],
+          ]}/>
+          <ReviewSection title="Transporte" stepId={CTE_STEP_TRANSPORT} wizard={w} items={[
             ['Remetente', transport.senderName ?? ''],
             ['Destinatário', transport.recipientName ?? ''],
             ['Trajeto', [placeLabel(transport.origin), placeLabel(transport.destination)].filter(Boolean).join(' para ')],

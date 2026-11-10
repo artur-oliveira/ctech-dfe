@@ -251,6 +251,9 @@ export default function GuideCteMdfe() {
                 <b>indisponível</b>, a declaração segue normalmente.
               </GuideCallout>
               <figure className="my-4 overflow-hidden rounded-lg border border-gray-200">
+                <Image src="/guide/ciot-emit-payment.webp" alt="Passo Frete e pagamento da declaração de CIOT, com o piso mínimo de frete da ANTT, o meio de pagamento e o favorecido" width={1280} height={800} sizes="(max-width: 1024px) 100vw, 760px" className="w-full"/>
+              </figure>
+              <figure className="my-4 overflow-hidden rounded-lg border border-gray-200">
                 <Image src="/guide/ciot-emit-review.webp" alt="Passo de revisão da retificação de CIOT, com os dados agrupados por passo, um Editar em cada grupo e o botão Retificar CIOT" width={1280} height={800} sizes="(max-width: 1024px) 100vw, 760px" className="w-full"/>
               </figure>
               <GuideCallout kind="tip" title="Se a ANTT recusar">
@@ -304,7 +307,7 @@ export default function GuideCteMdfe() {
           id: 'cte-emit',
           title: 'Emitir CT-e a partir das notas',
           summary:
-            'Quatro passos curtos, cada um numa tela: Notas, Tomador e partes, Frete e Revisão. Remetente, destinatário, carga e trajeto saem das notas.',
+            'Cinco passos curtos, cada um numa tela: Notas, Tomador, Transporte, Frete e Revisão. Remetente, destinatário, carga e trajeto saem das notas.',
           image: {
             src: '/guide/cte-emit.webp',
             alt: 'Primeiro passo da emissão de CT-e, com duas notas escolhidas e a faixa de resumo lida delas',
@@ -322,12 +325,15 @@ export default function GuideCteMdfe() {
                   De 1 a 50 NF-e, sem repetir. Nota não autorizada ou fora do cadastro aparece com um aviso
                   dentro do bloco e o que fazer.
                 </GuideTerm>
-                <GuideTerm term="2. Tomador e partes">
+                <GuideTerm term="2. Tomador">
                   Quem paga o frete: Remetente, Destinatário, Expedidor, Recebedor ou Outro, cada um com o nome
-                  de quem seria. Em <b>Dados do transporte</b> ficam remetente, destinatário, trajeto, peso e
-                  produto lidos das notas, que você pode editar.
+                  de quem seria.
                 </GuideTerm>
-                <GuideTerm term="3. Frete">
+                <GuideTerm term="3. Transporte">
+                  Remetente, destinatário, trajeto, peso, valor e produto lidos das notas, sempre visíveis; cada
+                  um pode ser editado.
+                </GuideTerm>
+                <GuideTerm term="4. Frete">
                   O total da prestação e, se quiser, componentes como pedágio e GRIS; o restante vira o
                   componente Frete valor. Logo abaixo, o CFOP da prestação: a lista já vem filtrada para
                   a mesma UF (5) ou entre UFs (6), conforme a origem e o destino; nenhum CFOP é presumido.
@@ -380,10 +386,10 @@ export default function GuideCteMdfe() {
           id: 'cte-transport',
           title: 'Dados do transporte',
           summary:
-            'Remetente, destinatário, origem, destino, peso, valor da carga e produto predominante, recolhidos e derivados das notas.',
+            'Remetente, destinatário, origem, destino, peso, valor da carga e produto predominante, derivados das notas, no passo Transporte.',
           image: {
             src: '/guide/cte-emit-mixed.webp',
-            alt: 'Dados do transporte do CT-e abertos, com o aviso de notas com remetentes diferentes',
+            alt: 'Passo Transporte do CT-e, com o aviso de notas com remetentes diferentes e os campos a escolher',
           },
           body: (
             <>
@@ -394,8 +400,8 @@ export default function GuideCteMdfe() {
                 destino, da lista de municípios.
               </p>
               <GuideCallout kind="tip" title="Notas de remetentes diferentes">
-                Um CT-e tem um remetente e um destinatário. Se as notas divergem, o bloco abre sozinho
-                com o aviso: emita um CT-e por remetente ou escolha o remetente em Dados do transporte.
+                Um CT-e tem um remetente e um destinatário. Se as notas divergem, o passo Transporte mostra
+                o aviso: emita um CT-e por remetente ou escolha o remetente ali.
                 O mesmo vale para nota sem peso: informe o peso da carga aqui.
               </GuideCallout>
             </>
@@ -462,6 +468,12 @@ export default function GuideCteMdfe() {
               <figure className="overflow-hidden rounded-xl border border-gray-200 bg-gray-50 shadow-card">
                 <Image src="/guide/cte-substitute.webp" alt="Passo Tomador do substituto de CT-e com a troca de tomador aberta" width={1280} height={800} sizes="(max-width: 1024px) 100vw, 760px" className="w-full"/>
               </figure>
+              <figure className="overflow-hidden rounded-xl border border-gray-200 bg-gray-50 shadow-card">
+                <Image src="/guide/cte-complement-values.webp" alt="Passo Valores do complemento de CT-e, com o valor complementar, o CFOP e o imposto" width={1280} height={800} sizes="(max-width: 1024px) 100vw, 760px" className="w-full"/>
+              </figure>
+              <figure className="overflow-hidden rounded-xl border border-gray-200 bg-gray-50 shadow-card">
+                <Image src="/guide/cte-substitute-values.webp" alt="Passo Valores do substituto de CT-e, com o novo valor, o CFOP e o imposto" width={1280} height={800} sizes="(max-width: 1024px) 100vw, 760px" className="w-full"/>
+              </figure>
               <GuideCallout kind="tip" title="Qual escolher">
                 Faltou cobrar uma diferença: complemento. Valor ou tomador errados no CT-e: substituto.
                 Os botões só aparecem para CT-e normal ou substituto, autorizado, da sua empresa e com a
@@ -512,6 +524,12 @@ export default function GuideCteMdfe() {
               </p>
               <figure className="overflow-hidden rounded-xl border border-gray-200 bg-gray-50 shadow-card">
                 <Image src="/guide/cte-os-values.webp" alt="Passo GTV-e da emissão de CT-e OS de transporte de valores, com a soma dos componentes" width={1280} height={800} sizes="(max-width: 1024px) 100vw, 760px" className="w-full"/>
+              </figure>
+              <figure className="overflow-hidden rounded-xl border border-gray-200 bg-gray-50 shadow-card">
+                <Image src="/guide/cte-os-baggage.webp" alt="Passo Bilhetes do CT-e OS de excesso de bagagem, com a chave do BP-e do bilhete" width={1280} height={800} sizes="(max-width: 1024px) 100vw, 760px" className="w-full"/>
+              </figure>
+              <figure className="overflow-hidden rounded-xl border border-gray-200 bg-gray-50 shadow-card">
+                <Image src="/guide/cte-os-charge.webp" alt="Passo Valores do CT-e OS, com o valor do serviço, o CFOP e os blocos Imposto, Tributos federais e Quem mais baixa o XML recolhidos" width={1280} height={800} sizes="(max-width: 1024px) 100vw, 760px" className="w-full"/>
               </figure>
               <GuideCallout kind="tip" title="Nada é presumido">
                 CFOP, CST do ICMS (o CT-e OS não tem o 60) e tomador são sempre escolha sua. A numeração

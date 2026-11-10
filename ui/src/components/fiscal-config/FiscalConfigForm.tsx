@@ -523,6 +523,7 @@ function FiscalConfigFormInner({variant, initialData, onSave, loading = false, e
           onSelect={rail.setActive}
           saving={loading}
           dirty={dirty}
+          unchangedLocked={!!initialData}
           status={savedAt ? `Última atualização ${savedAt}` : `${LABEL_BY_VARIANT[variant]} ainda não configurado`}
           banner={submitError && (
             <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">

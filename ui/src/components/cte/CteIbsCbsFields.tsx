@@ -1,7 +1,7 @@
 'use client';
 
-import {ChevronDown} from 'lucide-react';
 import {Label} from '@aoctech/ui';
+import {CollapsibleSection} from '@/components/ui/collapsible-section';
 import {Combobox} from '@/components/ui/combobox';
 import {CurrencyInput} from '@/components/ui/currency-input';
 import {NumericInput} from '@/components/ui/numeric-input';
@@ -37,19 +37,11 @@ export function CteIbsCbsFields({value, onChange, freightTotal, year = new Date(
   const patch = (p: Partial<CteIbsCbsState>) => value && onChange({...value, ...p});
 
   return (
-    <details className="group rounded-lg border border-gray-200 bg-white">
-      <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 [&::-webkit-details-marker]:hidden">
-        <span className="text-sm font-medium text-gray-900">IBS e CBS (opcional)</span>
-        <span className="flex min-w-0 items-center gap-2">
-          <span data-testid="cte-ibscbs-summary" className="truncate text-sm text-gray-600">
-            {!value ? 'Não informado' : ibsCbsComplete(value) ? 'Informado' : 'Incompleto'}
-          </span>
-          <ChevronDown className="size-4 shrink-0 text-gray-400 transition-transform group-open:rotate-180" aria-hidden="true"/>
-        </span>
-      </summary>
-      <div className="space-y-3 border-t border-gray-100 p-3">
+    <CollapsibleSection keepMounted title="IBS e CBS (opcional)" summaryTestId="cte-ibscbs-summary"
+                        summary={!value ? 'Não informado' : ibsCbsComplete(value) ? 'Informado' : 'Incompleto'}>
+      <>
         <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm text-gray-800">
-          <input type="checkbox" className="size-5 accent-brand-600" checked={!!value}
+          <input id="cte-ibscbs-enable" type="checkbox" className="size-5 accent-brand-600" checked={!!value}
                  onChange={(e) => onChange(e.target.checked ? emptyIbsCbs() : null)}/>
           Informar IBS e CBS neste CT-e
         </label>
@@ -112,7 +104,7 @@ export function CteIbsCbsFields({value, onChange, freightTotal, year = new Date(
             )}
           </>
         )}
-      </div>
-    </details>
+      </>
+    </CollapsibleSection>
   );
 }

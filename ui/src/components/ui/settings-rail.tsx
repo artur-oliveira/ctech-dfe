@@ -76,7 +76,7 @@ export function useSettingsRail<T extends FieldValues>(
  * Casca de configuração editada no lugar (revisitada, fora de ordem): trilho de seções à esquerda no desktop,
  * seletor no mobile, UMA seção visível por vez e barra de salvar fixa. Quem usa: `useSettingsRail` + `<SettingsRail>`.
  */
-export function SettingsRail({sections, active, onSelect, status, saving, dirty, banner, className}: {
+export function SettingsRail({sections, active, onSelect, status, saving, dirty, unchangedLocked, banner, className}: {
   sections: readonly RailSection[]
   active: string
   onSelect: (id: string) => void
@@ -84,6 +84,8 @@ export function SettingsRail({sections, active, onSelect, status, saving, dirty,
   status: ReactNode
   saving?: boolean
   dirty?: boolean
+  /** Desabilita o salvar: já existe configuração gravada e nada mudou (a primeira gravação nunca trava). */
+  unchangedLocked?: boolean
   banner?: ReactNode
   className?: string
 }) {
@@ -153,7 +155,7 @@ export function SettingsRail({sections, active, onSelect, status, saving, dirty,
           <p className="min-w-0 text-xs text-muted-foreground" aria-live="polite">
             {dirty ? 'Alterações não salvas' : status}
           </p>
-          <Button type="submit" disabled={saving} className="min-h-11 shrink-0 sm:min-h-0">
+          <Button type="submit" disabled={saving || (unchangedLocked && !dirty)} className="min-h-11 shrink-0 sm:min-h-0">
             {saving ? 'Salvando…' : 'Salvar alterações'}
           </Button>
         </div>

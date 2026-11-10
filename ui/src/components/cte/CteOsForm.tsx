@@ -5,7 +5,7 @@ import {useRouter} from 'next/navigation';
 import {useMutation, useQueryClient} from '@tanstack/react-query';
 import {toast} from 'sonner';
 import {Label} from '@aoctech/ui';
-import {ChevronDown} from 'lucide-react';
+import {CollapsibleSection} from '@/components/ui/collapsible-section';
 import {apiClient} from '@/lib/api/client';
 import {queryKeys} from '@/lib/api/query-keys';
 import {useAuth} from '@/lib/hooks/useAuth';
@@ -236,17 +236,9 @@ export function CteOsForm() {
         <CteFreightFields {...charge.freight} cstOptions={OS_CST_OPTIONS}
                           title="Quanto custa o serviço?" hint="O total da prestação. Componentes são opcionais e saem do total."
                           totalLabel="Valor total do serviço"/>
-        <details className="group rounded-lg border border-gray-200 bg-white" open={inss || undefined}>
-                    <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 [&::-webkit-details-marker]:hidden">
-                      <span className="text-sm font-medium text-gray-900">Tributos federais{inss ? '' : ' (opcional)'}</span>
-                      <span className="flex min-w-0 items-center gap-2">
-                        <span className="truncate text-sm text-gray-600">
-                          {inss ? 'INSS obrigatório' : CTE_OS_FEDERAL_TAXES.some((f) => state.federal[f.key]) ? 'Informado' : 'Não informado'}
-                        </span>
-                        <ChevronDown className="size-4 shrink-0 text-gray-400 transition-transform group-open:rotate-180" aria-hidden="true"/>
-                      </span>
-                    </summary>
-                    <div className="space-y-3 border-t border-gray-100 p-3">
+        <CollapsibleSection keepMounted defaultOpen={inss} title={`Tributos federais${inss ? '' : ' (opcional)'}`}
+                            summary={inss ? 'INSS obrigatório' : CTE_OS_FEDERAL_TAXES.some((f) => state.federal[f.key]) ? 'Informado' : 'Não informado'}>
+                    <div className="space-y-3">
                       {inss && <p className="text-sm text-gray-700">Transporte de pessoas com tomador pessoa jurídica exige o valor do INSS.</p>}
                       <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
                         {CTE_OS_FEDERAL_TAXES.map((f) => (
@@ -258,7 +250,7 @@ export function CteOsForm() {
                         ))}
                       </div>
                     </div>
-                  </details>
+                  </CollapsibleSection>
         <CteChargeExtras charge={charge} xmlErrors={failure?.issues?.filter((i) => i.target === 'aut_xml').map((i) => i.text)}/>
         {stepEnd(OS_STEP_CHARGE)}
       </>

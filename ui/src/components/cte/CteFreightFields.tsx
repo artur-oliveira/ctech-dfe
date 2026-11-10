@@ -1,7 +1,7 @@
 'use client';
 
-import {ChevronDown} from 'lucide-react';
 import {Button, Label} from '@aoctech/ui';
+import {CollapsibleSection} from '@/components/ui/collapsible-section';
 import {Combobox, type ComboboxOption} from '@/components/ui/combobox';
 import {CurrencyInput} from '@/components/ui/currency-input';
 import {NumericInput} from '@/components/ui/numeric-input';
@@ -125,15 +125,8 @@ export function CteFreightFields({
         )}
       </div>
 
-      <details className="group rounded-lg border border-gray-200">
-        <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 [&::-webkit-details-marker]:hidden">
-          <span className="text-sm font-medium text-gray-900">Imposto</span>
-          <span className="flex min-w-0 items-center gap-2">
-            <span data-testid="cte-icms-summary" className="truncate text-sm text-gray-600">{icmsSummary(total, icms)}</span>
-            <ChevronDown className="size-4 shrink-0 text-gray-400 transition-transform group-open:rotate-180" aria-hidden="true"/>
-          </span>
-        </summary>
-        <div className="space-y-3 border-t border-gray-100 p-3">
+      <CollapsibleSection keepMounted title="Imposto" summaryTestId="cte-icms-summary" summary={icmsSummary(total, icms)}>
+        <div className="space-y-3">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div className="space-y-1.5 sm:col-span-3">
               <Label htmlFor="cte-icms-cst" className="text-sm font-medium text-gray-700">Situação tributária (CST)</Label>
@@ -166,7 +159,7 @@ export function CteFreightFields({
             <p className="text-sm text-warning">Informe a alíquota; nenhuma é presumida.</p>
           )}
         </div>
-      </details>
+      </CollapsibleSection>
     </CteSection>
   );
 }

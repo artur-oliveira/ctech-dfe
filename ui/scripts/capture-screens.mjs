@@ -76,6 +76,15 @@ const osToRoute = (type, withOrigin) => [
   CTE_NEXT,
 ];
 
+/** CT-e OS de valores: uma GTV-e com um componente (digitando só o necessário), até o passo Valores. */
+const osGtveToCharge = [
+  ...osToRoute('values', false), {click: 'Adicionar GTV-e'},
+  {fillAt: ['input[aria-label="Chave da GTV-e 1"]', '35260112345678000195570010000012341000012345']},
+  {clickAt: '[aria-label="Tipo do componente 1 da GTV-e 1"]'}, {click: 'Custódia'},
+  {fillAt: ['input[aria-label="Valor do componente 1 da GTV-e 1"]', '80000']},
+  CTE_NEXT,
+];
+
 const CAPTURES = [
   // ── Visão geral ──────────────────────────────────────────────────────────
   {slug: 'dashboard', route: '/dashboard', waitText: 'Acesso rápido'},
@@ -196,8 +205,9 @@ const CAPTURES = [
     route: '/cte/emit',
     steps: [
       ...addCteNote(1001), ...addCteNote(4821), {waitText: '2 notas ·'}, {pause: 800}, CTE_NEXT,
+      {waitText: 'As notas não indicam'}, {clickAt: 'input[name="cte-taker"][value="expedidor"]'},
+      {fillAt: ['input[placeholder="Buscar pessoa cadastrada"]', 'Cli']}, {click: 'Cliente Exemplo LTDAPERSON'}, {pause: 400}, CTE_NEXT,
       {waitText: 'Notas com remetentes diferentes.'},
-      {scrollAt: '#cte-transport'},
     ],
   },
   {
@@ -241,14 +251,23 @@ const CAPTURES = [
     slug: 'cte-emit-ibscbs',
     route: '/cte/emit?mock=regime-normal',
     steps: [
-      ...addCteNote(1001), {waitText: 'kg'}, CTE_NEXT, {waitText: 'Sugerido'}, CTE_NEXT,
+      ...addCteNote(1001), {waitText: 'kg'}, CTE_NEXT, {waitText: 'Sugerido'}, CTE_NEXT, {waitText: 'Dados do transporte'}, CTE_NEXT,
       {waitText: 'IBS e CBS (opcional)'},
-      {clickAt: 'details:has([data-testid="cte-ibscbs-summary"]) summary'},
-      {clickAt: 'details:has([data-testid="cte-ibscbs-summary"]) input[type="checkbox"]'},
-      {scrollAt: 'details:has([data-testid="cte-ibscbs-summary"])'},
+      {click: 'IBS e CBS (opcional)'}, {clickAt: '#cte-ibscbs-enable'},
+      {scrollAt: '#cte-ibscbs-enable'},
     ],
   },
   {slug: 'cte-complement', route: `/cte/complement?key=${CTE_KEY}`, waitText: 'Quando usar o complemento'},
+  {
+    slug: 'cte-complement-values',
+    route: `/cte/complement?key=${CTE_KEY}`,
+    steps: [{waitText: 'Quando usar o complemento'}, CTE_NEXT, {waitText: 'Passo 2 de 3'}],
+  },
+  {
+    slug: 'cte-substitute-values',
+    route: `/cte/substitute?key=${CTE_KEY}`,
+    steps: [{waitText: 'Quando usar o substituto'}, CTE_NEXT, {waitText: 'Trocar o tomador?'}, CTE_NEXT, {waitText: 'Passo 3 de 4'}],
+  },
   {
     slug: 'cte-substitute',
     route: `/cte/substitute?key=${CTE_KEY}`,
@@ -265,8 +284,20 @@ const CAPTURES = [
   {
     slug: 'cte-os-values',
     route: '/cte/os',
-    steps: [...osToRoute('values', false), {click: 'Adicionar GTV-e'}, {waitText: 'Soma das GTV-e'}],
+    steps: [
+      ...osToRoute('values', false), {click: 'Adicionar GTV-e'},
+      {fillAt: ['input[aria-label="Chave da GTV-e 1"]', '35260112345678000195570010000012341000012345']},
+      {clickAt: '[aria-label="Tipo do componente 1 da GTV-e 1"]'}, {click: 'Custódia'},
+      {fillAt: ['input[aria-label="Valor do componente 1 da GTV-e 1"]', '80000']},
+      {waitText: 'Soma das GTV-e'},
+    ],
   },
+  {slug: 'cte-os-charge', route: '/cte/os', steps: [...osGtveToCharge, {waitText: 'Quanto custa o serviço?'}]},
+  {slug: 'cte-os-baggage', route: '/cte/os', steps: [
+    ...osToRoute('baggage', false),
+    {clickAt: '#cte-os-reg-kind'}, {click: 'TAF (Termo'}, {fillAt: ['#cte-os-taf', '123456789012']}, CTE_NEXT,
+    {waitText: 'Qual bilhete tem excesso de bagagem?'}, {click: 'Adicionar documento'},
+  ]},
   {slug: 'mdfe-list', route: '/mdfe', waitText: 'Detalhes'},
   {slug: 'mdfe-emit', route: '/mdfe/emit', waitText: 'tipo de transporte'},
   {
@@ -296,6 +327,11 @@ const CAPTURES = [
     slug: 'ciot-emit-review',
     route: `/ciot/emit?rectify=${CIOT_RECTIFY_ID}`,
     steps: [{waitText: 'Passo 1 de 5'}, {click: 'Continuar'}, {click: 'Continuar'}, {click: 'Continuar'}, {click: 'Continuar'}, {waitText: 'Retificar CIOT'}],
+  },
+  {
+    slug: 'ciot-emit-payment',
+    route: `/ciot/emit?rectify=${CIOT_RECTIFY_ID}`,
+    steps: [{waitText: 'Passo 1 de 5'}, CTE_NEXT, CTE_NEXT, CTE_NEXT, {waitText: 'Passo 4 de 5'}],
   },
   {slug: 'ciot-detail', route: `/ciot/detail?id=${CIOT_ID}`, steps: [{waitText: 'Aviso ao transportador'}, {waitText: 'Encerrar'}]},
 

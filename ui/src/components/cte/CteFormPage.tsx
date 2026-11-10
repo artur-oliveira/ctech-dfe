@@ -1,11 +1,11 @@
 'use client';
 
 import type {ReactNode} from 'react';
-import Link from 'next/link';
 import {ProtectedRoute} from '@/components/ProtectedRoute';
 import {RootLayout} from '@/components/layout/RootLayout';
 import {RequireFiscalConfig} from '@/components/dfe/RequireFiscalConfig';
 import {NoPermission} from '@/components/ui/no-permission';
+import {EmitPageHeader} from '@/components/ui/emit-page-header';
 import {useAuth} from '@/lib/hooks/useAuth';
 import {PERMISSION_CTE_CREATE} from '@/lib/constants/cte';
 import {hasPermission} from '@/lib/utils/delivery-events';
@@ -25,15 +25,7 @@ export function CteFormPage({crumb, title, subtitle, what, children}: {
     <ProtectedRoute>
       <RootLayout>
         <div className="p-4 md:p-8">
-          <div className="mb-3 md:mb-4">
-            <div className="flex items-center gap-2 text-sm text-gray-400 mb-1">
-              <Link href="/cte" className="hover:text-brand-600">CT-e</Link>
-              <span>/</span>
-              <span className="text-gray-600">{crumb}</span>
-            </div>
-            <h1 className="text-xl font-semibold text-gray-900 md:text-2xl">{title}</h1>
-            <p className="text-gray-500 text-sm mt-0.5 max-md:hidden [@media(max-height:820px)]:hidden">{subtitle}</p>
-          </div>
+          <EmitPageHeader parent="CT-e" parentHref="/cte" crumb={crumb} title={title} subtitle={subtitle}/>
           {selectedOrg && !allowed ? <NoPermission what={what}/> : (
             <RequireFiscalConfig variant="cte">{children}</RequireFiscalConfig>
           )}

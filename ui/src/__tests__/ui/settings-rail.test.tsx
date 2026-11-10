@@ -1,6 +1,7 @@
 import {afterEach, describe, expect, it, vi} from 'vitest';
 import {cleanup, fireEvent, render, screen, waitFor, within} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import {makeDirty} from './make-dirty';
 import {FiscalConfigForm} from '@/components/fiscal-config/FiscalConfigForm';
 import {mdfeConfigFixture, nfceConfigFixture, nfeConfigFixture, nfseConfigFixture} from '@/lib/mock/fixtures';
 import type {NFCeConfigOut, NFeConfigOut, NfseConfigOut} from '@/lib/types/api';
@@ -48,11 +49,22 @@ describe('SettingsRail', () => {
     const onSave = vi.fn();
     render(<FiscalConfigForm variant="nfce" initialData={nfce({qr_code_version: 2, prod_csc: '', prod_csc_id: 0})} onSave={onSave}/>);
     expect(visible()).toEqual(['ambiente']);
+    makeDirty();
     fireEvent.click(screen.getByRole('button', {name: 'Salvar alterações'}));
     await waitFor(() => expect(visible()).toEqual(['csc']));
     expect(onSave).not.toHaveBeenCalled();
     expect(rail().getByLabelText(/erros?$/)).toBeInTheDocument();
     await waitFor(() => expect(document.activeElement?.getAttribute('name')).toMatch(/_csc(_id)?$/));
+  });
+
+  it('com configuração gravada e nada mudado o salvar fica desabilitado; sem configuração nunca trava', async () => {
+    const {unmount} = render(<FiscalConfigForm variant="nfe" initialData={nfe} onSave={vi.fn()}/>);
+    expect(screen.getByRole('button', {name: 'Salvar alterações'})).toBeDisabled();
+    makeDirty();
+    expect(screen.getByRole('button', {name: 'Salvar alterações'})).toBeEnabled();
+    unmount();
+    render(<FiscalConfigForm variant="nfe" initialData={null as never} onSave={vi.fn()}/>);
+    expect(screen.getByRole('button', {name: 'Salvar alterações'})).toBeEnabled();
   });
 
   it('o seletor do mobile troca a seção', () => {
@@ -84,6 +96,7 @@ describe('SettingsRail', () => {
     const abrasf = {...nfseConfigFixture, provider: 'abrasf204', abrasf: {endpoint_url: '', wsdl_version: '', municipality_code: '', synchronous: false}} as unknown as NfseConfigOut;
     render(<FiscalConfigForm variant="nfse" initialData={abrasf} onSave={vi.fn()}/>);
     expect([...document.querySelectorAll('#settings-rail-select option')].map((o) => o.textContent)).toContain('ABRASF 2.04');
+    makeDirty();
     fireEvent.click(screen.getByRole('button', {name: 'Salvar alterações'}));
     await waitFor(() => expect(visible()).toEqual(['abrasf']));
   });

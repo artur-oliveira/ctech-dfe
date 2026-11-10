@@ -310,6 +310,11 @@ Casca: `src/components/ui/form-wizard.tsx`; referencia: `components/ciot/CiotEmi
   Continuar com erro nao avanca e foca o campo invalido; Voltar e livre; o indicador so pula ate o passo ja visitado; Enter num campo
   avanca (so o ultimo passo envia); a troca de passo leva o foco ao titulo e anuncia por `aria-live`; fade de 150 ms so com
   `motion-safe`. Rodape fixo (`bottom-(--bottomnav-height)`, safe-area), Voltar e Continuar lado a lado no mobile.
+- **Cabecalho da tela.** Tela de emissao em passos usa `components/ui/emit-page-header.tsx` (`EmitPageHeader`: trilha + titulo
+  + subtitulo escondido no mobile e em viewport baixa, sobre o `PageHeader` de `@aoctech/ui`); nao recrie a trilha na pagina.
+- **Disclosure unico.** Campo opcional/avancado dentro de passo ou formulario usa `CollapsibleSection` (linha em caixa de frase,
+  `summary` a direita, `badge` de erro/preenchidos, chevron, botao nativo com `aria-expanded`; `keepMounted` mantem os campos no DOM
+  fechado). Nao use `<details>`/`<summary>` para isso.
 - **Fora da casca (por passo).** Nada de card dentro de card: o passo ja e uma superficie. Captura do guia dos passos alem do
   primeiro precisa de fixture que chegue la sem digitar (o CIOT usa `?rectify=`).
 
@@ -390,4 +395,4 @@ Any modification affecting behavior, architecture, APIs, integrations, configura
 `src/components/ui/settings-rail.tsx`: `useSettingsRail(form, order, sectionOf, initial?)` + `<SettingsRail sections active onSelect .../>`.
 Trilho de secoes (desktop) ou `<select>` (mobile), uma secao visivel por vez (todas montadas), barra "Salvar alterações" com
 marca de alterado/erros por secao; `onInvalid` do `handleSubmit` abre a primeira secao com erro e foca o campo (`[name]`/id).
-Secao com acao propria (`ownsSave`) esconde a barra. Uso: `components/fiscal-config/*`; testes em `__tests__/ui/settings-rail.test.tsx`.
+Secao com acao propria (`ownsSave`) esconde a barra. Com configuracao ja gravada e nada alterado, `unchangedLocked` desabilita o salvar (a primeira gravacao nunca trava). Uso: `components/fiscal-config/*`; testes em `__tests__/ui/settings-rail.test.tsx`.

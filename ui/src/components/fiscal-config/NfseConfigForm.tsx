@@ -288,6 +288,7 @@ export function NfseConfigForm({initialData, onSave, loading = false}: NfseConfi
           onSelect={rail.setActive}
           saving={loading}
           dirty={dirty}
+          unchangedLocked={!!initialData}
           status={savedAt ? `Última atualização ${savedAt}` : 'NFS-e ainda não configurado'}
           banner={submitError && (
             <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">

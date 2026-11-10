@@ -3340,7 +3340,7 @@ nem mapas locais de status de evento em telas de detalhe.
 
 ### CT-e: emissão rodoviária a partir de NF-e (`/cte/emit`)
 
-Wizard de 4 passos (`components/cte/CteEmitForm.tsx`, casca `ui/form-wizard.tsx`: Notas, Tomador e partes, Frete, Revisão), dentro de `RequireFiscalConfig variant="cte"`. Cada passo valida suas pendências (`cteMissingItems` marca o passo dono; `useStepIssues`/`StepIssues`); o `EmitConfirmModal` saiu, a Revisão é a confirmação. Recusa da API volta ao passo dono (`cteErrorStep`: `code` via `stepOfCodes`, ou alvo `aut_xml`/`partes`/`documento`), senão fica na Revisão. Contrato:
+Wizard de 4 passos (`components/cte/CteEmitForm.tsx`, casca `ui/form-wizard.tsx`: Notas, Tomador, Transporte, Frete, Revisão; o passo Transporte mostra sempre os campos derivados das notas, editáveis, e dono de remetente, destinatário e peso em `cteMissingItems`), dentro de `RequireFiscalConfig variant="cte"`. Cada passo valida suas pendências (`cteMissingItems` marca o passo dono; `useStepIssues`/`StepIssues`); o `EmitConfirmModal` saiu, a Revisão é a confirmação. Recusa da API volta ao passo dono (`cteErrorStep`: `code` via `stepOfCodes`, ou alvo `aut_xml`/`partes`/`documento`), senão fica na Revisão. Contrato:
 `docs/specs/2026-11-05-cte-emissao-rodoviaria.md`.
 
 - **Blocos (um por passo)**: notas (Combobox das NF-e autorizadas emitidas e recebidas, faixa de resumo `N notas · peso · valor ·
@@ -3924,7 +3924,7 @@ under the MDF-e context in `nav.tsx`. Permissions gate the screens and buttons (
 - Realtime: `dfe_result` with `table_name=ciots` invalidates `ciots` list and detail (`access_key` is `CIOT_{id}`) and toasts via
   `resolveCiotToast`; a lifecycle rejection arrives with the old status plus `internal_code`.
 - Mock flags: `?mock=floor-unverified` (floor answers 503; computed by default), `?mock=ciot-invalid` (422 `ciot_validation`), `?mock=antt-down` (503 on carrier
-  queries). Guide: three sections in `/guide/cte-mdfe`, captures `ciot-list|emit|emit-vehicles|emit-review|detail` (the emit ones past step 1 use `?rectify=` on the mock fixture `ciotsFixture[5]`, the only rectifiable one). Shell API: `ui/CLAUDE.md`, "Wizard de formularios".
+  queries). Guide: three sections in `/guide/cte-mdfe`, captures `ciot-list|emit|emit-vehicles|emit-payment|emit-review|detail` (the emit ones past step 1 use `?rectify=` on the mock fixture `ciotsFixture[5]`, the only rectifiable one). Shell API: `ui/CLAUDE.md`, "Wizard de formularios" (also the shared `EmitPageHeader` and the single `CollapsibleSection` disclosure style; the settings-rail save button is disabled when a saved config is unchanged).
 
 ### CIOT worker
 

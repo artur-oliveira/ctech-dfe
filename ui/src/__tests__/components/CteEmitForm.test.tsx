@@ -64,7 +64,7 @@ describe('CteEmitForm', () => {
     expect(await screen.findByTestId('cte-summary')).toHaveTextContent(/^2 notas · 338,5 kg · R\$\s3\.769,60 · SP para MG$/);
     await waitFor(() => expect(screen.queryByText('Escolha ao menos uma nota')).toBeNull());
     next();
-    await waitFor(() => expect(heading()).toHaveTextContent('Tomador e partes'));
+    await waitFor(() => expect(heading()).toHaveTextContent('Tomador'));
     expect(screen.getByText(/Sugerido · Frete CIF na nota/)).toBeInTheDocument();
     expect(screen.getByRole('radio', {name: /Remetente/})).toBeChecked();
     expect(screen.getByTestId('cte-icms-summary')).toHaveTextContent('Simples Nacional');
@@ -75,8 +75,10 @@ describe('CteEmitForm', () => {
     await addNote(1001);
     await screen.findByTestId('cte-summary');
     next();
-    await waitFor(() => expect(heading()).toHaveTextContent('Tomador e partes'));
+    await waitFor(() => expect(heading()).toHaveTextContent('Tomador'));
     await screen.findByText(/Sugerido · Frete CIF/);
+    next();
+    await waitFor(() => expect(heading()).toHaveTextContent('Transporte'));
     next();
     await waitFor(() => expect(heading()).toHaveTextContent('Frete'));
     next();
@@ -86,22 +88,28 @@ describe('CteEmitForm', () => {
     expect(screen.getByRole('button', {name: 'Continuar'})).toBeEnabled();
   });
 
-  it('notas de remetentes diferentes abrem Dados do transporte com o aviso e travam o passo', async () => {
+  it('notas de remetentes diferentes mostram o aviso no passo Transporte e travam o passo', async () => {
     renderForm();
     await addNote(1001);
     await addNote(4821);
     await screen.findByTestId('cte-summary');
     next();
-    await waitFor(() => expect(heading()).toHaveTextContent('Tomador e partes'));
+    await waitFor(() => expect(heading()).toHaveTextContent('Tomador'));
 
-    const transport = screen.getByRole('region', {name: /Dados do transporte/});
-    expect(await within(transport).findByText('Notas com remetentes diferentes.')).toBeInTheDocument();
-    expect(within(transport).getByText(/Emita um CT-e por remetente/)).toBeInTheDocument();
     expect(screen.getByRole('radio', {name: /Remetente/})).toBeDisabled();
     expect(screen.getByText('As notas não indicam um único responsável pelo frete.')).toBeInTheDocument();
     next();
     expect(await screen.findByText('Escolha quem paga o frete')).toBeInTheDocument();
-    expect(heading()).toHaveTextContent('Tomador e partes');
+    expect(heading()).toHaveTextContent('Tomador');
+    fireEvent.click(screen.getByRole('radio', {name: /Destinatário/}));
+    next();
+    await waitFor(() => expect(heading()).toHaveTextContent('Transporte'));
+    const transport = screen.getByRole('region', {name: /Dados do transporte/});
+    expect(await within(transport).findByText('Notas com remetentes diferentes.')).toBeInTheDocument();
+    expect(within(transport).getByText(/Emita um CT-e por remetente/)).toBeInTheDocument();
+    next();
+    expect(await screen.findByText('Escolha o remetente')).toBeInTheDocument();
+    expect(heading()).toHaveTextContent('Transporte');
   });
 
   it('edição marca "editado", e voltar ao derivado desfaz', async () => {
@@ -110,8 +118,8 @@ describe('CteEmitForm', () => {
     await screen.findByTestId('cte-summary');
     next();
     await screen.findByText(/Sugerido · Frete CIF/);
-
-    fireEvent.click(screen.getByRole('button', {name: /Dados do transporte/}));
+    next();
+    await waitFor(() => expect(heading()).toHaveTextContent('Transporte'));
     fireEvent.click(screen.getByRole('button', {name: 'Editar produto predominante'}));
     fireEvent.change(screen.getByLabelText('Produto predominante'), {target: {value: 'Eletrônicos'}});
 
@@ -131,7 +139,8 @@ describe('CteEmitForm', () => {
     await screen.findByTestId('cte-summary');
     next();
     await screen.findByText(/Sugerido · Frete FOB na nota/);
-    fireEvent.click(screen.getByRole('button', {name: /Dados do transporte/}));
+    next();
+    await waitFor(() => expect(heading()).toHaveTextContent('Transporte'));
     fireEvent.click(screen.getByRole('button', {name: 'Editar peso da carga'}));
     fireEvent.change(screen.getByLabelText('Peso da carga em kg'), {target: {value: '1100'}});
     next();
@@ -146,7 +155,7 @@ describe('CteEmitForm', () => {
   it('emite com o tomador sugerido, o frete e os overrides', async () => {
     renderForm();
     await fillToReview();
-    expect(screen.getByText('Tomador')).toBeInTheDocument();
+    expect(screen.getByText('Quem paga')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', {name: 'Emitir CT-e'}));
 
     await waitFor(() => expect(apiClient.emitCte).toHaveBeenCalledTimes(1));

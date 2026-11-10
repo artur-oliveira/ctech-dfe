@@ -1,7 +1,6 @@
 'use client';
 
 import {useState, type ReactNode} from 'react';
-import {ChevronDown} from 'lucide-react';
 import {Button} from '@aoctech/ui';
 import {PersonPicker} from '@/components/persons/PersonPicker';
 import {Combobox} from '@/components/ui/combobox';
@@ -26,14 +25,12 @@ interface Props {
 const partyLabel = (p: CteParty | null | undefined) => (p ? `${p.name} · ${p.city} / ${p.uf}` : null);
 
 /**
- * Bloco 4: tudo que sai das notas, recolhido. Cada campo mostra o derivado;
+ * Passo Transporte: tudo que sai das notas, sempre visível. Cada campo mostra o derivado;
  * editar grava um override (o campo ganha "editado") e "Voltar ao derivado"
- * apaga o override. Abre sozinho quando há aviso deste bloco.
+ * apaga o override.
  */
 export function CteTransportData({derive, overrides, onChange, warnings}: Props) {
-  const [userOpen, setUserOpen] = useState<boolean | null>(null);
   const [editing, setEditing] = useState<CteOverrideField | null>(null);
-  const open = userOpen ?? warnings.length > 0;
 
   const set = <K extends CteOverrideField>(field: K, value: CteOverrides[K]) => onChange({...overrides, [field]: value});
   const reset = (field: CteOverrideField) => {
@@ -105,58 +102,46 @@ export function CteTransportData({derive, overrides, onChange, warnings}: Props)
   ];
 
   return (
-    <section aria-labelledby="cte-transport" className="rounded-xl border border-gray-200 bg-white">
+    <section aria-labelledby="cte-transport" className="space-y-2">
       <h3 id="cte-transport" className="text-base font-semibold text-gray-900">
-      <button type="button" aria-expanded={open} aria-controls="cte-transport-panel"
-              onClick={() => setUserOpen(!open)}
-              className="flex min-h-11 w-full items-center justify-between gap-3 px-4 py-3 text-left md:px-5 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring">
-        <span className="min-w-0">
-          <span className="block">Dados do transporte</span>
-          <span className="block text-sm font-normal text-gray-500">
-            Derivado das notas{editedCount > 0 ? ` · ${editedCount} ${editedCount === 1 ? 'campo editado' : 'campos editados'}` : ''}
-          </span>
+        Dados do transporte
+        <span className="ml-2 text-sm font-normal text-gray-500">
+          Derivado das notas{editedCount > 0 ? ` · ${editedCount} ${editedCount === 1 ? 'campo editado' : 'campos editados'}` : ''}
         </span>
-        <ChevronDown className={cn('size-4 shrink-0 text-gray-400 transition-transform', open && 'rotate-180')} aria-hidden="true"/>
-      </button>
       </h3>
-
-      {open && (
-        <div id="cte-transport-panel" className="space-y-3 border-t border-gray-100 px-4 py-4 md:px-5">
-          <CteWarnings warnings={warnings}/>
-          <div className="grid grid-cols-1 gap-x-8 md:grid-cols-2">
-            {rows.map(({field, label, derived, current, empty, editor}) => {
-              const edited = field in overrides;
-              const isEditing = editing === field;
-              return (
-                <div key={field} data-field={field} className="space-y-2 border-b border-gray-100 py-2.5">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="flex items-center gap-2 text-sm text-gray-500">
-                        {label}
-                        {edited && <span className="rounded-full bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-700">editado</span>}
-                      </p>
-                      <p className={cn('text-sm font-medium', (current ?? derived) ? 'text-gray-900' : 'text-warning')}>
-                        {current ?? derived ?? empty}
-                      </p>
-                      {edited && derived && <p className="text-xs text-gray-500">Derivado: {derived}</p>}
-                    </div>
-                    <div className="flex shrink-0 flex-col-reverse items-end gap-1 sm:flex-row sm:items-center sm:gap-2">
-                      {edited && (
-                        <Button type="button" variant="ghost" onClick={() => reset(field)}>Voltar ao derivado</Button>
-                      )}
-                      <Button type="button" variant="outline" onClick={() => setEditing(isEditing ? null : field)}
-                              aria-expanded={isEditing} aria-label={`${isEditing ? 'Concluir' : 'Editar'} ${label.toLowerCase()}`}>
-                        {isEditing ? 'Pronto' : 'Editar'}
-                      </Button>
-                    </div>
-                  </div>
-                  {isEditing && <div>{editor}</div>}
+      <CteWarnings warnings={warnings}/>
+      <div className="grid grid-cols-1 gap-x-8 md:grid-cols-2">
+        {rows.map(({field, label, derived, current, empty, editor}) => {
+          const edited = field in overrides;
+          const isEditing = editing === field;
+          return (
+            <div key={field} data-field={field} className="space-y-2 border-b border-gray-100 py-2">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="flex items-center gap-2 text-sm text-gray-500">
+                    {label}
+                    {edited && <span className="rounded-full bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-700">editado</span>}
+                  </p>
+                  <p className={cn('text-sm font-medium', (current ?? derived) ? 'text-gray-900' : 'text-warning')}>
+                    {current ?? derived ?? empty}
+                  </p>
+                  {edited && derived && <p className="text-xs text-gray-500">Derivado: {derived}</p>}
                 </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+                <div className="flex shrink-0 flex-col-reverse items-end gap-1 sm:flex-row sm:items-center sm:gap-2">
+                  {edited && (
+                    <Button type="button" variant="ghost" onClick={() => reset(field)}>Voltar ao derivado</Button>
+                  )}
+                  <Button type="button" variant="outline" onClick={() => setEditing(isEditing ? null : field)}
+                          aria-expanded={isEditing} aria-label={`${isEditing ? 'Concluir' : 'Editar'} ${label.toLowerCase()}`}>
+                    {isEditing ? 'Pronto' : 'Editar'}
+                  </Button>
+                </div>
+              </div>
+              {isEditing && <div>{editor}</div>}
+            </div>
+          );
+        })}
+      </div>
     </section>
   );
 }

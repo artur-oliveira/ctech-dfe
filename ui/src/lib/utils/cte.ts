@@ -240,6 +240,7 @@ export interface StepIssue {
 /** Passos de pendência da emissão a partir de NF-e (ids dos passos do `CteEmitForm`). */
 export const CTE_STEP_NOTES = 'notes';
 export const CTE_STEP_PARTIES = 'parties';
+export const CTE_STEP_TRANSPORT = 'transport';
 export const CTE_STEP_FREIGHT = 'freight';
 
 /** Pendências da emissão, cada uma com o passo dono. A ordem é a de preenchimento. */
@@ -255,14 +256,15 @@ export function cteMissingItems(
   const role = effectiveTakerRole(state, derive);
   const t = cteTransport(derive, state.overrides);
   const parties = (text: string) => missing.push({step: CTE_STEP_PARTIES, text});
+  const transport = (text: string) => missing.push({step: CTE_STEP_TRANSPORT, text});
   if (!role) parties('Escolha quem paga o frete');
   else if (CTE_TAKER_NEEDS_PERSON.has(role) && !state.takerPerson) parties('Escolha a pessoa que paga o frete');
 
   missing.push(...chargeMissingItems(state, 'frete', CTE_STEP_FREIGHT));
 
-  if (!t.senderName) parties('Escolha o remetente');
-  if (!t.recipientName) parties('Escolha o destinatário');
-  if (!t.weightKg) parties('Informe o peso da carga');
+  if (!t.senderName) transport('Escolha o remetente');
+  if (!t.recipientName) transport('Escolha o destinatário');
+  if (!t.weightKg) transport('Informe o peso da carga');
   if (state.ibsCbs && !ibsCbsComplete(state.ibsCbs)) missing.push({step: CTE_STEP_FREIGHT, text: 'Complete o IBS/CBS ou desligue o bloco'});
   return missing;
 }
