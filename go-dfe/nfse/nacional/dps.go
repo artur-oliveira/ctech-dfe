@@ -124,7 +124,7 @@ type xmlEndExt struct {
 
 type xmlServ struct {
 	LocPrest  xmlLocPrest   `xml:"locPrest"`
-	CServ     xmlCServ      `xml:"cServ"`
+	CServ     any           `xml:"cServ"` // xmlCServ (produção) ou xmlCServNT009
 	ComExt    *xmlComExt    `xml:"comExt,omitempty"`
 	Obra      *xmlObra      `xml:"obra,omitempty"`
 	AtvEvento *xmlAtvEvento `xml:"atvEvento,omitempty"`
@@ -143,6 +143,16 @@ type xmlCServ struct {
 	XDescServ   string `xml:"xDescServ"`
 	CNBS        string `xml:"cNBS,omitempty"`
 	CIntContrib string `xml:"cIntContrib,omitempty"`
+}
+
+// xmlCServNT009 espelha TCCServ do leiaute da NT 009: xDescServ passou do meio para o fim da sequência
+// (cNBS e cIntContrib agora vêm antes). Com cNBS preenchido o Sefin rejeitava a ordem antiga (E1235).
+type xmlCServNT009 struct {
+	CTribNac    string `xml:"cTribNac"`
+	CTribMun    string `xml:"cTribMun,omitempty"`
+	CNBS        string `xml:"cNBS,omitempty"`
+	CIntContrib string `xml:"cIntContrib,omitempty"`
+	XDescServ   string `xml:"xDescServ"`
 }
 
 // xmlComExt espelha TCComExterior: todos os campos até movTempBens (mais
@@ -388,7 +398,7 @@ func BuildDPS(doc nfse.Document, now time.Time) ([]byte, string, error) {
 		Prest:   toXMLPrestador(doc.Prestador),
 		Toma:    toXMLPessoa(doc.Tomador),
 		Interm:  toXMLPessoa(doc.Intermediario),
-		Serv:    toXMLServ(doc.Servico),
+		Serv:    toXMLServ(doc.Servico, ntNova),
 		Valores: toXMLValores(doc.Valores),
 		IBSCBS:  ibscbs,
 	}
@@ -486,12 +496,16 @@ func toXMLPessoa(p *nfse.Pessoa) *xmlPessoa {
 	}
 }
 
-func toXMLServ(s nfse.Servico) xmlServ {
+func toXMLServ(s nfse.Servico, ntNova bool) xmlServ {
 	out := xmlServ{
 		LocPrest: xmlLocPrest{CLocPrestacao: s.LocPrest.CLocPrestacao,
 			CPaisPrestacao: s.LocPrest.CPaisPrestacao},
 		CServ: xmlCServ{CTribNac: s.CServ.CTribNac, CTribMun: s.CServ.CTribMun,
 			XDescServ: s.CServ.XDescServ, CNBS: s.CServ.CNBS, CIntContrib: s.CServ.CIntContrib},
+	}
+	if ntNova {
+		out.CServ = xmlCServNT009{CTribNac: s.CServ.CTribNac, CTribMun: s.CServ.CTribMun,
+			CNBS: s.CServ.CNBS, CIntContrib: s.CServ.CIntContrib, XDescServ: s.CServ.XDescServ}
 	}
 	if c := s.ComExt; c != nil {
 		out.ComExt = &xmlComExt{MdPrestacao: c.MdPrestacao, VincPrest: c.VincPrest,

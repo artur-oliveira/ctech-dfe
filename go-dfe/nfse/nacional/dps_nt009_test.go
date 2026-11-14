@@ -43,6 +43,8 @@ func validaXSD(t *testing.T, dir string, xml []byte) {
 // element 'cLocEmi'... expected 'cMotivoEmisTI, finNFSe'") e CST/cClassTrib direto em trib.
 func TestBuildDPS_NT009LayoutInHomologation(t *testing.T) {
 	doc := ibscbsDoc(2)
+	doc.Servico.CServ.CNBS = "101011100"
+	doc.Servico.CServ.CIntContrib = "SRV1"
 	doc.IBSCBS.Valores.Trib.CCredPres = "01"
 	doc.IBSCBS.Valores.Trib.Dif = &nfse.DifIBSCBS{PDifUF: "10.00", PDifMun: "10.00", PDifCBS: "10.00"}
 	raw, _, err := BuildDPS(doc, nt009Now)
@@ -53,6 +55,8 @@ func TestBuildDPS_NT009LayoutInHomologation(t *testing.T) {
 	for _, want := range []string{
 		"<tpEmit>1</tpEmit><finNFSe>0</finNFSe><cLocEmi>",
 		"<IBSCBS><cIndOp>",
+		// regressão do E1235 "cServ has invalid child element 'cNBS'": xDescServ vai por último na NT 009.
+		"<cTribNac>010101</cTribNac><cNBS>101011100</cNBS><cIntContrib>SRV1</cIntContrib><xDescServ>",
 		"<trib><CST>000</CST><cClassTrib>000001</cClassTrib><gIBSCBS><cCredPres>01</cCredPres><gDif>",
 	} {
 		if !strings.Contains(x, want) {

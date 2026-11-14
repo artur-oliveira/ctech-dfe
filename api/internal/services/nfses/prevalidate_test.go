@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+
 	"gopkg.aoctech.app/dfe/go-dfe/nfse"
 )
 
@@ -66,5 +68,22 @@ func TestPreValidate(t *testing.T) {
 				t.Fatalf("esperava %s, veio %v", c.want, err)
 			}
 		})
+	}
+}
+
+func TestBuildServico_CIntContribOnlyWhenSchemaAllows(t *testing.T) {
+	cases := map[string]string{
+		"SRV1":                  "SRV1",
+		"SRV-1":                 "",
+		"codigo com espaco":     "",
+		"ABCDEFGHIJKLMNOPQRST":  "ABCDEFGHIJKLMNOPQRST",
+		"ABCDEFGHIJKLMNOPQRSTU": "",
+		"":                      "",
+	}
+	for code, want := range cases {
+		svc := map[string]types.AttributeValue{"code": &types.AttributeValueMemberS{Value: code}}
+		if got := buildServico(svc, NfseEmitBody{}).CServ.CIntContrib; got != want {
+			t.Errorf("code %q: cIntContrib = %q, esperado %q", code, got, want)
+		}
 	}
 }
