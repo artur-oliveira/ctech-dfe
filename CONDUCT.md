@@ -405,6 +405,13 @@ contrário `persistIncoming` reescreve silenciosamente para `1`.
   `authorizer` da config NFS-e (`auto` | `nacional` | `municipal`); em `auto`, `op_simp_nac` 2 ou 3 vai ao Sefin
   Nacional. O autorizador resolvido fica gravado na nota e os eventos o seguem. Nunca resolver o autorizador de um
   evento pela config atual: a nota pode ter sido emitida por outro. Ver `DOCS.md`, *Escolha do autorizador*.
+- **O cliente mTLS sempre envia o certificado (`certificate.Load` usa `GetClientCertificate`, não `Certificates`).** Com
+  `Certificates`, o Go só envia o certificado se a cadeia do PFX casar com a lista de CAs aceitas que o servidor anuncia;
+  PFX só com a folha (sem a AC intermediária) e servidor que lista só a raiz resultam em nenhum certificado enviado, e o
+  IIS do Sefin Nacional responde `403 - Forbidden: Access is denied` (página HTML, `Server: Microsoft-IIS/10.0`) enquanto
+  o `curl`/OpenSSL com o mesmo PFX passa. O OpenSSL e o cliente Python original sempre enviavam. Regressão:
+  `TestLoad_SendsCertificateWhenChainDoesNotMatchAcceptableCAs`. Se um 403 desses reaparecer, teste o PFX com `curl`
+  (`openssl pkcs12 -legacy` para PFX com cifra antiga) antes de culpar o certificado.
 - **`cTribMun` de Teresina é o 4º segmento do código completo da SEMF (3 dígitos), em par com o `cTribNac`**
   (`01.06.01.001` = `010601` + `001`). Nunca montar `cTribMun` a partir de item+subitem da LC 116 (era `101`, rejeitado).
   Fonte: planilha oficial, ver `DOCS.md` → *Catálogo de código municipal (UI)*.
