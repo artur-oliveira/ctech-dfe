@@ -251,7 +251,7 @@ func TestCallSignOnly(t *testing.T) {
 	}
 	x := out[constants.BodyKeyXML]
 	i, j, k := strings.Index(x, "</infNFe>"), strings.Index(x, "<infNFeSupl>"), strings.Index(x, "<Signature")
-	if i < 0 || !(i < j && j < k) || !strings.Contains(x, "<DigestValue>") {
+	if i < 0 || i >= j || j >= k || !strings.Contains(x, "<DigestValue>") {
 		t.Fatalf("unexpected signed xml: %s", x)
 	}
 }

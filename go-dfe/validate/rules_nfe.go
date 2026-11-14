@@ -474,7 +474,7 @@ func nfeNFCeRules() []Rule {
 		}),
 		nfeWhen("C17-42", 156, ModeWarn, "65", "NFC-e sem IE do emitente", func(c *nfeCtx) bool {
 			y := nfeS(c.ide, "dhEmi")
-			return !nfeHas(c.emit, "IE") && !(len(y) >= 4 && y[:4] >= "2033")
+			return !nfeHas(c.emit, "IE") && (len(y) < 4 || y[:4] < "2033")
 		}),
 		nfeWhen("E16a-10", 789, ModeWarn, "65", "NFC-e com indIEDest diferente de 9", func(c *nfeCtx) bool {
 			v := nfeS(c.dest, "indIEDest")
@@ -1740,7 +1740,7 @@ func nfeMiscRules() []Rule {
 		}),
 		nfeWhen("ZX02-10", 394, ModeWarn, "65", "NFC-e sem qrCode", func(c *nfeCtx) bool {
 			y := nfeS(c.ide, "dhEmi")
-			return nfeS(c.doc, "infNFeSupl", "qrCode") == "" && !(len(y) >= 10 && y[:10] < "2016-04-01")
+			return nfeS(c.doc, "infNFeSupl", "qrCode") == "" && (len(y) < 10 || y[:10] >= "2016-04-01")
 		}),
 		nfeWhen("ZX02-220", 672, ModeWarn, "55", "qrCode de NF-e com versão diferente de 3", func(c *nfeCtx) bool {
 			p := nfeQRParams(nfeS(c.doc, "infNFeSupl", "qrCode"))

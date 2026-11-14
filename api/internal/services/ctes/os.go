@@ -45,8 +45,6 @@ const (
 	osTotalTolerance = "0.10"
 	// osMaxRouteUFs é o limite de infPercurso do leiaute.
 	osMaxRouteUFs = 25
-	// osXDescServMax é o tamanho de xDescServ (1 a 30).
-	osXDescServMax = 30
 	// osBPeAgeMonths: a chave do BP-e referenciado não pode ser anterior a 6 meses (H029a, 934).
 	osBPeAgeMonths = 6
 )

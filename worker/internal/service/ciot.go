@@ -119,8 +119,8 @@ type egressRejection struct {
 }
 
 func decideCiot(op string, status int, body string) ciotOutcome {
-	switch {
-	case status == 200:
+	switch status {
+	case 200:
 		var r ciot.Result
 		if err := json.Unmarshal([]byte(body), &r); err != nil || !r.Success() {
 			return ciotOutcome{Retry: true, Message: "unreadable ANTT response"}
@@ -139,7 +139,7 @@ func decideCiot(op string, status int, body string) ciotOutcome {
 			o.Attrs["protocol"] = r.Protocolo
 		}
 		return o
-	case status == egressStatusRejection:
+	case egressStatusRejection:
 		var rj egressRejection
 		_ = json.Unmarshal([]byte(body), &rj)
 		o := ciotOutcome{AnttCode: rj.ANTTCode, Internal: rj.InternalCode, Message: rj.ANTTMessage}
@@ -158,7 +158,7 @@ func decideCiot(op string, status int, body string) ciotOutcome {
 			}
 		}
 		return o
-	case status == egressStatusBadConfig:
+	case egressStatusBadConfig:
 		return ciotOutcome{Alert: true, Retry: true, Message: "egress rejected the request (certificate or configuration)"}
 	}
 	return ciotOutcome{Retry: true, Message: fmt.Sprintf("egress status %d", status)}

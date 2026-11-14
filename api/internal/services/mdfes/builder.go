@@ -450,13 +450,6 @@ func (p buildParams) buildTot() map[string]any {
 	return tot
 }
 
-func (p buildParams) firstCondutorCPF() string {
-	if len(p.drivers) > 0 {
-		return p.drivers[0].CPF
-	}
-	return ""
-}
-
 // modalCode maps a modal name to its ide/modal code (1..4), defaulting to
 // rodoviário for an unknown/empty value.
 func modalCode(modal string) string {

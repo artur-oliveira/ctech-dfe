@@ -557,7 +557,7 @@ var mdfeRules = []Rule{
 	mdfeRule("F71", 234, ModeWarn, func(inf map[string]any) []string {
 		ide := sub(inf, "ide")
 		tp := mdfeStr(ide, "tpEmit")
-		bad := tp != mdfeTpEmitPropria && !(mdfeStr(ide, "tpEmis") == mdfeTpEmisNFF && tp == mdfeTpEmitPrestador)
+		bad := tp != mdfeTpEmitPropria && (mdfeStr(ide, "tpEmis") != mdfeTpEmisNFF || tp != mdfeTpEmitPrestador)
 		return mdfeOne(mdfeStr(sub(inf, "emit"), "CPF") != "" && bad, "emitente pessoa fisica exige tipo de emitente carga propria")
 	}),
 	mdfeRule("F72", 229, ModeWarn, func(inf map[string]any) []string {

@@ -220,9 +220,9 @@ func cteIdeRules() []Rule {
 			}
 			s := cteS(sub(inf, "ide"), "serie")
 			if cteS(sub(inf, "emit"), "CPF") != "" {
-				return !(s >= "970" && s <= "979" && len(s) == 3)
+				return s < "970" || s > "979" || len(s) != 3
 			}
-			return !(s >= "980" && s <= "989" && len(s) == 3)
+			return s < "980" || s > "989" || len(s) != 3
 		}),
 		cteCond("PAA-913", 913, ModeWarn, "com infPAA o CRT do emitente deve ser 1 ou 4", func(inf map[string]any) bool {
 			return sub(inf, "infPAA") != nil && !cteIn(cteS(sub(inf, "emit"), "CRT"), "1", "4")

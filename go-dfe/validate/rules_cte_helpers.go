@@ -32,9 +32,7 @@ var cteEnder = map[string]string{
 }
 
 var (
-	cteKeyRe  = regexp.MustCompile(`^[0-9]{6}[A-Z0-9]{12}[0-9]{26}$`)
-	cteCNPJRe = regexp.MustCompile(`^[A-Z0-9]{12}[0-9]{2}$`)
-	cteCPFRe  = regexp.MustCompile(`^[0-9]{11}$`)
+	cteKeyRe = regexp.MustCompile(`^[0-9]{6}[A-Z0-9]{12}[0-9]{26}$`)
 )
 
 // cteS devolve o escalar como string ("" se ausente).
@@ -129,28 +127,11 @@ func cteDV(k43 string) int {
 	return 0
 }
 
-func cteAllSame(s string) bool {
-	for i := 1; i < len(s); i++ {
-		if s[i] != s[0] {
-			return false
-		}
-	}
-	return len(s) > 0
-}
-
 // cteCNPJOK valida CNPJ numérico ou alfanumérico (implementação única em internal/taxid).
 func cteCNPJOK(s string) bool { return taxid.CNPJ(s) }
 
 // cteCPFOK valida CPF (implementação única em internal/taxid).
 func cteCPFOK(s string) bool { return taxid.CPF(s) }
-
-// cteDocOK valida um identificador que pode ser CNPJ ou CPF conforme o comprimento.
-func cteDocOK(s string) bool {
-	if len(s) == 11 {
-		return cteCPFOK(s)
-	}
-	return cteCNPJOK(s)
-}
 
 // cteKeyReason valida uma chave de acesso como a SEFAZ (formato, UF, mês, ano, CNPJ/CPF, modelo, número,
 // tipo de emissão e DV) e devolve o motivo da recusa, ou "" se estiver válida. mod "" não confere o modelo.
@@ -170,7 +151,7 @@ func cteKeyReason(k, mod string, minYear int) string {
 		return "ano inválido"
 	}
 	id := k[6:20]
-	if !cteCNPJOK(id) && !(id[:3] == "000" && cteCPFOK(id[3:])) {
+	if !cteCNPJOK(id) && (id[:3] != "000" || !cteCPFOK(id[3:])) {
 		return "CNPJ/CPF zerado ou inválido"
 	}
 	if mod != "" && k[20:22] != mod {

@@ -101,15 +101,6 @@ func cteBase() map[string]any {
 	return inf
 }
 
-func cteRun(id string, inf map[string]any) []string {
-	for _, r := range Rules("cte") {
-		if r.ID == id {
-			return r.Check(inf)
-		}
-	}
-	panic("regra inexistente: " + id)
-}
-
 func cteTestKey57(nnf string) string {
 	return cteTK("35", "2503", cteTCNPJ, "57", "1", nnf, "1", "12345678")
 }
