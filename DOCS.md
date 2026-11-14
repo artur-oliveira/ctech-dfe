@@ -403,7 +403,7 @@ go-dfe/nfse/
 
   | Sistema | Produção | Produção restrita (homologação) |
   |---|---|---|
-  | Sefin | `https://sefin.nfse.gov.br/SefinNacional` | `https://sefin.producaorestrita.nfse.gov.br/API/SefinNacional` |
+  | Sefin | `https://sefin.nfse.gov.br/SefinNacional` | `https://sefin.producaorestrita.nfse.gov.br/SefinNacional` |
   | ADN | `https://adn.nfse.gov.br/contribuintes` | `https://adn.producaorestrita.nfse.gov.br/contribuintes` |
   | DANFSE | `https://adn.nfse.gov.br/danfse` | `https://adn.producaorestrita.nfse.gov.br/danfse` |
   | Parametrização | `https://adn.nfse.gov.br/parametrizacao` | `https://adn.producaorestrita.nfse.gov.br/parametrizacao` |
@@ -1305,6 +1305,14 @@ responsabilidade é de quem escolheu). No go-dfe, `nacional.Config.Authorizer = 
 `municipalAuthorizers`; vazio ou `municipal` mantêm o registro por operação. O valor resolvido é gravado na linha
 (`authorizer`) e os eventos reutilizam o da linha, para que uma nota autorizada no Sefin Nacional seja cancelada
 no Sefin Nacional; linhas anteriores ao campo não têm `authorizer` e seguem o autorizador do município como antes.
+
+**Pré-validação da emissão (`nfses.preValidate`).** Antes de reservar o número da DPS, `buildDocument` recusa com 400
+as rejeições do Emissor Nacional que dá para prever localmente, com o código do fisco na mensagem: E0202 (prestador
+igual ao tomador), E0250 (intermediário igual ao prestador), dígitos de CNPJ/CPF do prestador, tomador e intermediário
+(E0080, E0096, E0188, E0206, E0254), E0015 (competência posterior à emissão), E0341 (descrição vazia), E0404 (valor
+do serviço não positivo), E0429 (alíquota do ISSQN acima de 5%) e E0204 (ISSQN retido sem CNPJ/CPF do tomador). Regras
+que dependem de cadastro externo (Receita, município, convênio) seguem com o fisco. Para acrescentar uma regra: um
+`if` em `preValidate` e um caso em `TestPreValidate`.
 
 **Ciclo de vida da linha em `nfses`:**
 

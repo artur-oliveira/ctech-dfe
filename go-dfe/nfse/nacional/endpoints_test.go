@@ -11,7 +11,7 @@ func TestResolveBase(t *testing.T) {
 		system, env, want string
 	}{
 		{SystemSefin, "prod", "https://sefin.nfse.gov.br/SefinNacional"},
-		{SystemSefin, "hom", "https://sefin.producaorestrita.nfse.gov.br/API/SefinNacional"},
+		{SystemSefin, "hom", "https://sefin.producaorestrita.nfse.gov.br/SefinNacional"},
 		{SystemADN, "prod", "https://adn.nfse.gov.br/contribuintes"},
 		{SystemADN, "hom", "https://adn.producaorestrita.nfse.gov.br/contribuintes"},
 		{SystemDANFSE, "prod", "https://adn.nfse.gov.br/danfse"},
@@ -72,7 +72,7 @@ func TestResolveOperation_Teresina(t *testing.T) {
 
 // Município sem autorizador próprio usa o Sefin Nacional em todas as operações.
 func TestResolveOperation_OtherMunicipalityUsesNational(t *testing.T) {
-	const sefin = "https://sefin.producaorestrita.nfse.gov.br/API/SefinNacional"
+	const sefin = "https://sefin.producaorestrita.nfse.gov.br/SefinNacional"
 	cases := []struct {
 		op   Operation
 		args []any
@@ -108,7 +108,7 @@ func TestResolveOperation_UnpublishedOperationFallsBack(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ResolveOperation: %v", err)
 	}
-	want := "https://sefin.producaorestrita.nfse.gov.br/API/SefinNacional/nfse/123"
+	want := "https://sefin.producaorestrita.nfse.gov.br/SefinNacional/nfse/123"
 	if got != want {
 		t.Errorf("endpoint = %q, esperado %q", got, want)
 	}
@@ -127,7 +127,7 @@ func TestEndpoint_AuthorizerNacionalIgnoresMunicipal(t *testing.T) {
 		authorizer string
 		want       string
 	}{
-		{nfse.AuthorizerNacional, "https://sefin.producaorestrita.nfse.gov.br/API/SefinNacional/nfse"},
+		{nfse.AuthorizerNacional, "https://sefin.producaorestrita.nfse.gov.br/SefinNacional/nfse"},
 		{nfse.AuthorizerMunicipal, "https://nfse2-the.dsfweb.com.br/notafiscal-ws/nfse"},
 		{"", "https://nfse2-the.dsfweb.com.br/notafiscal-ws/nfse"},
 	}

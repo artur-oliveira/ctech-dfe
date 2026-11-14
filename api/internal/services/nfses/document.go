@@ -84,6 +84,10 @@ func buildDocument(in documentInput) (nfse.Document, error) {
 			"o serviço deve informar IBS/CBS (c_ind_op, cst, c_class_trib, ind_dest e fin_nfse)")
 	}
 
+	if err := preValidate(doc); err != nil {
+		return nfse.Document{}, err
+	}
+
 	if in.Body.AdditionalInfo != nil {
 		doc.Servico.InfoCompl = &nfse.InfoCompl{XInfComp: *in.Body.AdditionalInfo}
 	}

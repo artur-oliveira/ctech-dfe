@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"testing"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 )
@@ -75,5 +76,34 @@ func TestCertificateRepository_BuildDeleteTxItem(t *testing.T) {
 	}
 	if got := txItem.Delete.Key["pk"].(*types.AttributeValueMemberS).Value; got != "CNPJ_12345678000195" {
 		t.Errorf("pk = %q, want %q", got, "CNPJ_12345678000195")
+	}
+}
+
+func TestSortCertificates_ValidFirstThenLatestExpiry(t *testing.T) {
+	now := time.Date(2026, 11, 14, 0, 0, 0, 0, time.UTC)
+	mk := func(alias, exp string) map[string]types.AttributeValue {
+		m := map[string]types.AttributeValue{"alias": &types.AttributeValueMemberS{Value: alias}}
+		if exp != "" {
+			m["expires_at"] = &types.AttributeValueMemberS{Value: exp}
+		}
+		return m
+	}
+	items := []map[string]types.AttributeValue{
+		mk("vencido-recente", "2026-10-01T00:00:00Z"),
+		mk("sem-data", ""),
+		mk("valido-curto", "2027-01-01T00:00:00Z"),
+		mk("valido-longo", "2028-01-01T00:00:00Z"),
+		mk("vencido-antigo", "2025-01-01T00:00:00Z"),
+	}
+	SortCertificates(items, now)
+	var got []string
+	for _, it := range items {
+		got = append(got, it["alias"].(*types.AttributeValueMemberS).Value)
+	}
+	want := []string{"valido-longo", "valido-curto", "vencido-recente", "vencido-antigo", "sem-data"}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("ordem %v, esperado %v", got, want)
+		}
 	}
 }
