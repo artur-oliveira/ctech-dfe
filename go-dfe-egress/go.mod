@@ -1,6 +1,6 @@
 module gopkg.aoctech.app/dfe/go-dfe-egress
 
-go 1.27.3
+go 1.27.4
 
 require (
 	github.com/aws/aws-lambda-go v1.55.1
@@ -8,8 +8,8 @@ require (
 )
 
 require (
-	golang.org/x/crypto v0.58.0 // indirect
-	golang.org/x/text v0.43.0 // indirect
+	golang.org/x/crypto v0.59.0 // indirect
+	golang.org/x/text v0.44.0 // indirect
 	software.sslmate.com/src/go-pkcs12 v0.7.4 // indirect
 )
 
