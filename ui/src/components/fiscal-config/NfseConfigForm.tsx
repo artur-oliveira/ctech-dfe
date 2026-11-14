@@ -4,7 +4,7 @@ import {useEffect, useState} from 'react';
 import {useForm, useWatch} from 'react-hook-form';
 import {zodResolver} from '@hookform/resolvers/zod';
 import {Input} from '@/components/ui/input';
-import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form';
+import {Form, FormDescription, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form';
 import {NumericInput} from '@/components/ui/numeric-input';
 import {OptionsSelect} from '@/components/ui/options-select';
 import {Combobox} from '@/components/ui/combobox';
@@ -30,6 +30,7 @@ interface NfseConfigFormProps {
 function toFormValues(cfg: NfseConfigOut | null | undefined): NfseConfigFormData {
   return {
     provider: cfg?.provider ?? 'nacional',
+    authorizer: cfg?.authorizer ?? 'auto',
     environment: String(cfg?.environment ?? 2) as '1' | '2',
     timezone: (BRAZIL_TIMEZONES.includes(cfg?.timezone as BrazilTimezone)
       ? cfg?.timezone
@@ -49,6 +50,7 @@ function toFormValues(cfg: NfseConfigOut | null | undefined): NfseConfigFormData
 function toApiPayload(d: NfseConfigFormData): Record<string, unknown> {
   return {
     provider: d.provider,
+    authorizer: d.authorizer,
     environment: parseInt(d.environment, 10),
     timezone: d.timezone,
     c_loc_emi: d.c_loc_emi,
@@ -64,6 +66,18 @@ function toApiPayload(d: NfseConfigFormData): Record<string, unknown> {
     } : null,
   };
 }
+
+const AUTHORIZER_OPTIONS = [
+  {value: 'auto', label: 'Deixar o sistema decidir'},
+  {value: 'nacional', label: 'Ambiente Nacional'},
+  {value: 'municipal', label: 'Autorizador do município'},
+];
+
+const AUTHORIZER_HINT: Record<string, string> = {
+  auto: 'MEI e ME/EPP optantes pelo Simples emitem pelo Ambiente Nacional (obrigatório desde 01/11/2026); os demais usam o autorizador do município, quando ele existir.',
+  nacional: 'Toda emissão vai ao Ambiente Nacional da NFS-e.',
+  municipal: 'Toda emissão vai ao autorizador do município. Optantes pelo Simples (ME/EPP) são recusados desde 01/11/2026; a escolha é sua.',
+};
 
 const SEC = {env: 'ambiente', num: 'numeracao', abrasf: 'abrasf'} as const;
 
@@ -129,7 +143,7 @@ export function NfseConfigForm({initialData, onSave, loading = false}: NfseConfi
 
         <FormField control={form.control} name="provider" render={({field}) => (
           <FormItem>
-            <FormLabel>Provedor</FormLabel>
+            <FormLabel>Provedor *</FormLabel>
             <OptionsSelect
               id={field.name}
               value={field.value}
@@ -143,6 +157,23 @@ export function NfseConfigForm({initialData, onSave, loading = false}: NfseConfi
             <FormMessage/>
           </FormItem>
         )}/>
+
+        {!isAbrasf && (
+          <FormField control={form.control} name="authorizer" render={({field}) => (
+            <FormItem>
+              <FormLabel>Autorizador da emissão *</FormLabel>
+              <OptionsSelect
+                id={field.name}
+                value={field.value}
+                onValueChange={field.onChange}
+                options={AUTHORIZER_OPTIONS}
+                className="w-full sm:max-w-96"
+              />
+              <FormDescription>{AUTHORIZER_HINT[field.value]}</FormDescription>
+              <FormMessage/>
+            </FormItem>
+          )}/>
+        )}
 
         {isAbrasf && (
           <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">

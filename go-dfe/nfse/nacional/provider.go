@@ -28,12 +28,15 @@ const (
 type Config struct {
 	Environment      string
 	MunicipalityCode string
-	HTTPClient       *http.Client
-	Cert             *x509.Certificate
-	Key              *rsa.PrivateKey
-	MaxRetries       int
-	CNPJ             string
-	Now              func() time.Time
+	// Authorizer força o destino das operações do contribuinte: AuthorizerNacional
+	// ignora o autorizador municipal; vazio ou AuthorizerMunicipal seguem o registro.
+	Authorizer string
+	HTTPClient *http.Client
+	Cert       *x509.Certificate
+	Key        *rsa.PrivateKey
+	MaxRetries int
+	CNPJ       string
+	Now        func() time.Time
 }
 
 // Nacional implementa nfse.Provider contra o Sistema Nacional NFS-e.
@@ -220,6 +223,9 @@ func (n *Nacional) endpoint(op Operation, municipalityCode string, args ...any) 
 		if base, ok := n.baseOverride[SystemSefin]; ok {
 			return base + formatPath(nationalPaths[op], args...), nil
 		}
+	}
+	if n.cfg.Authorizer == nfse.AuthorizerNacional {
+		municipalityCode = "" // sem município, ResolveOperation cai no Sefin Nacional
 	}
 	return ResolveOperation(op, n.cfg.Environment, municipalityCode, args...)
 }

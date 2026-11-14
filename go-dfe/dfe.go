@@ -222,7 +222,11 @@ func callNFSe(ctx context.Context, req Request, httpClient *http.Client,
 	cert *x509.Certificate, key *rsa.PrivateKey, maxRetries int) (Response, error) {
 	providerName, _ := req.Body[nfse.BodyKeyProvider].(string)
 	municipalityCode, _ := req.Body[nfse.BodyKeyMunicipality].(string)
-	provider, err := newNFSeProvider(providerName, req.Environment, municipalityCode,
+	authorizer, _ := req.Body[nfse.BodyKeyAuthorizer].(string)
+	if authorizer != "" && authorizer != nfse.AuthorizerNacional && authorizer != nfse.AuthorizerMunicipal {
+		return problemResponse(400, constants.ErrCodeValidation, fmt.Sprintf("nfse: authorizer desconhecido %q", authorizer))
+	}
+	provider, err := newNFSeProvider(providerName, req.Environment, municipalityCode, authorizer,
 		httpClient, cert, key, maxRetries, req.CNPJ)
 	if err != nil {
 		return problemResponse(400, constants.ErrCodeValidation, err.Error())
@@ -247,12 +251,12 @@ func callNFSe(ctx context.Context, req Request, httpClient *http.Client,
 // do Body. Vive em dfe.go (não em nfse/dispatch.go) porque nfse/nacional já
 // importa nfse — nfse não pode importar nfse/nacional de volta sem criar um
 // ciclo; dfe é o único ponto que legitimamente conhece os dois.
-func newNFSeProvider(name, environment, municipalityCode string, httpClient *http.Client,
+func newNFSeProvider(name, environment, municipalityCode, authorizer string, httpClient *http.Client,
 	cert *x509.Certificate, key *rsa.PrivateKey, maxRetries int, cnpj string) (nfse.Provider, error) {
 	switch name {
 	case nfse.ProviderNacional:
 		return nacional.New(nacional.Config{
-			Environment: environment, MunicipalityCode: municipalityCode,
+			Environment: environment, MunicipalityCode: municipalityCode, Authorizer: authorizer,
 			HTTPClient: httpClient, Cert: cert,
 			Key: key, MaxRetries: maxRetries, CNPJ: cnpj,
 		})

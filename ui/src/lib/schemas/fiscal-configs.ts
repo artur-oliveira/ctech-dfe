@@ -105,6 +105,7 @@ export type MDFeConfigFormData = z.infer<typeof mdfeConfigSchema>
 // NfseConfigBody e docs/specs/2026-08-04-nfse-design.md §3.3.
 export const nfseConfigSchema = z.object({
   provider: z.enum(['nacional', 'abrasf204']),
+  authorizer: z.enum(['auto', 'nacional', 'municipal']),
   environment: z.enum(['1', '2']),
   timezone: z.enum(BRAZIL_TIMEZONES),
   c_loc_emi: z.string().regex(/^\d{7}$/, 'Código IBGE deve ter 7 dígitos'),

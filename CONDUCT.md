@@ -400,6 +400,11 @@ contrário `persistIncoming` reescreve silenciosamente para `1`.
   inventar o endpoint de produção a partir do hostname de homologação. O host municipal fica atrás
   de Cloudflare e desafia o `User-Agent` padrão do Go em origens AWS; o transporte REST NFS-e deve
   enviar o identificador compatível `nfseRESTUserAgent`, validado a partir do mesmo egress de produção.
+- **Desde 01/11/2026 o autorizador municipal de Teresina recusa MEI e ME/EPP do Simples** (`L9999`, Resolução CGSN
+  191/2026: "deve ocorrer por meio do Emissor Nacional"). O destino é decidido por emissão a partir do campo
+  `authorizer` da config NFS-e (`auto` | `nacional` | `municipal`); em `auto`, `op_simp_nac` 2 ou 3 vai ao Sefin
+  Nacional. O autorizador resolvido fica gravado na nota e os eventos o seguem. Nunca resolver o autorizador de um
+  evento pela config atual: a nota pode ter sido emitida por outro. Ver `DOCS.md`, *Escolha do autorizador*.
 - **`cTribMun` de Teresina é o 4º segmento do código completo da SEMF (3 dígitos), em par com o `cTribNac`**
   (`01.06.01.001` = `010601` + `001`). Nunca montar `cTribMun` a partir de item+subitem da LC 116 (era `101`, rejeitado).
   Fonte: planilha oficial, ver `DOCS.md` → *Catálogo de código municipal (UI)*.

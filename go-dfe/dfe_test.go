@@ -173,6 +173,22 @@ func TestCall_NFSeReachesProviderConstruction(t *testing.T) {
 	}
 }
 
+// Authorizer fora de {"", nacional, municipal} é recusado antes de qualquer chamada ao fisco.
+func TestCall_NFSeRejectsUnknownAuthorizer(t *testing.T) {
+	certB64 := buildTestPFX(t, "s3cr3t")
+	resp, err := Call(context.Background(), Request{
+		DocType: constants.DocTypeNFSE, Service: constants.ServiceNFSeRecepcao,
+		Environment: "hom", CertificateB64: certB64, CertificatePassword: "s3cr3t",
+		Body: map[string]any{"provider": "nacional", "authorizer": "federal"},
+	})
+	if err != nil {
+		t.Fatalf("Call devolveu erro cru: %v", err)
+	}
+	if resp.StatusCode != 400 || !strings.Contains(resp.Body, "authorizer desconhecido") {
+		t.Errorf("resp = %d %s, esperado 400 com authorizer desconhecido", resp.StatusCode, resp.Body)
+	}
+}
+
 // SignText round trip with a throwaway certificate generated here (never a real one): the
 // signature the egress returns must verify against the public key (RSA PKCS1v15, SHA-1).
 func TestCallSignText(t *testing.T) {

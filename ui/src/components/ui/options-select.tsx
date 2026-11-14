@@ -38,7 +38,8 @@ export function OptionsSelect({
   const clearable = useClearable(clearableProp);
   const showClear = clearable && !!value && !disabled;
   return (
-    <div className="relative min-w-0">
+    // className vai também ao wrapper: o X (absolute) se ancora na borda do wrapper, que precisa ter a largura do select.
+    <div className={cn('relative min-w-0', className)}>
     <Select
       id={id}
       value={toInner(value ?? '')}

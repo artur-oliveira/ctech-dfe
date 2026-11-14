@@ -476,6 +476,14 @@ components:
           type: string
           enum: [ nacional, abrasf204 ]
           description: '`nacional` fala com o ADN; `abrasf204` com o webservice do município.'
+        authorizer:
+          type: string
+          enum: [ auto, nacional, municipal ]
+          description: |
+            Autorizador da emissão. `auto` (padrão) usa o Ambiente Nacional para MEI e
+            ME/EPP optantes pelo Simples (Resolução CGSN 191/2026) e o autorizador do município
+            para os demais; `nacional` e `municipal` forçam o destino. O valor resolvido fica na
+            NFS-e e os eventos seguem o mesmo autorizador.
         environment: { type: integer, enum: [ 1, 2 ] }
         timezone: { $ref: '#/components/schemas/Timezone' }
         c_loc_emi:

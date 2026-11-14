@@ -1,6 +1,10 @@
 package nacional
 
-import "testing"
+import (
+	"testing"
+
+	"gopkg.aoctech.app/dfe/go-dfe/nfse"
+)
 
 func TestResolveBase(t *testing.T) {
 	cases := []struct {
@@ -113,5 +117,28 @@ func TestResolveOperation_UnpublishedOperationFallsBack(t *testing.T) {
 func TestResolveOperation_Unknown(t *testing.T) {
 	if _, err := ResolveOperation("inexistente", "hom", "2211001"); err == nil {
 		t.Error("esperado erro para operação desconhecida")
+	}
+}
+
+// Authorizer nacional ignora o autorizador municipal em todas as operações
+// (Resolução CGSN 191/2026: ME/EPP do Simples emitem só pelo Ambiente Nacional).
+func TestEndpoint_AuthorizerNacionalIgnoresMunicipal(t *testing.T) {
+	cases := []struct {
+		authorizer string
+		want       string
+	}{
+		{nfse.AuthorizerNacional, "https://sefin.producaorestrita.nfse.gov.br/API/SefinNacional/nfse"},
+		{nfse.AuthorizerMunicipal, "https://nfse2-the.dsfweb.com.br/notafiscal-ws/nfse"},
+		{"", "https://nfse2-the.dsfweb.com.br/notafiscal-ws/nfse"},
+	}
+	for _, c := range cases {
+		n := &Nacional{cfg: Config{Environment: "hom", MunicipalityCode: municipalityTeresina, Authorizer: c.authorizer}}
+		got, err := n.endpoint(OpEmit, n.cfg.MunicipalityCode)
+		if err != nil {
+			t.Fatalf("endpoint: %v", err)
+		}
+		if got != c.want {
+			t.Errorf("authorizer %q: endpoint = %q, esperado %q", c.authorizer, got, c.want)
+		}
 	}
 }
