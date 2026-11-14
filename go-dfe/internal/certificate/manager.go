@@ -87,7 +87,13 @@ func Load(certificateB64, password string) (*http.Client, *x509.Certificate, *rs
 		Transport: &http.Transport{
 			DialContext: (&net.Dialer{Timeout: constants.DialTimeout}).DialContext,
 			TLSClientConfig: &tls.Config{
-				Certificates:       []tls.Certificate{tlsCert},
+				// GetClientCertificate, não Certificates: com Certificates o Go só envia o certificado se a
+				// cadeia casar com a lista de CAs aceitas do servidor; se o PFX não traz a AC intermediária,
+				// não envia nada e o IIS do Sefin Nacional responde 403 "Access is denied". O OpenSSL e o
+				// cliente Python original sempre enviam.
+				GetClientCertificate: func(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
+					return &tlsCert, nil
+				},
 				Renegotiation:      tls.RenegotiateOnceAsClient,
 				InsecureSkipVerify: true, // SEFAZ server chain deliberately not validated — see doc comment above.
 			},
