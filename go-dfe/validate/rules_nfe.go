@@ -474,7 +474,7 @@ func nfeNFCeRules() []Rule {
 		}),
 		nfeWhen("C17-42", 156, ModeWarn, "65", "NFC-e sem IE do emitente", func(c *nfeCtx) bool {
 			y := nfeS(c.ide, "dhEmi")
-			return !nfeHas(c.emit, "IE") && !(len(y) >= 4 && y[:4] >= "2033")
+			return !nfeHas(c.emit, "IE") && (len(y) < 4 || y[:4] < "2033")
 		}),
 		nfeWhen("E16a-10", 789, ModeWarn, "65", "NFC-e com indIEDest diferente de 9", func(c *nfeCtx) bool {
 			v := nfeS(c.dest, "indIEDest")

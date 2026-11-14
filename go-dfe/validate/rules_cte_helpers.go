@@ -151,7 +151,7 @@ func cteKeyReason(k, mod string, minYear int) string {
 		return "ano inválido"
 	}
 	id := k[6:20]
-	if !cteCNPJOK(id) && !(id[:3] == "000" && cteCPFOK(id[3:])) {
+	if !cteCNPJOK(id) && (id[:3] != "000" || !cteCPFOK(id[3:])) {
 		return "CNPJ/CPF zerado ou inválido"
 	}
 	if mod != "" && k[20:22] != mod {
