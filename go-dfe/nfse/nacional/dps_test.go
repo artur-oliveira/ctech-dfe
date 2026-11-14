@@ -192,6 +192,7 @@ func TestToXMLTotTrib_ChoosesExactlyOneBranch(t *testing.T) {
 // gTribRegular?/gDif?.
 func TestBuildDPS_IBSCBSTribShape(t *testing.T) {
 	doc := minimalDoc()
+	doc.Ambiente = 1 // leiaute de produção (20260209); tpAmb 2 usa o da NT 009, ver dps_nt009_test.go
 	doc.IBSCBS = &nfse.IBSCBS{
 		FinNFSe: 0, CIndOp: "020101", IndDest: 0,
 		GRefNFSe: &nfse.RefNFSe{Chaves: []string{"chave1", "chave2"}},
@@ -322,6 +323,7 @@ func TestBuildDPS_IBSCBSDestRejectsCAEPFAndIM(t *testing.T) {
 
 func TestBuildDPS_ReeRepResEmitsChoiceAndOrder(t *testing.T) {
 	doc := minimalDoc()
+	doc.Ambiente = 1 // leiaute de produção (20260209); tpAmb 2 usa o da NT 009, ver dps_nt009_test.go
 	cNaoNIF := 1
 	doc.IBSCBS = &nfse.IBSCBS{
 		FinNFSe: 1, CIndOp: "020101", IndDest: 1,

@@ -11,7 +11,7 @@ import (
 // gRefNFSe?, tpEnteGov?, indDest, dest?, imovel?, valores.
 type xmlIBSCBS struct {
 	XMLName   xml.Name         `xml:"IBSCBS"`
-	FinNFSe   int              `xml:"finNFSe"`
+	FinNFSe   *int             `xml:"finNFSe,omitempty"` // só no leiaute antigo; no da NT 009 vai em infDPS
 	IndFinal  *int             `xml:"indFinal,omitempty"`
 	CIndOp    string           `xml:"cIndOp"`
 	TpOper    int              `xml:"tpOper,omitempty"`
@@ -53,7 +53,21 @@ type xmlImovel struct {
 // xmlIBSCBSValores espelha TCRTCInfoValoresIBSCBS: gReeRepRes? seguido de trib.
 type xmlIBSCBSValores struct {
 	GReeRepRes *xmlReeRepRes `xml:"gReeRepRes,omitempty"`
-	Trib       xmlTribIBSCBS `xml:"trib"`
+	Trib       any           `xml:"trib"` // xmlTribIBSCBS (antigo) ou xmlTribIBSCBSNT009
+}
+
+// xmlTribIBSCBSNT009 espelha TCRTCInfoTribIBSCBS do leiaute da NT 009 (produção restrita desde
+// 20/10/2026): CST e cClassTrib saem de gIBSCBS e ficam direto em trib; gIBSCBS (opcional) guarda o resto.
+type xmlTribIBSCBSNT009 struct {
+	CST        string             `xml:"CST"`
+	CClassTrib string             `xml:"cClassTrib"`
+	GIBSCBS    *xmlGrupoTribNT009 `xml:"gIBSCBS,omitempty"`
+}
+
+type xmlGrupoTribNT009 struct {
+	CCredPres    string                `xml:"cCredPres,omitempty"`
+	GTribRegular *xmlTribRegular       `xml:"gTribRegular,omitempty"`
+	GDif         *xmlDiferimentoIBSCBS `xml:"gDif,omitempty"`
 }
 
 // xmlReeRepRes espelha TCRTCInfoReeRepRes: documentos repetível (1..1000).
@@ -137,19 +151,23 @@ func tpOperPermitido(g *nfse.IBSCBS, cTribNac string) bool {
 	return g.TpEnteGov != 0 || (len(cTribNac) >= 4 && tpOperItensLC116[cTribNac[:4]])
 }
 
-func toXMLIBSCBS(g *nfse.IBSCBS, cTribNac string) (*xmlIBSCBS, error) {
+// toXMLIBSCBS serializa o grupo IBSCBS. ntNova escolhe o leiaute da NT 009 (finNFSe em infDPS, CST e
+// cClassTrib direto em trib, sem gReeRepRes) em vez do leiaute de produção.
+func toXMLIBSCBS(g *nfse.IBSCBS, cTribNac string, ntNova bool) (*xmlIBSCBS, error) {
 	if g == nil {
 		return nil, nil
 	}
+	sit := xmlInfoTributosSitClas{
+		CST: g.Valores.Trib.CST, CClassTrib: g.Valores.Trib.CClassTrib,
+		CCredPres: g.Valores.Trib.CCredPres,
+	}
 	out := &xmlIBSCBS{
-		FinNFSe: g.FinNFSe, IndFinal: g.IndFinal, CIndOp: g.CIndOp,
+		IndFinal: g.IndFinal, CIndOp: g.CIndOp,
 		TpOper: g.TpOper, TpEnteGov: g.TpEnteGov, IndDest: g.IndDest,
-		Valores: xmlIBSCBSValores{
-			Trib: xmlTribIBSCBS{GIBSCBS: xmlInfoTributosSitClas{
-				CST: g.Valores.Trib.CST, CClassTrib: g.Valores.Trib.CClassTrib,
-				CCredPres: g.Valores.Trib.CCredPres,
-			}},
-		},
+	}
+	if !ntNova {
+		fin := g.FinNFSe
+		out.FinNFSe = &fin
 	}
 	if !tpOperPermitido(g, cTribNac) {
 		out.TpOper = 0
@@ -167,20 +185,35 @@ func toXMLIBSCBS(g *nfse.IBSCBS, cTribNac string) (*xmlIBSCBS, error) {
 		out.GRefNFSe = &xmlRefNFSe{RefNFSe: g.GRefNFSe.Chaves}
 	}
 	if g.Imovel != nil {
+		if ntNova {
+			return nil, fmt.Errorf("nacional: imovel foi reestruturado na NT 009 (cMun, gLocacao, gUnidImob) e ainda não é suportado")
+		}
 		out.Imovel = &xmlImovel{InscImobFisc: g.Imovel.InscImobFisc,
 			CCIB: g.Imovel.CIB, End: toXMLEndSimples(g.Imovel.End)}
 	}
 	if r := g.Valores.Trib.TribRegular; r != nil {
-		out.Valores.Trib.GIBSCBS.GTribRegular = &xmlTribRegular{
+		sit.GTribRegular = &xmlTribRegular{
 			CSTReg: r.CSTReg, CClassTribReg: r.CClassTribReg}
 	}
 	if docs := toXMLReeRepRes(g.Valores.ReeRepRes); docs != nil {
+		if ntNova {
+			return nil, fmt.Errorf("nacional: reembolso/repasse/ressarcimento (gReeRepRes) virou vAjusteBC na NT 009 e ainda não é suportado")
+		}
 		out.Valores.GReeRepRes = docs
 	}
 	if d := g.Valores.Trib.Dif; d != nil {
-		out.Valores.Trib.GIBSCBS.GDif = &xmlDiferimentoIBSCBS{
+		sit.GDif = &xmlDiferimentoIBSCBS{
 			PDifUF: d.PDifUF, PDifMun: d.PDifMun, PDifCBS: d.PDifCBS}
 	}
+	if !ntNova {
+		out.Valores.Trib = xmlTribIBSCBS{GIBSCBS: sit}
+		return out, nil
+	}
+	nova := xmlTribIBSCBSNT009{CST: sit.CST, CClassTrib: sit.CClassTrib}
+	if sit.CCredPres != "" || sit.GTribRegular != nil || sit.GDif != nil {
+		nova.GIBSCBS = &xmlGrupoTribNT009{CCredPres: sit.CCredPres, GTribRegular: sit.GTribRegular, GDif: sit.GDif}
+	}
+	out.Valores.Trib = nova
 	return out, nil
 }
 
