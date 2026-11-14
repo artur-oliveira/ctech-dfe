@@ -1740,7 +1740,7 @@ func nfeMiscRules() []Rule {
 		}),
 		nfeWhen("ZX02-10", 394, ModeWarn, "65", "NFC-e sem qrCode", func(c *nfeCtx) bool {
 			y := nfeS(c.ide, "dhEmi")
-			return nfeS(c.doc, "infNFeSupl", "qrCode") == "" && !(len(y) >= 10 && y[:10] < "2016-04-01")
+			return nfeS(c.doc, "infNFeSupl", "qrCode") == "" && (len(y) < 10 || y[:10] >= "2016-04-01")
 		}),
 		nfeWhen("ZX02-220", 672, ModeWarn, "55", "qrCode de NF-e com versão diferente de 3", func(c *nfeCtx) bool {
 			p := nfeQRParams(nfeS(c.doc, "infNFeSupl", "qrCode"))
