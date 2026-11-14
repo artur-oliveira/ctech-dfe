@@ -307,7 +307,7 @@ func catalogStructure() []Rule {
 		{"B109", 308, "OrigemDestino", "origin/destination needs at least one valid location form", func(d *Declaracao, _ Context) bool {
 			return anyOD(d, func(od OrigemDestino) bool {
 				i, c, g := loc(od)
-				return !(i[0] && i[1]) && !(c[0] && c[1]) && !(g[0] && g[1])
+				return (!i[0] || !i[1]) && (!c[0] || !c[1]) && (!g[0] || !g[1])
 			})
 		}},
 		{"B110", 309, "OrigemDestino", "coordinates must come in latitude/longitude pairs", func(d *Declaracao, _ Context) bool {
