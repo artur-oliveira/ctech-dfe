@@ -1501,3 +1501,11 @@ enviados só um certificado descartável e uma chave falsa, e a ANTT respondeu 4
   recusa o que `blockRules` lista; promover as 26 (DV de CNPJ/CPF e GTIN, chave A03-10/B23-10) é decisão pendente, ver o relatório.
   Validador: sequence opcional do XSD é tudo-ou-nada (`grp`/`greq` no spec) e elemento repetido em braços da mesma choice não conta
   braço (IPI de `imposto`); regenerar os specs com `go run gen/main.go` (em `go-dfe/validate`) depois de mexer no gerador.
+- NFS-e: toda rejeição do fisco que dá para prever localmente entra em `nfses.preValidate` (api), com o código E0xxx na
+  mensagem; a numeração da DPS só é reservada depois, então uma rejeição evitada aqui não queima número. Fonte dos códigos:
+  guia de erros da NFS-e Nacional (blog de fornecedor, não é catálogo oficial); confirme no catálogo do Sefin antes de
+  acrescentar regra nova.
+- Certificado da organização: `CertificateRepository.List` devolve válidos primeiro e de maior vencimento primeiro; todo
+  ponto de emissão usa `certs[0]`. A SK do banco é o MD5 do arquivo, sem relação com a validade; não reordene fora do repositório.
+- NFS-e Sefin Nacional em produção restrita: `https://sefin.producaorestrita.nfse.gov.br/SefinNacional` (sem `/API`; o `/API/...` é só a
+  página de docs). Confirmado em 2026-11-14: o caminho sem `/API` responde 400 JSON do Sefin com certificado válido.

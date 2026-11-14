@@ -45,7 +45,7 @@ const (
 var bases = map[string]map[string]string{
 	SystemSefin: {
 		constants.EnvironmentProd: "https://sefin.nfse.gov.br/SefinNacional",
-		constants.EnvironmentHom:  "https://sefin.producaorestrita.nfse.gov.br/API/SefinNacional",
+		constants.EnvironmentHom:  "https://sefin.producaorestrita.nfse.gov.br/SefinNacional",
 	},
 	SystemADN: {
 		constants.EnvironmentProd: "https://adn.nfse.gov.br/contribuintes",

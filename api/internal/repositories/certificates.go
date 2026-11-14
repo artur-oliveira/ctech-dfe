@@ -3,6 +3,8 @@ package repositories
 import (
 	"context"
 	"fmt"
+	"sort"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
@@ -46,12 +48,39 @@ func (r *CertificateRepository) Get(ctx context.Context, orgPK, md5 string) (map
 	return r.CRUDRepository.Get(ctx, orgPK, certSK(md5))
 }
 
+// List devolve os certificados da organização com o melhor primeiro: os não
+// vencidos antes dos vencidos, e dentro de cada grupo o de maior vencimento. A
+// chave de ordenação do banco é o MD5 do arquivo, sem relação com a validade, e
+// todo ponto de emissão usa certs[0]; sem esta ordem, quem tem um certificado
+// vencido e um válido emite com o vencido ao acaso (Sefin responde 403).
 func (r *CertificateRepository) List(ctx context.Context, orgPK string) ([]map[string]types.AttributeValue, error) {
 	res, err := r.Query(ctx, QueryOpts{PK: orgPK, SKPrefix: "CERTIFICATE_"})
 	if err != nil {
 		return nil, err
 	}
+	SortCertificates(res.Items, time.Now())
 	return res.Items, nil
+}
+
+// SortCertificates ordena in place: válidos (expires_at depois de now) primeiro,
+// maior vencimento primeiro; expires_at ausente ou ilegível conta como vencido.
+func SortCertificates(items []map[string]types.AttributeValue, now time.Time) {
+	exp := func(it map[string]types.AttributeValue) time.Time {
+		if v, ok := it["expires_at"].(*types.AttributeValueMemberS); ok {
+			if t, err := time.Parse(time.RFC3339, v.Value); err == nil {
+				return t
+			}
+		}
+		return time.Time{}
+	}
+	sort.SliceStable(items, func(i, j int) bool {
+		ei, ej := exp(items[i]), exp(items[j])
+		vi, vj := ei.After(now), ej.After(now)
+		if vi != vj {
+			return vi
+		}
+		return ei.After(ej)
+	})
 }
 
 func (r *CertificateRepository) Delete(ctx context.Context, orgPK, md5 string) (bool, error) {
