@@ -20,8 +20,14 @@ const manifestPathNT009 = "testdata/dps_paths_nt009.json"
 
 // tribImpl diz ao percurso qual struct concreta ocupa o campo `any` valores>trib em cada leiaute.
 var (
-	tribImplProd = map[string]reflect.Type{"DPS/infDPS/IBSCBS/valores/trib": reflect.TypeOf(xmlTribIBSCBS{})}
-	tribImplNT   = map[string]reflect.Type{"DPS/infDPS/IBSCBS/valores/trib": reflect.TypeOf(xmlTribIBSCBSNT009{})}
+	tribImplProd = map[string]reflect.Type{
+		"DPS/infDPS/IBSCBS/valores/trib": reflect.TypeOf(xmlTribIBSCBS{}),
+		"DPS/infDPS/serv/cServ":          reflect.TypeOf(xmlCServ{}),
+	}
+	tribImplNT = map[string]reflect.Type{
+		"DPS/infDPS/IBSCBS/valores/trib": reflect.TypeOf(xmlTribIBSCBSNT009{}),
+		"DPS/infDPS/serv/cServ":          reflect.TypeOf(xmlCServNT009{}),
+	}
 )
 
 // xmlnsAttr é declaração de namespace, não campo do leiaute.

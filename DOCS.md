@@ -1322,10 +1322,13 @@ entre `cMotivoEmisTI` e `chNFSeRej`), `CST` e `cClassTrib` saem de `trib/gIBSCBS
 (*Documentação Atual*). `nacional.BuildDPS` escolhe pelo `tpAmb` em `ntAmbientes` (`{2: true}`); a Sefin ainda não
 publicou a data da virada em produção, quando basta incluir `1` ali. Sintoma de usar o leiaute errado: `E1235 Falha no
 esquema XML do DF-e ... invalid child element 'cLocEmi' ... expected 'cMotivoEmisTI, finNFSe'`. Pendências na NT 009:
-`vAjusteBC`, `gLocacao`, `gUnidImob`, `bensMoveis` não são emitidos; `BuildDPS` recusa documento com `vDedRed`,
+`TCCServ` mudou de ordem (`cNBS` e `cIntContrib` antes de `xDescServ`; `xmlCServNT009`); `vAjusteBC`, `gLocacao`, `gUnidImob`, `bensMoveis` não são emitidos; `BuildDPS` recusa documento com `vDedRed`,
 `gReeRepRes` ou `imovel` em `tpAmb` 2 em vez de gerar XML inválido. Os XSD de ambos os leiautes estão em
 `go-dfe/nfse/nacional/testdata/` (`xsd_nt009`; o inventário de caminhos de cada um é `dps_paths_*.json`, gerado por
 `go-dfe/nfse/tables/gen/dps_manifest.py DIR_XSD SAIDA_JSON`).
+
+`cIntContrib` (código interno do serviço) só vai na DPS quando casa `[a-zA-Z0-9]{1,20}` (XSD); o `code` do catálogo
+aceita até 60 caracteres livres, então `nfses.buildServico` o omite fora do padrão em vez de perder a emissão por E1235.
 
 **Ciclo de vida da linha em `nfses`:**
 

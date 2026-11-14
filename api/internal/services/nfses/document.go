@@ -3,6 +3,7 @@ package nfses
 import (
 	"fmt"
 	"log/slog"
+	"regexp"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
@@ -14,6 +15,10 @@ import (
 // docPunct remove a pontuação do CPF/CNPJ gravado no cadastro — o DPS leva só
 // os dígitos (mesma normalização de services.BuildPersonSK).
 var docPunct = strings.NewReplacer(".", "", "-", "", "/", "")
+
+// cIntContribRe é o TSCodigoInternoContribuinte do XSD: alfanumérico de 1 a 20 caracteres. O código do serviço
+// no catálogo aceita até 60 e qualquer caractere; fora do padrão o Sefin rejeita a DPS inteira (E1235).
+var cIntContribRe = regexp.MustCompile(`^[a-zA-Z0-9]{1,20}$`)
 
 // Códigos do leiaute (tiposSimples_v1.01.xsd) usados nas validações abaixo.
 const (
@@ -218,6 +223,10 @@ func buildServico(service map[string]types.AttributeValue, body NfseEmitBody) nf
 		XDescServ:   strAttr(service, "description"),
 		CNBS:        strAttr(service, "nbs_code"),
 		CIntContrib: strAttr(service, "code"),
+	}
+	// cIntContrib é opcional e só informativo: sem o padrão do XSD, omite em vez de perder a emissão.
+	if !cIntContribRe.MatchString(cServ.CIntContrib) {
+		cServ.CIntContrib = ""
 	}
 	if body.Service.Description != nil {
 		cServ.XDescServ = *body.Service.Description

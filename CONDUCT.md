@@ -1513,3 +1513,6 @@ enviados só um certificado descartável e uma chave falsa, e a ANTT respondeu 4
   Mudou o XSD: baixe o pacote do gov.br/nfse (Atualizações e Implantações mostra a data), atualize `testdata/xsd_*`, regere o
   `dps_paths_*.json` e rode `TestDPSCoverageMatchesSchema` e `TestDPSNT009NothingOutsideSchema`; eles apontam o campo que sobrou ou faltou.
   Validação com `xmllint` nos testes de homologação; o XSD de produção 20260209 não valida em libxml2 (regex de `serie` com `^`/`$`).
+- NFS-e: ordem dos elementos também é leiaute. O gate de cobertura (`TestDPSCoverageMatchesSchema`) só vê caminhos; ordem
+  só aparece na validação por `xmllint` (`TestBuildDPS_NT009LayoutInHomologation`) e quando os campos opcionais estão preenchidos.
+  Ao trocar o XSD, compare a sequência de cada `complexType` entre os dois pacotes, não só o conjunto de elementos.
