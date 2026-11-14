@@ -3,6 +3,7 @@
 import {useState} from 'react';
 import {Input} from '@/components/ui/input';
 import {Combobox} from '@/components/ui/combobox';
+import {CheckboxField} from '@/components/ui/checkbox-field';
 import {Button} from '@aoctech/ui';
 import {CITIES, CITY_OPTIONS} from '@/lib/data/cities';
 import {BACEN_FOREIGN_COUNTRY_OPTIONS, bacenCountryName} from '@/lib/data/bacen_countries';
@@ -176,11 +177,8 @@ export function LocationPicker({label, savedLocations, value, onChange, save, on
             <Input placeholder="Inscrição estadual (opcional)" value={value?.ie === IE_EXEMPT ? '' : value?.ie ?? ''}
                    maxLength={L.stateRegistration.max} disabled={value?.ie === IE_EXEMPT}
                    {...invalid('ie')} onChange={(e) => set({ie: e.target.value || null})}/>
-            <label className="flex min-h-11 items-center gap-2 text-xs text-gray-600 sm:min-h-0">
-              <input type="checkbox" checked={value?.ie === IE_EXEMPT} className="size-4 rounded border-gray-300"
-                     onChange={(e) => set({ie: e.target.checked ? IE_EXEMPT : null})}/>
-              Isento de inscrição
-            </label>
+            <CheckboxField label="Isento de inscrição" checked={value?.ie === IE_EXEMPT}
+                           onCheckedChange={(on) => set({ie: on ? IE_EXEMPT : null})}/>
             <FieldError message={errors.ie}/>
           </div>
           <label className="flex min-h-11 items-center gap-2 text-xs text-gray-600 sm:min-h-0">

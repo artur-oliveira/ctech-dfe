@@ -15,12 +15,15 @@ func TestEmit_BuildsWorkerBodyForDispatch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("buildDocument: %v", err)
 	}
-	body, err := buildWorkerBody(nfse.ProviderNacional, doc)
+	body, err := buildWorkerBody(nfse.ProviderNacional, nfse.AuthorizerNacional, doc)
 	if err != nil {
 		t.Fatalf("buildWorkerBody: %v", err)
 	}
 	if body[nfse.BodyKeyProvider] != nfse.ProviderNacional {
 		t.Errorf("provider = %v", body[nfse.BodyKeyProvider])
+	}
+	if body[nfse.BodyKeyAuthorizer] != nfse.AuthorizerNacional {
+		t.Errorf("authorizer = %v", body[nfse.BodyKeyAuthorizer])
 	}
 	if body[nfse.BodyKeyMunicipality] != doc.CLocEmi {
 		t.Errorf("municipality_code = %v", body[nfse.BodyKeyMunicipality])
@@ -61,7 +64,7 @@ func TestEmit_WorkerBodyDecodesBackInGoDfe(t *testing.T) {
 	if err != nil {
 		t.Fatalf("buildDocument: %v", err)
 	}
-	body, err := buildWorkerBody(nfse.ProviderNacional, doc)
+	body, err := buildWorkerBody(nfse.ProviderNacional, nfse.AuthorizerNacional, doc)
 	if err != nil {
 		t.Fatalf("buildWorkerBody: %v", err)
 	}
@@ -122,3 +125,25 @@ func TestResolvePersonAcceptsOrganizationCompanyID(t *testing.T) {
 }
 
 func stringPointer(value string) *string { return &value }
+
+func TestResolveAuthorizer(t *testing.T) {
+	cases := []struct {
+		name      string
+		mode      string
+		opSimpNac int
+		want      string
+	}{
+		{"auto ME/EPP vai ao nacional", "auto", 3, nfse.AuthorizerNacional},
+		{"auto MEI vai ao nacional", "auto", 2, nfse.AuthorizerNacional},
+		{"auto nao optante segue o municipio", "auto", 1, nfse.AuthorizerMunicipal},
+		{"config anterior ao campo e ME/EPP", "", 3, nfse.AuthorizerNacional},
+		{"config anterior ao campo e nao optante", "", 1, nfse.AuthorizerMunicipal},
+		{"nacional forcado vale para nao optante", "nacional", 1, nfse.AuthorizerNacional},
+		{"municipal forcado vale para ME/EPP", "municipal", 3, nfse.AuthorizerMunicipal},
+	}
+	for _, c := range cases {
+		if got := resolveAuthorizer(c.mode, c.opSimpNac); got != c.want {
+			t.Errorf("%s: resolveAuthorizer(%q, %d) = %q, esperado %q", c.name, c.mode, c.opSimpNac, got, c.want)
+		}
+	}
+}

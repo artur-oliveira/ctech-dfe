@@ -1295,6 +1295,17 @@ operação ausente no registro nunca é completado por inferência. O transporte
 compatível e identificável porque o Cloudflare desse host devolve um desafio HTML para o agente
 padrão do Go quando a chamada parte do egress AWS, impedindo integrações sem navegador.
 
+**Escolha do autorizador (`authorizer`).** A config de NFS-e (`organization_nfse_configs`) tem o campo
+`authorizer` (`auto` | `nacional` | `municipal`; ausente vale `auto`). A API o resolve na emissão
+(`nfses.resolveAuthorizer`) para `nacional` ou `municipal` e envia no `Body["authorizer"]` ao go-dfe-egress:
+`auto` usa o Ambiente Nacional quando o prestador é MEI ou ME/EPP optante (`op_simp_nac` 2 ou 3; Resolução CGSN
+191/2026, em vigor desde 01/11/2026, o autorizador municipal de Teresina devolve `L9999` para eles) e o
+autorizador do município nos demais casos; `nacional` e `municipal` forçam o destino, sem validar o regime (a
+responsabilidade é de quem escolheu). No go-dfe, `nacional.Config.Authorizer = nacional` ignora
+`municipalAuthorizers`; vazio ou `municipal` mantêm o registro por operação. O valor resolvido é gravado na linha
+(`authorizer`) e os eventos reutilizam o da linha, para que uma nota autorizada no Sefin Nacional seja cancelada
+no Sefin Nacional; linhas anteriores ao campo não têm `authorizer` e seguem o autorizador do município como antes.
+
 **Ciclo de vida da linha em `nfses`:**
 
 | `status`     | Quem escreve | Quando                                                                 |

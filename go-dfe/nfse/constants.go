@@ -35,6 +35,14 @@ const (
 	ProviderAbrasf204 = "abrasf204"
 )
 
+// Autorizadores de uma chamada NFS-e. O valor vem de dfe.Request.Body["authorizer"].
+// Vazio mantém o comportamento anterior (autorizador municipal quando o município
+// publica a operação). AuthorizerNacional ignora o autorizador municipal.
+const (
+	AuthorizerNacional  = "nacional"
+	AuthorizerMunicipal = "municipal"
+)
+
 // Tipos de evento que o contribuinte PODE emitir (Anexo II).
 const (
 	EventCancelamento             = "101101" // TE101101

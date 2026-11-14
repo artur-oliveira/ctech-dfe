@@ -110,7 +110,7 @@ func TestBuildEventBody_DecodesBackInGoDfe(t *testing.T) {
 	if err != nil {
 		t.Fatalf("buildEventRequest: %v", err)
 	}
-	body, err := buildEventWorkerBody(nfse.ProviderNacional, "2211001", ev)
+	body, err := buildEventWorkerBody(nfse.ProviderNacional, "2211001", nfse.AuthorizerNacional, ev)
 	if err != nil {
 		t.Fatalf("buildEventWorkerBody: %v", err)
 	}

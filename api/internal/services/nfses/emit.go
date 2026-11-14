@@ -98,8 +98,8 @@ func BuildIDDPS(cLocEmi, tpInsc, inscFederal, serie string, nDPS int) string {
 }
 
 // buildWorkerBody serializa o documento no formato que nfse.Dispatch lê
-// (go-dfe/nfse/dispatch.go): as chaves "provider" e "document".
-func buildWorkerBody(provider string, doc nfse.Document) (map[string]any, error) {
+// (go-dfe/nfse/dispatch.go): as chaves "provider", "authorizer" e "document".
+func buildWorkerBody(provider, authorizer string, doc nfse.Document) (map[string]any, error) {
 	docMap, err := documentAsMap(doc)
 	if err != nil {
 		return nil, err
@@ -107,6 +107,7 @@ func buildWorkerBody(provider string, doc nfse.Document) (map[string]any, error)
 	return map[string]any{
 		nfse.BodyKeyProvider:     provider,
 		nfse.BodyKeyMunicipality: doc.CLocEmi,
+		nfse.BodyKeyAuthorizer:   authorizer,
 		nfse.BodyKeyDocument:     docMap,
 	}, nil
 }
@@ -233,7 +234,8 @@ func (s *NfseService) Emit(ctx context.Context, orgPK string, req NfseEmitBody, 
 	idDPS := BuildIDDPS(doc.CLocEmi, tpInsc, inscFederal, serie, currentNumber)
 
 	provider := strAttr(configItem, "provider")
-	workerBody, err := buildWorkerBody(provider, doc)
+	authorizer := resolveAuthorizer(strAttr(configItem, "authorizer"), doc.Prestador.RegTrib.OpSimpNac)
+	workerBody, err := buildWorkerBody(provider, authorizer, doc)
 	if err != nil {
 		return nil, err
 	}
@@ -247,6 +249,7 @@ func (s *NfseService) Emit(ctx context.Context, orgPK string, req NfseEmitBody, 
 		"pk":            pk,
 		"sk":            idDPS,
 		"provider":      provider,
+		"authorizer":    authorizer,
 		"status":        StatusPending,
 		"tp_emit":       req.TpEmit,
 		"serie":         serie,

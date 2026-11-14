@@ -11,6 +11,7 @@ import (
 const (
 	BodyKeyProvider     = "provider"
 	BodyKeyMunicipality = "municipality_code"
+	BodyKeyAuthorizer   = "authorizer"
 	BodyKeyDocument     = "document"
 	BodyKeyEvent        = "event"
 	BodyKeyAccessKey    = "chave_acesso"

@@ -69,6 +69,14 @@ export default function GuideNfse() {
                 O ambiente nacional é o padrão. Municípios que ainda operam no padrão ABRASF 2.04
                 exigem endpoint e código do município na configuração fiscal da NFS-e.
               </GuideCallout>
+              <GuideCallout kind="info" title="Autorizador da emissão">
+                Desde 01/11/2026 (Resolução CGSN nº 191/2026), MEI e ME/EPP optantes pelo Simples
+                Nacional só emitem pelo Ambiente Nacional. Na configuração fiscal da NFS-e, o campo
+                Autorizador da emissão tem três opções: <b>Deixar o sistema decidir</b> (padrão; o
+                regime do prestador define o destino), <b>Ambiente Nacional</b> e <b>Autorizador do
+                município</b>. Nas duas últimas a escolha é sua. O autorizador usado fica gravado na nota,
+                e os eventos (como o cancelamento) seguem o mesmo.
+              </GuideCallout>
             </>
           ),
         },

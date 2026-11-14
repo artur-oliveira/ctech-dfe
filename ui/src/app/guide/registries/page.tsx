@@ -59,7 +59,7 @@ export default function GuideCadastros() {
               <GuideCallout kind="tip" title="Inscrição estadual não é detalhe">
                 É a IE do destinatário que define se a operação é para contribuinte ou consumidor
                 final; e isso muda CFOP e tributação. Uma IE errada no cadastro vira rejeição na
-                emissão. Contribuinte dispensado de inscrição é marcado em <b>Isento de inscrição</b>,
+                emissão. Contribuinte dispensado de inscrição é marcado em <b>Isento</b>,
                 ao lado do número; não se digita a palavra.
               </GuideCallout>
             </>

@@ -8,6 +8,7 @@ import {zodResolver} from '@hookform/resolvers/zod';
 import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form';
 import {Input} from '@/components/ui/input';
 import {OptionsSelect} from '@/components/ui/options-select';
+import {CheckboxField} from '@/components/ui/checkbox-field';
 import {Combobox} from '@/components/ui/combobox';
 import {CurrencyInput} from '@/components/ui/currency-input';
 import {NumericInput} from '@/components/ui/numeric-input';
@@ -442,7 +443,7 @@ export function EntityForm({
       {ieFields.map((field, index) => {
         const ufOpts = UF_OPTIONS.filter((o) => !selectedUFs.includes(o.value) || o.value === watchedIEs[index]?.uf);
         return (
-          <div key={field.id} className="flex items-end gap-2 mb-2">
+          <div key={field.id} className="mb-2 flex flex-wrap items-end gap-x-2 gap-y-2">
             <FormField control={form.control as never} name={`person.state_registrations.${index}.uf`}
                        render={({field: f}) => (
                          <FormItem className="w-20 shrink-0">
@@ -455,25 +456,24 @@ export function EntityForm({
             <FormField control={form.control as never}
                        name={`person.state_registrations.${index}.state_registration`}
                        render={({field: f}) => (
-                         <FormItem className="flex-1">
-                           {index === 0 && <FormLabel>IE</FormLabel>}
-                           {/* Isento é uma escolha, não uma palavra para digitar: a literal vai pelo checkbox. */}
-                           <Input {...f} placeholder="Número da IE" maxLength={LAYOUT_LIMITS.stateRegistration.max}
-                                  disabled={f.value === IE_EXEMPT}/>
-                           <label className="flex min-h-11 items-center gap-2 text-xs text-gray-600 sm:min-h-0">
-                             <input type="checkbox" checked={f.value === IE_EXEMPT}
-                                    onChange={(e) => f.onChange(e.target.checked ? IE_EXEMPT : '')}
-                                    className="size-4 rounded border-gray-300"/>
-                             Isento de inscrição
-                           </label>
-                           <FormMessage/>
-                         </FormItem>
+                         <>
+                           <FormItem className="min-w-36 flex-1">
+                             {index === 0 && <FormLabel>IE</FormLabel>}
+                             <Input {...f} placeholder="Número da IE" maxLength={LAYOUT_LIMITS.stateRegistration.max}
+                                    disabled={f.value === IE_EXEMPT}/>
+                             <FormMessage/>
+                           </FormItem>
+                           {/* Isento é uma escolha, não uma palavra para digitar: a literal vai pelo checkbox,
+                               na linha do input (inline), nunca embaixo dele. */}
+                           <CheckboxField inline label="Isento" checked={f.value === IE_EXEMPT}
+                                          onCheckedChange={(on) => f.onChange(on ? IE_EXEMPT : '')}/>
+                         </>
                        )}
             />
             <FormField control={form.control as never}
                        name={`person.state_registrations.${index}.ie_st`}
                        render={({field: f}) => (
-                         <FormItem className="flex-1">
+                         <FormItem className="min-w-36 flex-1">
                            {index === 0 && <FormLabel>IE de ST</FormLabel>}
                            <Input {...f} value={f.value ?? ''} placeholder="Opcional"
                                   maxLength={LAYOUT_LIMITS.stateRegistration.max}/>

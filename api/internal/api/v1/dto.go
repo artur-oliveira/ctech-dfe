@@ -1288,7 +1288,9 @@ type NfseAbrasfBody struct {
 // a NFS-e tem uma única `serie` (não uma por ambiente), mas compartilha a
 // validação de timezone usada pelos demais documentos fiscais.
 type NfseConfigBody struct {
-	Provider          string          `json:"provider" validate:"required,oneof=nacional abrasf204"`
+	Provider string `json:"provider" validate:"required,oneof=nacional abrasf204"`
+	// Autorizador da emissão: auto decide pelo regime do prestador; nacional e municipal forçam o destino.
+	Authorizer        string          `json:"authorizer" validate:"omitempty,oneof=auto nacional municipal"`
 	Environment       int             `json:"environment" validate:"required,oneof=1 2"`
 	Timezone          string          `json:"timezone" validate:"required,timezone"`
 	CLocEmi           string          `json:"c_loc_emi" validate:"required,ibge"`

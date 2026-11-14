@@ -19,6 +19,8 @@ var docPunct = strings.NewReplacer(".", "", "-", "", "/", "")
 const (
 	tpEmitPrestador   = 1
 	opSimpNacApuracao = 3 // exige regApTribSN
+	opSimpNacMEI      = 2 // optante MEI
+	opSimpNacMEEPP    = 3 // optante ME/EPP
 	appVersion        = "ctech-dfe-1.0"
 	defaultTimezone   = "America/Sao_Paulo" // compatibilidade com configs NFS-e anteriores ao campo timezone
 	dfeDateTimeLayout = "2006-01-02T15:04:05-07:00"
@@ -388,4 +390,21 @@ func listAttr(item map[string]types.AttributeValue, key string) []types.Attribut
 		return nil
 	}
 	return v.Value
+}
+
+// resolveAuthorizer devolve o autorizador concreto (nfse.AuthorizerNacional ou
+// nfse.AuthorizerMunicipal) de uma emissão. nacional e municipal da config são
+// respeitados (a responsabilidade é de quem escolheu); auto (ou config anterior ao
+// campo) usa o Ambiente Nacional para MEI e ME/EPP optantes pelo Simples, que
+// desde 01/11/2026 só emitem por ele (Resolução CGSN 191/2026), e o autorizador
+// do município para os demais.
+func resolveAuthorizer(mode string, opSimpNac int) string {
+	switch mode {
+	case nfse.AuthorizerNacional, nfse.AuthorizerMunicipal:
+		return mode
+	}
+	if opSimpNac == opSimpNacMEI || opSimpNac == opSimpNacMEEPP {
+		return nfse.AuthorizerNacional
+	}
+	return nfse.AuthorizerMunicipal
 }

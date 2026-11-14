@@ -93,7 +93,7 @@ func buildEventRequest(chave string, body NfseEventBody, inscFederal string, env
 
 // buildEventWorkerBody serializa o pedido no formato que nfse.Dispatch lê
 // (go-dfe/nfse/dispatch.go): as chaves "provider" e "event".
-func buildEventWorkerBody(provider, municipalityCode string, ev nfse.EventRequest) (map[string]any, error) {
+func buildEventWorkerBody(provider, municipalityCode, authorizer string, ev nfse.EventRequest) (map[string]any, error) {
 	raw, err := json.Marshal(ev)
 	if err != nil {
 		return nil, problem.InternalServer("failed to encode nfse event")
@@ -105,6 +105,7 @@ func buildEventWorkerBody(provider, municipalityCode string, ev nfse.EventReques
 	return map[string]any{
 		nfse.BodyKeyProvider:     provider,
 		nfse.BodyKeyMunicipality: municipalityCode,
+		nfse.BodyKeyAuthorizer:   authorizer,
 		nfse.BodyKeyEvent:        evMap,
 	}, nil
 }
@@ -117,6 +118,7 @@ type eventContext struct {
 	idDPS            string
 	accessKey        string
 	provider         string
+	authorizer       string // o da emissão, gravado na linha; vazio em linhas antigas (autorizador do município)
 	municipalityCode string
 	environment      int
 	sefazEnv         string
@@ -168,8 +170,9 @@ func (s *NfseService) resolveEventContext(ctx context.Context, orgPK, id string)
 
 	return &eventContext{
 		item: item, pk: pk, idDPS: strAttr(item, "sk"), accessKey: accessKey,
-		provider: strAttr(item, "provider"), municipalityCode: strAttr(item, "c_loc_emi"),
-		environment: environment, sefazEnv: sefazEnv,
+		provider: strAttr(item, "provider"), authorizer: strAttr(item, "authorizer"),
+		municipalityCode: strAttr(item, "c_loc_emi"),
+		environment:      environment, sefazEnv: sefazEnv,
 		inscFederal: issuerDoc,
 		certS3Key:   strAttr(cert, "s3_key"), certPass: strAttr(cert, "password"),
 	}, nil
@@ -187,7 +190,7 @@ func (s *NfseService) SendEvent(ctx context.Context, orgPK, id string, body Nfse
 	if err != nil {
 		return nil, err
 	}
-	workerBody, err := buildEventWorkerBody(ec.provider, ec.municipalityCode, ev)
+	workerBody, err := buildEventWorkerBody(ec.provider, ec.municipalityCode, ec.authorizer, ev)
 	if err != nil {
 		return nil, err
 	}

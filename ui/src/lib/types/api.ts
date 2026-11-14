@@ -319,6 +319,7 @@ export interface NfseAbrasfBody {
 export interface NfseConfigOut {
   pk: string
   provider: 'nacional' | 'abrasf204'
+  authorizer?: 'auto' | 'nacional' | 'municipal'
   environment: number
   timezone: string
   c_loc_emi: string

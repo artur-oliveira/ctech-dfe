@@ -103,13 +103,20 @@ describe('serviceSchema', () => {
 
 describe('nfseConfigSchema', () => {
   const base = {
-    provider: 'nacional' as const, environment: '2' as const,
+    provider: 'nacional' as const, authorizer: 'auto' as const, environment: '2' as const,
     timezone: 'America/Fortaleza' as const,
     c_loc_emi: '2211001', serie: '1', prod_current_number: '0', hom_current_number: '0',
   };
 
   it('aceita provider nacional sem campos ABRASF', () => {
     expect(nfseConfigSchema.safeParse(base).success).toBe(true);
+  });
+
+  it('aceita os três autorizadores e recusa outro valor', () => {
+    for (const authorizer of ['auto', 'nacional', 'municipal']) {
+      expect(nfseConfigSchema.safeParse({...base, authorizer}).success).toBe(true);
+    }
+    expect(nfseConfigSchema.safeParse({...base, authorizer: 'federal'}).success).toBe(false);
   });
 
   it('exige endpoint/wsdl/município quando provider é abrasf204', () => {
