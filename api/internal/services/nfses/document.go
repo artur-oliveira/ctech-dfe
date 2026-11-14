@@ -392,9 +392,6 @@ func listAttr(item map[string]types.AttributeValue, key string) []types.Attribut
 	return v.Value
 }
 
-// authorizerAuto é o modo da config em que o sistema decide o autorizador.
-const authorizerAuto = "auto"
-
 // resolveAuthorizer devolve o autorizador concreto (nfse.AuthorizerNacional ou
 // nfse.AuthorizerMunicipal) de uma emissão. nacional e municipal da config são
 // respeitados (a responsabilidade é de quem escolheu); auto (ou config anterior ao
