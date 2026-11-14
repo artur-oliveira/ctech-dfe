@@ -19,7 +19,7 @@ func Encode(b Breaker) string {
 	if (b.State == "" || b.State == Closed) && len(b.Failures) == 0 {
 		return ""
 	}
-	raw, _ := json.Marshal(stored{State: b.State, Failures: b.Failures, OpenedAt: b.OpenedAt, Streak: b.Streak})
+	raw, _ := json.Marshal(stored(b))
 	return string(raw)
 }
 
@@ -33,7 +33,7 @@ func Decode(raw string) Breaker {
 	if s.State == "" {
 		s.State = Closed
 	}
-	return Breaker{State: s.State, Failures: s.Failures, OpenedAt: s.OpenedAt, Streak: s.Streak}
+	return Breaker(s)
 }
 
 const (

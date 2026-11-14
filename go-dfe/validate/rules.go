@@ -1,7 +1,6 @@
 package validate
 
 import (
-	"math"
 	"strconv"
 )
 
@@ -108,10 +107,6 @@ func num(m map[string]any, key string) (float64, bool) {
 	}
 	return 0, false
 }
-
-const centavo = 0.0051
-
-func near(a, b float64) bool { return math.Abs(a-b) <= centavo }
 
 // O catálogo vive em rules_nfe.go, rules_mdfe.go e rules_cte.go (registrados em init).
 var catalog []Rule
