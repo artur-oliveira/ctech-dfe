@@ -1509,3 +1509,7 @@ enviados só um certificado descartável e uma chave falsa, e a ANTT respondeu 4
   ponto de emissão usa `certs[0]`. A SK do banco é o MD5 do arquivo, sem relação com a validade; não reordene fora do repositório.
 - NFS-e Sefin Nacional em produção restrita: `https://sefin.producaorestrita.nfse.gov.br/SefinNacional` (sem `/API`; o `/API/...` é só a
   página de docs). Confirmado em 2026-11-14: o caminho sem `/API` responde 400 JSON do Sefin com certificado válido.
+- NFS-e Nacional tem dois leiautes de DPS vivos ao mesmo tempo (produção 20260209, produção restrita NT 009 de 20/10/2026).
+  Mudou o XSD: baixe o pacote do gov.br/nfse (Atualizações e Implantações mostra a data), atualize `testdata/xsd_*`, regere o
+  `dps_paths_*.json` e rode `TestDPSCoverageMatchesSchema` e `TestDPSNT009NothingOutsideSchema`; eles apontam o campo que sobrou ou faltou.
+  Validação com `xmllint` nos testes de homologação; o XSD de produção 20260209 não valida em libxml2 (regex de `serie` com `^`/`$`).

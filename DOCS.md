@@ -1314,6 +1314,19 @@ do serviço não positivo), E0429 (alíquota do ISSQN acima de 5%) e E0204 (ISSQ
 que dependem de cadastro externo (Receita, município, convênio) seguem com o fisco. Para acrescentar uma regra: um
 `if` em `preValidate` e um caso em `TestPreValidate`.
 
+**Leiaute da DPS por ambiente (NT 009).** Em 20/10/2026 a Sefin publicou, só para produção restrita
+(`NFSe-ESQUEMAS_XSD-PRODREST-v1.01-20261020`, página *Documentação Técnica (Homologação/testes)* do gov.br/nfse), um
+leiaute novo do mesmo `versao="1.01"` (Nota Técnica 009): `finNFSe` sai de `IBSCBS` e entra em `infDPS` (obrigatório,
+entre `cMotivoEmisTI` e `chNFSeRej`), `CST` e `cClassTrib` saem de `trib/gIBSCBS` e ficam direto em `trib`, `vDedRed` e
+`gReeRepRes` viram `vAjusteBC`, `imovel` passa a `cMun`/`gLocacao`/`gUnidImob`. Produção segue no leiaute de 20260209
+(*Documentação Atual*). `nacional.BuildDPS` escolhe pelo `tpAmb` em `ntAmbientes` (`{2: true}`); a Sefin ainda não
+publicou a data da virada em produção, quando basta incluir `1` ali. Sintoma de usar o leiaute errado: `E1235 Falha no
+esquema XML do DF-e ... invalid child element 'cLocEmi' ... expected 'cMotivoEmisTI, finNFSe'`. Pendências na NT 009:
+`vAjusteBC`, `gLocacao`, `gUnidImob`, `bensMoveis` não são emitidos; `BuildDPS` recusa documento com `vDedRed`,
+`gReeRepRes` ou `imovel` em `tpAmb` 2 em vez de gerar XML inválido. Os XSD de ambos os leiautes estão em
+`go-dfe/nfse/nacional/testdata/` (`xsd_nt009`; o inventário de caminhos de cada um é `dps_paths_*.json`, gerado por
+`go-dfe/nfse/tables/gen/dps_manifest.py DIR_XSD SAIDA_JSON`).
+
 **Ciclo de vida da linha em `nfses`:**
 
 | `status`     | Quem escreve | Quando                                                                 |

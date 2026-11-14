@@ -3,6 +3,7 @@
 
 Uso (a partir da raiz do repositório):
     python3 go-dfe/nfse/tables/gen/dps_manifest.py
+    python3 go-dfe/nfse/tables/gen/dps_manifest.py DIR_XSD ARQUIVO_JSON   # outro conjunto de esquemas (ex.: NT 009)
 
 Entrada:  tmp/nfse/nfse-esquemas_xsd-*/Schemas/1.01/{DPS,tiposComplexos,tiposSimples}_v1.01.xsd
 Saída:    go-dfe/nfse/nacional/testdata/dps_paths_v1.01.json (versionado)
@@ -18,6 +19,8 @@ import xml.etree.ElementTree as ET
 XS = "{http://www.w3.org/2001/XMLSchema}"
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
 OUT = os.path.join(ROOT, "go-dfe", "nfse", "nacional", "testdata", "dps_paths_v1.01.json")
+# Conjunto alternativo de esquemas (diretório com os três XSD) e saída, via argumentos.
+SCHEMA_DIR = None
 
 # Conteúdo produzido pelo assinador XML-DSig, não pelo montador da DPS.
 EXCLUDED_PREFIXES = ("DPS/Signature",)
@@ -28,6 +31,8 @@ MAX_DEPTH = 40
 
 
 def find_schema(name):
+    if SCHEMA_DIR:
+        return os.path.join(SCHEMA_DIR, name)
     matches = glob.glob(os.path.join(ROOT, "tmp", "nfse", "nfse-esquemas_xsd-*", "Schemas", "1.01", name))
     if not matches:
         raise SystemExit(f"XSD não encontrado: tmp/nfse/*/Schemas/1.01/{name}")
@@ -167,4 +172,7 @@ def main():
 
 
 if __name__ == "__main__":
+    import sys
+    if len(sys.argv) == 3:
+        SCHEMA_DIR, OUT = os.path.abspath(sys.argv[1]), os.path.abspath(sys.argv[2])
     main()

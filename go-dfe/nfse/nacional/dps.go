@@ -47,6 +47,7 @@ type xmlInfDPS struct {
 	DCompet   string       `xml:"dCompet"`
 	TpEmit    int          `xml:"tpEmit"`
 	CMotivo   int          `xml:"cMotivoEmisTI,omitempty"`
+	FinNFSe   *int         `xml:"finNFSe,omitempty"` // só no leiaute da NT 009
 	ChNFSeRej string       `xml:"chNFSeRej,omitempty"`
 	CLocEmi   string       `xml:"cLocEmi"`
 	Subst     *xmlSubst    `xml:"subst,omitempty"`
@@ -345,6 +346,12 @@ func leftPad(s string, width int) string {
 	return strings.Repeat("0", width-len(s)) + s
 }
 
+// ntAmbientes lista os tpAmb que usam o leiaute da Nota Técnica 009 (esquemas de produção restrita de
+// 20/10/2026: finNFSe em infDPS, CST e cClassTrib direto em trib, vAjusteBC no lugar de vDedRed e
+// gReeRepRes). Produção (tpAmb 1) segue no leiaute de 20260209 até a Sefin publicar a data de virada; nesse
+// dia basta incluir 1 aqui. Fonte: gov.br/nfse, Atualizações e Implantações (20/10/2026).
+var ntAmbientes = map[int]bool{2: true}
+
 // BuildDPS serializa o modelo neutro na DPS 1.01, ainda SEM assinatura.
 // Devolve o XML e o idDPS. now é injetado para tornar o teste determinístico;
 // só é usado quando doc.DhEmi está vazio.
@@ -364,7 +371,11 @@ func BuildDPS(doc nfse.Document, now time.Time) ([]byte, string, error) {
 		dhEmi = now.UTC().Format(dateTimeUTCLayout)
 	}
 
-	ibscbs, err := toXMLIBSCBS(doc.IBSCBS, doc.Servico.CServ.CTribNac)
+	ntNova := ntAmbientes[doc.Ambiente]
+	if ntNova && doc.Valores.VDedRed != nil {
+		return nil, "", fmt.Errorf("nacional: dedução/redução (vDedRed) virou vAjusteBC na NT 009 e ainda não é suportada")
+	}
+	ibscbs, err := toXMLIBSCBS(doc.IBSCBS, doc.Servico.CServ.CTribNac, ntNova)
 	if err != nil {
 		return nil, "", err
 	}
@@ -380,6 +391,13 @@ func BuildDPS(doc nfse.Document, now time.Time) ([]byte, string, error) {
 		Serv:    toXMLServ(doc.Servico),
 		Valores: toXMLValores(doc.Valores),
 		IBSCBS:  ibscbs,
+	}
+	if ntNova {
+		fin := 0 // TSRTCFinNFSe só admite 0 (NFS-e regular)
+		if doc.IBSCBS != nil {
+			fin = doc.IBSCBS.FinNFSe
+		}
+		inf.FinNFSe = &fin
 	}
 	if doc.Substituicao != nil {
 		inf.Subst = &xmlSubst{

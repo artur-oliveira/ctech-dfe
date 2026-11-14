@@ -19,7 +19,7 @@ func TestToXMLIBSCBS_TpOperE0904(t *testing.T) {
 		{"compra governamental mantem", "010101", 1, 2},
 	}
 	for _, c := range cases {
-		out, err := toXMLIBSCBS(&nfse.IBSCBS{TpOper: 2, TpEnteGov: c.enteGov}, c.cTribNac)
+		out, err := toXMLIBSCBS(&nfse.IBSCBS{TpOper: 2, TpEnteGov: c.enteGov}, c.cTribNac, false)
 		if err != nil {
 			t.Fatal(err)
 		}
