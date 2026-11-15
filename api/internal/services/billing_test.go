@@ -440,3 +440,17 @@ func TestTwoPlansOfOneProductAreRefused(t *testing.T) {
 		t.Fatal("a subscription mixing two plans of the same product was accepted")
 	}
 }
+
+func TestOwnProductDropsOtherProductsPlans(t *testing.T) {
+	products := []billingclient.Product{
+		{ID: "prod_finance", Active: true, Prices: []billingclient.Price{{ID: "price_finance_free", Metadata: map[string]string{"plan": "free"}}}},
+		{ID: "prod_dfe", Active: true, Prices: []billingclient.Price{{ID: "price_dfe_v2_free", Metadata: map[string]string{"plan": "free"}}}},
+	}
+	own := sellable(ownProduct(products))
+	if len(own) != 1 || own[0].ID != "prod_dfe" {
+		t.Fatalf("catalogue = %+v, want only prod_dfe", own)
+	}
+	if err := ValidatePriceSelection(own, []string{"price_finance_free"}); err == nil {
+		t.Fatal("a price of another product was accepted")
+	}
+}

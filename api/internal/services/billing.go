@@ -55,6 +55,11 @@ const (
 
 const mdfeScopeOwnFleet = "frota_propria"
 
+// dfeProductID is this service's product in the shared billing catalogue. The
+// catalogue is tenant-wide (Finanças, Billing, ...); only this product's plans
+// may be shown or chosen here.
+const dfeProductID = "prod_dfe"
+
 // visibilityInternal names a price that exists to be granted, never sold: the
 // R$ 0 unlimited the CTech team and the first two customers run on.
 //
@@ -510,9 +515,21 @@ func (s *BillingService) Plans(ctx context.Context) ([]billingclient.Product, er
 	if err != nil {
 		return nil, err
 	}
-	products = sellable(products)
+	products = sellable(ownProduct(products))
 	CacheSet(ctx, s.cache, catalogCacheKey, products, catalogCacheTTL)
 	return products, nil
+}
+
+// ownProduct keeps only this service's product. Plans feeds both the picker and
+// validatePrices, so a price of another product is neither shown nor accepted.
+func ownProduct(products []billingclient.Product) []billingclient.Product {
+	out := make([]billingclient.Product, 0, 1)
+	for _, p := range products {
+		if p.ID == dfeProductID {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 // sellable drops what no customer may subscribe to: archived prices, products

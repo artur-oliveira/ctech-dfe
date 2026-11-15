@@ -720,13 +720,13 @@ export const billingPlansFixture = {
   billing_enabled: true,
   data: [
     {
-      id: 'prod_dfe_free',
+      id: 'prod_dfe',
       name: 'DF-e Free',
       active: true,
       prices: [
         {
           id: 'price_dfe_free_monthly',
-          product_id: 'prod_dfe_free',
+          product_id: 'prod_dfe',
           type: 'fixed' as const,
           unit_amount: 0,
           billing_timing: 'advance' as const,
@@ -736,13 +736,13 @@ export const billingPlansFixture = {
       ],
     },
     {
-      id: 'prod_dfe_ondemand',
+      id: 'prod_dfe',
       name: 'DF-e Sob Demanda',
       active: true,
       prices: [
         {
           id: 'price_dfe_ondemand_nfe',
-          product_id: 'prod_dfe_ondemand',
+          product_id: 'prod_dfe',
           type: 'metered' as const,
           unit_amount: 39,
           billing_timing: 'arrears' as const,
@@ -751,7 +751,7 @@ export const billingPlansFixture = {
         },
         {
           id: 'price_dfe_ondemand_nfce',
-          product_id: 'prod_dfe_ondemand',
+          product_id: 'prod_dfe',
           type: 'metered' as const,
           unit_amount: 19,
           billing_timing: 'arrears' as const,
@@ -761,13 +761,13 @@ export const billingPlansFixture = {
       ],
     },
     {
-      id: 'prod_dfe_pro',
+      id: 'prod_dfe',
       name: 'DF-e Pro',
       active: true,
       prices: [
         {
           id: 'price_dfe_pro_monthly',
-          product_id: 'prod_dfe_pro',
+          product_id: 'prod_dfe',
           type: 'fixed' as const,
           unit_amount: 14900,
           billing_timing: 'advance' as const,

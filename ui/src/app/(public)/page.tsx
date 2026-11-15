@@ -14,7 +14,7 @@ import type {DfeThemeKey} from '@/lib/theme/dfe-theme';
 const FLOW_STEPS = [
   {
     label: 'Emitir',
-    body: 'Escolha o cliente e os produtos para NF-e, NFC-e, CT-e ou MDF-e. O sistema já sabe o resto.',
+    body: 'Escolha o cliente e os produtos para NF-e, NFC-e, CT-e, MDF-e ou NFS-e. O sistema já sabe o resto.',
   },
   {
     label: 'Processar',
@@ -193,7 +193,7 @@ export default function Home() {
         <div className="mx-auto grid max-w-6xl gap-12 px-6 py-16 md:grid-cols-2 md:items-center md:py-24">
           <div className="space-y-6">
             <p className="font-mono text-xs tracking-widest text-primary-700 uppercase">
-              NF-e · NFC-e · CT-e · MDF-e
+              NF-e · NFC-e · CT-e · MDF-e · NFS-e
             </p>
             <h1 className="text-4xl font-bold leading-tight tracking-tight text-gray-900 md:text-5xl">
               Emita seus documentos fiscais de forma simples e resiliente.
@@ -217,7 +217,7 @@ export default function Home() {
 
       <section className="mx-auto max-w-6xl px-6 py-16">
         <h2 className="mb-6 text-2xl font-bold text-gray-900 md:text-3xl">Documentos suportados</h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-5">
           {DFE_DOCUMENTS.map((doc) => (
             <Link
               key={doc.code}
