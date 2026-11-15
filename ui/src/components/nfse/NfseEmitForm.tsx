@@ -467,7 +467,7 @@ export function NfseEmitForm({mode = 'emit', sourceIdDps}: NfseEmitFormProps) {
               <FormField control={form.control} name="service.tax_rate" render={({field}) => (
                 <FormItem>
                   <FormLabel>Alíquota ISS (%)</FormLabel>
-                  <CurrencyInput id={field.name} value={field.value ?? ''} onChange={field.onChange}
+                  <CurrencyInput unit="percent" id={field.name} value={field.value ?? ''} onChange={field.onChange}
                                  decimalPlaces={2} maxDecimalPlaces={4}/>
                   <FormMessage/>
                 </FormItem>

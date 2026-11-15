@@ -1,13 +1,16 @@
 'use client';
 
 import {useCallback} from 'react';
+import {useRouter} from 'next/navigation';
 import {useQueryClient} from '@tanstack/react-query';
 import {toast} from 'sonner';
 import {useAuth} from './useAuth';
 import {useWebSocket, type WSStatus} from '@aoctech/ws-client';
 import {queryKeys} from '@/lib/api/query-keys';
-import {getAccessToken, subscribeAccessToken} from '@/lib/api/client';
-import {EVENT_TYPE_INUTILIZACAO, resolveDfeResultToast} from '@/lib/utils/dfe-result-toast';
+import {apiClient, getAccessToken, subscribeAccessToken} from '@/lib/api/client';
+import {EVENT_TYPE_INUTILIZACAO, resolveDfeResultToast, type ResolvedToast} from '@/lib/utils/dfe-result-toast';
+import {docNumberFromKey, triggerRemoteDownload} from '@/lib/utils/dfe';
+import {printProblemMessage} from '@/lib/constants/document-formats';
 import {CIOT_TABLE_NAME} from '@/lib/constants/ciot';
 import {ciotIdFromSk, resolveCiotToast} from '@/lib/utils/ciot';
 
@@ -64,9 +67,56 @@ const INUT_DOC_TYPE: Record<string, string> = {
   nfces: 'nfce',
 };
 
+// PDF auxiliar de cada documento (DANFE, DANFC-e, DACTE, DAMDFE, DANFSe), pela tabela da mensagem.
+const AUXILIARY_PDF: Record<string, (id: string) => Promise<{ url: string }>> = {
+  nfes: (id) => apiClient.downloadNfeDanfe(id),
+  nfces: (id) => apiClient.downloadNfceDanfe(id),
+  nfses: (id) => apiClient.downloadDanfse(id),
+  ctes: (id) => apiClient.downloadCteDacte(id),
+  mdfes: (id) => apiClient.downloadMdfeDamdfe(id),
+};
+
+async function openAuxiliaryPdf(tableName: string, id: string): Promise<void> {
+  try {
+    triggerRemoteDownload((await AUXILIARY_PDF[tableName](id)).url);
+  } catch (e) {
+    toast.error(printProblemMessage(e));
+  }
+}
+
+const NUMBERED_STATUSES = new Set(['authorized', 'cancelled', 'closed', 'success']);
+
 export function useRealtimeUpdates(): { wsStatus: WSStatus } {
   const {selectedOrg} = useAuth();
   const qc = useQueryClient();
+  const router = useRouter();
+
+  // O número do documento sai da chave de acesso; na NFS-e a mensagem traz o id da DPS,
+  // então a chave vem do detalhe (já invalidado pela mensagem).
+  const resolveNumber = useCallback(async (msg: RealtimeMessage): Promise<number | null> => {
+    if (msg.table_name !== 'nfses') return docNumberFromKey(msg.access_key);
+    // Só as mensagens que citam o número fazem a consulta extra.
+    if (!msg.status || !NUMBERED_STATUSES.has(msg.status)) return null;
+    try {
+      const id = msg.access_key ?? '';
+      const doc = await qc.fetchQuery({queryKey: queryKeys.nfses.detail(id), queryFn: () => apiClient.getNfse(id)});
+      return docNumberFromKey(doc.access_key);
+    } catch {
+      return null;
+    }
+  }, [qc]);
+
+  const showToast = useCallback(({variant, message, action}: ResolvedToast) => {
+    toast[variant](message, action ? {
+      action: {
+        label: action.label,
+        onClick: () => {
+          if (action.kind === 'link') router.push(action.href);
+          else void openAuxiliaryPdf(action.tableName, action.id);
+        },
+      },
+    } : undefined);
+  }, [router]);
 
   const token = getAccessToken();
 
@@ -110,8 +160,7 @@ export function useRealtimeUpdates(): { wsStatus: WSStatus } {
       }
       // Resolve the toast from the result — event results report the event
       // outcome, not the (possibly reverted) document status.
-      const {variant, message} = resolveDfeResultToast(msg);
-      toast[variant](message);
+      void resolveNumber(msg).then((number) => showToast(resolveDfeResultToast(msg, number)));
     }
 
     if (msg.type === 'new_distribution_nfe') {
@@ -135,7 +184,7 @@ export function useRealtimeUpdates(): { wsStatus: WSStatus } {
     if (msg.type === 'import_xml_failed') {
       toast.error(msg.reason ? `Falha ao importar XML: ${msg.reason}` : 'Falha ao importar XML.');
     }
-  }, [qc, selectedOrg?.pk]);
+  }, [qc, selectedOrg?.pk, resolveNumber, showToast]);
 
   const {status: wsStatus} = useWebSocket({
     url: wsUrl,

@@ -7,6 +7,7 @@ import {nfceDetailFixture, nfcesFixture} from '@/lib/mock/fixtures';
 import type {NfeDetailOut} from '@/lib/types/api';
 
 let docs: string[] = [];
+vi.mock('next/navigation', () => ({useSearchParams: () => new URLSearchParams()}));
 vi.mock('@/lib/hooks/useAuth', () => ({useAuth: () => ({selectedOrg: {pk: '1'}})}));
 vi.mock('@/lib/hooks/useFiscalConfig', () => ({useContingencyDocs: () => docs}));
 

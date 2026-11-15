@@ -20,7 +20,7 @@ import {DownloadPdfButton} from '@/components/dfe/DownloadPdfButton';
 import type {NfseListOut} from '@/lib/types/api';
 import {formatCpfCnpj} from '@/lib/utils/document';
 import {formatCurrency} from '@/lib/utils/helpers';
-import {formatDatetimeBR, formatISODateBR, triggerRemoteDownload} from '@/lib/utils/dfe';
+import {docNumberFromKey, formatDatetimeBR, formatISODateBR, triggerRemoteDownload} from '@/lib/utils/dfe';
 import {setDocStatusOptimistic} from '@/lib/utils/dfe-status';
 import {HomologationBanner} from '@/components/ui/homologation-banner';
 import {ConfigRequiredBanner} from '@/components/ui/config-required-banner';
@@ -235,13 +235,17 @@ function NfsesContent() {
                 ariaLabel="NFS-es emitidas"
                 minWidth={150}
                 dimmed={isFetching}
-                headers={['Nº / Série', 'Competência', 'Tomador', 'Valor', 'Status', 'Emitida em', {label: '', align: 'right'}]}
+                headers={['NFS-e / DPS', 'Competência', 'Tomador', 'Valor', 'Status', 'Emitida em', {label: '', align: 'right'}]}
               >
                 {items.map((nfse) => (
                   <tr key={nfse.sk} className={TABLE_ROW}>
-                    <td className={TABLE_CELL} data-label="Nº / Série">
-                      <span className="font-mono font-medium text-gray-900">{nfse.number}</span>
-                      <span className="text-gray-400 text-xs ml-1">/ {nfse.serie}</span>
+                    <td className={TABLE_CELL} data-label="NFS-e / DPS">
+                      <span className="font-mono font-medium text-gray-900">
+                        {docNumberFromKey(nfse.access_key) ?? nfse.number}
+                      </span>
+                      <span className="text-gray-400 text-xs ml-1">
+                        {docNumberFromKey(nfse.access_key) != null ? `DPS ${nfse.number} / ${nfse.serie}` : `/ ${nfse.serie}`}
+                      </span>
                     </td>
                     <td className={`${TABLE_CELL} text-gray-700 whitespace-nowrap`} data-label="Competência">
                       {formatISODateBR(nfse.competence)}

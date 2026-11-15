@@ -1516,3 +1516,6 @@ enviados só um certificado descartável e uma chave falsa, e a ANTT respondeu 4
 - NFS-e: ordem dos elementos também é leiaute. O gate de cobertura (`TestDPSCoverageMatchesSchema`) só vê caminhos; ordem
   só aparece na validação por `xmllint` (`TestBuildDPS_NT009LayoutInHomologation`) e quando os campos opcionais estão preenchidos.
   Ao trocar o XSD, compare a sequência de cada `complexType` entre os dois pacotes, não só o conjunto de elementos.
+
+- **Campo percentual usa `CurrencyInput unit="percent"`** (`ui/src/components/ui/currency-input.tsx`): sufixo `%`, sem o prefixo `R$`. `R$` é só para valor monetário; alíquota e percentual nunca levam o prefixo de moeda.
+- **DANFSe segue o do ambiente nacional** (sem caixa por campo, rótulo sem código, traço no que falta, máscaras de IBGE, CEP, NBS e tributação nacional, chave sem separação). Ver DOCS.md, "DANFSe v2.0 é gerado por nós".

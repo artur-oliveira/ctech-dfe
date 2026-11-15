@@ -30,9 +30,27 @@ export const EVENT_TYPE_INUTILIZACAO = 'INUT';
 const TABLE_LABEL: Record<string, string> = {
   nfes: 'NF-e',
   nfces: 'NFC-e',
+  nfses: 'NFS-e',
   ctes: 'CT-e',
   mdfes: 'MDF-e',
 };
+
+// Eventos que cancelam o documento (110112 só cancela NF-e/NFC-e; no MDF-e encerra) e carta de correção.
+const EVENT_TYPE_CANCEL = '110111';
+const EVENT_TYPE_NFSE_CANCEL = '101101';
+const EVENT_TYPE_CCE = '110110';
+
+/** Rota de detalhe e parâmetro que identifica o documento, por tabela. */
+const DETAIL_ROUTE: Record<string, { path: string; param: string }> = {
+  nfes: {path: '/nfe/detail', param: 'key'},
+  nfces: {path: '/nfce/detail', param: 'key'},
+  nfses: {path: '/nfse/detail', param: 'id'},
+  ctes: {path: '/cte/detail', param: 'key'},
+  mdfes: {path: '/mdfe/detail', param: 'key'},
+};
+
+export const LABEL_VER_PDF = 'Ver PDF';
+export const LABEL_VER_DETALHES = 'Ver detalhes';
 
 export interface DfeResultMessage {
   result_kind?: string
@@ -40,36 +58,64 @@ export interface DfeResultMessage {
   status?: string
   sefaz_motive?: string
   event_type?: string
+  event_sk?: string
+  access_key?: string
 }
 
 export type ToastVariant = 'success' | 'error' | 'info'
 
+/** Botão do toast: `pdf` baixa o auxiliar do documento; `link` abre `href` na própria aplicação. */
+export type ToastAction =
+  | { kind: 'pdf'; label: string; tableName: string; id: string }
+  | { kind: 'link'; label: string; href: string }
+
 export interface ResolvedToast {
   variant: ToastVariant
   message: string
+  action?: ToastAction
 }
 
 function docLabel(tableName?: string): string {
   return TABLE_LABEL[tableName ?? ''] ?? 'Documento';
 }
 
+/** "NF-e 123", ou só "NF-e" quando o número não é conhecido. */
+function docWithNumber(tableName: string | undefined, number: number | null): string {
+  return number == null ? docLabel(tableName) : `${docLabel(tableName)} ${number}`;
+}
+
+function detailsAction(msg: DfeResultMessage): ToastAction | undefined {
+  const route = DETAIL_ROUTE[msg.table_name ?? ''];
+  if (!route || !msg.access_key) return undefined;
+  const qs = new URLSearchParams({[route.param]: msg.access_key});
+  if (msg.event_sk) qs.set('event', msg.event_sk);
+  return {kind: 'link', label: LABEL_VER_DETALHES, href: `${route.path}?${qs.toString()}`};
+}
+
 function motiveSuffix(motive?: string): string {
   return motive ? `; ${motive}` : '';
 }
 
-function resolveDocumentToast(msg: DfeResultMessage): ResolvedToast {
+function resolveDocumentToast(msg: DfeResultMessage, number: number | null): ResolvedToast {
   const doc = docLabel(msg.table_name);
+  const docNum = docWithNumber(msg.table_name, number);
   const motive = motiveSuffix(msg.sefaz_motive);
   // Concorda com o substantivo: nota autorizada, manifesto autorizado.
   const a = DOC_GENDER[msg.table_name ?? ''] === 'm' ? 'o' : 'a';
 
   switch (msg.status) {
     case 'authorized':
-      return {variant: 'success', message: `${doc} autorizad${a} pela SEFAZ`};
+      return {
+        variant: 'success',
+        message: `${docNum} autorizad${a}`,
+        action: msg.access_key && msg.table_name
+          ? {kind: 'pdf', label: LABEL_VER_PDF, tableName: msg.table_name, id: msg.access_key}
+          : undefined,
+      };
     case 'cancelled':
-      return {variant: 'success', message: `${doc} cancelad${a} com sucesso`};
+      return {variant: 'success', message: `${docNum} cancelad${a}`, action: detailsAction(msg)};
     case 'closed':
-      return {variant: 'success', message: `${doc} encerrad${a} com sucesso`};
+      return {variant: 'success', message: `${docNum} encerrad${a}`};
     case 'rejected':
       return {variant: 'error', message: `${doc} rejeitad${a} pela SEFAZ${motive}`};
     case 'failed':
@@ -84,8 +130,9 @@ function resolveDocumentToast(msg: DfeResultMessage): ResolvedToast {
   }
 }
 
-function resolveEventToast(msg: DfeResultMessage): ResolvedToast {
+function resolveEventToast(msg: DfeResultMessage, number: number | null): ResolvedToast {
   const doc = docLabel(msg.table_name);
+  const docNum = docWithNumber(msg.table_name, number);
   const motive = motiveSuffix(msg.sefaz_motive);
   const a = DOC_GENDER[msg.table_name ?? ''] === 'm' ? 'o' : 'a';
 
@@ -100,22 +147,38 @@ function resolveEventToast(msg: DfeResultMessage): ResolvedToast {
   } else if (msg.event_type === EVENT_TYPE_ENCERRAMENTO && msg.table_name === TABLE_MDFE) {
     wording = {
       retry: `Encerramento de ${doc} não concluído`,
-      success: `${doc} encerrad${a} com sucesso`,
+      success: `${docNum} encerrad${a}`,
       fail: `Falha ao encerrar ${doc}`,
       reject: `Encerramento de ${doc} rejeitado pela SEFAZ`,
     };
-  } else {
+  } else if (msg.event_type === EVENT_TYPE_CCE) {
+    wording = {
+      retry: `Correção de ${doc} não concluída`,
+      success: `Correção da ${docNum} enviada`,
+      fail: `Falha ao enviar a correção de ${doc}`,
+      reject: `Correção de ${doc} rejeitada pela SEFAZ`,
+    };
+  } else if (msg.event_type === EVENT_TYPE_CANCEL || msg.event_type === EVENT_TYPE_NFSE_CANCEL
+    || msg.event_type === EVENT_TYPE_ENCERRAMENTO) {
     wording = {
       retry: `Cancelamento de ${doc} não concluído`,
-      success: `${doc} cancelad${a} com sucesso`,
+      success: `${docNum} cancelad${a}`,
       fail: `Falha ao cancelar ${doc}`,
       reject: `Cancelamento de ${doc} rejeitado pela SEFAZ`,
+    };
+  } else {
+    // Manifestação do destinatário, prorrogação, ator interessado e demais eventos.
+    wording = {
+      retry: `Evento de ${doc} não concluído`,
+      success: `Evento registrado em ${docNum}`,
+      fail: `Falha ao registrar o evento de ${doc}`,
+      reject: `Evento de ${doc} rejeitado pela SEFAZ`,
     };
   }
 
   switch (msg.status) {
     case EVENT_STATUS_SUCCESS:
-      return {variant: 'success', message: wording.success};
+      return {variant: 'success', message: wording.success, action: detailsAction(msg)};
     case EVENT_STATUS_REJECTED:
       return {variant: 'error', message: `${wording.reject}${motive}`};
     case STATUS_RETRYABLE_FAILED:
@@ -129,8 +192,9 @@ function resolveEventToast(msg: DfeResultMessage): ResolvedToast {
   }
 }
 
-export function resolveDfeResultToast(msg: DfeResultMessage): ResolvedToast {
+/** `number` é o número do documento (da chave de acesso); sem ele a mensagem sai sem número. */
+export function resolveDfeResultToast(msg: DfeResultMessage, number: number | null = null): ResolvedToast {
   return msg.result_kind === RESULT_KIND_EVENT
-    ? resolveEventToast(msg)
-    : resolveDocumentToast(msg);
+    ? resolveEventToast(msg, number)
+    : resolveDocumentToast(msg, number);
 }

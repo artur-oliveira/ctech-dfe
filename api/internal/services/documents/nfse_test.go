@@ -47,20 +47,20 @@ func TestBuildNFSeContextReadsAuthorizedXML(t *testing.T) {
 	}
 
 	// Rótulos vêm do catálogo gerado, nunca redigitados no builder.
-	if got := ident["emitente_tipo"]; got != "1 - Prestador" {
+	if got := ident["emitente_tipo"]; got != "Prestador" {
 		t.Errorf("emitente_tipo = %v", got)
 	}
 	tribMun := ctx["trib_mun"].(map[string]any)
-	if got, _ := tribMun["tipo_tributacao"].(string); !strings.HasPrefix(got, "1 - ") {
+	if got, _ := tribMun["tipo_tributacao"].(string); got != "Operação tributável" {
 		t.Errorf("tributação ISSQN sem rótulo do catálogo: %q", got)
 	}
 
 	totais := ctx["totais"].(map[string]any)
-	if totais["valor_operacao"] != "1.000,00" || totais["valor_liquido"] != "980,00" {
+	if totais["valor_operacao"] != "R$ 1.000,00" || totais["valor_liquido"] != "R$ 980,00" {
 		t.Errorf("totais = %+v", totais)
 	}
 	// Percentuais também saem em pt-BR, sem arredondar as casas do XML.
-	if totais["perc_federal"] != "3,65" || tribMun["aliquota_aplicada"] != "2,00" {
+	if totais["perc_federal"] != "3,65 %" || tribMun["aliquota_aplicada"] != "2,00 %" {
 		t.Errorf("percentuais não formatados: %v / %v", totais["perc_federal"], tribMun["aliquota_aplicada"])
 	}
 	// Partes ausentes viram nil para o template suprimir o quadro inteiro.
@@ -77,7 +77,7 @@ func TestBuildNFSeContextReadsAuthorizedXML(t *testing.T) {
 		t.Errorf("prestador = %+v", prestador)
 	}
 	// Total do IBS/CBS não existe pronto no XML: é IBS + CBS apurados.
-	if totais["total_ibscbs"] != "10,50" || totais["liquido_ibscbs"] != "990,50" {
+	if totais["total_ibscbs"] != "R$ 10,50" || totais["liquido_ibscbs"] != "R$ 990,50" {
 		t.Errorf("totais IBS/CBS = %v / %v", totais["total_ibscbs"], totais["liquido_ibscbs"])
 	}
 	// O canhoto do pé da folha repete número e chave.

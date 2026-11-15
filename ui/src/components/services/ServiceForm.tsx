@@ -421,7 +421,7 @@ export function ServiceForm({initialData, onSubmit, loading = false}: ServiceFor
               <FormField control={form.control} name="iss.tax_rate" render={({field}) => (
                 <FormItem>
                   <FormLabel>Alíquota (%) *</FormLabel>
-                  <CurrencyInput id={field.name} value={field.value ?? ''} onChange={field.onChange}
+                  <CurrencyInput unit="percent" id={field.name} value={field.value ?? ''} onChange={field.onChange}
                                  decimalPlaces={2} maxDecimalPlaces={4}/>
                   {suggestedRate != null && (
                     <FormDescription>
@@ -458,7 +458,7 @@ export function ServiceForm({initialData, onSubmit, loading = false}: ServiceFor
           <FormField control={form.control} name="tot_trib.p_tot_trib_sn" render={({field}) => (
             <FormItem>
               <FormLabel>Total aproximado de tributos, Simples Nacional (%)</FormLabel>
-              <CurrencyInput id={field.name} value={field.value ?? ''} onChange={field.onChange}
+              <CurrencyInput unit="percent" id={field.name} value={field.value ?? ''} onChange={field.onChange}
                              decimalPlaces={2} maxDecimalPlaces={4}/>
               <FormDescription>
                 Obrigatório para prestador ME/EPP optante pelo Simples Nacional; MEI e demais regimes deixam em
@@ -571,7 +571,7 @@ export function ServiceForm({initialData, onSubmit, loading = false}: ServiceFor
               <FormField control={form.control} name="federal.aliq_pis" render={({field}) => (
                 <FormItem>
                   <FormLabel>Alíquota PIS (%)</FormLabel>
-                  <CurrencyInput id={field.name} value={field.value ?? ''} onChange={field.onChange}
+                  <CurrencyInput unit="percent" id={field.name} value={field.value ?? ''} onChange={field.onChange}
                                  decimalPlaces={2} maxDecimalPlaces={4}/>
                   <FormMessage/>
                 </FormItem>
@@ -579,7 +579,7 @@ export function ServiceForm({initialData, onSubmit, loading = false}: ServiceFor
               <FormField control={form.control} name="federal.aliq_cofins" render={({field}) => (
                 <FormItem>
                   <FormLabel>Alíquota COFINS (%)</FormLabel>
-                  <CurrencyInput id={field.name} value={field.value ?? ''} onChange={field.onChange}
+                  <CurrencyInput unit="percent" id={field.name} value={field.value ?? ''} onChange={field.onChange}
                                  decimalPlaces={2} maxDecimalPlaces={4}/>
                   <FormMessage/>
                 </FormItem>

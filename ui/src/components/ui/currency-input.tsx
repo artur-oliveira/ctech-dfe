@@ -10,6 +10,8 @@ interface CurrencyInputProps
   decimalPlaces?: number
   maxDecimalPlaces?: number
   allowZero?: boolean
+  /** `currency` (padrão) mostra o prefixo R$; `percent` mostra o sufixo %. */
+  unit?: 'currency' | 'percent'
 }
 
 export function CurrencyInput({
@@ -18,6 +20,7 @@ export function CurrencyInput({
                                 decimalPlaces = 2,
                                 maxDecimalPlaces,
                                 allowZero = true,
+                                unit = 'currency',
                                 className,
                                 disabled,
                                 placeholder,
@@ -92,10 +95,12 @@ export function CurrencyInput({
         className
       )}
     >
-      <span
-        className="flex h-full shrink-0 items-center border-r border-input bg-muted/30 px-2 text-sm text-muted-foreground select-none">
-        R$
-      </span>
+      {unit === 'currency' && (
+        <span
+          className="flex h-full shrink-0 items-center border-r border-input bg-muted/30 px-2 text-sm text-muted-foreground select-none">
+          R$
+        </span>
+      )}
       <input
         type="text"
         inputMode="decimal"
@@ -109,6 +114,12 @@ export function CurrencyInput({
         {...props}
         id={props.id ?? props.name}
       />
+      {unit === 'percent' && (
+        <span
+          className="flex h-full shrink-0 items-center border-l border-input bg-muted/30 px-2 text-sm text-muted-foreground select-none">
+          %
+        </span>
+      )}
     </div>
   );
 }

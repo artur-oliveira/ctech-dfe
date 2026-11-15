@@ -95,3 +95,30 @@ func TestDispatch_MissingBothPKsIsDropped(t *testing.T) {
 		t.Fatalf("broadcasts = %d, want 0 (no doc_pk and no org_pk)", len(conn.messages))
 	}
 }
+
+// Duas abas logadas na mesma organização são duas conexões com connID próprio
+// sob a mesma chave: as duas recebem o resultado, e a aba de outra organização não.
+func TestDispatch_BroadcastReachesEveryTabOfTheOrg(t *testing.T) {
+	t.Parallel()
+	reg := ws.NewMemoryRegistry()
+	tabA, tabB, otherOrg := &fakeConn{}, &fakeConn{}, &fakeConn{}
+	reg.Register("CNPJ_12345678000195", "conn-tab-a", tabA)
+	reg.Register("CNPJ_12345678000195", "conn-tab-b", tabB)
+	reg.Register("CNPJ_99999999000191", "conn-other", otherOrg)
+	c := &ResultsConsumer{registry: reg, cache: cache.NewMemoryBackend(16)}
+
+	body, _ := json.Marshal(map[string]any{
+		"doc_pk":     "prod#CNPJ_12345678000195",
+		"table_name": "nfses",
+		"status":     "authorized",
+		"access_key": "DPS1",
+	})
+	c.dispatch(context.Background(), sqsMessageWithBody(body))
+
+	if len(tabA.messages) != 1 || len(tabB.messages) != 1 {
+		t.Fatalf("abas da mesma organização receberam %d e %d mensagens, quer 1 e 1", len(tabA.messages), len(tabB.messages))
+	}
+	if len(otherOrg.messages) != 0 {
+		t.Errorf("aba de outra organização recebeu %d mensagens", len(otherOrg.messages))
+	}
+}

@@ -24,6 +24,13 @@ export default function GuideEventos() {
                 Cada linha traz o tipo do evento, a sequência, o status e o XML do próprio evento;
                 ele também é documento fiscal e também deve ser guardado.
               </p>
+              <p>
+                O resultado também chega como aviso na tela, em tempo real e em todas as abas abertas
+                da organização. O aviso cita o número do documento, como em <b>NFS-e 1 autorizada</b>,
+                e traz um botão: <b>Ver PDF</b> baixa o impresso do documento; em cancelamentos e
+                cartas de correção, <b>Ver detalhes</b> abre o documento com o evento destacado na
+                linha do tempo.
+              </p>
               <GuideBullets>
                 <li><b>Registrado</b>; a SEFAZ aceitou o evento.</li>
                 <li><b>Processando</b>; o pedido está em voo, e a linha atualiza sozinha.</li>

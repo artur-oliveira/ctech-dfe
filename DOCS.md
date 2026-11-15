@@ -1306,6 +1306,8 @@ responsabilidade é de quem escolheu). No go-dfe, `nacional.Config.Authorizer = 
 (`authorizer`) e os eventos reutilizam o da linha, para que uma nota autorizada no Sefin Nacional seja cancelada
 no Sefin Nacional; linhas anteriores ao campo não têm `authorizer` e seguem o autorizador do município como antes.
 
+**Notificações em tempo real e número da NFS-e.** O toast do resultado (`ui/src/lib/utils/dfe-result-toast.ts`, montado em `useRealtimeUpdates`) cita o número do documento e traz um botão: autorizada vira "NFS-e 1 autorizada" com **Ver PDF** (baixa o auxiliar do documento); cancelada vira "NFS-e 1 cancelada" e carta de correção "Correção da NF-e 123 enviada", ambos com **Ver detalhes**, que abre o detalhe com `?event={sk}` e destaca a linha do evento (`useHighlightedEvent`). Gênero concorda com o documento (CT-e e MDF-e no masculino). O número sai da chave de acesso (`docNumberFromKey`: 9 dígitos nas chaves de 44, 13 nas de 50 da NFS-e); como a mensagem da NFS-e traz o id da DPS, o hook busca o detalhe para ler a chave. A lista e o detalhe da NFS-e mostram o **número da NFS-e** e, ao lado, o da DPS. O registro do WebSocket é por organização, com um `connID` por conexão: todas as abas abertas da organização recebem o resultado (`TestDispatch_BroadcastReachesEveryTabOfTheOrg`).
+
 **Alíquota do ISSQN (E0600, E0602, E0604, E0625, E0631, E0621).** O Sefin rejeita a DPS se `pAliq` vier preenchida para MEI, para `tribISSQN` diferente de 1, para prestador com regime especial de tributação, ou para ME/EPP no Simples Nacional (`opSimpNac=3`, `regApTribSN=1`) sem retenção (`tpRetISSQN=1`); com o município ativo ou não no Sistema Nacional a regra é a mesma. `dropAliqNaoPermitida` (`api/internal/services/nfses/prevalidate.go`) limpa a alíquota nesses casos antes do envio, sem erro ao usuário. No caso inverso (ME/EPP no Simples com retenção 2 ou 3) a alíquota é obrigatória e `preValidate` devolve 400 E0621. Regras de alíquota que dependem do município (E0617, E0619, E0635, E0640) não são tratadas.
 
 **Total de tributos por regime (E0710, E0712, E0713).** `totTrib` é um choice obrigatório da DPS. MEI não pode enviar `pTotTribSN` (E0710): `dropTotTribNaoPermitido` o limpa e sobra `indTotTrib=0`. ME/EPP não pode enviar `indTotTrib` (E0712): `preValidate` exige `p_tot_trib_sn` no cadastro do serviço (400 E0712) e o go-dfe emite `pTotTribSN`. O campo `p_tot_trib_sn` é preenchido no formulário do serviço (`ServiceForm.tsx`, card ISSQN, "Total aproximado de tributos, Simples Nacional (%)"); o guia (`/guide/registries`, Serviços) explica. Não optante (E0713) também não pode `indTotTrib` nem `pTotTribSN`, mas o cadastro do serviço só guarda esses dois campos; esse caso não é tratado e depende do erro reportado em homologação.
@@ -1419,24 +1421,34 @@ Três diferenças estruturais em relação aos demais auxiliares, todas nomeadas
    `nfses.danfseState` resolve o estado: cancelada com `substituted_by_access_key` preenchido é
    substituída.
 
-O leiaute segue o modelo oficial da NT, na ordem: cabeçalho (marca, título, município e ambiente);
+O leiaute segue o DANFSe do ambiente nacional, na ordem: cabeçalho cinza (logotipo da NFS-e, título, `Município - UF` e ambiente);
 chave de acesso com QR e a legenda de autenticidade; PRESTADOR/FORNECEDOR, TOMADOR/ADQUIRENTE,
-DESTINATÁRIO DA OPERAÇÃO e INTERMEDIÁRIO DA OPERAÇÃO (cada parte ausente suprime o quadro inteiro);
-SERVIÇO PRESTADO; TRIBUTAÇÃO MUNICIPAL (ISSQN); TRIBUTAÇÃO FEDERAL (EXCETO CBS); TRIBUTAÇÃO IBS/CBS;
+DESTINATÁRIO DA OPERAÇÃO e INTERMEDIÁRIO DA OPERAÇÃO (tomador ausente suprime o quadro; destinatário e
+intermediário ausentes viram a linha "NÃO IDENTIFICADO NA NFS-E"); SERVIÇO PRESTADO; TRIBUTAÇÃO MUNICIPAL
+(ISSQN); TRIBUTAÇÃO FEDERAL (EXCETO CBS, sempre impressa, com traço quando vazia); TRIBUTAÇÃO IBS/CBS;
 VALOR TOTAL DA NFS-E; INFORMAÇÕES COMPLEMENTARES; e o canhoto
 (DATA CIENTIFICAÇÃO / IDENTIFICAÇÃO E ASSINATURA / Nº NFS-e / CHAVE), ancorado no pé da folha por um
 absoluto em `top: 274mm` — folio não tem elemento corrido, e a margem de `@page` mantém o fluxo longe
 da faixa. A linha "Gerado por … em …" fecha o rodapé, abaixo do canhoto.
 
+Estilo e formatação (mesmos do DANFSe nacional): moldura externa e uma linha fina entre blocos, sem caixa por
+campo; o título de cada bloco fica numa célula cinza. Domínios fechados saem só com o texto oficial
+(`enumLabel`: "Prestador", "NFS-e Gerada", "NFS-e regular", sem o código na frente). Campo ausente imprime
+traço (`moneyOpt` e `percentOpt` devolvem vazio, nunca "R$ 0,00"). Máscaras em `documents/format.go`: IBGE
+`22.11001`, CEP `64.057-060`, NBS `1.1502.10.00`, tributação nacional `01.01.01`. A **chave de acesso sai sem
+separação**: ela tem 50 dígitos, e o agrupamento de 4 em 4 da NF-e (44) não vale para a NFS-e. A finalidade vem do
+`finNFSe` (`infDPS` na NT 009, `IBSCBS` no leiaute anterior). O logotipo é o asset
+`documents/assets/nfse-logo.png`, embutido por `go:embed` e entregue como data URI.
+
 Dois campos não existem prontos em nenhum nó do XML e são derivados, nunca inventados:
 `Total do IBS/CBS` é `vIBSTot + vCBS` (`sumDecimals`) e `VALOR LÍQUIDO DA NFS-e + IBS/CBS` soma esse
-total ao `vLiq`. Já `Município / Sigla UF` das partes da DPS fica vazio quando o XML só traz o código
-IBGE: o nome do município é resolvido pelo fisco e só aparece no emitente.
+total ao `vLiq`. Em `Município / Sigla UF` das partes da DPS, o nome só sai quando o próprio XML o informa
+para aquele código IBGE (emissor, incidência e local da prestação, `nfseKnownCities`) e a UF vem dos dois
+primeiros dígitos do código (`ufByIBGEPrefix`); município sem nome no XML sai só com a UF.
 
 A face embarcada é a **DejaVu Sans**: Arial/Microsoft Sans Serif exigidas pela NT não são
-redistribuíveis, e depender da fonte instalada na máquina produziria PDF diferente por ambiente. A
-marca do topo é o wordmark textual "NFS-e / Nota Fiscal de Serviço eletrônica" — a logomarca oficial
-ainda não é um asset versionado no repositório e nenhum fetch em runtime é feito.
+redistribuíveis, e depender da fonte instalada na máquina produziria PDF diferente por ambiente. Nenhum
+fetch em runtime é feito: logotipo e fonte vão dentro do binário.
 
 `GetDANFSE` returns **501** for `provider == abrasf204`: the ABRASF 2.04 layout defines no
 standard DANFSE PDF, so this is a real capability gap in the municipality's standard, not a missing

@@ -7,6 +7,23 @@ export function triggerRemoteDownload(url: string): void {
   document.body.removeChild(a);
 }
 
+// Posições do número dentro da chave: NF-e, NFC-e, CT-e e MDF-e (44 dígitos) levam
+// cUF, AAMM, CNPJ, modelo e série antes dos 9 dígitos do número; a chave da NFS-e
+// nacional (50) leva cLocEmi, ambiente, tipo e inscrição antes dos 13 do número.
+const KEY_44_NUMBER = [25, 34] as const;
+const KEY_NFSE_LENGTH = 50;
+const KEY_NFSE_NUMBER = [23, 36] as const;
+const KEY_44_LENGTH = 44;
+
+/** Número do documento (nNF, nCT, nMDF, nNFSe) lido da chave de acesso; null se a chave não tem o tamanho esperado. */
+export function docNumberFromKey(accessKey: string | null | undefined): number | null {
+  const key = accessKey ?? '';
+  const range = key.length === KEY_NFSE_LENGTH ? KEY_NFSE_NUMBER : key.length === KEY_44_LENGTH ? KEY_44_NUMBER : null;
+  if (!range) return null;
+  const n = Number(key.slice(range[0], range[1]));
+  return Number.isInteger(n) ? n : null;
+}
+
 export function formatNsu(nsu: number): string {
   return String(nsu).padStart(15, '0');
 }

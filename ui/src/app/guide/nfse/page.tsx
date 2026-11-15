@@ -56,7 +56,9 @@ export default function GuideNfse() {
           body: (
             <>
               <p>
-                No detalhe, o id da DPS (e a chave, quando a nota é autorizada) aparece sob o número.
+                A lista e o detalhe mostram o <b>número da NFS-e</b>, dado pelo município na
+                autorização, com o número da <b>DPS</b> ao lado; são sequências diferentes (a
+                DPS 5 pode ser a NFS-e 1). No detalhe, o id da DPS (e a chave, quando a nota é autorizada) aparece sob o número.
                 Passe o mouse sobre ele para ver o ícone de copiar; o clique copia o valor sem
                 formatação. O mesmo vale para a chave de acesso de NF-e, NFC-e e MDF-e.
               </p>
