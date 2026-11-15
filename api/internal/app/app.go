@@ -717,8 +717,8 @@ func startServer(lc fx.Lifecycle, app *fiber.App, cfg *config.Config) {
 	})
 }
 
-func newResultsConsumer(clients *awsclient.Clients, cfg *config.Config, reg ws.Registry, c cache.Backend, billing *services.BillingService) *consumer.ResultsConsumer {
-	return consumer.NewResultsConsumer(clients.SQS, cfg.ResultsQueueURL, reg, c, billing)
+func newResultsConsumer(clients *awsclient.Clients, cfg *config.Config, reg ws.Registry, c cache.Backend, billing *services.BillingService, hooks *services.WebhookService) *consumer.ResultsConsumer {
+	return consumer.NewResultsConsumer(clients.SQS, cfg.ResultsQueueURL, reg, c, billing).WithWebhooks(hooks)
 }
 
 // newLevelReporter delivers companies levels to billing. Billing off → a nil

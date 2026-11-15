@@ -261,3 +261,90 @@ func TestWebhookRotateReturnsANewSecretThatSigns(t *testing.T) {
 		t.Fatalf("second delete: %v, want 404", err)
 	}
 }
+
+func TestWebhookEmitWritesOnlyForWantingEndpointsAndIsIdempotent(t *testing.T) {
+	ctx := context.Background()
+	e := newWebhookEnv(t, nil)
+	mk := func(events, companies []string) *repositories.WebhookEndpoint {
+		ep := &repositories.WebhookEndpoint{ID: repositories.GenerateID(), OrganizationID: e.org, URL: "https://hooks.invalid/x",
+			Secret: webhooks.NewSecret(), Status: repositories.WebhookActive, Events: events, CompanyPKs: companies}
+		if err := e.repo.CreateEndpoint(ctx, ep, time.Now()); err != nil {
+			t.Fatal(err)
+		}
+		return ep
+	}
+	all := mk(nil, nil)
+	onlyRejected := mk([]string{services.WebhookEventRejected}, nil)
+	otherCompany := mk(nil, []string{"another-company"})
+
+	in := services.WebhookResult{
+		CompanyPK: e.company, OrganizationID: e.org, DocumentKey: "35250512345678000195550010000000011000000015",
+		Table: "nfes", Status: "rejected", SefazStatus: "225", SefazMotive: "Falha no Schema XML", SentAt: time.UnixMilli(1800000000123),
+	}
+	for i := 0; i < 2; i++ { // a redelivered SQS message repeats the call
+		if err := e.svc.Emit(ctx, in); err != nil {
+			t.Fatal(err)
+		}
+	}
+	count := func(ep *repositories.WebhookEndpoint) int {
+		page, _, _ := e.repo.ListDeliveries(ctx, e.org, ep.ID, nil, 50)
+		return len(page)
+	}
+	if count(all) != 1 || count(onlyRejected) != 1 || count(otherCompany) != 0 {
+		t.Fatalf("deliveries all=%d onlyRejected=%d otherCompany=%d, want 1 1 0 (the repeat must not add one)",
+			count(all), count(onlyRejected), count(otherCompany))
+	}
+
+	// An authorization is not for the endpoint that only wants rejections.
+	in.Status, in.SefazStatus, in.SefazMotive = "authorized", "100", "Autorizado o uso da NF-e"
+	if err := e.svc.Emit(ctx, in); err != nil {
+		t.Fatal(err)
+	}
+	if count(all) != 2 || count(onlyRejected) != 1 {
+		t.Fatalf("after authorization all=%d onlyRejected=%d, want 2 1", count(all), count(onlyRejected))
+	}
+
+	// The body is the minimum and carries the rejection only when there is one.
+	page, _, _ := e.repo.ListDeliveries(ctx, e.org, onlyRejected.ID, nil, 50)
+	due := repositories.DueOf(page[0])
+	var body map[string]any
+	if err := json.Unmarshal(due.Event.Body, &body); err != nil {
+		t.Fatal(err)
+	}
+	data := body["data"].(map[string]any)
+	if body["type"] != "document.rejected" || data["id"] != in.DocumentKey || data["access_key"] != in.DocumentKey ||
+		data["status"] != "rejected" || data["document_type"] != "nfe" {
+		t.Fatalf("body = %v", body)
+	}
+	if rej := data["rejection"].(map[string]any); rej["code"] != "225" || rej["message"] != "Falha no Schema XML" {
+		t.Fatalf("rejection = %v", rej)
+	}
+	if len(data) != 5 {
+		t.Fatalf("data has %d fields, want exactly id, access_key, status, document_type, rejection: %v", len(data), data)
+	}
+}
+
+func TestWebhookEmitSkipsWhenNoEndpointOrNoKey(t *testing.T) {
+	ctx := context.Background()
+	e := newWebhookEnv(t, nil)
+	in := services.WebhookResult{CompanyPK: e.company, OrganizationID: e.org, DocumentKey: "k", Table: "nfes", Status: "authorized", SentAt: time.Now()}
+	if err := e.svc.Emit(ctx, in); err != nil { // nobody subscribed: nothing to write, nothing to fail
+		t.Fatal(err)
+	}
+	noKey := *cfg
+	noKey.WebhookSecretKey = ""
+	svc := services.NewWebhookService(repositories.NewWebhookRepository(db, &noKey), nil, e.verifier, nil)
+	if err := svc.Emit(ctx, in); err != nil {
+		t.Fatalf("emit with webhooks off: %v", err)
+	}
+}
+
+func TestWebhookEventIDIsStableAndSortsByTime(t *testing.T) {
+	a := repositories.WebhookEventID(time.UnixMilli(1800000000000), "doc|authorized")
+	b := repositories.WebhookEventID(time.UnixMilli(1800000000000), "doc|authorized")
+	later := repositories.WebhookEventID(time.UnixMilli(1800000005000), "doc|authorized")
+	other := repositories.WebhookEventID(time.UnixMilli(1800000000000), "doc|rejected")
+	if a != b || a == other || !(a < later) {
+		t.Fatalf("a=%s b=%s later=%s other=%s", a, b, later, other)
+	}
+}

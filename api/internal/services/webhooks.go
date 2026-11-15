@@ -279,3 +279,77 @@ func (s *WebhookService) Replay(ctx context.Context, companyPK, userID, endpoint
 	}
 	return s.attempt(ctx, scope.OrganizationID, endpointID, eventID, s.now())
 }
+
+// WebhookResult is a document's terminal outcome as the results consumer sees it.
+type WebhookResult struct {
+	CompanyPK string
+	// OrganizationID is the ctech-account organization when the message carries
+	// it; empty is resolved from the company.
+	OrganizationID string
+	// DocumentKey is the document's row key: the chave de acesso for NF-e, NFC-e,
+	// CT-e and MDF-e, the id_dps for NFS-e.
+	DocumentKey string
+	Table       string
+	Status      string
+	// SefazStatus and SefazMotive are the authority's code and reason, used only
+	// for a rejection.
+	SefazStatus, SefazMotive string
+	// SentAt is when the result was published (the queue's SentTimestamp); the
+	// event id is derived from it so a redelivery repeats the same id.
+	SentAt time.Time
+}
+
+var webhookEventTypeOf = map[string]string{
+	"authorized": WebhookEventAuthorized,
+	"rejected":   WebhookEventRejected,
+	"failed":     WebhookEventFailed,
+}
+
+// Emit turns a terminal document result into a delivery for each endpoint that
+// wants it. Nothing here makes an HTTP call: the scheduled job delivers. An event
+// nobody wants writes nothing; webhooks off, an unlinked organization and a
+// result that is not a document are skipped (nothing the queue could fix). A
+// failed write is returned so the message stays on the queue: the write is
+// idempotent (the id is derived from the event), so a retry cannot duplicate it.
+func (s *WebhookService) Emit(ctx context.Context, in WebhookResult) error {
+	if !s.Enabled() {
+		return nil
+	}
+	eventType, ok := webhookEventTypeOf[in.Status]
+	docType, isDoc := MeterForTable[in.Table]
+	if !ok || !isDoc || in.DocumentKey == "" {
+		return nil
+	}
+	organizationID := in.OrganizationID
+	if organizationID == "" {
+		var err error
+		if organizationID, err = s.billing.OrganizationOf(ctx, in.CompanyPK); err != nil || organizationID == "" {
+			slog.WarnContext(ctx, "webhooks: result has no organization; skipped", "company", in.CompanyPK, "error", err)
+			return nil
+		}
+	}
+	endpoints, err := s.repo.ListEndpoints(ctx, organizationID)
+	if err != nil {
+		return err
+	}
+	doc := WebhookDocument{ID: in.DocumentKey, Status: in.Status, DocumentType: docType}
+	if docType != MeterNFSe {
+		doc.AccessKey = in.DocumentKey // the id_dps of an NFS-e is not an access key
+	}
+	if in.Status == "rejected" {
+		doc.RejectionCode, doc.RejectionMessage = in.SefazStatus, in.SefazMotive
+	}
+	at := in.SentAt
+	if at.IsZero() {
+		at = s.now()
+	}
+	id := repositories.WebhookEventID(at, in.CompanyPK+"|"+in.DocumentKey+"|"+in.Status)
+	body, err := BuildWebhookBody(id, eventType, at, doc)
+	if err != nil {
+		return err
+	}
+	_, err = s.repo.WriteDeliveries(ctx, organizationID, repositories.WebhookEvent{
+		ID: id, Type: eventType, CompanyPK: in.CompanyPK, Body: body,
+	}, endpoints, s.now())
+	return err
+}

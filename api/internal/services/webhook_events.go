@@ -29,6 +29,8 @@ const WebhookUserAgent = "ctech-dfe-webhooks/1"
 // own credential, so a URL that is wrong leaks an id, never a fiscal document.
 type WebhookDocument struct {
 	ID, AccessKey, Status string
+	// DocumentType says which API to read the document from: nfe, nfce, cte, mdfe or nfse.
+	DocumentType string
 	// RejectionCode and RejectionMessage are set only for a rejection.
 	RejectionCode, RejectionMessage string
 }
@@ -39,10 +41,13 @@ type webhookRejection struct {
 }
 
 type webhookData struct {
-	ID        string            `json:"id,omitempty"`
-	AccessKey string            `json:"access_key,omitempty"`
-	Status    string            `json:"status,omitempty"`
-	Rejection *webhookRejection `json:"rejection,omitempty"`
+	ID        string `json:"id,omitempty"`
+	AccessKey string `json:"access_key,omitempty"`
+	Status    string `json:"status,omitempty"`
+	// DocumentType is the one field beyond the minimum: an id alone does not say
+	// which of the five documents it names.
+	DocumentType string            `json:"document_type,omitempty"`
+	Rejection    *webhookRejection `json:"rejection,omitempty"`
 }
 
 type webhookBody struct {
@@ -56,7 +61,7 @@ type webhookBody struct {
 func BuildWebhookBody(eventID, eventType string, occurredAt time.Time, d WebhookDocument) ([]byte, error) {
 	b := webhookBody{
 		ID: eventID, Type: eventType, OccurredAt: occurredAt.UTC().Format(time.RFC3339),
-		Data: webhookData{ID: d.ID, AccessKey: d.AccessKey, Status: d.Status},
+		Data: webhookData{ID: d.ID, AccessKey: d.AccessKey, Status: d.Status, DocumentType: d.DocumentType},
 	}
 	if d.RejectionCode != "" || d.RejectionMessage != "" {
 		b.Data.Rejection = &webhookRejection{Code: d.RejectionCode, Message: d.RejectionMessage}
