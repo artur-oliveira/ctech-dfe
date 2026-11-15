@@ -395,7 +395,7 @@ func BuildDPS(doc nfse.Document, now time.Time) ([]byte, string, error) {
 		Serie: doc.Serie, NDPS: doc.Numero, DCompet: doc.Competencia,
 		TpEmit: doc.TpEmit, CMotivo: doc.MotivoEmisTI, ChNFSeRej: doc.ChNFSeRej,
 		CLocEmi: doc.CLocEmi,
-		Prest:   toXMLPrestador(doc.Prestador),
+		Prest:   toXMLPrestador(doc.Prestador, doc.TpEmit),
 		Toma:    toXMLPessoa(doc.Tomador),
 		Interm:  toXMLPessoa(doc.Intermediario),
 		Serv:    toXMLServ(doc.Servico, ntNova),
@@ -475,7 +475,12 @@ func toXMLEndSimples(e *nfse.EnderecoSimples) *xmlEndSimples {
 	return out
 }
 
-func toXMLPrestador(p nfse.Prestador) xmlPrestador {
+// toXMLPrestador omite xNome quando o prestador é o emitente (tpEmit=1):
+// o Sefin rejeita com E0121 e preenche o nome pelo CNC.
+func toXMLPrestador(p nfse.Prestador, tpEmit int) xmlPrestador {
+	if tpEmit == 1 {
+		p.XNome = ""
+	}
 	return xmlPrestador{
 		CNPJ: p.CNPJ, CPF: p.CPF, NIF: p.NIF, CNaoNIF: p.CNaoNIF,
 		CAEPF: p.CAEPF, IM: p.IM, XNome: p.XNome, End: toXMLEnd(p.End),

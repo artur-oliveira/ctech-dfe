@@ -131,3 +131,19 @@ func TestBuildDPS_NT009RejectsRemovedGroups(t *testing.T) {
 		t.Errorf("imovel deveria ser recusado na NT 009: %v", err)
 	}
 }
+
+// E0121: com tpEmit=1 o prestador não leva xNome.
+func TestDPSPrestadorSemNomeQuandoEmitente(t *testing.T) {
+	doc := minimalDoc()
+	doc.Prestador.XNome = "Prestador Teste"
+	for tpEmit, want := range map[int]bool{1: false, 2: true} {
+		doc.TpEmit = tpEmit
+		if tpEmit != 1 {
+			doc.MotivoEmisTI = 1
+		}
+		x := toXMLPrestador(doc.Prestador, doc.TpEmit)
+		if got := x.XNome != ""; got != want {
+			t.Errorf("tpEmit=%d: xNome presente=%v, quer %v", tpEmit, got, want)
+		}
+	}
+}
