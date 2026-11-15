@@ -17,6 +17,8 @@ import {goLambdaCode} from './go-code'
 import {egressFunctionArn} from './egress'
 
 const CTECH_WORKER_DIR = path.join(__dirname, '../../worker')
+// The webhook-deliverer drives api/internal/repositories, so it is built from the api module.
+const CTECH_API_DIR = path.join(__dirname, '../../api')
 
 // goCode builds a Go Lambda binary from the worker module (see go-code.ts).
 function goCode(cmd: string): lambda.AssetCode {
@@ -437,6 +439,76 @@ export class WorkerStack extends cdk.Stack {
       description: 'Triggers distribution dispatcher every 30 minutes to pull DFe documents from SEFAZ',
       schedule: scheduler.ScheduleExpression.rate(Duration.minutes(30)),
       target: new schedulerTargets.LambdaInvoke(dispatcher),
+      enabled: true,
+    })
+
+    // =========================
+    // WEBHOOK DELIVERER
+    // =========================
+    // Every minute: read the sparse due-index of the webhooks table (only pending
+    // deliveries, so a Query of a few rows, not the history) and attempt what is due
+    // through go-common/webhooks. Reserved concurrency 1: two overlapping runs would
+    // deliver the same rows twice. The state is in the table, so a failed run loses
+    // nothing; the next one retries.
+    //
+    // Cost note: 1,440 invocations/day, ~1 s at 128 MB arm64 (well inside the free
+    // tier), one Query per run on an on-demand table, plus one write per delivery;
+    // the table's TTL is 90 days. Nothing runs between invocations.
+    const webhookSecretKeyPath = `/ctech-dfe/${environment}/webhooks/secret-key`
+    const webhookTableArn = `arn:aws:dynamodb:${this.region}:${this.account}:table/${tablePrefix}_webhooks`
+    const webhookDelivererRole = new iam.Role(this, 'webhook-deliverer-role', {
+      roleName: `${environment}-webhook-deliverer-role`,
+      assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
+      managedPolicies: [
+        iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicExecutionRole'),
+      ],
+    })
+    webhookDelivererRole.addToPrincipalPolicy(new iam.PolicyStatement({
+      actions: ['dynamodb:GetItem', 'dynamodb:PutItem', 'dynamodb:UpdateItem', 'dynamodb:Query'],
+      resources: [webhookTableArn, `${webhookTableArn}/index/*`],
+    }))
+    // The signing-secret key: one parameter, decrypted by SSM's own key only.
+    webhookDelivererRole.addToPrincipalPolicy(new iam.PolicyStatement({
+      actions: ['ssm:GetParameter'],
+      resources: [`arn:aws:ssm:${this.region}:${this.account}:parameter${webhookSecretKeyPath}`],
+    }))
+    webhookDelivererRole.addToPrincipalPolicy(new iam.PolicyStatement({
+      actions: ['kms:Decrypt'],
+      resources: [`arn:aws:kms:${this.region}:${this.account}:key/*`],
+      conditions: {
+        StringEquals: {'kms:ViaService': `ssm.${this.region}.amazonaws.com`},
+        StringLike: {'kms:EncryptionContext:PARAMETER_ARN': `arn:aws:ssm:${this.region}:${this.account}:parameter${webhookSecretKeyPath}`},
+      },
+    }))
+    // An endpoint disabled by its failure run alerts the shared topic.
+    webhookDelivererRole.addToPrincipalPolicy(new iam.PolicyStatement({
+      actions: ['sns:Publish'],
+      resources: [alertsTopicArn],
+    }))
+    const webhookDeliverer = new lambda.Function(this, 'webhook-deliverer', {
+      functionName: `${environment}-webhook-deliverer`,
+      runtime: lambda.Runtime.PROVIDED_AL2023,
+      handler: 'bootstrap',
+      code: goLambdaCode(CTECH_API_DIR, './cmd/webhook-deliverer'),
+      role: webhookDelivererRole,
+      architecture: lambda.Architecture.ARM_64,
+      // Under the schedule period: a run that is still going when the next fires would
+      // be refused by the reserved concurrency anyway, and this keeps it from overlapping.
+      timeout: Duration.seconds(55),
+      memorySize: 128,
+      reservedConcurrentExecutions: 1,
+      environment: {
+        APP_ENVIRONMENT: environment,
+        TABLE_PREFIX: tablePrefix,
+        WEBHOOK_SECRET_KEY_SSM_PATH: webhookSecretKeyPath,
+        ALERTS_TOPIC_ARN: alertsTopicArn,
+      },
+    })
+    new scheduler.Schedule(this, 'WebhookDelivererSchedule', {
+      scheduleName: `${environment}-webhook-deliverer-schedule`,
+      description: 'Delivers the due outbound webhooks every minute',
+      schedule: scheduler.ScheduleExpression.rate(Duration.minutes(1)),
+      target: new schedulerTargets.LambdaInvoke(webhookDeliverer),
       enabled: true,
     })
 

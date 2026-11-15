@@ -1,5 +1,7 @@
 github.com/MakeNowJust/heredoc v1.0.0 h1:cXCdzVdstXyiTqTvfqk9SDHpKNjxuom+DOlyEeQ4pzQ=
 github.com/MakeNowJust/heredoc v1.0.0/go.mod h1:mG5amYoWBHf8vpLOuehzbGGw0EHxpZZ6lCpQ4fNJ8LE=
+github.com/aws/aws-lambda-go v1.55.1 h1:We2cCp4BwqqH/JW+bEEo1FhgG71rslvjfi4y7KmlrR0=
+github.com/aws/aws-lambda-go v1.55.1/go.mod h1:V+NzkHNR6vBC8C1PDloqSLE+7jYWFiPvJJFiCiTm8nE=
 github.com/aws/aws-sdk-go-v2 v1.48.0 h1:tFU7EJVm7MfyaXLsXdYTZ0Vd6vwt9OljCyqq0gqk0Mc=
 github.com/aws/aws-sdk-go-v2 v1.48.0/go.mod h1:oeKU5p+TQBnpeLmU42WZLWvzv+ORLn+74n4QVLnm/Z0=
 github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.27 h1:3dMP9eEmHVosFN1QiD24IJBKVY8m6iUfVYXqRCT118Q=
@@ -44,6 +46,8 @@ github.com/aws/aws-sdk-go-v2/service/sns v1.48.0 h1:Y19AwHx+iYmAeiWrqmm3vQ0UwLfB
 github.com/aws/aws-sdk-go-v2/service/sns v1.48.0/go.mod h1:+/n+Y7rTBcnpCXKo1IQoEvbxJsumASEQQfgj1RldXm8=
 github.com/aws/aws-sdk-go-v2/service/sqs v1.53.0 h1:Drz602e9tjlm73zV4ZSFn7HLX/xSGKVjFvg648kXLBo=
 github.com/aws/aws-sdk-go-v2/service/sqs v1.53.0/go.mod h1:Gpdfb/HnOpeKmNYfCRNLOmtDImdbTeS/0F1vPhZYKMg=
+github.com/aws/aws-sdk-go-v2/service/ssm v1.83.0 h1:bzCFEGNhq3kWMlHHsbTwD83Qz3nlMRt6mael+OjHvOA=
+github.com/aws/aws-sdk-go-v2/service/ssm v1.83.0/go.mod h1:0SFlytwGtgihEA6ZQxy6SgXHYUGhq9gkeMZD71+Pi38=
 github.com/aws/aws-sdk-go-v2/service/sso v1.39.5 h1:ANAoa+qt3/9kXnvQVgUyxcTzhzZf4DqaBS+M2DQrELU=
 github.com/aws/aws-sdk-go-v2/service/sso v1.39.5/go.mod h1:vsMi+SSR7xGQXtV430LVi49qbv/R+U+upHHSp1W/+QI=
 github.com/aws/aws-sdk-go-v2/service/ssooidc v1.44.5 h1:uIOBLMhef4N16WguadoHKuBy9etdz+RKTeqzchXErAI=
@@ -186,8 +190,6 @@ golang.org/x/text v0.44.0 h1:YItdp/mQNGnsmrgpcdA5yQ3bnRxCfo/Tj/iByGW9GGo=
 golang.org/x/text v0.44.0/go.mod h1:S4FR1waQ9LbjQTls97SyRjDaUUVkaM+cXwwuG/G+MwY=
 golang.org/x/tools v0.52.1-0.20261106145633-d407941a339a h1:Yqozs0FNPRoPGS4hNGlrNwRENWr5H5nVG9sN/f+5640=
 golang.org/x/tools v0.52.1-0.20261106145633-d407941a339a/go.mod h1:ItcP5UNaVGG+Yc4eIYmaFLNJ4soEopkx5Y2d4lcEurs=
-gopkg.aoctech.app/api-commons v1.40.1 h1:WbPYnIlniLkkBHO5Uxk7r+BFZ4t1XNdNEMlCCCTlvWo=
-gopkg.aoctech.app/api-commons v1.40.1/go.mod h1:n8FtPqLtzO12rdJ4A0Iu/KpghQK27dAq5C1Xv6UV5NI=
 gopkg.aoctech.app/api-commons v1.42.1 h1:VToGG7n97oS2nc5tryb0b6hmmw6ow5nmCbkGd/FEFm8=
 gopkg.aoctech.app/api-commons v1.42.1/go.mod h1:iPhFf3/Diz/NgK7zdZGQ8Q6/waI/aGj9bOUxRoeA6VI=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
