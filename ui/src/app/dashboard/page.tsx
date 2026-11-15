@@ -32,7 +32,7 @@ function DashboardContent() {
           <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-4">
             Acesso rápido
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             {quickActions.map((action) => (
               <Link
                 key={action.href}

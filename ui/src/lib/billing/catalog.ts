@@ -43,11 +43,14 @@ function isOffered(price: BillingPrice): boolean {
  * list. Two price lists that nobody compares is how a site advertises R$ 350 and
  * the invoice charges R$ 400.
  */
+// The billing catalogue is shared by every CTech product; only this one's plans are offered.
+const DFE_PRODUCT_ID = 'prod_dfe';
+
 export function buildPlanOptions(products: BillingProduct[]): PlanOption[] {
   const options: PlanOption[] = [];
 
   for (const product of products) {
-    if (!product.active) continue;
+    if (!product.active || product.id !== DFE_PRODUCT_ID) continue;
     const offered = product.prices.filter(isOffered);
 
     // A product may hold several plans: group its prices by the plan they name.

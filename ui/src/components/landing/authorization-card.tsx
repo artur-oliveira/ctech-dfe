@@ -18,6 +18,7 @@ const CAROUSEL_DOCS: CarouselDoc[] = [
   {code: 'NFC-e', modelo: 'Modelo 65', fullName: 'Nota Fiscal de Consumidor Eletrônica', theme: 'nfce'},
   {code: 'CT-e', modelo: 'Modelo 57', fullName: 'Conhecimento de Transporte Eletrônico', theme: 'cte'},
   {code: 'MDF-e', modelo: 'Modelo 58', fullName: 'Manifesto Eletrônico de Documentos Fiscais', theme: 'mdfe'},
+  {code: 'NFS-e', modelo: 'Padrão nacional', fullName: 'Nota Fiscal de Serviços Eletrônica', theme: 'nfse'},
 ];
 
 function accentFor(code: string): string {
@@ -48,7 +49,7 @@ interface AuthorizationCardProps {
 // A self-playing simulation of what actually happens when this product
 // issues a document: the XML is assembled, sent to SEFAZ, and comes back
 // with an access key and an authorization protocol. Cycles through NF-e,
-// NFC-e, CT-e and MDF-e; rests briefly on each before moving to the next.
+// NFC-e, CT-e, MDF-e and NFS-e; rests briefly on each before moving to the next.
 export function AuthorizationCard({onDocChange}: AuthorizationCardProps) {
   const [reducedMotion] = useState(prefersReducedMotion);
   const [docIndex, setDocIndex] = useState(0);

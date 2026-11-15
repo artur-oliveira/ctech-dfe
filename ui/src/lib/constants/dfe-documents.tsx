@@ -1,5 +1,5 @@
 import type {ReactNode} from 'react';
-import {CteIcon, MdfeIcon, NfceIcon, NfeIcon} from '@/components/ui/icon';
+import {CteIcon, MdfeIcon, NfceIcon, NfeIcon, NfseIcon} from '@/components/ui/icon';
 
 export interface DfeDocument {
   code: string
@@ -42,5 +42,13 @@ export const DFE_DOCUMENTS: DfeDocument[] = [
     href: '/mdfe',
     icon: <MdfeIcon/>,
     accent: '#f59e0b',
+  },
+  {
+    code: 'NFS-e',
+    title: 'Emitir NFS-e',
+    description: 'Nota Fiscal de Serviços Eletrônica (padrão nacional)',
+    href: '/nfse/emit',
+    icon: <NfseIcon/>,
+    accent: '#14b8a6',
   },
 ];

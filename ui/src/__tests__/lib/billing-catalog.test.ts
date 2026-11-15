@@ -19,7 +19,7 @@ describe('buildPlanOptions', () => {
   it('hides the internal plan; offering it would give away an unlimited subscription', () => {
     const products: BillingProduct[] = [
       {
-        id: 'prod_dfe_unlimited_internal',
+        id: 'prod_dfe',
         name: 'DF-e Ilimitado - Interno',
         active: true,
         prices: [price({id: 'p_internal', metadata: {plan: 'unlimited', visibility: 'internal'}})],
@@ -31,13 +31,13 @@ describe('buildPlanOptions', () => {
   it('drops archived prices and products billing has deactivated', () => {
     const products: BillingProduct[] = [
       {
-        id: 'prod_old',
+        id: 'prod_dfe',
         name: 'Antigo',
         active: false,
         prices: [price({metadata: {plan: 'pro'}})],
       },
       {
-        id: 'prod_free',
+        id: 'prod_dfe',
         name: 'DF-e Free',
         active: true,
         prices: [price({id: 'p_old', archived: true, metadata: {plan: 'free'}})],
@@ -49,7 +49,7 @@ describe('buildPlanOptions', () => {
   it('reads the quotas out of price metadata and keeps -1 as unlimited', () => {
     const products: BillingProduct[] = [
       {
-        id: 'prod_dfe_free',
+        id: 'prod_dfe',
         name: 'DF-e Free',
         active: true,
         prices: [
@@ -70,7 +70,7 @@ describe('buildPlanOptions', () => {
   it('an unreadable quota is dropped, not read as zero', () => {
     const products: BillingProduct[] = [
       {
-        id: 'prod_dfe_free',
+        id: 'prod_dfe',
         name: 'DF-e Free',
         active: true,
         prices: [price({metadata: {plan: 'free', quota_nfe: 'três'}})],
@@ -84,7 +84,7 @@ describe('buildPlanOptions', () => {
   it('composes the on-demand plan out of all of its metered prices', () => {
     const products: BillingProduct[] = [
       {
-        id: 'prod_dfe_ondemand',
+        id: 'prod_dfe',
         name: 'DF-e Sob Demanda',
         active: true,
         prices: [
@@ -117,8 +117,8 @@ describe('buildPlanOptions', () => {
   });
 
   it('orders the plans cheapest commitment first', () => {
-    const make = (id: string, plan: string): BillingProduct => ({
-      id,
+    const make = (_id: string, plan: string): BillingProduct => ({
+      id: 'prod_dfe',
       name: plan,
       active: true,
       prices: [price({id: `p_${plan}`, metadata: {plan}})],
@@ -171,8 +171,17 @@ describe('buildPlanOptions with one product holding several plans', () => {
     const options = buildPlanOptions(unified);
     expect(options.find((o) => o.plan === 'pro')?.name).toBe('DF-e Pro');
     expect(options.find((o) => o.plan === 'ondemand')?.name).toBe('DF-e Sob Demanda');
-    const bare = buildPlanOptions([{id: 'prod_x', name: 'Produto X', active: true, prices: [price({metadata: {plan: 'pro'}})]}]);
+    const bare = buildPlanOptions([{id: 'prod_dfe', name: 'Produto X', active: true, prices: [price({metadata: {plan: 'pro'}})]}]);
     expect(bare[0].name).toBe('Produto X');
   });
-});
 
+  it('ignores products of other CTech products', () => {
+    const other: BillingProduct = {
+      id: 'prod_finance',
+      name: 'CTech Finanças',
+      active: true,
+      prices: [price({id: 'price_finance_free', metadata: {plan: 'free'}})],
+    };
+    expect(buildPlanOptions([other])).toEqual([]);
+  });
+});

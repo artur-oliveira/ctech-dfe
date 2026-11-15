@@ -755,7 +755,7 @@ company's organization (`organization_id` on the local company record).
 
 | Method | Endpoint | Access | Description |
 |--------|----------|--------|-------------|
-| GET    | `/v1.0/billing/plans`                | qualquer sessão | Catálogo vindo do ctech-billing, com as cotas em `metadata` de cada preço |
+| GET    | `/v1.0/billing/plans`                | qualquer sessão | Catálogo vindo do ctech-billing, com as cotas em `metadata` de cada preço; só o produto `prod_dfe` (o catálogo é compartilhado com Finanças, Billing etc.). POST /subscription e /change recusam preço de outro produto |
 | GET    | `/v1.0/billing/subscription`         | qualquer membro | Situação da assinatura da organização + `usage`, `organization {id, name}` e `manageable` |
 | POST   | `/v1.0/billing/subscription`         | owner/admin (conta CTech) | Escolhe um plano; 409 se já houver assinatura viva |
 | POST   | `/v1.0/billing/subscription/change`  | owner/admin (conta CTech) | Troca de plano com pró-rata |
