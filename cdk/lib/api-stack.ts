@@ -118,6 +118,10 @@ export class ApiStack extends cdk.Stack {
     // SSM paths. Absent means nobody can manage a plan; reading still works.
     const accountWorkspaceClientIdParameter = `/ctech-dfe/${environment}/account-workspace-client-id`;
     const accountWorkspaceClientSecretParameter = `/ctech-dfe/${environment}/account-workspace-client-secret`;
+    // Seals each webhook endpoint's signing secret at rest (go-common fieldcrypt,
+    // `generation:key`, 32 bytes). SecureString written out of band; the scheduled
+    // delivery Lambda reads the same parameter. Absent means webhooks are off.
+    const webhookSecretKeyParameter = `/ctech-dfe/${environment}/webhooks/secret-key`;
     // Bumped (v2 → v3 / new log-and-SG names): moving the ASG/SG/log groups into
     // HaproxyEc2Service changes their CloudFormation logical IDs, which
     // CloudFormation treats as delete-old/create-new. Explicit physical names
@@ -219,6 +223,7 @@ export class ApiStack extends cdk.Stack {
       `ERASURE_CLIENT_SECRET=${erasureClientSecretParameter}`,
       `ACCOUNT_WORKSPACE_CLIENT_ID=${accountWorkspaceClientIdParameter}`,
       `ACCOUNT_WORKSPACE_CLIENT_SECRET=${accountWorkspaceClientSecretParameter}`,
+      `WEBHOOK_SECRET_KEY=${webhookSecretKeyParameter}`,
     ];
     if (isAlpine) {
       const quoted = ssmEnvArgs.map((a) => `'${a.replace(/'/g, `'\\''`)}'`).join(' ');

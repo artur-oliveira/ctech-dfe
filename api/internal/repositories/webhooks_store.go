@@ -70,16 +70,22 @@ func (s *WebhookStore) DueDeliveries(ctx context.Context, limit int) ([]webhooks
 		if err := attributevalue.UnmarshalMap(item, &d); err != nil {
 			return nil, err
 		}
-		out = append(out, webhooks.Due{
-			Delivery: webhooks.Delivery{
-				EventID: d.EventID, EndpointID: d.EndpointID,
-				Group:    d.OrganizationID + "|" + d.EndpointID,
-				Attempts: d.Attempts, NextAttemptAt: d.NextAttemptAt, Ref: d,
-			},
-			Event: webhooks.Event{ID: d.EventID, Type: d.Type, Body: []byte(d.Body)},
-		})
+		out = append(out, DueOf(d))
 	}
 	return out, nil
+}
+
+// DueOf maps a stored delivery to what the engine attempts. Group is one
+// endpoint of one organization: its deliveries are made in order, one at a time.
+func DueOf(d WebhookDelivery) webhooks.Due {
+	return webhooks.Due{
+		Delivery: webhooks.Delivery{
+			EventID: d.EventID, EndpointID: d.EndpointID,
+			Group:    d.OrganizationID + "|" + d.EndpointID,
+			Attempts: d.Attempts, NextAttemptAt: d.NextAttemptAt, Ref: d,
+		},
+		Event: webhooks.Event{ID: d.EventID, Type: d.Type, Body: []byte(d.Body)},
+	}
 }
 
 // GetEndpoint reads the destination of a delivery. Any failure is "gone": the

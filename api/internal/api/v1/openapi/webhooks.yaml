@@ -1,0 +1,321 @@
+paths:
+
+  # ── Webhooks de saída ──────────────────────────────────────────────────────
+  #
+  # docs/specs/2026-11-15-webhooks.md: o usuário cadastra uma URL, o DF-e prova
+  # que ela responde a um desafio antes de ativá-la, e depois avisa cada
+  # resultado terminal de documento (autorizado, rejeitado, falhou) com uma
+  # chamada assinada. Toda rota exige o header Dfe-Organization-Pk (a empresa,
+  # resolvida para a organização da conta CTech) e o papel owner ou admin da
+  # organização (403 caso contrário, inclusive se a conta CTech não responder).
+  #
+  # Corpo do evento (mínimo de propósito; o resto o receptor lê pela API):
+  #   { "id", "type", "occurred_at",
+  #     "data": { "id", "access_key", "status", "rejection": { "code", "message" } } }
+  # Cabeçalhos: X-Ctech-Event-Id, X-Ctech-Event-Type, X-Ctech-Timestamp e
+  # X-Ctech-Signature (`v1=` + HMAC-SHA256 hex de "timestamp.body" com o segredo).
+  # A entrega é pelo menos uma vez: o receptor deduplica pelo id do evento.
+
+  /v1.0/webhooks:
+    get:
+      tags: [ Webhooks ]
+      summary: Endpoints de webhook da organização
+      description: |
+        Os endpoints cadastrados, inclusive os desativados (o motivo está em
+        `last_delivery_detail`). O segredo nunca aparece aqui.
+
+        `enabled: false` significa que a instalação não tem chave para selar
+        segredos: cadastrar fica indisponível (501).
+      operationId: listWebhooks
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+      responses:
+        '200':
+          description: Endpoints
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/WebhookEndpoint' }
+                  enabled: { type: boolean }
+                  max_endpoints: { type: integer }
+                  event_types:
+                    type: array
+                    items: { type: string }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [ Webhooks ]
+      summary: Cadastra um endpoint
+      description: |
+        Antes de gravar, o DF-e faz um GET na URL com `hub.mode=subscribe` e
+        `hub.challenge=<64 caracteres>` e exige 200 com o desafio como corpo
+        inteiro. Só então o endpoint fica ativo. A URL precisa ser https, sem
+        usuário e senha, e apontar para a internet pública (400 caso contrário);
+        o desafio que falha dá 422 com o motivo. Limite de 5 por organização (409).
+
+        `events` e `company_pks` filtram; vazio é tudo. A resposta traz `secret`
+        **uma única vez**.
+      operationId: createWebhook
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WebhookRegistration' }
+      responses:
+        '201':
+          description: Endpoint ativo e segredo
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WebhookCreated' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '501':
+          description: Webhooks desativados nesta instalação
+
+  /v1.0/webhooks/{id}:
+    delete:
+      tags: [ Webhooks ]
+      summary: Remove um endpoint
+      description: Libera a vaga. As entregas pendentes dele são encerradas como falhas.
+      operationId: deleteWebhook
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+        - $ref: '#/components/parameters/WebhookId'
+      responses:
+        '204':
+          description: Removido
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1.0/webhooks/{id}/rotate-secret:
+    post:
+      tags: [ Webhooks ]
+      summary: Troca o segredo de assinatura
+      description: O segredo antigo deixa de valer na hora. O novo vem **uma única vez**.
+      operationId: rotateWebhookSecret
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+        - $ref: '#/components/parameters/WebhookId'
+      responses:
+        '200':
+          description: Novo segredo
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  secret: { type: string }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1.0/webhooks/{id}/ping:
+    post:
+      tags: [ Webhooks ]
+      summary: Envia um evento de teste
+      description: |
+        Envia o evento `ping` só para este endpoint, ignorando os filtros, e tenta
+        na hora. Como o receptor respondeu fica nas entregas. 409 se o endpoint
+        está desativado.
+      operationId: pingWebhook
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+        - $ref: '#/components/parameters/WebhookId'
+      responses:
+        '204':
+          description: Enviado
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /v1.0/webhooks/{id}/deliveries:
+    get:
+      tags: [ Webhooks ]
+      summary: Entregas de um endpoint
+      description: Mais recentes primeiro, uma página por vez (`limit` de 1 a 50, `cursor`).
+      operationId: listWebhookDeliveries
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+        - $ref: '#/components/parameters/WebhookId'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Entregas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/WebhookDelivery' }
+                  next_cursor: { type: string, nullable: true }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1.0/webhooks/{id}/deliveries/{event_id}:
+    get:
+      tags: [ Webhooks ]
+      summary: Uma entrega e todas as tentativas
+      description: Cada tentativa traz status HTTP, duração, erro e os primeiros 512 bytes da resposta (nunca o corpo enviado).
+      operationId: getWebhookDelivery
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+        - $ref: '#/components/parameters/WebhookId'
+        - $ref: '#/components/parameters/WebhookEventId'
+      responses:
+        '200':
+          description: Entrega e tentativas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  delivery: { $ref: '#/components/schemas/WebhookDelivery' }
+                  attempts:
+                    type: array
+                    items: { $ref: '#/components/schemas/WebhookAttempt' }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /v1.0/webhooks/{id}/deliveries/{event_id}/replay:
+    post:
+      tags: [ Webhooks ]
+      summary: Reenvia uma entrega
+      description: |
+        Volta a entrega para pendente, mantendo as tentativas, e tenta na hora.
+        409 se o endpoint está desativado (nada é enviado); 404 se a entrega
+        (ou o endpoint) não existe.
+      operationId: replayWebhookDelivery
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+        - $ref: '#/components/parameters/WebhookId'
+        - $ref: '#/components/parameters/WebhookEventId'
+      responses:
+        '204':
+          description: Reenviado
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+components:
+  parameters:
+    WebhookId:
+      name: id
+      in: path
+      required: true
+      description: Id do endpoint de webhook.
+      schema: { type: string }
+    WebhookEventId:
+      name: event_id
+      in: path
+      required: true
+      description: Id do evento (a entrega é do par endpoint e evento).
+      schema: { type: string }
+
+  schemas:
+    WebhookEndpoint:
+      type: object
+      properties:
+        id: { type: string }
+        organization_id: { type: string }
+        url: { type: string }
+        events:
+          type: array
+          items: { type: string }
+          description: Vazio é todos os tipos.
+        company_pks:
+          type: array
+          items: { type: string }
+          description: Vazio é todas as empresas da organização.
+        status: { type: string, enum: [ active, disabled ] }
+        failure_run:
+          type: integer
+          description: Falhas seguidas; 12 desativam o endpoint e um sucesso zera.
+        disabled_at: { type: string }
+        last_delivery_ok: { type: boolean }
+        last_delivery_at: { type: string }
+        last_delivery_detail: { type: string }
+        created_by: { type: string }
+        created_at: { type: string }
+    WebhookRegistration:
+      type: object
+      required: [ url ]
+      properties:
+        url: { type: string, description: 'https, sem usuário e senha, host público.' }
+        events:
+          type: array
+          items: { type: string, enum: [ document.authorized, document.rejected, document.failed ] }
+        company_pks:
+          type: array
+          items: { type: string }
+    WebhookCreated:
+      allOf:
+        - $ref: '#/components/schemas/WebhookEndpoint'
+        - type: object
+          properties:
+            secret: { type: string, description: 'Mostrado uma única vez.' }
+    WebhookDelivery:
+      type: object
+      properties:
+        endpoint_id: { type: string }
+        event_id: { type: string }
+        type: { type: string }
+        status: { type: string, enum: [ pending, delivered, failed ] }
+        attempts: { type: integer }
+        next_attempt_at: { type: string }
+        last_status_code: { type: integer }
+        last_error: { type: string }
+        delivered_at: { type: string }
+        created_at: { type: string }
+    WebhookAttempt:
+      type: object
+      properties:
+        number: { type: integer }
+        at: { type: string }
+        status_code: { type: integer }
+        duration_ms: { type: integer }
+        error: { type: string }
+        response: { type: string }
