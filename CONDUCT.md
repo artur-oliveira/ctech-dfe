@@ -1519,3 +1519,20 @@ enviados só um certificado descartável e uma chave falsa, e a ANTT respondeu 4
 
 - **Campo percentual usa `CurrencyInput unit="percent"`** (`ui/src/components/ui/currency-input.tsx`): sufixo `%`, sem o prefixo `R$`. `R$` é só para valor monetário; alíquota e percentual nunca levam o prefixo de moeda.
 - **DANFSe segue o do ambiente nacional** (sem caixa por campo, rótulo sem código, traço no que falta, máscaras de IBGE, CEP, NBS e tributação nacional, chave sem separação). Ver DOCS.md, "DANFSe v2.0 é gerado por nós".
+
+## Webhooks: o que não pode quebrar
+
+- **O webhook nunca bloqueia o resultado do documento.** A emissão e o status são do worker; o consumer só grava a entrega (sem HTTP)
+  depois de o billing liquidar. Uma falha ao gravar devolve a mensagem à fila: a gravação é idempotente (o id do evento é derivado do
+  `SentTimestamp` e de um hash do documento e do status), então a repetição não duplica. Webhook desligado, organização não vinculada e
+  evento que ninguém assinou não fazem nada.
+- **Corpo mínimo por decisão.** Só id, chave, status, tipo do documento e, na rejeição, código e motivo. Valor, destinatário e itens
+  nunca entram: uma URL errada vaza um identificador, não um documento fiscal. Quem precisa do resto lê pela API.
+- **O segredo de assinatura é selado em repouso** (`fieldcrypt`, com a chave da linha como dado associado) e só aparece na resposta do
+  cadastro e da troca. Sem `WEBHOOK_SECRET_KEY` o cadastro é recusado (501): falha fechada.
+- **SSRF.** O cadastro valida a URL e o desafio sai pelo cliente guardado; a entrega recusa de novo na conexão (depois do DNS), não
+  segue redirecionamento e não usa proxy. Erros de transporte são guardados como categoria, nunca com a URL (ela pode carregar um token
+  do cliente).
+- **Um endpoint desativado não volta.** O console não tem "reativar": remover e cadastrar de novo refaz o desafio.
+- A Lambda `webhook-deliverer` tem concorrência reservada 1: duas passadas simultâneas entregariam a mesma linha duas vezes.
+

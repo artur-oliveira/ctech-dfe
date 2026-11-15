@@ -52,7 +52,7 @@ companies to issue and manage Electronic Tax Documents (DF-e) via REST API or we
        │              │          │             │
   ┌────▼─────┐  ┌─────▼──────┐  │   ┌─────────▼──────┐
   │ DynamoDB │  │     S3     │  │   │ Redis (Valkey)  │
-  │ 47 tables│  │certs+xmls  │  │   │ JWKS · WS Pub/Sub│
+  │ 51 tables│  │certs+xmls  │  │   │ JWKS · WS Pub/Sub│
   └──────────┘  └────────────┘  │   └────────────────┘
                             ┌───▼────────────────────┐
                             │ Outbox → SNS → SQS     │
@@ -812,6 +812,53 @@ O corpo é lido para uma coisa só: qual assinatura ir consultar no billing. Nad
 é sempre reconstruído a partir de uma leitura nova. A deduplicação por `X-Billing-Event-Id` é gravada somente **depois**
 da sincronização idempotente terminar; assim uma falha transitória continua elegível ao retry. Duas entregas concorrentes
 podem repetir a leitura e o `Put` integral sem produzir estados diferentes.
+
+### Webhooks de saída — `/v1.0/webhooks`
+
+Spec: `docs/specs/2026-11-15-webhooks.md`. O usuário cadastra uma URL; o DF-e confirma que ela responde a um desafio antes de
+ativar; depois cada resultado terminal de documento é entregue assinado, com log de cada tentativa, desativação automática e
+reenvio. Toda rota exige o header `Dfe-Organization-Pk` (a empresa, resolvida para a organização da conta CTech) e o papel
+**owner ou admin** da organização na conta CTech (403 caso contrário, inclusive se a conta CTech não responder). Os `POST`
+exigem `Idempotency-Key` como os demais.
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET    | `/v1.0/webhooks` | Endpoints (segredo nunca aparece), `company_pks` da organização (só as chaves; a UI resolve os nomes), `enabled`, `max_endpoints`, `event_types` |
+| POST   | `/v1.0/webhooks` | `{url, events[], company_pks[]}`. 400 URL inválida/host não público/evento ou empresa inválidos; 409 limite de 5; 422 o desafio falhou (o motivo vem no `detail`); 501 sem chave de selagem. Responde 201 com o endpoint e o `secret` **uma única vez** |
+| DELETE | `/v1.0/webhooks/{id}` | Remove e libera a vaga; as entregas pendentes viram falha |
+| POST   | `/v1.0/webhooks/{id}/rotate-secret` | Novo segredo (uma única vez); o antigo para de valer na hora |
+| POST   | `/v1.0/webhooks/{id}/ping` | Evento `ping` só para este endpoint, ignora filtros, tenta na hora; 409 se desativado |
+| GET    | `/v1.0/webhooks/{id}/deliveries` | Entregas, mais recentes primeiro (`limit` 1 a 50, `cursor`) |
+| GET    | `/v1.0/webhooks/{id}/deliveries/{event_id}` | A entrega e todas as tentativas |
+| POST   | `/v1.0/webhooks/{id}/deliveries/{event_id}/replay` | Volta a entrega para pendente e tenta na hora; 409 se o endpoint está desativado, 404 se não existe |
+
+**Desafio de cadastro.** `GET <url>?hub.mode=subscribe&hub.challenge=<64 hex>`; o endpoint responde 200 com o desafio como corpo
+inteiro. A URL precisa ser https, sem usuário e senha, e o host precisa ser público (recusa IP privado, loopback, link-local, CGNAT,
+`localhost`, `.local`, `.internal` e nomes sem ponto). O cliente HTTP recusa de novo no momento da conexão, depois do DNS, e não segue
+redirecionamento nem usa proxy (go-common `webhooks.NewGuardedClient`).
+
+**Evento.** Gerado pelo `ResultsConsumer` ao receber `authorized`, `rejected` ou `failed` de NF-e, NFC-e, CT-e, MDF-e ou NFS-e (não
+de CIOT, evento fiscal ou distribuição), depois de o billing liquidar:
+
+```json
+{"id": "01JC3F7K2N9P4Q6S8T0V1W3X5Z", "type": "document.rejected", "occurred_at": "2026-11-14T13:02:11Z",
+ "data": {"id": "<chave do documento>", "access_key": "<chave de acesso>", "status": "rejected", "document_type": "nfe",
+          "rejection": {"code": "225", "message": "Falha no Schema XML"}}}
+```
+
+`data.id` é a chave da linha do documento (chave de acesso nos quatro documentos da SEFAZ, `id_dps` na NFS-e, que por isso não traz
+`access_key`). `document_type` (`nfe|nfce|cte|mdfe|nfse`) é o único campo além do mínimo pedido (id, chave, status, rejeição): um id
+sozinho não diz de qual API ler. `rejection` só existe na rejeição. Cabeçalhos: `X-Ctech-Event-Id`, `X-Ctech-Event-Type`,
+`X-Ctech-Timestamp`, `X-Ctech-Signature: v1=<hex>`, com `hex = HMAC-SHA256(segredo, timestamp + "." + corpo)`; recuse timestamp a
+mais de 5 minutos (`webhooks.Verify`). Entrega **pelo menos uma vez**: o receptor deduplica por `X-Ctech-Event-Id`, que se repete em
+toda tentativa e em toda reentrega da fila.
+
+**Entrega.** A Lambda `webhook-deliverer` (`api/cmd/webhook-deliverer`, EventBridge Scheduler a cada minuto, concorrência reservada 1)
+lê o `due-index`, tenta cada entrega (10 s por tentativa, 2xx é sucesso, 3xx é falha) e reagenda com espera de 30 s dobrando até 12 h,
+no máximo 8 tentativas. Uma falha adia o resto das entregas do mesmo endpoint (um endpoint morto custa um timeout por passada) e **12
+falhas seguidas** desativam o endpoint e alertam o tópico SNS compartilhado (`webhook-disabled`, com o id do endpoint, nunca a URL). Um
+endpoint desativado não é reativado: remova e cadastre de novo. O segredo é selado em repouso (`WEBHOOK_SECRET_KEY`, ver
+`DEPLOYMENT.md`); sem a chave, cadastrar responde 501 e nada é gravado.
 
 ### Bloqueio por assinatura e cotas
 
@@ -3021,6 +3068,27 @@ dos preços, com o nome do produto como reserva. Os dois formatos, um produto po
 produto com vários planos, funcionam; o catálogo pode migrar de um para o outro sem coordenar com
 a publicação deste código.
 
+### Webhooks (`/webhooks`)
+
+Só OWNER e ADMIN da empresa selecionada veem o item (a api ainda exige o papel owner/admin na organização da conta CTech e responde 403
+aos demais; a tela mostra o aviso de permissão). Lista os endpoints com estado (ativo ou desativado), filtros e a última entrega, e
+oferece **Novo webhook**, **Testar**, **Entregas**, **Trocar segredo** e **Remover**.
+
+- **Cadastro** em painel lateral (`SlideOver`), não em modal: endereço, eventos e empresas. Eventos e empresas são caixas de marcar
+  (nunca texto livre); sem nenhuma marcada vale tudo. As empresas vêm das chaves que `GET /webhooks` devolve (`company_pks`), com os
+  nomes resolvidos da lista de empresas que o usuário já tem. A URL é validada no navegador (`lib/webhooks/describe.ts`, a mesma regra do
+  servidor) antes de ir; o servidor continua sendo a autoridade (ele também confere onde o nome resolve). O 422 do desafio vira texto em
+  português (`describeChallengeError`).
+- **Segredo mostrado uma única vez** (`SecretReveal`): Esc e clique no fundo não fecham esse painel, só o botão "Guardei o segredo".
+- **Trocar segredo** pede confirmação na própria linha (o antigo para de valer na hora); **Remover** usa o desfazer de 5 s
+  (`useEntityDelete`).
+- **Entregas** abrem inline sob o endpoint (`DeliveriesPanel`): estado, tentativas, próxima tentativa, **Detalhes** (cada tentativa com
+  status, duração e os primeiros 512 bytes da resposta) e **Reenviar** (desabilitado em endpoint desativado).
+- Endpoint desativado explica o motivo e o caminho: remover e cadastrar de novo (o console não reativa).
+- Evento `document.failed` aparece como "Falha na emissão", para não colidir com o estado de entrega "Falhou".
+- Guia: `/guide/webhooks`, capturas `webhooks`, `webhooks-add` e `webhooks-deliveries`. O componente compartilhado `LabeledInput` não
+  associa o `<label>` ao campo (sem `htmlFor`); o formulário daqui liga o rótulo à mão. Não corrigido no componente compartilhado.
+
 ### Bloqueio por pagamento
 
 Um 402 da API carrega `reason`, `meter`, `quota_limit`, `quota_used` e `plan`
@@ -3733,7 +3801,7 @@ para capturar atributos — o `NFe` sem protocolo não tem elemento `<chNFe>` em
 | `IAMStack`      | `iam-stack.ts`       | Lambda and EC2 roles/instance profiles                    |
 | `DfeStack`      | `dfe-stack.ts`       | py-dfe Lambda — retired, still deployed                   |
 | `GoDfeEgressStack` | `egress-stack.ts` | go-dfe-egress Lambda in sa-east-1 (every SEFAZ/municipal call) |
-| `WorkerStack`   | `worker-stack.ts`    | Fiscal workers (10), DLQ processor, outbox publisher, distribution dispatcher, standard SQS/DLQs |
+| `WorkerStack`   | `worker-stack.ts`    | Fiscal workers (10), DLQ processor, outbox publisher, distribution dispatcher, `webhook-deliverer` (built from `api/cmd`), standard SQS/DLQs |
 | `ApiStack`      | `api-stack.ts`       | Go API EC2 ASG (`HaproxyEc2Service`), logs, scaling; no ALB |
 
 There is no `FrontendStack` and no CloudFront in `cdk/lib`: the UI is a static export published to Cloudflare Workers

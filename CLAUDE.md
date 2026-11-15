@@ -13,7 +13,7 @@ Brazilian tax SaaS (NF-e, NFC-e, CT-e, MDF-e, NFS-e) — direct SEFAZ communicat
 **Before any task:** Read `OVERVIEW.md`. For cross-project changes also read `CONDUCT.md` and `DOCS.md`.
 
 ---
-- **Standards gate:** `scripts/standards-check.sh` (canonical copy in ctech-skills, identical bytes; CI job "Family standards"; reads `FAMILY_GOCOMMON_MINOR`, default v1.38, bump it on a go-common minor). Debt hidden: none via STANDARDS_SKIP; one-shot migration/report Scans are allow-listed. One-off lines carry a trailing `standards:allow <reason>`.
+- **Standards gate:** `scripts/standards-check.sh` (canonical copy in ctech-skills, identical bytes; CI job "Family standards"; reads `FAMILY_GOCOMMON_MINOR`, default v1.42, bump it on a go-common minor). Debt hidden: none via STANDARDS_SKIP; one-shot migration/report Scans are allow-listed. One-off lines carry a trailing `standards:allow <reason>`.
 
 ## Projects
 
@@ -94,7 +94,7 @@ Every core function must be covered by an integration test in addition to unit t
 | `OVERVIEW.md`        | System architecture + data flow    |
 | `DOCS.md`            | Complete technical reference       |
 | `CONDUCT.md`         | Engineering guidelines             |
-| `DynamoDB-Tables.md` | Schema for all tables (47 in CDK)  |
+| `DynamoDB-Tables.md` | Schema for all tables (51 in CDK)  |
 | `DEPLOYMENT.md`      | Infrastructure deployment guide    |
 | `INTEGRATION.md`     | Frontend-backend integration guide |
 | `THEME.md`           | Color palette and design system    |
