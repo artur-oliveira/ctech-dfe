@@ -86,7 +86,7 @@ type xmlPessoa struct {
 	CNaoNIF *int    `xml:"cNaoNIF,omitempty"`
 	CAEPF   string  `xml:"CAEPF,omitempty"`
 	IM      string  `xml:"IM,omitempty"`
-	XNome   string  `xml:"xNome"`
+	XNome   string  `xml:"xNome,omitempty"`
 	End     *xmlEnd `xml:"end,omitempty"`
 	Fone    string  `xml:"fone,omitempty"`
 	Email   string  `xml:"email,omitempty"`
@@ -396,7 +396,7 @@ func BuildDPS(doc nfse.Document, now time.Time) ([]byte, string, error) {
 		TpEmit: doc.TpEmit, CMotivo: doc.MotivoEmisTI, ChNFSeRej: doc.ChNFSeRej,
 		CLocEmi: doc.CLocEmi,
 		Prest:   toXMLPrestador(doc.Prestador, doc.TpEmit),
-		Toma:    toXMLPessoa(doc.Tomador),
+		Toma:    toXMLTomador(doc.Tomador, doc.TpEmit),
 		Interm:  toXMLPessoa(doc.Intermediario),
 		Serv:    toXMLServ(doc.Servico, ntNova),
 		Valores: toXMLValores(doc.Valores),
@@ -475,11 +475,12 @@ func toXMLEndSimples(e *nfse.EnderecoSimples) *xmlEndSimples {
 	return out
 }
 
-// toXMLPrestador omite xNome quando o prestador é o emitente (tpEmit=1):
-// o Sefin rejeita com E0121 e preenche o nome pelo CNC.
+// toXMLPrestador omite xNome e endereço quando o prestador é o emitente
+// (tpEmit=1): o Sefin rejeita com E0121 e E0128 e preenche os dois pelo CNC.
 func toXMLPrestador(p nfse.Prestador, tpEmit int) xmlPrestador {
 	if tpEmit == 1 {
 		p.XNome = ""
+		p.End = nil
 	}
 	return xmlPrestador{
 		CNPJ: p.CNPJ, CPF: p.CPF, NIF: p.NIF, CNaoNIF: p.CNaoNIF,
@@ -488,6 +489,17 @@ func toXMLPrestador(p nfse.Prestador, tpEmit int) xmlPrestador {
 		RegTrib: xmlRegTrib{OpSimpNac: p.RegTrib.OpSimpNac,
 			RegApTribSN: p.RegTrib.RegApTribSN, RegEspTrib: p.RegTrib.RegEspTrib},
 	}
+}
+
+// toXMLTomador omite xNome e endereço quando o tomador é o emitente
+// (tpEmit=2): o Sefin rejeita com E0225 e E0236.
+func toXMLTomador(p *nfse.Pessoa, tpEmit int) *xmlPessoa {
+	x := toXMLPessoa(p)
+	if x != nil && tpEmit == 2 {
+		x.XNome = ""
+		x.End = nil
+	}
+	return x
 }
 
 func toXMLPessoa(p *nfse.Pessoa) *xmlPessoa {

@@ -132,18 +132,25 @@ func TestBuildDPS_NT009RejectsRemovedGroups(t *testing.T) {
 	}
 }
 
-// E0121: com tpEmit=1 o prestador não leva xNome.
-func TestDPSPrestadorSemNomeQuandoEmitente(t *testing.T) {
+// E0121/E0128/E0225/E0236: o emitente não leva nome nem endereço.
+func TestDPSEmitenteSemNomeEEndereco(t *testing.T) {
+	end := &nfse.Endereco{XLgr: "Rua A", Nro: "1", XBairro: "Centro",
+		CMun: "2211001", CEP: "64000000"}
 	doc := minimalDoc()
-	doc.Prestador.XNome = "Prestador Teste"
-	for tpEmit, want := range map[int]bool{1: false, 2: true} {
-		doc.TpEmit = tpEmit
-		if tpEmit != 1 {
-			doc.MotivoEmisTI = 1
+	doc.Prestador.XNome, doc.Prestador.End = "Prestador Teste", end
+	doc.Tomador.End = end
+	for _, tc := range []struct {
+		tpEmit            int
+		prestTem, tomaTem bool
+	}{{1, false, true}, {2, true, false}} {
+		doc.TpEmit = tc.tpEmit
+		p := toXMLPrestador(doc.Prestador, doc.TpEmit)
+		if got := p.XNome != "" && p.End != nil; got != tc.prestTem {
+			t.Errorf("tpEmit=%d: prestador com nome e endereço=%v, quer %v", tc.tpEmit, got, tc.prestTem)
 		}
-		x := toXMLPrestador(doc.Prestador, doc.TpEmit)
-		if got := x.XNome != ""; got != want {
-			t.Errorf("tpEmit=%d: xNome presente=%v, quer %v", tpEmit, got, want)
+		x := toXMLTomador(doc.Tomador, doc.TpEmit)
+		if got := x.XNome != "" || x.End != nil; got != tc.tomaTem {
+			t.Errorf("tpEmit=%d: tomador com nome ou endereço=%v, quer %v", tc.tpEmit, got, tc.tomaTem)
 		}
 	}
 }

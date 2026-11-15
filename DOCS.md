@@ -1314,7 +1314,7 @@ do serviço não positivo), E0429 (alíquota do ISSQN acima de 5%) e E0204 (ISSQ
 que dependem de cadastro externo (Receita, município, convênio) seguem com o fisco. Para acrescentar uma regra: um
 `if` em `preValidate` e um caso em `TestPreValidate`.
 
-**Prestador emitente (E0121).** Com `tpEmit=1` o `prest/xNome` não é enviado (`toXMLPrestador` em `go-dfe/nfse/nacional/dps.go`); o Sefin rejeita com E0121 e preenche o nome pelo CNC. A `IM` do prestador segue enviada: E0120 ocorre quando o município não tem cadastro complementar no CNC, informação que o sistema não tem.
+**Emitente sem nome nem endereço (E0121, E0128, E0225, E0236).** O Sefin preenche nome e endereço do emitente pelo CNC e rejeita se vierem na DPS: com `tpEmit=1` o `prest` não leva `xNome` nem `end` (`toXMLPrestador`); com `tpEmit=2` o `toma` não leva `xNome` nem `end` (`toXMLTomador`), ambos em `go-dfe/nfse/nacional/dps.go`. Quando o emitente é outro, o Sefin exige nome e endereço do prestador (E0122, E0129), ainda não validados no cliente. A `IM` do prestador segue enviada: E0120 ocorre quando o município não tem cadastro complementar no CNC, informação que o sistema não tem. Lista completa de erros: buscadorncm.com.br/nfse/erros (1064 códigos, página renderizada por JS).
 
 **Leiaute da DPS por ambiente (NT 009).** Em 20/10/2026 a Sefin publicou, só para produção restrita
 (`NFSe-ESQUEMAS_XSD-PRODREST-v1.01-20261020`, página *Documentação Técnica (Homologação/testes)* do gov.br/nfse), um
