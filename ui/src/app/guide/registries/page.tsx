@@ -303,6 +303,12 @@ export default function GuideCadastros() {
                 <li><b>Obrigatórios:</b> código interno, descrição e código de tributação nacional.</li>
                 <li>Serviço <b>tributável</b> exige alíquota do ISS; <b>imune</b>, <b>isento</b> e <b>não incidente</b> exigem o motivo, que vai no XML.</li>
                 <li>Marcar <b>ISS retido</b> transfere o recolhimento ao tomador; a nota sai com o valor líquido destacado.</li>
+                <li>
+                  <b>Total aproximado de tributos, Simples Nacional (%)</b> é obrigatório para quem emite
+                  como ME/EPP optante pelo Simples Nacional: sem ele a emissão é recusada com o erro
+                  E0712. MEI e prestadores de outros regimes deixam em branco. O percentual é o que o
+                  seu contador informa para o seu anexo do Simples.
+                </li>
                 <li>O valor do cadastro é um padrão: a emissão aceita outro sem alterar o catálogo.</li>
                 <li>
                   <b>Campos opcionais</b> (código NBS, CNAE, código de tributação municipal, país do

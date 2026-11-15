@@ -149,10 +149,10 @@ function toFormData(s: ServiceOut): ServiceFormData {
       tp_oper: s.ibs_cbs?.tp_oper != null ? String(s.ibs_cbs.tp_oper) as '1' | '2' | '3' | '4' | '5' : '',
       fin_nfse: '0',
     },
-    tot_trib: s.tot_trib ? {
+    tot_trib: {
       ind_tot_trib: '0',
-      p_tot_trib_sn: s.tot_trib.p_tot_trib_sn ?? '',
-    } : undefined,
+      p_tot_trib_sn: s.tot_trib?.p_tot_trib_sn ?? '',
+    },
   };
 }
 
@@ -197,10 +197,10 @@ function toApiPayload(data: ServiceFormData): ServiceCreate {
       tp_oper: data.ibs_cbs.tp_oper ? Number(data.ibs_cbs.tp_oper) : null,
       fin_nfse: 0,
     },
-    tot_trib: data.tot_trib ? {
+    tot_trib: {
       ind_tot_trib: 0,
-      p_tot_trib_sn: nullify(data.tot_trib.p_tot_trib_sn),
-    } : undefined,
+      p_tot_trib_sn: nullify(data.tot_trib?.p_tot_trib_sn),
+    },
   };
 }
 
@@ -219,6 +219,7 @@ export function ServiceForm({initialData, onSubmit, loading = false}: ServiceFor
       nbs_code: '', cnae: '', unit: 'UN', value: '',
       iss: {trib_issqn: '1', tax_rate: '', tp_ret_issqn: '', tp_imunidade: '', c_pais_resultado: ''},
       ibs_cbs: {c_ind_op: '', cst: '', c_class_trib: '', ind_dest: '0', tp_oper: '', fin_nfse: '0'},
+      tot_trib: {ind_tot_trib: '0', p_tot_trib_sn: ''},
     },
   });
 
@@ -453,6 +454,19 @@ export function ServiceForm({initialData, onSubmit, loading = false}: ServiceFor
               )}/>
             )}
           </div>
+
+          <FormField control={form.control} name="tot_trib.p_tot_trib_sn" render={({field}) => (
+            <FormItem>
+              <FormLabel>Total aproximado de tributos, Simples Nacional (%)</FormLabel>
+              <CurrencyInput id={field.name} value={field.value ?? ''} onChange={field.onChange}
+                             decimalPlaces={2} maxDecimalPlaces={4}/>
+              <FormDescription>
+                Obrigatório para prestador ME/EPP optante pelo Simples Nacional; MEI e demais regimes deixam em
+                branco. A Receita rejeita a nota sem esse percentual (E0712).
+              </FormDescription>
+              <FormMessage/>
+            </FormItem>
+          )}/>
 
           {trIssqn === '3' && (
             <FormField control={form.control} name="iss.c_pais_resultado" render={({field}) => (
