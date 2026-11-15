@@ -21,6 +21,27 @@ const (
 	msgTpRetISSQN = "E0204: com retenção de ISSQN é obrigatório informar o CNPJ ou CPF do tomador"
 )
 
+const (
+	tribISSQNTributavel = 1 // tribISSQN: 1 = tributável; 2 a 4 = imunidade, exportação, não incidência
+	regApTribSNSimples  = 1 // regApTribSN: ISSQN apurado pelo Simples Nacional
+)
+
+// dropAliqNaoPermitida limpa a alíquota nos casos em que o Sefin rejeita a DPS
+// se ela vier preenchida: o Sefin calcula o ISSQN sozinho. Vale com o município
+// ativo ou não no Sistema Nacional (E0600, E0602, E0604, E0625, E0631).
+func dropAliqNaoPermitida(doc *nfse.Document) {
+	reg := doc.Prestador.RegTrib
+	trib := &doc.Valores.Trib.TribMun
+	semAliq := reg.OpSimpNac == opSimpNacMEI || // E0600
+		trib.TribISSQN != tribISSQNTributavel || // E0602
+		reg.RegEspTrib != 0 || // E0604
+		(reg.OpSimpNac == opSimpNacMEEPP && reg.RegApTribSN == regApTribSNSimples &&
+			trib.TpRetISSQN == tpRetNaoRet) // E0625, E0631
+	if semAliq {
+		trib.PAliq = ""
+	}
+}
+
 // preValidate devolve a primeira regra violada como 400 com o código do fisco
 // na mensagem, para o usuário corrigir antes de gastar a numeração.
 func preValidate(doc nfse.Document) error {
@@ -69,6 +90,12 @@ func preValidate(doc nfse.Document) error {
 	trib := doc.Valores.Trib.TribMun
 	if a, err := strconv.ParseFloat(trib.PAliq, 64); err == nil && a > maxAliqISSQN {
 		return problem.BadRequest("E0429: a alíquota do ISSQN não pode ser superior a 5%")
+	}
+	reg := doc.Prestador.RegTrib
+	if reg.OpSimpNac == opSimpNacMEEPP && reg.RegApTribSN == regApTribSNSimples &&
+		trib.TpRetISSQN > tpRetNaoRet && trib.TribISSQN == tribISSQNTributavel &&
+		reg.RegEspTrib == 0 && strings.TrimSpace(trib.PAliq) == "" {
+		return problem.BadRequest("E0621: com retenção de ISSQN, o prestador ME/EPP no Simples Nacional deve informar a alíquota")
 	}
 	if trib.TpRetISSQN > tpRetNaoRet && pessoaDoc(doc.Tomador) == "" {
 		return problem.BadRequest(msgTpRetISSQN)

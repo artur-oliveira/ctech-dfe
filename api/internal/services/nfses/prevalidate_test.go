@@ -87,3 +87,44 @@ func TestBuildServico_CIntContribOnlyWhenSchemaAllows(t *testing.T) {
 		}
 	}
 }
+
+func TestDropAliqNaoPermitida(t *testing.T) {
+	cases := []struct {
+		name string
+		mut  func(*nfse.Document)
+		want string // alíquota esperada depois
+	}{
+		{"nao optante mantem", func(*nfse.Document) {}, "2.00"},
+		{"E0625 ME/EPP SN sem retencao", func(d *nfse.Document) {
+			d.Prestador.RegTrib = nfse.RegTrib{OpSimpNac: 3, RegApTribSN: 1}
+		}, ""},
+		{"ME/EPP SN com retencao mantem", func(d *nfse.Document) {
+			d.Prestador.RegTrib = nfse.RegTrib{OpSimpNac: 3, RegApTribSN: 1}
+			d.Valores.Trib.TribMun.TpRetISSQN = 2
+		}, "2.00"},
+		{"ME/EPP fora do SN mantem", func(d *nfse.Document) {
+			d.Prestador.RegTrib = nfse.RegTrib{OpSimpNac: 3, RegApTribSN: 2}
+		}, "2.00"},
+		{"E0600 MEI", func(d *nfse.Document) { d.Prestador.RegTrib.OpSimpNac = 2 }, ""},
+		{"E0602 imune", func(d *nfse.Document) { d.Valores.Trib.TribMun.TribISSQN = 2 }, ""},
+		{"E0604 regime especial", func(d *nfse.Document) { d.Prestador.RegTrib.RegEspTrib = 4 }, ""},
+	}
+	for _, c := range cases {
+		d := validDoc()
+		d.Valores.Trib.TribMun.TribISSQN = 1
+		c.mut(&d)
+		dropAliqNaoPermitida(&d)
+		if got := d.Valores.Trib.TribMun.PAliq; got != c.want {
+			t.Errorf("%s: pAliq = %q, quer %q", c.name, got, c.want)
+		}
+	}
+}
+
+func TestPreValidate_E0621(t *testing.T) {
+	d := validDoc()
+	d.Valores.Trib.TribMun = nfse.TribMunicipal{TribISSQN: 1, TpRetISSQN: 2}
+	d.Prestador.RegTrib = nfse.RegTrib{OpSimpNac: 3, RegApTribSN: 1}
+	if err := preValidate(d); err == nil || !strings.Contains(err.Error(), "E0621") {
+		t.Fatalf("quer E0621, veio %v", err)
+	}
+}

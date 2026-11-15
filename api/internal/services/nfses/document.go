@@ -89,6 +89,7 @@ func buildDocument(in documentInput) (nfse.Document, error) {
 			"o serviço deve informar IBS/CBS (c_ind_op, cst, c_class_trib, ind_dest e fin_nfse)")
 	}
 
+	dropAliqNaoPermitida(&doc)
 	if err := preValidate(doc); err != nil {
 		return nfse.Document{}, err
 	}
