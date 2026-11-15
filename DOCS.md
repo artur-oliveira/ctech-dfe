@@ -1306,6 +1306,8 @@ responsabilidade é de quem escolheu). No go-dfe, `nacional.Config.Authorizer = 
 (`authorizer`) e os eventos reutilizam o da linha, para que uma nota autorizada no Sefin Nacional seja cancelada
 no Sefin Nacional; linhas anteriores ao campo não têm `authorizer` e seguem o autorizador do município como antes.
 
+**Alíquota do ISSQN (E0600, E0602, E0604, E0625, E0631, E0621).** O Sefin rejeita a DPS se `pAliq` vier preenchida para MEI, para `tribISSQN` diferente de 1, para prestador com regime especial de tributação, ou para ME/EPP no Simples Nacional (`opSimpNac=3`, `regApTribSN=1`) sem retenção (`tpRetISSQN=1`); com o município ativo ou não no Sistema Nacional a regra é a mesma. `dropAliqNaoPermitida` (`api/internal/services/nfses/prevalidate.go`) limpa a alíquota nesses casos antes do envio, sem erro ao usuário. No caso inverso (ME/EPP no Simples com retenção 2 ou 3) a alíquota é obrigatória e `preValidate` devolve 400 E0621. Regras de alíquota que dependem do município (E0617, E0619, E0635, E0640) não são tratadas.
+
 **Pré-validação da emissão (`nfses.preValidate`).** Antes de reservar o número da DPS, `buildDocument` recusa com 400
 as rejeições do Emissor Nacional que dá para prever localmente, com o código do fisco na mensagem: E0202 (prestador
 igual ao tomador), E0250 (intermediário igual ao prestador), dígitos de CNPJ/CPF do prestador, tomador e intermediário
