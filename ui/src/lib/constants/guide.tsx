@@ -1,5 +1,5 @@
 import type {ReactNode} from 'react';
-import {Compass} from 'lucide-react';
+import {Compass, Webhook} from 'lucide-react';
 import {
   BriefcaseIcon,
   CteIcon,
@@ -135,5 +135,15 @@ export const GUIDE_TOPICS: GuideTopic[] = [
       'Várias empresas numa conta, papéis e convites, plano e cobrança, configuração fiscal por documento e log de auditoria.',
     tags: ['Organizações', 'Plano', 'Auditoria'],
     icon: <CteIcon width={20} height={20}/>,
+  },
+  {
+    href: '/guide/webhooks',
+    label: 'Webhooks',
+    title: 'Webhooks',
+    time: '5 min',
+    description:
+      'Receba um aviso assinado no seu sistema quando um documento for autorizado, rejeitado ou falhar: cadastro, verificação da assinatura, tentativas e reenvio.',
+    tags: ['Integração', 'Assinatura', 'Reenvio'],
+    icon: <Webhook size={20}/>,
   },
 ];

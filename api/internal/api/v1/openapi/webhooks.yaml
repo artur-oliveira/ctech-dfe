@@ -40,6 +40,10 @@ paths:
                   data:
                     type: array
                     items: { $ref: '#/components/schemas/WebhookEndpoint' }
+                  company_pks:
+                    type: array
+                    items: { type: string }
+                    description: Empresas da organização, para o filtro de empresa do cadastro (só as chaves; os nomes a tela já tem).
                   enabled: { type: boolean }
                   max_endpoints: { type: integer }
                   event_types:

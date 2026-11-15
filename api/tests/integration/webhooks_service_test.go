@@ -88,11 +88,14 @@ func TestWebhookRegisterStoresOnlyAfterTheChallengeAndShowsTheSecretOnce(t *test
 	if !strings.HasPrefix(created.Secret, "whsec_") || created.Status != repositories.WebhookActive {
 		t.Fatalf("created = %+v", created)
 	}
-	list, err := e.svc.List(ctx, e.company, "usr-admin")
-	if err != nil || len(list) != 1 {
-		t.Fatalf("list = %v %v", list, err)
+	listing, err := e.svc.List(ctx, e.company, "usr-admin")
+	if err != nil || len(listing.Endpoints) != 1 {
+		t.Fatalf("list = %+v %v", listing, err)
 	}
-	raw, _ := json.Marshal(list)
+	if len(listing.CompanyPKs) != 1 || listing.CompanyPKs[0] != e.company {
+		t.Fatalf("the picker's companies = %v, want the organization's company %s", listing.CompanyPKs, e.company)
+	}
+	raw, _ := json.Marshal(listing.Endpoints)
 	if strings.Contains(string(raw), "whsec_") || strings.Contains(string(raw), "secret") {
 		t.Fatalf("the list carries the secret: %s", raw)
 	}

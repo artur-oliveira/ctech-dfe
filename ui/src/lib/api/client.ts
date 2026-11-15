@@ -116,6 +116,14 @@ import type {
   BillingPlansResponse,
   PlanChoice,
 } from '@/lib/types/billing';
+import type {
+  WebhookCreated,
+  WebhookDeliveriesPage,
+  WebhookDeliveryDetail,
+  WebhookList,
+  WebhookRegistration,
+} from '@/lib/types/webhooks';
+import {DELIVERIES_PAGE_SIZE} from '@/lib/constants/webhooks';
 
 // Empty means same-origin: CloudFront forwards /v1.0/* to the ALB in deployed
 // environments, and `next dev` proxies it locally (next.config.ts). Either way
@@ -1380,6 +1388,39 @@ class ApiClient {
 
   async listBillingInvoices(year?: number, month?: number): Promise<{ data: BillingInvoice[] }> {
     return this.get('/v1.0/billing/invoices', {params: {year, month}});
+  }
+
+  // Outbound webhooks — org context auto-injected via Dfe-Organization-Pk header
+  async listWebhooks(): Promise<WebhookList> {
+    return this.get('/v1.0/webhooks');
+  }
+
+  async createWebhook(body: WebhookRegistration): Promise<WebhookCreated> {
+    return this.post('/v1.0/webhooks', body);
+  }
+
+  async deleteWebhook(id: string): Promise<void> {
+    return this.del(`/v1.0/webhooks/${id}`);
+  }
+
+  async rotateWebhookSecret(id: string): Promise<{ secret: string }> {
+    return this.post(`/v1.0/webhooks/${id}/rotate-secret`, {});
+  }
+
+  async pingWebhook(id: string): Promise<void> {
+    return this.post(`/v1.0/webhooks/${id}/ping`, {});
+  }
+
+  async listWebhookDeliveries(id: string, cursor?: string): Promise<WebhookDeliveriesPage> {
+    return this.get(`/v1.0/webhooks/${id}/deliveries`, {params: {limit: DELIVERIES_PAGE_SIZE, cursor}});
+  }
+
+  async getWebhookDelivery(id: string, eventId: string): Promise<WebhookDeliveryDetail> {
+    return this.get(`/v1.0/webhooks/${id}/deliveries/${eventId}`);
+  }
+
+  async replayWebhookDelivery(id: string, eventId: string): Promise<void> {
+    return this.post(`/v1.0/webhooks/${id}/deliveries/${eventId}/replay`, {});
   }
 
   // Audit log — org context auto-injected via Dfe-Organization-Pk header

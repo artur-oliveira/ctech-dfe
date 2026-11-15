@@ -42,7 +42,8 @@ func RegisterWebhooks(router fiber.Router, svc *services.WebhookService, authMw 
 			return sendProblem(c, err)
 		}
 		return c.JSON(fiber.Map{
-			"data":          list,
+			"data":          list.Endpoints,
+			"company_pks":   list.CompanyPKs,
 			"enabled":       svc.Enabled(),
 			"max_endpoints": repositories.MaxWebhookEndpoints,
 			"event_types":   services.WebhookEventTypes,

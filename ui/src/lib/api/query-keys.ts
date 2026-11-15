@@ -157,6 +157,12 @@ export const queryKeys = {
     subscriptionAll: () => ['billing', 'subscription'] as const,
     invoices: (companyPk: string, year?: number, month?: number) => ['billing', 'invoices', companyPk, year, month] as const,
   },
+  webhooks: {
+    /** Keyed on the selected company: the API answers for its ctech-account organization. */
+    list: (companyPk: string) => ['webhooks', companyPk] as const,
+    deliveries: (companyPk: string, endpointId: string) => ['webhooks', companyPk, endpointId, 'deliveries'] as const,
+    delivery: (companyPk: string, endpointId: string, eventId: string) => ['webhooks', companyPk, endpointId, 'deliveries', eventId] as const,
+  },
   members: (orgPk: string | undefined) => ['members', orgPk] as const,
   invitations: (orgPk: string | undefined) => ['invitations', orgPk] as const,
   invitation: (token: string) => ['invitation', token] as const,

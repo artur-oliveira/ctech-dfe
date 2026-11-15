@@ -31,7 +31,7 @@ function pagesWithShots(): string[] {
  * Telas de configuração e de conta: mesma regra dos cadastros, mas as rotas não
  * saem de um `DocContext`, então a lista é explícita.
  */
-const SETTINGS_ROUTES = ['organizations', 'members', 'fiscal-config', 'certificates', 'audit-logs', 'profile'];
+const SETTINGS_ROUTES = ['organizations', 'members', 'fiscal-config', 'certificates', 'audit-logs', 'profile', 'webhooks'];
 
 describe('guia', () => {
   /**

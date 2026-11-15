@@ -143,8 +143,16 @@ func dedupe(in []string) []string {
 	return out
 }
 
-// List returns the organization's endpoints, secrets never included.
-func (s *WebhookService) List(ctx context.Context, companyPK, userID string) ([]repositories.WebhookEndpoint, error) {
+// WebhookList is the console's whole picture: the endpoints and the companies a
+// filter may pick from (the keys only; the screen already holds their names).
+type WebhookList struct {
+	Endpoints  []repositories.WebhookEndpoint
+	CompanyPKs []string
+}
+
+// List returns the organization's endpoints, secrets never included, and the
+// keys of its companies for the endpoint filter.
+func (s *WebhookService) List(ctx context.Context, companyPK, userID string) (*WebhookList, error) {
 	scope, err := s.scope(ctx, companyPK, userID)
 	if err != nil {
 		return nil, err
@@ -156,7 +164,15 @@ func (s *WebhookService) List(ctx context.Context, companyPK, userID string) ([]
 	for i := range list {
 		list[i].Secret = ""
 	}
-	return list, nil
+	companies, err := s.billing.orgs.CompaniesOf(ctx, scope.OrganizationID)
+	if err != nil {
+		return nil, err
+	}
+	pks := make([]string, 0, len(companies))
+	for _, c := range companies {
+		pks = append(pks, c.PK)
+	}
+	return &WebhookList{Endpoints: list, CompanyPKs: pks}, nil
 }
 
 func notFound(err error) error {
