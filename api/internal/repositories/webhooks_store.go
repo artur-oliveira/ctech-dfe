@@ -193,7 +193,7 @@ func (s *WebhookStore) RecordHealth(ctx context.Context, e webhooks.Endpoint, ok
 	if !isRow {
 		return errWebhookNoRow
 	}
-	updates := map[string]any{}
+	var updates map[string]any
 	disabled := false
 	switch {
 	case ok:
