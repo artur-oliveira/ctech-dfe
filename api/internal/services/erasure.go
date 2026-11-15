@@ -188,9 +188,9 @@ func (s *ErasureService) purgeTable(ctx context.Context, t ErasureTable, company
 		}
 	case ScopeInvitations:
 		return s.purgeIndexed(ctx, t.Name, orgInviteIndex, "org_pk", company, counts)
-	case ScopeKept, ScopePerson, ScopeAccountBilling, ScopeOrganization, ScopeOutbox, ScopeSerieClaims:
+	case ScopeKept, ScopePerson, ScopeAccountBilling, ScopeOrganization, ScopeOutbox, ScopeSerieClaims, ScopeOrgAccount:
 		// Kept; person and billing purge (Purge); after the settle window; through each document;
-		// before the fiscal configs go (releaseSerieClaims).
+		// before the fiscal configs go (releaseSerieClaims); with the account organization (eraseOrganizationWebhooks).
 	default:
 		return fmt.Errorf("erasure: scope %d has no purge rule", t.Scope)
 	}

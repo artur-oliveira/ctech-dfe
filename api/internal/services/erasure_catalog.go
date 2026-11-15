@@ -22,6 +22,7 @@ const (
 	ScopeOutbox                             // pk = {doc table}#{doc sk}; reached through ScopeEnvDocs
 	ScopeInvitations                        // org_pk on org-invite-index
 	ScopeSerieClaims                        // global; derived from the fiscal configs
+	ScopeOrgAccount                         // pk = ORG_{ctech-account organization}, sk; purged with the organization (eraseOrganizationWebhooks)
 )
 
 // ErasureTable is one DynamoDB table and how the purge reaches it.
@@ -43,6 +44,8 @@ var erasureCatalog = []ErasureTable{
 	{CDK: "idempotency", Name: "idempotency", Scope: ScopeKept},
 	{CDK: "users", Name: "users", Scope: ScopePerson},
 	{CDK: "account_billing", Name: "account_billing", Scope: ScopeAccountBilling}, // person (legacy USER_ rows) and organization (ORG_ rows) keys, R15
+	// Webhook endpoints (URL, sealed secret), deliveries (event bodies) and attempts of an account organization.
+	{CDK: "webhooks", Name: repositories.TableWebhooks, Scope: ScopeOrgAccount, SortKey: skKey},
 	{CDK: "organizations", Name: "organizations", Scope: ScopeOrganization},
 	{CDK: "organization_users", Name: "organization_users", Scope: ScopeOrgPartition, SortKey: skKey},
 	{CDK: "organization_invitations", Name: "organization_invitations", Scope: ScopeInvitations},
