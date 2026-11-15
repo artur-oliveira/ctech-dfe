@@ -1,5 +1,6 @@
 'use client';
 
+import {EVENT_HIGHLIGHT_CLASS, eventRowId, useHighlightedEvent} from '@/lib/hooks/useHighlightedEvent';
 import {type ReactNode, useState} from 'react';
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
 import {CancelDfeModal, CANCEL_JUSTIFICATION_MIN_LENGTH} from '@/components/dfe/CancelDfeModal';
@@ -68,6 +69,7 @@ export function DfeDetail({
     queryFn: fetchEvents,
     enabled,
   });
+  const highlightedEvent = useHighlightedEvent(!eventsLoading);
 
   const cancelMutation = useMutation({
     mutationFn: (j: string) => cancelFn(j),
@@ -302,7 +304,8 @@ export function DfeDetail({
           </tr>
         ) : (
           eventsData.items.map((evt) => (
-            <tr key={evt.sk} className={`${TABLE_ROW} align-top`}>
+            <tr key={evt.sk} id={eventRowId(evt.sk)}
+                className={`${TABLE_ROW} align-top ${highlightedEvent === evt.sk ? EVENT_HIGHLIGHT_CLASS : ''}`}>
               <td data-label="Evento" className={TABLE_CELL}>
                 <p className="font-medium text-gray-900">{EVENT_TYPE_LABELS[evt.event_type] ?? evt.event_type}</p>
                 {evt.sefaz_motive && (

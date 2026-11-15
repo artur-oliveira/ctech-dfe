@@ -1,5 +1,6 @@
 'use client';
 
+import {EVENT_HIGHLIGHT_CLASS, eventRowId, useHighlightedEvent} from '@/lib/hooks/useHighlightedEvent';
 import {Suspense, useState} from 'react';
 import Link from 'next/link';
 import {useSearchParams} from 'next/navigation';
@@ -86,6 +87,8 @@ function CteDetail({accessKey}: { accessKey: string }) {
     queryFn: (cursor) => apiClient.getCteEvents(accessKey, cursor),
     enabled: !!accessKey && !!selectedOrg,
   });
+
+  const highlightedEvent = useHighlightedEvent(!events.isLoading);
 
   const handleDownloadEventXml = async (event: NfeEventOut) => {
     setEventXmlLoading(event.sk);
@@ -294,7 +297,8 @@ function CteDetail({accessKey}: { accessKey: string }) {
           <tr><td colSpan={5} className={TABLE_CELL}>Nenhum evento registrado.</td></tr>
         ) : (
           events.items.map((evt) => (
-            <tr key={evt.sk} className={`${TABLE_ROW} align-top`}>
+            <tr key={evt.sk} id={eventRowId(evt.sk)}
+                className={`${TABLE_ROW} align-top ${highlightedEvent === evt.sk ? EVENT_HIGHLIGHT_CLASS : ''}`}>
               <td data-label="Evento" className={TABLE_CELL}>
                 <p className="font-medium text-gray-900">{EVENT_TYPE_LABELS[evt.event_type] ?? evt.event_type}</p>
                 {evt.sefaz_motive && <p className="text-xs text-gray-400 mt-0.5 max-w-65 wrap-break-word">{evt.sefaz_motive}</p>}

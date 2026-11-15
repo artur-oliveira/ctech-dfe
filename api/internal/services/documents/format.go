@@ -226,3 +226,57 @@ func address(n *xmlNode) string {
 	}
 	return strings.Join(nonempty, ", ")
 }
+
+// moneyOpt formata "R$ 1.234,56"; valor ausente vira vazio, para o DANFSe imprimir
+// o traço em vez de um "R$ 0,00" que o XML não trouxe.
+func moneyOpt(value string) string {
+	if strings.TrimSpace(value) == "" {
+		return ""
+	}
+	return "R$ " + moneyBR(value)
+}
+
+// percentOpt formata "1,50 %"; ausente vira vazio, como moneyOpt.
+func percentOpt(value string) string {
+	p := percentBR(value)
+	if p == "" {
+		return ""
+	}
+	return p + " %"
+}
+
+// maskIBGE formata o código de município como o DANFSe nacional: 2211001 vira 22.11001.
+func maskIBGE(value string) string {
+	d := digits(value)
+	if len(d) != 7 {
+		return value
+	}
+	return d[:2] + "." + d[2:]
+}
+
+// maskCEPNacional formata o CEP como o DANFSe nacional: 64057060 vira 64.057-060.
+func maskCEPNacional(value string) string {
+	d := digits(value)
+	if len(d) != 8 {
+		return value
+	}
+	return d[:2] + "." + d[2:5] + "-" + d[5:]
+}
+
+// maskNBS formata o código NBS de 9 dígitos: 115021000 vira 1.1502.10.00.
+func maskNBS(value string) string {
+	d := digits(value)
+	if len(d) != 9 {
+		return value
+	}
+	return d[:1] + "." + d[1:5] + "." + d[5:7] + "." + d[7:]
+}
+
+// maskTribNac formata o código de tributação nacional: 010101 vira 01.01.01.
+func maskTribNac(value string) string {
+	d := digits(value)
+	if len(d) != 6 {
+		return value
+	}
+	return d[:2] + "." + d[2:4] + "." + d[4:]
+}

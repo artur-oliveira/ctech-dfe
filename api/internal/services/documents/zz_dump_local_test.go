@@ -36,7 +36,7 @@ func TestDumpLocal(t *testing.T) {
 		t.Fatal(err)
 	}
 	for name, xml := range map[string]string{
-		"nfe": sampleNFeXML(), "nfce": sampleNFCeXML(), "mdfe": sampleMDFeXML(), "cte": sampleCTeXML(),
+		"nfe": sampleNFeXML(), "nfce": sampleNFCeXML(), "mdfe": sampleMDFeXML(), "cte": sampleCTeXML(), "nfse": sampleNFSeXML(),
 	} {
 		pdf, err := renderer.Render(context.Background(), name, []byte(xml), StateActive, "")
 		if err != nil {

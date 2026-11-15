@@ -1,5 +1,6 @@
 'use client';
 
+import {EVENT_HIGHLIGHT_CLASS, eventRowId, useHighlightedEvent} from '@/lib/hooks/useHighlightedEvent';
 import {PRINT_FORMATS} from '@/lib/constants/document-formats';
 import {Suspense, useState} from 'react';
 import Link from 'next/link';
@@ -57,6 +58,7 @@ function MdfeDetail({accessKey}: { accessKey: string }) {
     enabled: !!accessKey && !!selectedOrg,
   });
   
+  const highlightedEvent = useHighlightedEvent(!eventsLoading);
   const includes = (eventsData?.items ?? []).filter((e) => e.event_type === EVENT_INCLUDE_DFE).length;
   const target = doc ? {sk: accessKey, number: doc.number, uf_end: doc.uf_end, includes} : null;
   // Autorizado sem documento é o carregamento posterior: as notas ainda vão entrar.
@@ -266,7 +268,8 @@ function MdfeDetail({accessKey}: { accessKey: string }) {
           </tr>
         ) : (
           eventsData.items.map((evt) => (
-            <tr key={evt.sk} className={`${TABLE_ROW} align-top`}>
+            <tr key={evt.sk} id={eventRowId(evt.sk)}
+                className={`${TABLE_ROW} align-top ${highlightedEvent === evt.sk ? EVENT_HIGHLIGHT_CLASS : ''}`}>
               <td data-label="Evento" className={TABLE_CELL}>
                 <p className="font-medium text-gray-900">{EVENT_TYPE_LABELS[evt.event_type] ?? evt.event_type}</p>
                 {evt.sefaz_motive && (

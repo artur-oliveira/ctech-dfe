@@ -19,16 +19,20 @@
   table { width: 100%; border-collapse: collapse; }
   td { vertical-align: top; word-wrap: break-word; overflow-wrap: break-word; }
 
-  /* Borda externa de 1 pt e divisórias de 0,5 pt, como a NT determina. */
-  .quadro { border: 1pt solid #000; border-bottom: none; }
-  .quadro-last { border-bottom: 1pt solid #000; }
-  /* Faixa de título de bloco: fundo cinza e rótulo em caixa alta. */
-  .faixa td { background: #d9d9d9; border-right: 0.5pt solid #000;
-    border-bottom: 0.5pt solid #000; padding: 1.5pt 2pt; font-weight: bold; }
-  .grid td { border-right: 0.5pt solid #000; border-bottom: 0.5pt solid #000; padding: 1.5pt 2pt; }
-  .grid .lbl { display: block; font-weight: bold; }
+  /* Como o DANFSe do ambiente nacional: moldura externa, uma linha fina entre
+     blocos e nada entre campos; o título de cada bloco fica numa célula cinza. */
+  .quadro { border: 0.75pt solid #000; border-bottom: none; }
+  .quadro-last { border-bottom: 0.75pt solid #000; }
+  .quadro + .quadro { border-top: 0.5pt solid #000; }
+  .head td { background: #e6e6e6; padding: 3pt 4pt; vertical-align: middle; }
+  .faixa td { background: #e6e6e6; padding: 1.5pt 3pt; font-weight: bold; }
+  .grid td { padding: 1.5pt 3pt; }
+  .sec { background: #e6e6e6; font-weight: bold; font-size: 6.5pt; vertical-align: middle; }
+  .grid .lbl { display: block; font-weight: bold; color: #333; }
   .grid .val { display: block; }
-  .pad { padding: 1.5pt 2pt; border-bottom: 0.5pt solid #000; }
+  .pad { padding: 1.5pt 3pt; }
+  .logo { width: 38mm; display: block; }
+  .nao-ident { text-align: center; border-top: 0.5pt solid #000; padding: 1pt; font-size: 6pt; }
 
   .qr-band { min-height: 20mm; }
   .qr { width: 20mm; display: block; margin-left: auto; margin-right: auto; }
@@ -54,20 +58,17 @@
 {% if ctx.watermark %}<div class="watermark">{{ ctx.watermark }}</div>{% endif %}
 {% if ctx.is_homologacao %}<div class="banner">{{ ctx.text.homologacao }}</div>{% endif %}
 
-{# ---- Cabeçalho: marca, título e ambiente -------------------------------- #}
-<table class="quadro grid"><tr>
-  <td style="width:22%">
-    <span class="huge b">{{ ctx.text.wordmark }}</span>
-    <span class="val muted">{{ ctx.text.wordmark_sub }}</span>
-  </td>
-  <td style="width:48%" class="center">
+{# ---- Cabeçalho: logotipo, título e ambiente ----------------------------- #}
+<table class="quadro head"><tr>
+  <td style="width:26%"><img class="logo" src="{{ ctx.logo_uri }}" alt="NFS-e"></td>
+  <td style="width:44%" class="center">
     <div class="big b">{{ ctx.text.titulo }}</div>
     <div class="big b">{{ ctx.text.subtitulo }}</div>
   </td>
   <td style="width:30%">
-    <div><span class="b">Município:</span> {{ ctx.cabecalho.municipio }}</div>
-    <div><span class="b">Ambiente Gerador:</span> {{ ctx.cabecalho.ambiente_gerador or ctx.text.vazio }}</div>
-    <div><span class="b">Tipo de Ambiente:</span> {{ ctx.cabecalho.tipo_ambiente or ctx.text.vazio }}</div>
+    <div class="big">Município: {{ ctx.cabecalho.municipio or ctx.text.vazio }}</div>
+    <div>Ambiente Gerador: {{ ctx.cabecalho.ambiente_gerador or ctx.text.vazio }}</div>
+    <div>Tipo de Ambiente: {{ ctx.cabecalho.tipo_ambiente or ctx.text.vazio }}</div>
   </td>
 </tr></table>
 
@@ -117,7 +118,7 @@
 {% macro parte(titulo, p, mostra_im, vazio) %}
 <table class="quadro grid">
   <tr>
-    <td style="width:34%" class="b" style="background:#d9d9d9">{{ titulo }}</td>
+    <td style="width:34%" class="sec">{{ titulo }}</td>
     <td style="width:22%"><span class="lbl">CNPJ / CPF / NIF</span><span class="val">{{ p.documento or p.nao_nif or vazio }}</span></td>
     {% if mostra_im %}<td style="width:22%"><span class="lbl">Inscrição Municipal</span><span class="val">{{ p.inscricao_municipal or vazio }}</span></td>{% endif %}
     <td style="width:22%"><span class="lbl">Telefone</span><span class="val">{{ p.telefone or vazio }}</span></td>
@@ -144,13 +145,13 @@
 
 {{ parte("PRESTADOR / FORNECEDOR", ctx.prestador, true, ctx.text.vazio) }}
 {% if ctx.tomador %}{{ parte("TOMADOR / ADQUIRENTE", ctx.tomador, true, ctx.text.vazio) }}{% endif %}
-{% if ctx.destinatario %}{{ parte("DESTINATÁRIO DA OPERAÇÃO", ctx.destinatario, false, ctx.text.vazio) }}{% endif %}
-{% if ctx.intermediario %}{{ parte("INTERMEDIÁRIO DA OPERAÇÃO", ctx.intermediario, false, ctx.text.vazio) }}{% endif %}
+{% if ctx.destinatario %}{{ parte("DESTINATÁRIO DA OPERAÇÃO", ctx.destinatario, false, ctx.text.vazio) }}{% else %}<div class="quadro nao-ident">DESTINATÁRIO DA OPERAÇÃO NÃO IDENTIFICADO NA NFS-E</div>{% endif %}
+{% if ctx.intermediario %}{{ parte("INTERMEDIÁRIO DA OPERAÇÃO", ctx.intermediario, false, ctx.text.vazio) }}{% else %}<div class="quadro nao-ident">INTERMEDIÁRIO DA OPERAÇÃO NÃO IDENTIFICADO NA NFS-E</div>{% endif %}
 
 {# ---- Serviço prestado --------------------------------------------------- #}
 <table class="quadro grid">
   <tr>
-    <td style="width:28%" class="b" style="background:#d9d9d9">SERVIÇO PRESTADO</td>
+    <td style="width:28%" class="sec">SERVIÇO PRESTADO</td>
     <td style="width:24%"><span class="lbl">Código de Tributação Nacional / Municipal</span><span class="val">{{ ctx.servico.codigo_tributacao }}</span></td>
     <td style="width:24%"><span class="lbl">Código da NBS</span><span class="val">{{ ctx.servico.cod_nbs or ctx.text.vazio }}</span></td>
     <td style="width:24%"><span class="lbl">Local da Prestação / Sigla UF / País</span><span class="val">{{ ctx.servico.local_prestacao or ctx.text.vazio }}</span></td>
@@ -170,7 +171,7 @@
 {# ---- Tributação municipal ----------------------------------------------- #}
 <table class="quadro grid">
   <tr>
-    <td style="width:28%" class="b" style="background:#d9d9d9">TRIBUTAÇÃO MUNICIPAL (ISSQN)</td>
+    <td style="width:28%" class="sec">TRIBUTAÇÃO MUNICIPAL (ISSQN)</td>
     <td style="width:24%"><span class="lbl">Tipo de Tributação do ISSQN</span><span class="val">{{ ctx.trib_mun.tipo_tributacao }}</span></td>
     <td colspan="2"><span class="lbl">Município / Sigla UF / País de Incidência do ISSQN</span><span class="val">{{ ctx.trib_mun.municipio_incidencia or ctx.trib_mun.pais_resultado or ctx.text.vazio }}</span></td>
   </tr>
@@ -182,60 +183,58 @@
   </tr>
   <tr>
     <td><span class="lbl">Benefício Municipal</span><span class="val">{{ ctx.trib_mun.beneficio or ctx.text.vazio }}</span></td>
-    <td><span class="lbl">Cálculo do BM</span><span class="val">R$ {{ ctx.trib_mun.calculo_bm }}</span></td>
-    <td><span class="lbl">Total Deduções / Reduções</span><span class="val">R$ {{ ctx.trib_mun.total_deducoes }}</span></td>
-    <td><span class="lbl">Desconto Incondicionado</span><span class="val">R$ {{ ctx.trib_mun.desconto_incond }}</span></td>
+    <td><span class="lbl">Cálculo do BM</span><span class="val">{{ ctx.trib_mun.calculo_bm or ctx.text.vazio }}</span></td>
+    <td><span class="lbl">Total Deduções / Reduções</span><span class="val">{{ ctx.trib_mun.total_deducoes or ctx.text.vazio }}</span></td>
+    <td><span class="lbl">Desconto Incondicionado</span><span class="val">{{ ctx.trib_mun.desconto_incond or ctx.text.vazio }}</span></td>
   </tr>
   <tr>
-    <td><span class="lbl">BC ISSQN</span><span class="val">R$ {{ ctx.trib_mun.bc_issqn }}</span></td>
-    <td><span class="lbl">Alíquota Aplicada</span><span class="val">{% if ctx.trib_mun.sem_issqn_devido %}{{ ctx.text.vazio }}{% else %}{{ ctx.trib_mun.aliquota_aplicada or ctx.text.vazio }} %{% endif %}</span></td>
+    <td><span class="lbl">BC ISSQN</span><span class="val">{{ ctx.trib_mun.bc_issqn or ctx.text.vazio }}</span></td>
+    <td><span class="lbl">Alíquota Aplicada</span><span class="val">{% if ctx.trib_mun.sem_issqn_devido %}{{ ctx.text.vazio }}{% else %}{{ ctx.trib_mun.aliquota_aplicada or ctx.text.vazio }}{% endif %}</span></td>
     <td><span class="lbl">Retenção do ISSQN</span><span class="val">{{ ctx.trib_mun.retencao }}</span></td>
-    <td><span class="lbl">ISSQN Apurado</span><span class="val">R$ {{ ctx.trib_mun.issqn_apurado }}</span></td>
+    <td><span class="lbl">ISSQN Apurado</span><span class="val">{{ ctx.trib_mun.issqn_apurado or ctx.text.vazio }}</span></td>
   </tr>
 </table>
 
 {# ---- Tributação federal ------------------------------------------------- #}
-{% if ctx.trib_fed %}
 <table class="quadro grid">
   <tr>
-    <td style="width:28%" class="b" style="background:#d9d9d9">TRIBUTAÇÃO FEDERAL (EXCETO CBS)</td>
-    <td style="width:24%"><span class="lbl">IRRF</span><span class="val">R$ {{ ctx.trib_fed.irrf }}</span></td>
-    <td style="width:24%"><span class="lbl">Contribuição Previdenciária - Retida</span><span class="val">R$ {{ ctx.trib_fed.previdenciaria }}</span></td>
-    <td style="width:24%"><span class="lbl">Contribuições Sociais – Retidas</span><span class="val">R$ {{ ctx.trib_fed.sociais_retidas }}</span></td>
+    <td style="width:28%" class="sec">TRIBUTAÇÃO FEDERAL (EXCETO CBS)</td>
+    <td style="width:24%"><span class="lbl">IRRF</span><span class="val">{{ ctx.trib_fed.irrf or ctx.text.vazio }}</span></td>
+    <td style="width:24%"><span class="lbl">Contribuição Previdenciária - Retida</span><span class="val">{{ ctx.trib_fed.previdenciaria or ctx.text.vazio }}</span></td>
+    <td style="width:24%"><span class="lbl">Contribuições Sociais – Retidas</span><span class="val">{{ ctx.trib_fed.sociais_retidas or ctx.text.vazio }}</span></td>
   </tr>
   <tr>
-    <td><span class="lbl">PIS - Débito Apuração Própria</span><span class="val">R$ {{ ctx.trib_fed.pis }}</span></td>
-    <td><span class="lbl">COFINS - Débito Apuração Própria</span><span class="val">R$ {{ ctx.trib_fed.cofins }}</span></td>
+    <td><span class="lbl">PIS - Débito Apuração Própria</span><span class="val">{{ ctx.trib_fed.pis or ctx.text.vazio }}</span></td>
+    <td><span class="lbl">COFINS - Débito Apuração Própria</span><span class="val">{{ ctx.trib_fed.cofins or ctx.text.vazio }}</span></td>
     <td colspan="2"><span class="lbl">Descrição Contrib. Sociais – Retidas</span><span class="val">{{ ctx.trib_fed.descricao_sociais or ctx.text.vazio }}</span></td>
   </tr>
 </table>
-{% endif %}
 
 {# ---- Tributação IBS / CBS ----------------------------------------------- #}
 {% if ctx.ibscbs %}
 <table class="quadro grid">
   <tr>
-    <td style="width:28%" class="b" style="background:#d9d9d9">TRIBUTAÇÃO IBS / CBS</td>
+    <td style="width:28%" class="sec">TRIBUTAÇÃO IBS / CBS</td>
     <td style="width:24%"><span class="lbl">CST / cClassTrib</span><span class="val">{{ ctx.ibscbs.cst_class_trib or ctx.text.vazio }}</span></td>
-    <td colspan="2"><span class="lbl">Indicador de Operação / Município de Incidência</span><span class="val">{{ ctx.ibscbs.indicador_operacao or ctx.text.vazio }} / {{ ctx.ibscbs.municipio_incidencia }}</span></td>
+    <td colspan="2"><span class="lbl">Indicador de Operação / Município de Incidência</span><span class="val">{{ ctx.ibscbs.indicador_operacao or ctx.text.vazio }} / {{ ctx.ibscbs.municipio_incidencia or ctx.text.vazio }}</span></td>
   </tr>
   <tr>
-    <td><span class="lbl">Exclusões e Reduções da Base de Cálculo</span><span class="val">R$ {{ ctx.ibscbs.exclusoes }}</span></td>
-    <td><span class="lbl">Base de Cálculo Após Exclusões e Reduções</span><span class="val">R$ {{ ctx.ibscbs.bc_apos_exclusoes }}</span></td>
-    <td style="width:24%"><span class="lbl">Red. Alíquota IBS / Red. Alíquota CBS</span><span class="val">{{ ctx.ibscbs.red_aliq_ibs_uf or "0,00" }} % / {{ ctx.ibscbs.red_aliq_cbs or "0,00" }} %</span></td>
-    <td style="width:24%"><span class="lbl">Alíquota – IBS UF / IBS Mun</span><span class="val">{{ ctx.ibscbs.aliq_ibs_uf }} % / {{ ctx.ibscbs.aliq_ibs_mun }} %</span></td>
+    <td><span class="lbl">Exclusões e Reduções da Base de Cálculo</span><span class="val">{{ ctx.ibscbs.exclusoes or ctx.text.vazio }}</span></td>
+    <td><span class="lbl">Base de Cálculo Após Exclusões e Reduções</span><span class="val">{{ ctx.ibscbs.bc_apos_exclusoes or ctx.text.vazio }}</span></td>
+    <td style="width:24%"><span class="lbl">Red. Alíquota IBS / Red. Alíquota CBS</span><span class="val">{{ ctx.ibscbs.red_aliq_ibs_uf or ctx.text.vazio }} / {{ ctx.ibscbs.red_aliq_cbs or ctx.text.vazio }}</span></td>
+    <td style="width:24%"><span class="lbl">Alíquota – IBS UF / IBS Mun</span><span class="val">{{ ctx.ibscbs.aliq_ibs_uf or ctx.text.vazio }} / {{ ctx.ibscbs.aliq_ibs_mun or ctx.text.vazio }}</span></td>
   </tr>
   <tr>
-    <td><span class="lbl">Alíq. Efetiva Municipal – IBS</span><span class="val">{{ ctx.ibscbs.aliq_efet_ibs_mun }} %</span></td>
-    <td><span class="lbl">Valor Apurado Municipal – IBS</span><span class="val">R$ {{ ctx.ibscbs.valor_ibs_mun }}</span></td>
-    <td><span class="lbl">Alíq. Efetiva Estadual – IBS</span><span class="val">{{ ctx.ibscbs.aliq_efet_ibs_uf }} %</span></td>
-    <td><span class="lbl">Valor Apurado Estadual – IBS</span><span class="val">R$ {{ ctx.ibscbs.valor_ibs_uf }}</span></td>
+    <td><span class="lbl">Alíq. Efetiva Municipal – IBS</span><span class="val">{{ ctx.ibscbs.aliq_efet_ibs_mun or ctx.text.vazio }}</span></td>
+    <td><span class="lbl">Valor Apurado Municipal – IBS</span><span class="val">{{ ctx.ibscbs.valor_ibs_mun or ctx.text.vazio }}</span></td>
+    <td><span class="lbl">Alíq. Efetiva Estadual – IBS</span><span class="val">{{ ctx.ibscbs.aliq_efet_ibs_uf or ctx.text.vazio }}</span></td>
+    <td><span class="lbl">Valor Apurado Estadual – IBS</span><span class="val">{{ ctx.ibscbs.valor_ibs_uf or ctx.text.vazio }}</span></td>
   </tr>
   <tr>
-    <td><span class="lbl">Valor Total Apurado – IBS</span><span class="val">R$ {{ ctx.ibscbs.valor_total_ibs }}</span></td>
-    <td><span class="lbl">Alíquota – CBS</span><span class="val">{{ ctx.ibscbs.aliq_cbs }} %</span></td>
-    <td><span class="lbl">Alíquota Efetiva – CBS</span><span class="val">{{ ctx.ibscbs.aliq_efet_cbs }} %</span></td>
-    <td><span class="lbl">Valor Total Apurado – CBS</span><span class="val">R$ {{ ctx.ibscbs.valor_total_cbs }}</span></td>
+    <td><span class="lbl">Valor Total Apurado – IBS</span><span class="val">{{ ctx.ibscbs.valor_total_ibs or ctx.text.vazio }}</span></td>
+    <td><span class="lbl">Alíquota – CBS</span><span class="val">{{ ctx.ibscbs.aliq_cbs or ctx.text.vazio }}</span></td>
+    <td><span class="lbl">Alíquota Efetiva – CBS</span><span class="val">{{ ctx.ibscbs.aliq_efet_cbs or ctx.text.vazio }}</span></td>
+    <td><span class="lbl">Valor Total Apurado – CBS</span><span class="val">{{ ctx.ibscbs.valor_total_cbs or ctx.text.vazio }}</span></td>
   </tr>
 </table>
 {% endif %}
@@ -243,16 +242,16 @@
 {# ---- Totais ------------------------------------------------------------- #}
 <table class="quadro grid">
   <tr>
-    <td style="width:28%" class="b" style="background:#d9d9d9">VALOR TOTAL DA NFS-E</td>
-    <td style="width:24%"><span class="lbl">VALOR DA OPERAÇÃO / SERVIÇO</span><span class="val">R$ {{ ctx.totais.valor_operacao }}</span></td>
-    <td style="width:24%"><span class="lbl">Desconto Incondicionado</span><span class="val">R$ {{ ctx.totais.desconto_incond }}</span></td>
-    <td style="width:24%"><span class="lbl">Desconto Condicionado</span><span class="val">R$ {{ ctx.totais.desconto_cond }}</span></td>
+    <td style="width:28%" class="sec">VALOR TOTAL DA NFS-E</td>
+    <td style="width:24%"><span class="lbl">VALOR DA OPERAÇÃO / SERVIÇO</span><span class="val">{{ ctx.totais.valor_operacao or ctx.text.vazio }}</span></td>
+    <td style="width:24%"><span class="lbl">Desconto Incondicionado</span><span class="val">{{ ctx.totais.desconto_incond or ctx.text.vazio }}</span></td>
+    <td style="width:24%"><span class="lbl">Desconto Condicionado</span><span class="val">{{ ctx.totais.desconto_cond or ctx.text.vazio }}</span></td>
   </tr>
   <tr>
-    <td><span class="lbl">Total das Retenções (ISSQN / Federais)</span><span class="val">R$ {{ ctx.totais.total_retencoes }}</span></td>
-    <td><span class="lbl big">VALOR LÍQUIDO DA NFS-E</span><span class="val big b">R$ {{ ctx.totais.valor_liquido }}</span></td>
-    <td><span class="lbl">Total do IBS/CBS</span><span class="val">R$ {{ ctx.totais.total_ibscbs or "0,00" }}</span></td>
-    <td><span class="lbl big">VALOR LÍQUIDO DA NFS-E + IBS/CBS</span><span class="val big b">R$ {{ ctx.totais.liquido_ibscbs or ctx.totais.valor_liquido }}</span></td>
+    <td><span class="lbl">Total das Retenções (ISSQN / Federais)</span><span class="val">{{ ctx.totais.total_retencoes or ctx.text.vazio }}</span></td>
+    <td><span class="lbl big">VALOR LÍQUIDO DA NFS-E</span><span class="val big b">{{ ctx.totais.valor_liquido or ctx.text.vazio }}</span></td>
+    <td><span class="lbl">Total do IBS/CBS</span><span class="val">{{ ctx.totais.total_ibscbs or ctx.text.vazio }}</span></td>
+    <td><span class="lbl big">VALOR LÍQUIDO DA NFS-E + IBS/CBS</span><span class="val big b">{{ ctx.totais.liquido_ibscbs or ctx.totais.valor_liquido or ctx.text.vazio }}</span></td>
   </tr>
 </table>
 
@@ -268,9 +267,9 @@
   {% if ctx.complementares.doc_tecnico %}<div><span class="b">Documento técnico:</span> {{ ctx.complementares.doc_tecnico }}</div>{% endif %}
   {% if ctx.complementares.informacoes %}<div>{{ ctx.complementares.informacoes }}</div>{% endif %}
   {% if ctx.complementares.municipais %}<div>{{ ctx.complementares.municipais }}</div>{% endif %}
-  <div>{{ ctx.text.tributos_legenda }}: Federais R$ {{ ctx.totais.trib_federal }} ou {{ ctx.totais.perc_federal }} %;
-    Estaduais R$ {{ ctx.totais.trib_estadual }} ou {{ ctx.totais.perc_estadual }} %;
-    Municipais R$ {{ ctx.totais.trib_municipal }} ou {{ ctx.totais.perc_municipal }} %.</div>
+  <div>{{ ctx.text.tributos_legenda }}: Federais: {{ ctx.totais.trib_federal or ctx.totais.perc_federal or ctx.text.vazio }};
+    Estaduais: {{ ctx.totais.trib_estadual or ctx.totais.perc_estadual or ctx.text.vazio }};
+    Municipais: {{ ctx.totais.trib_municipal or ctx.totais.perc_municipal or ctx.text.vazio }}.</div>
 </div>
 
 {# ---- Canhoto e assinatura, ancorados no pé da folha --------------------- #}

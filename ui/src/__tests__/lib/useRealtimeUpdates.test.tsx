@@ -9,6 +9,7 @@ import {queryKeys} from '@/lib/api/query-keys';
 vi.mock('@/lib/hooks/useAuth', () => ({
   useAuth: () => ({selectedOrg: {pk: 'CNPJ_00000000000191'}}),
 }));
+vi.mock('next/navigation', () => ({useRouter: () => ({push: vi.fn()})}));
 vi.mock('sonner', () => ({toast: {success: vi.fn(), error: vi.fn(), info: vi.fn()}}));
 vi.mock('@/lib/api/client', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/api/client')>();

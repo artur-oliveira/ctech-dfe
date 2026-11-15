@@ -1,5 +1,6 @@
 'use client';
 
+import {EVENT_HIGHLIGHT_CLASS, eventRowId, useHighlightedEvent} from '@/lib/hooks/useHighlightedEvent';
 import {Suspense, useState} from 'react';
 import Link from 'next/link';
 import {useSearchParams} from 'next/navigation';
@@ -30,7 +31,7 @@ import {
 } from '@/lib/data/nfse_motives';
 import {formatCpfCnpj} from '@/lib/utils/document';
 import {formatCurrency} from '@/lib/utils/helpers';
-import {formatDatetimeBR, formatISODateBR, triggerRemoteDownload} from '@/lib/utils/dfe';
+import {docNumberFromKey, formatDatetimeBR, formatISODateBR, triggerRemoteDownload} from '@/lib/utils/dfe';
 import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell';
 import {toast} from 'sonner';
 
@@ -136,6 +137,7 @@ function NfseDetail({idDps}: { idDps: string }) {
     queryFn: () => apiClient.getNfseEvents(idDps),
     enabled: !!idDps && !!selectedOrg,
   });
+  const highlightedEvent = useHighlightedEvent(!eventsLoading);
 
   const cancelMutation = useMutation({
     mutationFn: ({reasonCode, reasonDescription}: { reasonCode: string; reasonDescription: string }) =>
@@ -190,8 +192,10 @@ function NfseDetail({idDps}: { idDps: string }) {
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-semibold text-gray-900">
-            NFS-e {doc.number}
-            <span className="ml-2 text-base font-normal text-gray-400">série {doc.serie}</span>
+            NFS-e {docNumberFromKey(doc.access_key) ?? doc.number}
+            <span className="ml-2 text-base font-normal text-gray-400">
+              {docNumberFromKey(doc.access_key) != null ? `DPS ${doc.number}, ` : ''}série {doc.serie}
+            </span>
           </h1>
           {doc.access_key && <CopyableCode value={doc.access_key}/>}
           <CopyableCode value={doc.sk} className="text-xs text-gray-400 font-mono mt-0.5"/>
@@ -306,7 +310,8 @@ function NfseDetail({idDps}: { idDps: string }) {
           </tr>
         ) : (
           eventsData.items.map((evt) => (
-            <tr key={evt.sk} className={`${TABLE_ROW} align-top`}>
+            <tr key={evt.sk} id={eventRowId(evt.sk)}
+                className={`${TABLE_ROW} align-top ${highlightedEvent === evt.sk ? EVENT_HIGHLIGHT_CLASS : ''}`}>
               <td data-label="Evento" className={TABLE_CELL}>
                 <p className="font-medium text-gray-900">{EVENT_LABELS[evt.event_type] ?? evt.event_type}</p>
                 {evt.sefaz_motive && <p className="text-xs text-gray-400 mt-0.5 max-w-65 wrap-break-word">{evt.sefaz_motive}</p>}

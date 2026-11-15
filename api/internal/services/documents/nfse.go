@@ -1,12 +1,22 @@
 package documents
 
 import (
+	_ "embed"
+	"encoding/base64"
 	"fmt"
 	"strings"
 	"time"
 
 	"gopkg.aoctech.app/dfe/go-dfe/nfse/tables"
 )
+
+// nfseLogoPNG é o logotipo da NFS-e que o DANFSe nacional imprime no cabeçalho.
+//
+//go:embed assets/nfse-logo.png
+var nfseLogoPNG []byte
+
+// nfseLogoURI entrega o logotipo como data URI, o mesmo caminho do QR Code.
+var nfseLogoURI = "data:image/png;base64," + base64.StdEncoding.EncodeToString(nfseLogoPNG)
 
 // Textos fixos da NT 008 v1.02 que não vêm do XML.
 const (
@@ -37,7 +47,7 @@ const (
 
 	// finalidadeNormal é o que se imprime quando a DPS não traz o grupo subst:
 	// a finalidade só assume "Substituição" quando existe nota substituída.
-	finalidadeNormal       = "Normal"
+	finalidadeNormal       = "NFS-e regular"
 	finalidadeSubstituicao = "Substituição"
 )
 
@@ -63,6 +73,7 @@ func buildNFSeContext(root *xmlNode, state DocumentState) (map[string]any, error
 	}
 
 	serv := infDPS.child("serv")
+	cities := nfseKnownCities(inf, serv)
 	valoresDPS := infDPS.child("valores")
 	trib := valoresDPS.child("trib")
 	valoresNFSe := inf.child("valores")
@@ -71,24 +82,25 @@ func buildNFSeContext(root *xmlNode, state DocumentState) (map[string]any, error
 	return map[string]any{
 		"cabecalho":      nfseCabecalho(inf, infDPS),
 		"ident":          nfseIdent(inf, infDPS, accessKey),
-		"prestador":      nfsePrestador(inf.child("emit"), infDPS.child("prest")),
-		"tomador":        nfseOptionalPerson(infDPS.child("toma")),
-		"destinatario":   nfseOptionalPerson(ibscbsDPS.child("dest")),
-		"intermediario":  nfseOptionalPerson(infDPS.child("interm")),
+		"prestador":      nfsePrestador(inf.child("emit"), infDPS.child("prest"), cities),
+		"tomador":        nfseOptionalPerson(infDPS.child("toma"), cities),
+		"destinatario":   nfseOptionalPerson(ibscbsDPS.child("dest"), cities),
+		"intermediario":  nfseOptionalPerson(infDPS.child("interm"), cities),
 		"servico":        nfseServico(inf, serv),
 		"trib_mun":       nfseTribMunicipal(inf, infDPS, trib.child("tribMun"), valoresDPS, valoresNFSe),
 		"trib_fed":       nfseTribFederal(trib.child("tribFed")),
 		"ibscbs":         nfseIBSCBS(inf.child("IBSCBS"), ibscbsDPS),
 		"totais":         nfseTotais(valoresDPS, valoresNFSe, inf.child("IBSCBS"), trib.child("totTrib")),
 		"complementares": nfseComplementares(inf, serv, ibscbsDPS),
-		"chave_fmt":      keyBlocks(accessKey),
+		"chave_fmt":      accessKey,
 		"url_consulta":   nfseConsultaURL + accessKey,
 		"qr_uri":         qrURI,
+		"logo_uri":       nfseLogoURI,
 		"is_homologacao": infDPS.value("tpAmb") == ambienteHomologacao,
 		"watermark":      nfseWatermark(state),
 		"canhoto": map[string]any{
 			"numero": inf.value("nNFSe"),
-			"chave":  keyBlocks(accessKey),
+			"chave":  accessKey,
 		},
 		"gerado_em": time.Now().Format("02/01/2006 15:04:05"),
 		"site":      "https://dfe.aoctech.app",
@@ -117,7 +129,7 @@ func nfseWatermark(state DocumentState) string {
 // nfseCabecalho é a coluna direita do topo: município emissor e ambiente.
 func nfseCabecalho(inf, infDPS *xmlNode) map[string]any {
 	return map[string]any{
-		"municipio":        inf.value("xLocEmi"),
+		"municipio":        strings.Join(nonempty(inf.value("xLocEmi"), inf.child("emit").child("enderNac").value("UF")), " - "),
 		"ambiente_gerador": enumLabel(tables.EnumAmbGeradorNFSe, inf.value("ambGer")),
 		"tipo_ambiente":    enumLabel(tables.EnumTipoAmbiente, infDPS.value("tpAmb")),
 	}
@@ -126,11 +138,16 @@ func nfseCabecalho(inf, infDPS *xmlNode) map[string]any {
 func nfseIdent(inf, infDPS *xmlNode, accessKey string) map[string]any {
 	subst := infDPS.child("subst")
 	substituicao := map[string]any(nil)
+	// A finalidade vem do finNFSe da DPS (NT 009, em infDPS) ou do grupo IBSCBS
+	// (leiaute anterior); sem nenhum dos dois cai em "NFS-e regular".
 	finalidade := finalidadeNormal
+	if fin := firstNonEmpty(infDPS.value("finNFSe"), infDPS.child("IBSCBS").value("finNFSe")); fin != "" {
+		finalidade = enumLabel("TSRTCFinNFSe", fin)
+	}
 	if subst != nil {
 		finalidade = finalidadeSubstituicao
 		substituicao = map[string]any{
-			"chave":   keyBlocks(subst.value("chSubstda")),
+			"chave":   subst.value("chSubstda"),
 			"motivo":  enumLabel(tables.EnumCodJustSubst, subst.value("cMotivo")),
 			"xmotivo": subst.value("xMotivo"),
 		}
@@ -146,7 +163,7 @@ func nfseIdent(inf, infDPS *xmlNode, accessKey string) map[string]any {
 		"dps_numero":       infDPS.value("nDPS"),
 		"emitente_tipo":    enumLabel(tables.EnumEmitenteDPS, infDPS.value("tpEmit")),
 		"motivo_emissao":   enumLabel(tables.EnumMotivoEmisTI, infDPS.value("cMotivoEmisTI")),
-		"situacao":         inf.value("cStat"),
+		"situacao":         enumLabel("TStat", inf.value("cStat")),
 		"finalidade":       finalidade,
 		"local_prestacao":  inf.value("xLocPrestacao"),
 		"local_incidencia": inf.value("xLocIncid"),
@@ -185,8 +202,8 @@ func addressNode(person *xmlNode) *xmlNode {
 // nfsePrestador funde o emitente da NFS-e (que tem nome e endereço completos,
 // resolvidos pelo fisco) com o prestador declarado na DPS, que traz o regime
 // tributário. São a mesma pessoa quando tpEmit é o prestador.
-func nfsePrestador(emit, prest *xmlNode) map[string]any {
-	person, _ := nfsePerson(emit, emit.child("enderNac")).(map[string]any)
+func nfsePrestador(emit, prest *xmlNode, cities map[string]string) map[string]any {
+	person, _ := nfsePerson(emit, emit.child("enderNac"), cities).(map[string]any)
 	if person == nil {
 		return nil
 	}
@@ -201,14 +218,14 @@ func nfsePrestador(emit, prest *xmlNode) map[string]any {
 
 // nfseOptionalPerson devolve nil quando a parte não existe no XML — o template
 // suprime o quadro inteiro em vez de imprimir campos vazios.
-func nfseOptionalPerson(person *xmlNode) any {
+func nfseOptionalPerson(person *xmlNode, cities map[string]string) any {
 	if person == nil {
 		return nil
 	}
-	return nfsePerson(person, addressNode(person))
+	return nfsePerson(person, addressNode(person), cities)
 }
 
-func nfsePerson(person, end *xmlNode) any {
+func nfsePerson(person, end *xmlNode, cities map[string]string) any {
 	if person == nil {
 		return nil
 	}
@@ -227,24 +244,55 @@ func nfsePerson(person, end *xmlNode) any {
 		"caepf":               person.value("CAEPF"),
 		"inscricao_municipal": person.value("IM"),
 		"endereco":            address(end),
-		"municipio_uf":        nfseMunicipioUF(end),
+		"municipio_uf":        nfseMunicipioUF(end, cities),
 		"ibge_cep":            nfseIBGECEP(end),
 		"telefone":            person.value("fone"),
 		"email":               person.value("email"),
 	}
 }
 
-// nfseMunicipioUF só imprime o que o XML traz. O endereço nacional da DPS tem
-// apenas o código IBGE (o nome do município é resolvido pelo fisco e aparece só
-// no emitente), então aqui fica vazio em vez de um nome adivinhado.
-func nfseMunicipioUF(end *xmlNode) string {
+// nfseKnownCities reúne os nomes de município que o próprio XML traz (emissor,
+// incidência e local da prestação), indexados pelo código IBGE. O endereço
+// nacional de uma parte só tem o código, e o nome só é impresso quando o XML o
+// informa para aquele código.
+func nfseKnownCities(inf, serv *xmlNode) map[string]string {
+	cities := map[string]string{}
+	for code, name := range map[string]string{
+		inf.value("cLocEmi"):                          inf.value("xLocEmi"),
+		inf.value("cLocIncid"):                        inf.value("xLocIncid"),
+		serv.child("locPrest").value("cLocPrestacao"): inf.value("xLocPrestacao"),
+	} {
+		if code != "" && name != "" {
+			cities[code] = name
+		}
+	}
+	return cities
+}
+
+// ufByIBGEPrefix traduz os dois primeiros dígitos do código IBGE na sigla da UF.
+var ufByIBGEPrefix = map[string]string{
+	"11": "RO", "12": "AC", "13": "AM", "14": "RR", "15": "PA", "16": "AP", "17": "TO",
+	"21": "MA", "22": "PI", "23": "CE", "24": "RN", "25": "PB", "26": "PE", "27": "AL", "28": "SE", "29": "BA",
+	"31": "MG", "32": "ES", "33": "RJ", "35": "SP", "41": "PR", "42": "SC", "43": "RS",
+	"50": "MS", "51": "MT", "52": "GO", "53": "DF",
+}
+
+// nfseMunicipioUF só imprime o que o XML traz ou o que o código IBGE determina
+// sem ambiguidade: o nome vem do próprio documento (nfseKnownCities) e a UF, dos
+// dois primeiros dígitos do código.
+func nfseMunicipioUF(end *xmlNode, cities map[string]string) string {
 	if end == nil {
 		return ""
 	}
 	if city := end.value("xCidade"); city != "" {
 		return strings.Join(nonempty(city, end.value("xEstProvReg"), end.value("cPais")), " / ")
 	}
-	return strings.Join(nonempty(end.value("xMun"), end.value("UF")), " / ")
+	code := end.value("cMun")
+	uf := end.value("UF")
+	if uf == "" && len(code) == 7 {
+		uf = ufByIBGEPrefix[code[:2]]
+	}
+	return strings.Join(nonempty(firstNonEmpty(end.value("xMun"), cities[code]), uf), " / ")
 }
 
 func nfseIBGECEP(end *xmlNode) string {
@@ -254,7 +302,7 @@ func nfseIBGECEP(end *xmlNode) string {
 	if postal := end.value("cEndPost"); postal != "" {
 		return postal
 	}
-	return strings.Join(nonempty(end.value("cMun"), maskCEP(end.value("CEP"))), " / ")
+	return strings.Join(nonempty(maskIBGE(end.value("cMun")), maskCEPNacional(end.value("CEP"))), " / ")
 }
 
 func nfseServico(inf, serv *xmlNode) map[string]any {
@@ -266,7 +314,7 @@ func nfseServico(inf, serv *xmlNode) map[string]any {
 			"modo_prestacao":      enumLabel(tables.EnumModoPrestacao, comExt.value("mdPrestacao")),
 			"vinculo":             enumLabel(tables.EnumVincPrest, comExt.value("vincPrest")),
 			"moeda":               comExt.value("tpMoeda"),
-			"valor_moeda":         moneyBR(comExt.value("vServMoeda")),
+			"valor_moeda":         moneyOpt(comExt.value("vServMoeda")),
 			"mecanismo_prestador": enumLabel(tables.EnumMecAFComExPrestador, comExt.value("mecAFComexP")),
 			"mecanismo_tomador":   enumLabel(tables.EnumMecAFComExTomador, comExt.value("mecAFComexT")),
 			"movimentacao_bens":   enumLabel(tables.EnumMovTempBens, comExt.value("movTempBens")),
@@ -282,10 +330,10 @@ func nfseServico(inf, serv *xmlNode) map[string]any {
 		descricaoCodigo = inf.value("xTribNac")
 	}
 	return map[string]any{
-		"codigo_tributacao": strings.Join(nonempty(cServ.value("cTribNac"),
+		"codigo_tributacao": strings.Join(nonempty(maskTribNac(cServ.value("cTribNac")),
 			cServ.child("cTribMun").value("cTribMun")), " / "),
 		"descricao_codigo":  descricaoCodigo,
-		"cod_nbs":           cServ.value("cNBS"),
+		"cod_nbs":           maskNBS(cServ.value("cNBS")),
 		"desc_nbs":          inf.value("xNBS"),
 		"cod_interno":       cServ.value("cIntContrib"),
 		"local_prestacao":   inf.value("xLocPrestacao"),
@@ -353,15 +401,15 @@ func nfseTribMunicipal(inf, infDPS, tribMun, valoresDPS, valoresNFSe *xmlNode) m
 		"suspensao":       enumLabel(tables.EnumOpExigSuspensa, exigSusp.value("tpSusp")),
 		"processo":        exigSusp.value("nProcesso"),
 		"beneficio":       beneficio,
-		"calculo_bm":      moneyBR(valoresNFSe.value("vCalcBM")),
-		"total_deducoes":  moneyBR(valoresNFSe.value("vCalcDR")),
-		"desconto_incond": moneyBR(valoresDPS.child("vDescCondIncond").value("vDescIncond")),
-		"bc_issqn":        moneyBR(valoresNFSe.value("vBC")),
+		"calculo_bm":      moneyOpt(valoresNFSe.value("vCalcBM")),
+		"total_deducoes":  moneyOpt(valoresNFSe.value("vCalcDR")),
+		"desconto_incond": moneyOpt(valoresDPS.child("vDescCondIncond").value("vDescIncond")),
+		"bc_issqn":        moneyOpt(valoresNFSe.value("vBC")),
 		"retencao":        enumLabel(tables.EnumTipoRetISSQN, tribMun.value("tpRetISSQN")),
-		"issqn_apurado":   moneyBR(valoresNFSe.value("vISSQN")),
+		"issqn_apurado":   moneyOpt(valoresNFSe.value("vISSQN")),
 		"pais_resultado":  tribMun.value("cPaisResult"),
-		"aliquota_aplicada": firstNonEmpty(percentBR(valoresNFSe.value("pAliqAplic")),
-			percentBR(tribMun.value("pAliq"))),
+		"aliquota_aplicada": firstNonEmpty(percentOpt(valoresNFSe.value("pAliqAplic")),
+			percentOpt(tribMun.value("pAliq"))),
 		// A NT destaca operações sem ISSQN devido no município: imunidade,
 		// exportação e não incidência não imprimem alíquota como se houvesse.
 		"sem_issqn_devido": tribISSQN == tribISSQNImune ||
@@ -370,21 +418,18 @@ func nfseTribMunicipal(inf, infDPS, tribMun, valoresDPS, valoresNFSe *xmlNode) m
 }
 
 func nfseTribFederal(tribFed *xmlNode) map[string]any {
-	if tribFed == nil {
-		return nil
-	}
 	pc := tribFed.child("piscofins")
 	return map[string]any{
-		"irrf":              moneyBR(tribFed.value("vRetIRRF")),
-		"previdenciaria":    moneyBR(tribFed.value("vRetCP")),
-		"sociais_retidas":   moneyBR(tribFed.value("vRetCSLL")),
-		"pis":               moneyBR(pc.value("vPis")),
-		"cofins":            moneyBR(pc.value("vCofins")),
+		"irrf":              moneyOpt(tribFed.value("vRetIRRF")),
+		"previdenciaria":    moneyOpt(tribFed.value("vRetCP")),
+		"sociais_retidas":   moneyOpt(tribFed.value("vRetCSLL")),
+		"pis":               moneyOpt(pc.value("vPis")),
+		"cofins":            moneyOpt(pc.value("vCofins")),
 		"cst":               enumLabel(tables.EnumCSTPISCofins, pc.value("CST")),
 		"retencao":          enumLabel(tables.EnumTipoRetPISCofins, pc.value("tpRetPisCofins")),
-		"base_calculo":      moneyBR(pc.value("vBCPisCofins")),
-		"aliq_pis":          percentBR(pc.value("pAliqPis")),
-		"aliq_cofins":       percentBR(pc.value("pAliqCofins")),
+		"base_calculo":      moneyOpt(pc.value("vBCPisCofins")),
+		"aliq_pis":          percentOpt(pc.value("pAliqPis")),
+		"aliq_cofins":       percentOpt(pc.value("pAliqCofins")),
 		"descricao_sociais": enumLabel(tables.EnumTipoRetPISCofins, pc.value("tpRetPisCofins")),
 	}
 }
@@ -405,23 +450,23 @@ func nfseIBSCBS(group, dps *xmlNode) map[string]any {
 			classificacao.value("cClassTrib")), " / "),
 		"indicador_operacao":   dps.value("cIndOp"),
 		"municipio_incidencia": group.value("xLocalidadeIncid"),
-		"exclusoes":            moneyBR(valores.value("vCalcReeRepRes")),
-		"bc_apos_exclusoes":    moneyBR(valores.value("vBC")),
-		"redutor":              percentBR(group.value("pRedutor")),
-		"red_aliq_ibs_uf":      percentBR(valores.child("uf").value("pRedAliqUF")),
-		"red_aliq_ibs_mun":     percentBR(valores.child("mun").value("pRedAliqMun")),
-		"red_aliq_cbs":         percentBR(valores.child("fed").value("pRedAliqCBS")),
-		"aliq_ibs_uf":          percentBR(valores.child("uf").value("pIBSUF")),
-		"aliq_ibs_mun":         percentBR(valores.child("mun").value("pIBSMun")),
-		"aliq_efet_ibs_uf":     percentBR(valores.child("uf").value("pAliqEfetUF")),
-		"aliq_efet_ibs_mun":    percentBR(valores.child("mun").value("pAliqEfetMun")),
-		"aliq_cbs":             percentBR(valores.child("fed").value("pCBS")),
-		"aliq_efet_cbs":        percentBR(valores.child("fed").value("pAliqEfetCBS")),
-		"valor_ibs_uf":         moneyBR(gIBS.child("gIBSUFTot").value("vIBSUF")),
-		"valor_ibs_mun":        moneyBR(gIBS.child("gIBSMunTot").value("vIBSMun")),
-		"valor_total_ibs":      moneyBR(gIBS.value("vIBSTot")),
-		"valor_total_cbs":      moneyBR(tot.child("gCBS").value("vCBS")),
-		"total_nf":             moneyBR(tot.value("vTotNF")),
+		"exclusoes":            moneyOpt(valores.value("vCalcReeRepRes")),
+		"bc_apos_exclusoes":    moneyOpt(valores.value("vBC")),
+		"redutor":              percentOpt(group.value("pRedutor")),
+		"red_aliq_ibs_uf":      percentOpt(valores.child("uf").value("pRedAliqUF")),
+		"red_aliq_ibs_mun":     percentOpt(valores.child("mun").value("pRedAliqMun")),
+		"red_aliq_cbs":         percentOpt(valores.child("fed").value("pRedAliqCBS")),
+		"aliq_ibs_uf":          percentOpt(valores.child("uf").value("pIBSUF")),
+		"aliq_ibs_mun":         percentOpt(valores.child("mun").value("pIBSMun")),
+		"aliq_efet_ibs_uf":     percentOpt(valores.child("uf").value("pAliqEfetUF")),
+		"aliq_efet_ibs_mun":    percentOpt(valores.child("mun").value("pAliqEfetMun")),
+		"aliq_cbs":             percentOpt(valores.child("fed").value("pCBS")),
+		"aliq_efet_cbs":        percentOpt(valores.child("fed").value("pAliqEfetCBS")),
+		"valor_ibs_uf":         moneyOpt(gIBS.child("gIBSUFTot").value("vIBSUF")),
+		"valor_ibs_mun":        moneyOpt(gIBS.child("gIBSMunTot").value("vIBSMun")),
+		"valor_total_ibs":      moneyOpt(gIBS.value("vIBSTot")),
+		"valor_total_cbs":      moneyOpt(tot.child("gCBS").value("vCBS")),
+		"total_nf":             moneyOpt(tot.value("vTotNF")),
 	}
 }
 
@@ -432,25 +477,25 @@ func nfseTotais(valoresDPS, valoresNFSe, ibscbs, totTrib *xmlNode) map[string]an
 	liquido := valoresNFSe.value("vLiq")
 	totalIBSCBS := ibscbsTotal(ibscbs)
 	return map[string]any{
-		"valor_operacao":  moneyBR(valoresDPS.child("vServPrest").value("vServ")),
-		"valor_recebido":  moneyBR(valoresDPS.child("vServPrest").value("vReceb")),
-		"desconto_incond": moneyBR(descontos.value("vDescIncond")),
-		"desconto_cond":   moneyBR(descontos.value("vDescCond")),
-		"total_retencoes": moneyBR(valoresNFSe.value("vTotalRet")),
-		"valor_liquido":   moneyBR(liquido),
-		"total_ibscbs":    moneyBR(totalIBSCBS),
-		"liquido_ibscbs":  moneyBR(sumDecimals(liquido, totalIBSCBS)),
+		"valor_operacao":  moneyOpt(valoresDPS.child("vServPrest").value("vServ")),
+		"valor_recebido":  moneyOpt(valoresDPS.child("vServPrest").value("vReceb")),
+		"desconto_incond": moneyOpt(descontos.value("vDescIncond")),
+		"desconto_cond":   moneyOpt(descontos.value("vDescCond")),
+		"total_retencoes": moneyOpt(valoresNFSe.value("vTotalRet")),
+		"valor_liquido":   moneyOpt(liquido),
+		"total_ibscbs":    moneyOpt(totalIBSCBS),
+		"liquido_ibscbs":  moneyOpt(sumDecimals(liquido, totalIBSCBS)),
 		"tem_ibscbs":      ibscbs != nil,
-		"trib_federal":    moneyBR(monetario.value("vTotTribFed")),
-		"trib_estadual":   moneyBR(monetario.value("vTotTribEst")),
-		"trib_municipal":  moneyBR(monetario.value("vTotTribMun")),
-		"perc_federal":    percentBR(percentual.value("pTotTribFed")),
-		"perc_estadual":   percentBR(percentual.value("pTotTribEst")),
-		"perc_municipal":  percentBR(percentual.value("pTotTribMun")),
-		"perc_simples":    percentBR(totTrib.value("pTotTribSN")),
-		"deducao_percent": percentBR(valoresDPS.child("vDedRed").value("pDR")),
-		"deducao_valor":   moneyBR(valoresDPS.child("vDedRed").value("vDR")),
-		"deducao_apurada": moneyBR(valoresNFSe.value("vCalcDR")),
+		"trib_federal":    moneyOpt(monetario.value("vTotTribFed")),
+		"trib_estadual":   moneyOpt(monetario.value("vTotTribEst")),
+		"trib_municipal":  moneyOpt(monetario.value("vTotTribMun")),
+		"perc_federal":    percentOpt(percentual.value("pTotTribFed")),
+		"perc_estadual":   percentOpt(percentual.value("pTotTribEst")),
+		"perc_municipal":  percentOpt(percentual.value("pTotTribMun")),
+		"perc_simples":    percentOpt(totTrib.value("pTotTribSN")),
+		"deducao_percent": percentOpt(valoresDPS.child("vDedRed").value("pDR")),
+		"deducao_valor":   moneyOpt(valoresDPS.child("vDedRed").value("vDR")),
+		"deducao_apurada": moneyOpt(valoresNFSe.value("vCalcDR")),
 	}
 }
 
@@ -486,14 +531,15 @@ func nfseComplementares(inf, serv, ibscbsDPS *xmlNode) map[string]any {
 	}
 }
 
-// enumLabel devolve o rótulo oficial do domínio fechado; valor vazio some do
-// DANFSe e valor desconhecido é impresso cru, nunca traduzido por adivinhação.
+// enumLabel devolve só o texto oficial do domínio fechado, como o DANFSe do
+// ambiente nacional (sem o código na frente); valor vazio some do DANFSe e valor
+// desconhecido é impresso cru, nunca traduzido por adivinhação.
 func enumLabel(typeName, value string) string {
 	if value == "" {
 		return ""
 	}
 	if label, ok := tables.EnumLabel(typeName, value); ok {
-		return value + " - " + label
+		return label
 	}
 	return value
 }
