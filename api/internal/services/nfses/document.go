@@ -90,6 +90,7 @@ func buildDocument(in documentInput) (nfse.Document, error) {
 	}
 
 	dropAliqNaoPermitida(&doc)
+	dropTotTribNaoPermitido(&doc)
 	if err := preValidate(doc); err != nil {
 		return nfse.Document{}, err
 	}
