@@ -42,6 +42,15 @@ func dropAliqNaoPermitida(doc *nfse.Document) {
 	}
 }
 
+// dropTotTribNaoPermitido limpa pTotTribSN para MEI (E0710): o ramo que sobra do
+// choice de totTrib é indTotTrib. Para ME/EPP o Sefin proíbe indTotTrib (E0712),
+// então preValidate exige o pTotTribSN.
+func dropTotTribNaoPermitido(doc *nfse.Document) {
+	if doc.Prestador.RegTrib.OpSimpNac == opSimpNacMEI {
+		doc.Valores.Trib.TotTrib.PTotTribSN = ""
+	}
+}
+
 // preValidate devolve a primeira regra violada como 400 com o código do fisco
 // na mensagem, para o usuário corrigir antes de gastar a numeração.
 func preValidate(doc nfse.Document) error {
@@ -92,6 +101,10 @@ func preValidate(doc nfse.Document) error {
 		return problem.BadRequest("E0429: a alíquota do ISSQN não pode ser superior a 5%")
 	}
 	reg := doc.Prestador.RegTrib
+	if tt := doc.Valores.Trib.TotTrib; reg.OpSimpNac == opSimpNacMEEPP && tt.PTotTribSN == "" &&
+		tt.VTotTribFed == "" && tt.PTotTribFed == "" {
+		return problem.BadRequest("E0712: prestador ME/EPP deve informar o percentual aproximado dos tributos do Simples Nacional (p_tot_trib_sn) no cadastro do serviço")
+	}
 	if reg.OpSimpNac == opSimpNacMEEPP && reg.RegApTribSN == regApTribSNSimples &&
 		trib.TpRetISSQN > tpRetNaoRet && trib.TribISSQN == tribISSQNTributavel &&
 		reg.RegEspTrib == 0 && strings.TrimSpace(trib.PAliq) == "" {

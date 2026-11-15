@@ -124,7 +124,29 @@ func TestPreValidate_E0621(t *testing.T) {
 	d := validDoc()
 	d.Valores.Trib.TribMun = nfse.TribMunicipal{TribISSQN: 1, TpRetISSQN: 2}
 	d.Prestador.RegTrib = nfse.RegTrib{OpSimpNac: 3, RegApTribSN: 1}
+	d.Valores.Trib.TotTrib.PTotTribSN = "4.00"
 	if err := preValidate(d); err == nil || !strings.Contains(err.Error(), "E0621") {
 		t.Fatalf("quer E0621, veio %v", err)
+	}
+}
+
+func TestTotTribPorRegime(t *testing.T) {
+	d := validDoc()
+	d.Prestador.RegTrib = nfse.RegTrib{OpSimpNac: 3, RegApTribSN: 2}
+	d.Valores.Trib.TribMun.TribISSQN = 1
+	if err := preValidate(d); err == nil || !strings.Contains(err.Error(), "E0712") {
+		t.Fatalf("ME/EPP sem p_tot_trib_sn: quer E0712, veio %v", err)
+	}
+	d.Valores.Trib.TotTrib.PTotTribSN = "4.00"
+	if err := preValidate(d); err != nil {
+		t.Fatalf("ME/EPP com p_tot_trib_sn: %v", err)
+	}
+
+	mei := validDoc()
+	mei.Prestador.RegTrib.OpSimpNac = 2
+	mei.Valores.Trib.TotTrib.PTotTribSN = "4.00"
+	dropTotTribNaoPermitido(&mei)
+	if got := mei.Valores.Trib.TotTrib.PTotTribSN; got != "" {
+		t.Errorf("MEI: pTotTribSN = %q, quer vazio (E0710)", got)
 	}
 }
