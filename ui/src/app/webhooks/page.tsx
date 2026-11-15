@@ -17,6 +17,7 @@ import {WebhookForm, type CompanyOption} from '@/components/webhooks/WebhookForm
 import {SecretReveal} from '@/components/webhooks/SecretReveal';
 import {WebhookRow} from '@/components/webhooks/WebhookRow';
 import {ROLE_ADMIN, ROLE_OWNER} from '@/lib/data/roles';
+import {describeChallengeError} from '@/lib/webhooks/describe';
 import type {WebhookEndpoint} from '@/lib/types/webhooks';
 
 type Panel =
@@ -61,6 +62,17 @@ function WebhooksContent() {
       void refresh();
     },
     onError: (e) => toast.error(e instanceof ApiError ? e.detail : 'Não foi possível enviar o teste'),
+  });
+  const enable = useMutation({
+    mutationFn: (id: string) => apiClient.enableWebhook(id),
+    onSuccess: () => {
+      toast.success('Webhook reativado');
+      void refresh();
+    },
+    // A 422 is the verification failing again: say why in plain Portuguese; the endpoint stays disabled.
+    onError: (e) => toast.error(
+      e instanceof ApiError && e.status === 422 ? `O endereço ainda não passou na verificação. ${describeChallengeError(e.detail)}`
+        : e instanceof ApiError ? e.detail : 'Não foi possível reativar'),
   });
   const rotate = useMutation({
     mutationFn: (id: string) => apiClient.rotateWebhookSecret(id),
@@ -130,8 +142,9 @@ function WebhooksContent() {
                   endpoint={e}
                   companyPk={pk}
                   companyNames={companyNames}
-                  busy={ping.isPending || rotate.isPending}
+                  busy={ping.isPending || rotate.isPending || enable.isPending}
                   onPing={() => ping.mutate(e.id)}
+                  onEnable={() => enable.mutate(e.id)}
                   onRotate={() => rotate.mutate(e.id)}
                   onRemove={() => handleDelete(e)}
                 />

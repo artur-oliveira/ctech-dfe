@@ -109,3 +109,43 @@ func TestWebhookFlowFromResultToDisabledEndpoint(t *testing.T) {
 		t.Fatalf("a disabled endpoint was still sent %d requests", count()-before)
 	}
 }
+
+// I1: a tenant with a deep backlog and a receiver that answers 200 must not fill the whole batch, run
+// after run: one pass gives an endpoint a bounded number of attempts and moves the rest down the queue.
+func TestWebhookEngineCapsAttemptsPerEndpointPerPass(t *testing.T) {
+	ctx := context.Background()
+	var hits atomic.Int32
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { hits.Add(1) }))
+	t.Cleanup(srv.Close)
+	repo := repositories.NewWebhookRepository(db, cfg)
+	engine := services.NewWebhookEngine(repo, nil, 1, webhooks.DeliveryTimeout, func(c *webhooks.Config) { c.Client = srv.Client() })
+
+	e := newWebhookEnv(t, nil)
+	ep := &repositories.WebhookEndpoint{ID: repositories.GenerateID(), OrganizationID: e.org, URL: srv.URL, Secret: webhooks.NewSecret(), Status: repositories.WebhookActive}
+	if err := e.repo.CreateEndpoint(ctx, ep, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	list, _ := e.repo.ListEndpoints(ctx, e.org)
+	total := services.WebhookMaxPerEndpointPerPass + 10
+	for i := 0; i < total; i++ {
+		ev := repositories.WebhookEvent{ID: repositories.GenerateID(), Type: services.WebhookEventAuthorized, Body: []byte("{}")}
+		if _, err := e.repo.WriteDeliveries(ctx, e.org, ev, list, time.Now()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	res := engine.Deliver(ctx, 1000, time.Now().Add(time.Second))
+	if int(hits.Load()) != services.WebhookMaxPerEndpointPerPass || res.Deferred < 10 {
+		t.Fatalf("hits=%d res=%+v, want %d attempts and the rest deferred", hits.Load(), res, services.WebhookMaxPerEndpointPerPass)
+	}
+}
+
+// I2: ping, replay and the registration challenge run inside the request, whose deadline (REQUEST_TIMEOUT, 8 s by
+// default) is shorter than the Lambda's attempt timeout. A slower receiver would leave the writes after the attempt
+// with an expired context: the attempt unlogged, the endpoint's health uncounted, a generic 500 for the person.
+func TestWebhookAPIAttemptTimeoutFitsInsideTheRequestDeadline(t *testing.T) {
+	const defaultRequestTimeout = 8 * time.Second
+	if services.WebhookAPIAttemptTimeout+2*time.Second > defaultRequestTimeout {
+		t.Fatalf("API attempt timeout %v leaves under 2 s of the %v request deadline for recording the attempt",
+			services.WebhookAPIAttemptTimeout, defaultRequestTimeout)
+	}
+}

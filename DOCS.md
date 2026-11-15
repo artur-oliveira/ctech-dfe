@@ -826,6 +826,7 @@ exigem `Idempotency-Key` como os demais.
 | GET    | `/v1.0/webhooks` | Endpoints (segredo nunca aparece), `company_pks` da organização (só as chaves; a UI resolve os nomes), `enabled`, `max_endpoints`, `event_types` |
 | POST   | `/v1.0/webhooks` | `{url, events[], company_pks[]}`. 400 URL inválida/host não público/evento ou empresa inválidos; 409 limite de 5; 422 o desafio falhou (o motivo vem no `detail`); 501 sem chave de selagem. Responde 201 com o endpoint e o `secret` **uma única vez** |
 | DELETE | `/v1.0/webhooks/{id}` | Remove e libera a vaga; as entregas pendentes viram falha |
+| POST   | `/v1.0/webhooks/{id}/enable` | Reativa um endpoint desativado: repete o desafio (422 com o motivo se ainda não responde) e zera a sequência de falhas; mantém id, segredo e histórico. Em endpoint ativo não faz nada |
 | POST   | `/v1.0/webhooks/{id}/rotate-secret` | Novo segredo (uma única vez); o antigo para de valer na hora |
 | POST   | `/v1.0/webhooks/{id}/ping` | Evento `ping` só para este endpoint, ignora filtros, tenta na hora; 409 se desativado |
 | GET    | `/v1.0/webhooks/{id}/deliveries` | Entregas, mais recentes primeiro (`limit` 1 a 50, `cursor`) |
@@ -857,7 +858,10 @@ toda tentativa e em toda reentrega da fila.
 lê o `due-index`, tenta cada entrega (10 s por tentativa, 2xx é sucesso, 3xx é falha) e reagenda com espera de 30 s dobrando até 12 h,
 no máximo 8 tentativas. Uma falha adia o resto das entregas do mesmo endpoint (um endpoint morto custa um timeout por passada) e **12
 falhas seguidas** desativam o endpoint e alertam o tópico SNS compartilhado (`webhook-disabled`, com o id do endpoint, nunca a URL). Um
-endpoint desativado não é reativado: remova e cadastre de novo. O segredo é selado em repouso (`WEBHOOK_SECRET_KEY`, ver
+endpoint desativado só volta por **Reativar** (`POST .../enable`), que refaz o desafio. A passada respeita o prazo da invocação (não inicia
+tentativa com menos de `DeliveryTimeout` + 5 s sobrando) e dá no máximo 20 tentativas por endpoint (`WebhookMaxPerEndpointPerPass`); o excedente
+anda 1 min na fila, para um receptor lento não ocupar o lote de todos. Ping e reenvio rodam dentro da requisição, com tentativa de 5 s
+(`WebhookAPIAttemptTimeout`). O segredo é selado em repouso (`WEBHOOK_SECRET_KEY`, ver
 `DEPLOYMENT.md`); sem a chave, cadastrar responde 501 e nada é gravado.
 
 ### Bloqueio por assinatura e cotas
@@ -3084,7 +3088,7 @@ oferece **Novo webhook**, **Testar**, **Entregas**, **Trocar segredo** e **Remov
   (`useEntityDelete`).
 - **Entregas** abrem inline sob o endpoint (`DeliveriesPanel`): estado, tentativas, próxima tentativa, **Detalhes** (cada tentativa com
   status, duração e os primeiros 512 bytes da resposta) e **Reenviar** (desabilitado em endpoint desativado).
-- Endpoint desativado explica o motivo e o caminho: remover e cadastrar de novo (o console não reativa).
+- Endpoint desativado explica o motivo e oferece **Reativar** no lugar de Testar (o servidor repete a verificação do endereço; se falhar, o motivo vai num aviso e o endpoint segue desativado).
 - Evento `document.failed` aparece como "Falha na emissão", para não colidir com o estado de entrega "Falhou".
 - Guia: `/guide/webhooks`, capturas `webhooks`, `webhooks-add` e `webhooks-deliveries`. O componente compartilhado `LabeledInput` não
   associa o `<label>` ao campo (sem `htmlFor`); o formulário daqui liga o rótulo à mão. Não corrigido no componente compartilhado.

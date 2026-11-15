@@ -2,8 +2,11 @@ package services
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"log/slog"
+	"net/http"
 	"slices"
 	"time"
 
@@ -20,14 +23,31 @@ const (
 	webhookMaxURL = 2048
 )
 
+const (
+	// WebhookMaxPerEndpointPerPass bounds the attempts one endpoint gets in a delivery pass; the rest wait a
+	// minute so other organizations' deliveries come first. A receiver that answers 200 but slowly would
+	// otherwise fill the whole batch, run after run.
+	WebhookMaxPerEndpointPerPass = 20
+	// WebhookAPIAttemptTimeout is the attempt timeout of the engine the API uses for ping and replay. It runs
+	// inside the request, whose deadline (REQUEST_TIMEOUT, 8 s by default) must outlast the attempt and the
+	// writes that record it, so it is shorter than the Lambda's webhooks.DeliveryTimeout.
+	WebhookAPIAttemptTimeout = 5 * time.Second
+)
+
 // NewWebhookEngine builds the shared delivery engine over the DF-e table. The API
-// uses it for ping and replay and the scheduled Lambda for everything due, so the
-// two sign, retry and disable endpoints exactly alike. onDisabled is told when an
-// endpoint is disabled by its failure run (the operator alert); nil is allowed.
-func NewWebhookEngine(repo *repositories.WebhookRepository, onDisabled func(repositories.WebhookEndpoint), workers int) *webhooks.Deliverer {
-	return webhooks.NewDeliverer(repositories.NewWebhookStore(repo, onDisabled), webhooks.Config{
+// uses it for ping and replay (WebhookAPIAttemptTimeout) and the scheduled Lambda for
+// everything due (webhooks.DeliveryTimeout), so the two sign, retry and disable endpoints
+// exactly alike. onDisabled is told when an endpoint is disabled by its failure run (the
+// operator alert); nil is allowed. opts adjust the engine's config (tests inject a client).
+func NewWebhookEngine(repo *repositories.WebhookRepository, onDisabled func(repositories.WebhookEndpoint), workers int, attemptTimeout time.Duration, opts ...func(*webhooks.Config)) *webhooks.Deliverer {
+	cfg := webhooks.Config{
 		HeaderPrefix: WebhookHeaderPrefix, UserAgent: WebhookUserAgent, Workers: workers,
-	})
+		MaxPerGroup: WebhookMaxPerEndpointPerPass, Client: webhooks.NewGuardedClient(attemptTimeout),
+	}
+	for _, o := range opts {
+		o(&cfg)
+	}
+	return webhooks.NewDeliverer(repositories.NewWebhookStore(repo, onDisabled), cfg)
 }
 
 // NewWebhookVerifier builds the registration challenge check (guarded client).
@@ -191,6 +211,27 @@ func (s *WebhookService) Delete(ctx context.Context, companyPK, userID, endpoint
 	return notFound(s.repo.DeleteEndpoint(ctx, scope.OrganizationID, endpointID))
 }
 
+// Enable brings a disabled endpoint back (spec: manual reactivation). It repeats the registration
+// challenge first, so an endpoint that is still down stays disabled, and keeps the id, the secret
+// and the history. An endpoint that is already active is left alone, without a second challenge.
+func (s *WebhookService) Enable(ctx context.Context, companyPK, userID, endpointID string) error {
+	scope, err := s.scope(ctx, companyPK, userID)
+	if err != nil {
+		return err
+	}
+	e, err := s.repo.GetEndpoint(ctx, scope.OrganizationID, endpointID)
+	if err != nil {
+		return notFound(err)
+	}
+	if e.Status == repositories.WebhookActive {
+		return nil
+	}
+	if err := s.verifier.Verify(ctx, e.URL); err != nil {
+		return problem.UnprocessableEntity(err.Error())
+	}
+	return notFound(s.repo.EnableEndpoint(ctx, scope.OrganizationID, endpointID))
+}
+
 // RotateSecret replaces the signing secret and returns the new one, shown once.
 func (s *WebhookService) RotateSecret(ctx context.Context, companyPK, userID, endpointID string) (string, error) {
 	scope, err := s.scope(ctx, companyPK, userID)
@@ -338,11 +379,17 @@ func (s *WebhookService) Emit(ctx context.Context, in WebhookResult) error {
 	}
 	organizationID := in.OrganizationID
 	if organizationID == "" {
-		var err error
-		if organizationID, err = s.billing.OrganizationOf(ctx, in.CompanyPK); err != nil || organizationID == "" {
-			slog.WarnContext(ctx, "webhooks: result has no organization; skipped", "company", in.CompanyPK, "error", err)
+		id, err := s.billing.OrganizationOf(ctx, in.CompanyPK)
+		var p *problem.Problem
+		switch {
+		case errors.As(err, &p) && p.Status == http.StatusNotFound, err == nil && id == "":
+			// No such company, or one not linked to an organization: nothing to deliver to, and the queue cannot fix it.
+			slog.WarnContext(ctx, "webhooks: result has no organization; skipped", "company", in.CompanyPK)
 			return nil
+		case err != nil:
+			return err // a read that failed (throttling): the message stays on the queue and is tried again
 		}
+		organizationID = id
 	}
 	endpoints, err := s.repo.ListEndpoints(ctx, organizationID)
 	if err != nil {
@@ -364,8 +411,9 @@ func (s *WebhookService) Emit(ctx context.Context, in WebhookResult) error {
 	if err != nil {
 		return err
 	}
+	sum := sha256.Sum256([]byte(in.CompanyPK + "|" + in.DocumentKey + "|" + in.Status))
 	_, err = s.repo.WriteDeliveries(ctx, organizationID, repositories.WebhookEvent{
-		ID: id, Type: eventType, CompanyPK: in.CompanyPK, Body: body,
+		ID: id, Type: eventType, CompanyPK: in.CompanyPK, Body: body, DedupeKey: hex.EncodeToString(sum[:16]),
 	}, endpoints, s.now())
 	return err
 }

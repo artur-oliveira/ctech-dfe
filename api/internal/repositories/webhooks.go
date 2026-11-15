@@ -24,6 +24,7 @@ import (
 //	sk = ENDPOINT#{id}                                  one per destination
 //	     META#counts                                    endpoints count, the limit's guard
 //	     DELIVERY#{endpoint_id}#{event_id}              one event on its way to one endpoint
+//	     DEDUPE#{endpoint_id}#{hash}                    marker: this document and status was already sent here
 //	     ATTEMPT#{endpoint_id}#{event_id}#{NN}          one try, kept as it happened
 //
 // The event body travels on the delivery row, so there is no event row: an event
@@ -115,6 +116,10 @@ type WebhookEvent struct {
 	// EndpointID is set on a ping only.
 	EndpointID string
 	Body       []byte
+	// DedupeKey names the thing that happened (document and status), independent of the queue
+	// message that reported it. Two messages for one result carry two event ids; a marker per
+	// endpoint written with the delivery keeps the receiver from getting both. Empty: no marker.
+	DedupeKey string
 }
 
 // WebhookDelivery is one event's journey to one endpoint.
@@ -152,6 +157,7 @@ const webhookCountsSK = "META#counts"
 func webhookDeliverySK(endpointID, eventID string) string {
 	return "DELIVERY#" + endpointID + "#" + eventID
 }
+func webhookDedupeSK(endpointID, key string) string { return "DEDUPE#" + endpointID + "#" + key }
 func webhookAttemptSK(endpointID, eventID string, n int) string {
 	return fmt.Sprintf("ATTEMPT#%s#%s#%03d", endpointID, eventID, n)
 }
@@ -250,7 +256,10 @@ func (r *WebhookRepository) GetEndpoint(ctx context.Context, organizationID, id 
 }
 
 // ListEndpoints returns every endpoint of the organization (at most
-// MaxWebhookEndpoints), disabled ones included, secrets opened.
+// MaxWebhookEndpoints), disabled ones included, **secrets not opened**: nothing
+// that lists (the console, the fan-out) uses them, and opening them would let one
+// unreadable value (a rotated key, a corrupt row) break the screen and every
+// result's emission. The delivery path reads one endpoint with GetEndpoint.
 func (r *WebhookRepository) ListEndpoints(ctx context.Context, organizationID string) ([]WebhookEndpoint, error) {
 	res, err := r.base.Query(ctx, QueryOpts{
 		PK: WebhookPK(organizationID), SKPrefix: "ENDPOINT#", ScanIndexForward: true, Limit: MaxWebhookEndpoints * 2,
@@ -260,11 +269,12 @@ func (r *WebhookRepository) ListEndpoints(ctx context.Context, organizationID st
 	}
 	out := make([]WebhookEndpoint, 0, len(res.Items))
 	for _, item := range res.Items {
-		e, err := r.openEndpoint(item)
-		if err != nil {
+		var e WebhookEndpoint
+		if err := attributevalue.UnmarshalMap(item, &e); err != nil {
 			return nil, err
 		}
-		out = append(out, *e)
+		e.Secret = "" // still sealed in the row; never handed out from a list
+		out = append(out, e)
 	}
 	return out, nil
 }
@@ -289,6 +299,22 @@ func (r *WebhookRepository) DeleteEndpoint(ctx context.Context, organizationID, 
 		return ErrWebhookNotFound
 	}
 	return err
+}
+
+// EnableEndpoint turns a disabled endpoint back on and clears its failure run, keeping its id,
+// its secret and its history. The caller proves the endpoint answers first.
+func (r *WebhookRepository) EnableEndpoint(ctx context.Context, organizationID, id string) error {
+	sk := WebhookEndpointSK(id)
+	ok, err := r.base.UpdateItem(ctx, WebhookPK(organizationID), &sk, map[string]any{
+		"status": WebhookActive, "failure_run": 0, "disabled_at": nil,
+	})
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return ErrWebhookNotFound
+	}
+	return nil
 }
 
 // RotateSecret replaces an endpoint's signing secret.
@@ -335,6 +361,13 @@ func (r *WebhookRepository) WriteDeliveries(ctx context.Context, organizationID 
 		item["due"] = &types.AttributeValueMemberS{Value: webhookDueValue}
 		item["ttl"] = ttlAt(now)
 		items = append(items, r.base.BuildPutTxItemIfAbsent(item))
+		if ev.DedupeKey != "" {
+			items = append(items, r.base.BuildPutTxItemIfAbsent(map[string]types.AttributeValue{
+				"pk":  &types.AttributeValueMemberS{Value: WebhookPK(organizationID)},
+				"sk":  &types.AttributeValueMemberS{Value: webhookDedupeSK(d.EndpointID, ev.DedupeKey)},
+				"ttl": ttlAt(now),
+			}))
+		}
 	}
 	if len(items) == 0 {
 		return 0, nil

@@ -509,7 +509,7 @@ function route(method: string, path: string, body: unknown, params?: Record<stri
   }
   if (m === 'delete' && /^\/v1\.0\/webhooks\/[^/]+$/.test(path)) return {data: undefined, status: 204};
   if (m === 'post' && /^\/v1\.0\/webhooks\/[^/]+\/rotate-secret$/.test(path)) return {data: {secret: WEBHOOK_MOCK_SECRET}};
-  if (m === 'post' && /^\/v1\.0\/webhooks\/[^/]+\/(ping|deliveries\/[^/]+\/replay)$/.test(path)) return {data: undefined, status: 204};
+  if (m === 'post' && /^\/v1\.0\/webhooks\/[^/]+\/(ping|enable|deliveries\/[^/]+\/replay)$/.test(path)) return {data: undefined, status: 204};
   if (/^get \/v1\.0\/webhooks\/[^/]+\/deliveries$/.test(key)) return {data: {data: webhookDeliveriesFixture, next_cursor: null}};
   if (/^get \/v1\.0\/webhooks\/[^/]+\/deliveries\/[^/]+$/.test(key)) return {data: webhookDeliveryDetailFixture};
 

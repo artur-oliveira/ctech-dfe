@@ -147,7 +147,7 @@ function valid(secret, timestamp, rawBody, header) {
                 <li><b>Testar</b> envia um evento <b>ping</b> só para aquele webhook, ignorando os filtros, e mostra o resultado em Entregas.</li>
                 <li><b>Detalhes</b> abre cada tentativa: status HTTP, duração e os primeiros 512 caracteres da resposta.</li>
                 <li><b>Reenviar</b> volta a entrega para a fila e tenta na hora. Não funciona em webhook desativado.</li>
-                <li>Depois de <b>12 falhas seguidas</b>, o webhook é <b>desativado</b> e avisamos a equipe. Corrija o seu sistema, remova o webhook e cadastre-o de novo.</li>
+                <li>Depois de <b>12 falhas seguidas</b>, o webhook é <b>desativado</b> e avisamos a equipe. Corrija o seu sistema e clique em <b>Reativar</b>: o endereço passa de novo pela verificação, e o segredo e o histórico continuam os mesmos.</li>
                 <li>As entregas ficam guardadas por 90 dias.</li>
               </GuideBullets>
             </>

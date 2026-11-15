@@ -3,6 +3,7 @@ import {cleanup, fireEvent, render, screen, waitFor, within} from '@testing-libr
 import userEvent from '@testing-library/user-event';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import WebhooksPage from '@/app/webhooks/page';
+import {toast} from 'sonner';
 import {ApiError, apiClient} from '@/lib/api/client';
 import type {WebhookEndpoint, WebhookList} from '@/lib/types/webhooks';
 
@@ -61,13 +62,39 @@ describe('lista', () => {
     expect(screen.getByText('Beta Ltda')).toBeInTheDocument();
   });
 
-  it('explica o endpoint desativado e não deixa testar nem reenviar a ele', async () => {
+  it('explica o endpoint desativado e troca Testar por Reativar', async () => {
     renderPage();
     const note = await screen.findByRole('note');
     expect(note).toHaveTextContent(/após 12 falhas seguidas \(HTTP 404\)/);
-    expect(note).toHaveTextContent(/remova este webhook e cadastre-o de novo/);
+    expect(note).toHaveTextContent(/corrija o seu sistema e reative/i);
     const row = screen.getByText('https://velho.exemplo.com.br/x').closest('li') as HTMLElement;
-    expect(within(row).getByRole('button', {name: 'Testar'})).toBeDisabled();
+    expect(within(row).queryByRole('button', {name: 'Testar'})).not.toBeInTheDocument();
+  });
+
+  it('só o endpoint desativado oferece Reativar', async () => {
+    renderPage();
+    await screen.findByText('https://erp.exemplo.com.br/hooks');
+    expect(screen.getAllByRole('button', {name: 'Reativar'})).toHaveLength(1);
+    const row = screen.getByText('https://velho.exemplo.com.br/x').closest('li') as HTMLElement;
+    expect(within(row).getByRole('button', {name: 'Reativar'})).toBeEnabled();
+  });
+
+  it('reativar pede ao servidor, que repete a verificação do endereço', async () => {
+    const enable = vi.spyOn(apiClient, 'enableWebhook').mockResolvedValue(undefined);
+    renderPage();
+    const row = (await screen.findByText('https://velho.exemplo.com.br/x')).closest('li') as HTMLElement;
+    await userEvent.click(within(row).getByRole('button', {name: 'Reativar'}));
+    await waitFor(() => expect(enable).toHaveBeenCalledWith('wh2'));
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith(expect.stringMatching(/reativado/i)));
+  });
+
+  it('se o endereço ainda não responde, explica em português e segue desativado', async () => {
+    vi.spyOn(apiClient, 'enableWebhook').mockRejectedValue(new ApiError(422, 'the endpoint did not answer'));
+    renderPage();
+    const row = (await screen.findByText('https://velho.exemplo.com.br/x')).closest('li') as HTMLElement;
+    await userEvent.click(within(row).getByRole('button', {name: 'Reativar'}));
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('O endereço não respondeu.')));
+    expect(screen.getByText('Desativado')).toBeInTheDocument();
   });
 
   it('vazio ensina o que fazer', async () => {

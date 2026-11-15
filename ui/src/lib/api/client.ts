@@ -1407,6 +1407,10 @@ class ApiClient {
     return this.post(`/v1.0/webhooks/${id}/rotate-secret`, {});
   }
 
+  async enableWebhook(id: string): Promise<void> {
+    return this.post(`/v1.0/webhooks/${id}/enable`, {});
+  }
+
   async pingWebhook(id: string): Promise<void> {
     return this.post(`/v1.0/webhooks/${id}/ping`, {});
   }

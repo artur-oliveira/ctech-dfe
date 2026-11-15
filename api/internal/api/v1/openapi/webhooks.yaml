@@ -136,6 +136,32 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /v1.0/webhooks/{id}/enable:
+    post:
+      tags: [ Webhooks ]
+      summary: Reativa um endpoint desativado
+      description: |
+        Repete o desafio de cadastro e, se o endereço responder, volta o endpoint para ativo e
+        zera a sequência de falhas. Mantém o id, o segredo e o histórico de entregas. Se o
+        desafio falhar, o endpoint continua desativado (422, com o motivo). Num endpoint que já
+        está ativo não faz nada. As entregas que foram encerradas enquanto estava desativado
+        não voltam; use Reenviar nas que interessam.
+      operationId: enableWebhook
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+        - $ref: '#/components/parameters/WebhookId'
+      responses:
+        '204':
+          description: Ativo
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
   /v1.0/webhooks/{id}/ping:
     post:
       tags: [ Webhooks ]

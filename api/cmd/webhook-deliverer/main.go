@@ -70,7 +70,7 @@ func main() {
 			Summary: "webhook endpoint disabled after consecutive failures",
 			Detail:  "organization " + e.OrganizationID + ", endpoint " + e.ID,
 		})
-	}, envInt("WEBHOOK_WORKERS", defaultWorkers))
+	}, envInt("WEBHOOK_WORKERS", defaultWorkers), webhooks.DeliveryTimeout)
 
 	batch := envInt("WEBHOOK_BATCH", defaultBatch)
 	lambda.StartWithOptions(func(ctx context.Context, _ json.RawMessage) error {

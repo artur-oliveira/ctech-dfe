@@ -4,6 +4,7 @@ package integration_test
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"sync"
 	"testing"
@@ -357,5 +358,29 @@ func TestWebhookAttemptsAreKeptAndIdempotentOnTheNumber(t *testing.T) {
 	got, err := repo.Attempts(ctx, org, e.ID, evID)
 	if err != nil || len(got) != 2 || got[0].Number != 1 || got[0].Response != "gateway" || got[1].Number != 2 {
 		t.Fatalf("attempts = %+v %v", got, err)
+	}
+}
+
+// M3: "the endpoint was deleted" closes a delivery; "I could not read it" must not. The adapter has to tell the
+// engine which one it is.
+func TestWebhookStoreTellsAGoneEndpointFromAnUnreadableOne(t *testing.T) {
+	ctx := context.Background()
+	repo, store := newWebhookRepo()
+	org := orgID()
+	e := webhookEndpoint(org)
+	if err := repo.CreateEndpoint(ctx, e, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	ref := func(id string) webhooks.Delivery {
+		return webhooks.Delivery{EndpointID: id, Ref: repositories.WebhookDelivery{OrganizationID: org, EndpointID: id}}
+	}
+
+	if _, err := store.GetEndpoint(ctx, ref("never-existed")); !errors.Is(err, webhooks.ErrEndpointGone) {
+		t.Fatalf("missing endpoint: %v, want ErrEndpointGone", err)
+	}
+	putRawWebhookSecret(t, ctx, org, repositories.WebhookEndpointSK(e.ID), &types.AttributeValueMemberS{Value: "v9.not-a-sealed-secret"})
+	_, err := store.GetEndpoint(ctx, ref(e.ID))
+	if err == nil || errors.Is(err, webhooks.ErrEndpointGone) {
+		t.Fatalf("unreadable secret: %v, want an error that is not ErrEndpointGone", err)
 	}
 }

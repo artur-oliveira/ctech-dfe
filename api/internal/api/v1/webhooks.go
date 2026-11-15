@@ -80,6 +80,13 @@ func RegisterWebhooks(router fiber.Router, svc *services.WebhookService, authMw 
 		return c.JSON(fiber.Map{"secret": secret})
 	})
 
+	g.Post("/:id/enable", func(c fiber.Ctx) error {
+		if err := svc.Enable(c.Context(), middleware.GetOrgPK(c), middleware.GetUserID(c), c.Params("id")); err != nil {
+			return sendProblem(c, err)
+		}
+		return c.SendStatus(fiber.StatusNoContent)
+	})
+
 	g.Post("/:id/ping", func(c fiber.Ctx) error {
 		if err := svc.Ping(c.Context(), middleware.GetOrgPK(c), middleware.GetUserID(c), c.Params("id")); err != nil {
 			return sendProblem(c, err)

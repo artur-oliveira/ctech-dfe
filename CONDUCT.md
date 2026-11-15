@@ -1533,6 +1533,8 @@ enviados só um certificado descartável e uma chave falsa, e a ANTT respondeu 4
 - **SSRF.** O cadastro valida a URL e o desafio sai pelo cliente guardado; a entrega recusa de novo na conexão (depois do DNS), não
   segue redirecionamento e não usa proxy. Erros de transporte são guardados como categoria, nunca com a URL (ela pode carregar um token
   do cliente).
-- **Um endpoint desativado não volta.** O console não tem "reativar": remover e cadastrar de novo refaz o desafio.
-- A Lambda `webhook-deliverer` tem concorrência reservada 1: duas passadas simultâneas entregariam a mesma linha duas vezes.
+- **Um endpoint desativado só volta pelo desafio.** "Reativar" repete a verificação do endereço antes de zerar a sequência de falhas; se o endereço ainda não responde, continua desativado.
+- A Lambda `webhook-deliverer` tem concorrência reservada 1: duas passadas simultâneas entregariam a mesma linha duas vezes. A passada não inicia tentativa sem tempo para terminá-la e dá no máximo 20 tentativas por endpoint: um receptor lento que responde 200 não pode ocupar o lote de todos nem fazer a Lambda estourar o tempo no meio de uma entrega.
+- **O mesmo resultado publicado duas vezes chega uma vez.** Duas mensagens da fila para o mesmo documento e status têm `SentTimestamp` e, portanto, id de evento diferentes; um marcador `DEDUPE#` por endpoint, gravado junto da entrega, impede a segunda.
+- Listar endpoints (a tela e a emissão) **não abre o segredo**: um segredo ilegível (chave rotacionada sem a geração antiga, linha corrompida) não pode derrubar a tela nem mandar todo resultado da organização para a DLQ. Só a entrega abre o segredo; um erro de leitura ali deixa a entrega como está e conta como falha do job, e só "endpoint apagado" encerra a entrega.
 

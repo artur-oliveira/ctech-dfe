@@ -15,6 +15,7 @@ interface WebhookRowProps {
   companyNames: Map<string, string>
   busy: boolean
   onPing: () => void
+  onEnable: () => void
   onRotate: () => void
   onRemove: () => void
 }
@@ -25,7 +26,7 @@ function lastDelivery(e: WebhookEndpoint): string {
   return e.last_delivery_ok ? `Última entrega ok em ${when}` : `Última entrega falhou em ${when}${e.last_delivery_detail ? ` (${e.last_delivery_detail})` : ''}`;
 }
 
-export function WebhookRow({endpoint: e, companyPk, companyNames, busy, onPing, onRotate, onRemove}: WebhookRowProps) {
+export function WebhookRow({endpoint: e, companyPk, companyNames, busy, onPing, onEnable, onRotate, onRemove}: WebhookRowProps) {
   const [showDeliveries, setShowDeliveries] = useState(false);
   const [confirmRotate, setConfirmRotate] = useState(false);
   const active = e.status === 'active';
@@ -50,7 +51,7 @@ export function WebhookRow({endpoint: e, companyPk, companyNames, busy, onPing, 
       {!active && (
         <p role="note" className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-900">
           Desativado em {formatDateTime(e.disabled_at) || 'data desconhecida'} após {WEBHOOK_MAX_FAILURE_RUN} falhas seguidas
-          {e.last_delivery_detail ? ` (${e.last_delivery_detail})` : ''}. Corrija o seu sistema, remova este webhook e cadastre-o de novo.
+          {e.last_delivery_detail ? ` (${e.last_delivery_detail})` : ''}. Corrija o seu sistema e reative: o endereço passa de novo pela verificação, e o segredo e o histórico continuam os mesmos.
         </p>
       )}
 
@@ -67,10 +68,15 @@ export function WebhookRow({endpoint: e, companyPk, companyNames, busy, onPing, 
         </div>
       ) : (
         <div className="mt-3 flex flex-wrap gap-2">
-          <Button size="sm" variant="outline" className="h-11 sm:h-9" disabled={!active || busy} onClick={onPing}
-                  title={active ? undefined : 'O endpoint está desativado'}>
-            Testar
-          </Button>
+          {active ? (
+            <Button size="sm" variant="outline" className="h-11 sm:h-9" disabled={busy} onClick={onPing}>
+              Testar
+            </Button>
+          ) : (
+            <Button size="sm" className="h-11 sm:h-9" disabled={busy} onClick={onEnable}>
+              Reativar
+            </Button>
+          )}
           <Button size="sm" variant="outline" className="h-11 sm:h-9" aria-expanded={showDeliveries}
                   onClick={() => setShowDeliveries((v) => !v)}>
             {showDeliveries ? 'Ocultar entregas' : 'Entregas'}

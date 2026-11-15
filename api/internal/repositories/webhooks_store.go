@@ -88,10 +88,10 @@ func DueOf(d WebhookDelivery) webhooks.Due {
 	}
 }
 
-// GetEndpoint reads the destination of a delivery. Any failure is "gone": the
-// delivery is closed as failed instead of retried. A failure that is not a
-// plain "not found" (a secret that does not open, DynamoDB down) is also logged,
-// because it would otherwise burn deliveries silently.
+// GetEndpoint reads the destination of a delivery. Only "not found" is ErrEndpointGone (the
+// engine closes the delivery); any other failure (a secret that does not open, DynamoDB down)
+// is returned as it is, so the engine leaves the delivery as it is and counts it as the job's
+// failure. It is also logged here: an unreadable secret would otherwise be silent.
 func (s *WebhookStore) GetEndpoint(ctx context.Context, d webhooks.Delivery) (*webhooks.Endpoint, error) {
 	row, err := rowOf(d)
 	if err != nil {
@@ -99,11 +99,12 @@ func (s *WebhookStore) GetEndpoint(ctx context.Context, d webhooks.Delivery) (*w
 	}
 	e, err := s.repo.GetEndpoint(ctx, row.OrganizationID, row.EndpointID)
 	if err != nil {
-		if !errors.Is(err, ErrWebhookNotFound) {
-			slog.ErrorContext(ctx, "webhook endpoint unreadable, delivery will be closed",
-				"organization_id", row.OrganizationID, "endpoint_id", row.EndpointID, "error", err)
+		if errors.Is(err, ErrWebhookNotFound) {
+			return nil, fmt.Errorf("%w: %v", webhooks.ErrEndpointGone, err)
 		}
-		return nil, fmt.Errorf("%w: %v", webhooks.ErrEndpointGone, err)
+		slog.ErrorContext(ctx, "webhook endpoint unreadable, delivery left as it is",
+			"organization_id", row.OrganizationID, "endpoint_id", row.EndpointID, "error", err)
+		return nil, err
 	}
 	return &webhooks.Endpoint{
 		ID: e.ID, URL: e.URL, Secret: e.Secret, Active: e.Status == WebhookActive, Ref: *e,

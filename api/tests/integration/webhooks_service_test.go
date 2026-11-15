@@ -13,6 +13,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+
 	"gopkg.aoctech.app/api-commons/webhooks"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"
@@ -132,6 +134,7 @@ func TestWebhookOnlyOwnersAndAdminsManage(t *testing.T) {
 	checks["delete"] = e.svc.Delete(ctx, e.company, m, ep.ID)
 	_, checks["rotate"] = e.svc.RotateSecret(ctx, e.company, m, ep.ID)
 	checks["ping"] = e.svc.Ping(ctx, e.company, m, ep.ID)
+	checks["enable"] = e.svc.Enable(ctx, e.company, m, ep.ID)
 	checks["replay"] = e.svc.Replay(ctx, e.company, m, ep.ID, "ev")
 	_, _, checks["deliveries"] = e.svc.Deliveries(ctx, e.company, m, ep.ID, nil, 10)
 	for name, err := range checks {
@@ -349,5 +352,120 @@ func TestWebhookEventIDIsStableAndSortsByTime(t *testing.T) {
 	other := repositories.WebhookEventID(time.UnixMilli(1800000000000), "doc|rejected")
 	if a != b || a == other || !(a < later) {
 		t.Fatalf("a=%s b=%s later=%s other=%s", a, b, later, other)
+	}
+}
+
+// I4: an unreadable secret (a rotated key that dropped the old generation, a corrupt row) must not
+// stop the listing or the emission: neither uses the secret, only the delivery does.
+func TestWebhookUnreadableSecretDoesNotBreakListOrEmit(t *testing.T) {
+	ctx := context.Background()
+	e := newWebhookEnv(t, nil)
+	ep, err := e.svc.Register(ctx, e.company, "usr-admin", services.WebhookRegistration{URL: "https://hooks.example.com/dfe"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	putRawWebhookSecret(t, ctx, e.org, repositories.WebhookEndpointSK(ep.ID), &types.AttributeValueMemberS{Value: "v9.not-a-sealed-secret"})
+
+	if _, err := e.repo.GetEndpoint(ctx, e.org, ep.ID); err == nil {
+		t.Fatal("the delivery path opened a secret it cannot open")
+	}
+	listing, err := e.svc.List(ctx, e.company, "usr-admin")
+	if err != nil || len(listing.Endpoints) != 1 {
+		t.Fatalf("list = %+v %v: the screen must still show the endpoint so it can be removed or rotated", listing, err)
+	}
+	if err := e.svc.Emit(ctx, services.WebhookResult{CompanyPK: e.company, OrganizationID: e.org, DocumentKey: "k1", Table: "nfes", Status: "authorized", SentAt: time.Now()}); err != nil {
+		t.Fatalf("emit = %v: a result must not go to the DLQ over a secret nobody reads here", err)
+	}
+	// Rotating replaces the unreadable value, and the delivery path works again.
+	if _, err := e.svc.RotateSecret(ctx, e.company, "usr-admin", ep.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.repo.GetEndpoint(ctx, e.org, ep.ID); err != nil {
+		t.Fatalf("after rotating: %v", err)
+	}
+}
+
+// I5: the same result published twice (the worker's SNS publish repeated, SNS delivering twice) arrives as two
+// queue messages with two SentTimestamps and so two event ids; the receiver must still get one delivery.
+func TestWebhookEmitDeduplicatesAcrossDifferentQueueMessages(t *testing.T) {
+	ctx := context.Background()
+	e := newWebhookEnv(t, nil)
+	ep := &repositories.WebhookEndpoint{ID: repositories.GenerateID(), OrganizationID: e.org, URL: "https://hooks.invalid/x", Secret: webhooks.NewSecret(), Status: repositories.WebhookActive}
+	if err := e.repo.CreateEndpoint(ctx, ep, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	in := services.WebhookResult{CompanyPK: e.company, OrganizationID: e.org, DocumentKey: "chave-1", Table: "nfes", Status: "authorized"}
+	in.SentAt = time.UnixMilli(1800000000000)
+	if err := e.svc.Emit(ctx, in); err != nil {
+		t.Fatal(err)
+	}
+	in.SentAt = time.UnixMilli(1800000007000) // the duplicate message, sent seven seconds later
+	if err := e.svc.Emit(ctx, in); err != nil {
+		t.Fatal(err)
+	}
+	page, _, _ := e.repo.ListDeliveries(ctx, e.org, ep.ID, nil, 50)
+	if len(page) != 1 {
+		t.Fatalf("deliveries = %d, want 1", len(page))
+	}
+	// A different status of the same document is a different event.
+	in.Status = "rejected"
+	if err := e.svc.Emit(ctx, in); err != nil {
+		t.Fatal(err)
+	}
+	if page, _, _ = e.repo.ListDeliveries(ctx, e.org, ep.ID, nil, 50); len(page) != 2 {
+		t.Fatalf("deliveries = %d, want 2 (authorized and rejected)", len(page))
+	}
+}
+
+// M1: a company the platform does not know has nothing to deliver to (skip); the guard is that the branch stays a skip.
+func TestWebhookEmitSkipsAResultOfAnUnknownCompany(t *testing.T) {
+	ctx := context.Background()
+	e := newWebhookEnv(t, nil)
+	in := services.WebhookResult{CompanyPK: newCompanyPK(t), DocumentKey: "k", Table: "nfes", Status: "authorized", SentAt: time.Now()}
+	if err := e.svc.Emit(ctx, in); err != nil {
+		t.Fatalf("emit = %v", err)
+	}
+}
+
+// I3 (spec: "reativação manual"): a disabled endpoint comes back without a new id and a new secret, but only
+// after it proves again that it answers.
+func TestWebhookEnableRepeatsTheChallengeAndResetsTheFailureRun(t *testing.T) {
+	ctx := context.Background()
+	e := newWebhookEnv(t, nil)
+	ep := &repositories.WebhookEndpoint{
+		ID: repositories.GenerateID(), OrganizationID: e.org, URL: "https://hooks.example.com/dfe", Secret: webhooks.NewSecret(),
+		Status: repositories.WebhookDisabled, FailureRun: webhooks.MaxFailureRun, LastDeliveryDetail: "HTTP 404",
+	}
+	if err := e.repo.CreateEndpoint(ctx, ep, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+
+	e.verifier.err = errors.New("the endpoint did not answer")
+	if err := e.svc.Enable(ctx, e.company, "usr-admin", ep.ID); !isStatus(err, http.StatusUnprocessableEntity) {
+		t.Fatalf("failed challenge: %v, want 422", err)
+	}
+	if got, _ := e.repo.GetEndpoint(ctx, e.org, ep.ID); got.Status != repositories.WebhookDisabled || got.FailureRun != webhooks.MaxFailureRun {
+		t.Fatalf("an endpoint that failed the challenge changed: %+v", got)
+	}
+
+	e.verifier.err = nil
+	if err := e.svc.Enable(ctx, e.company, "usr-admin", ep.ID); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := e.repo.GetEndpoint(ctx, e.org, ep.ID)
+	if got.Status != repositories.WebhookActive || got.FailureRun != 0 || got.DisabledAt != "" || got.Secret != ep.Secret {
+		t.Fatalf("after enabling: %+v (same id, same secret, run reset)", got)
+	}
+
+	// Enabling an active endpoint is a no-op: no second challenge.
+	calls := len(e.verifier.calls)
+	if err := e.svc.Enable(ctx, e.company, "usr-admin", ep.ID); err != nil {
+		t.Fatal(err)
+	}
+	if len(e.verifier.calls) != calls {
+		t.Fatal("an active endpoint was challenged again")
+	}
+	if err := e.svc.Enable(ctx, e.company, "usr-admin", "no-such-endpoint"); !isStatus(err, http.StatusNotFound) {
+		t.Fatalf("unknown endpoint: %v, want 404", err)
 	}
 }

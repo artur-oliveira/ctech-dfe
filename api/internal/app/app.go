@@ -859,7 +859,7 @@ func newWebhookService(repo *repositories.WebhookRepository, billing *services.B
 			Summary: "webhook endpoint disabled after consecutive failures",
 			Detail:  "organization " + e.OrganizationID + ", endpoint " + e.ID,
 		})
-	}, 1)
+	}, 1, services.WebhookAPIAttemptTimeout)
 	return services.NewWebhookService(repo, billing, services.NewWebhookVerifier(), engine)
 }
 
