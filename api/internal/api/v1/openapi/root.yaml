@@ -83,6 +83,8 @@ tags:
     description: Certificados digitais A1 (PFX) usados na assinatura e no mTLS.
   - name: Members
     description: Membros da organização e convites.
+  - name: Webhooks
+    description: Avisos assinados de resultado de documento para uma URL do cliente, com log de entregas e reenvio.
   - name: Invitations
     description: Aceite/recusa de convites pelo destinatário (endereçado por token).
   - name: Products

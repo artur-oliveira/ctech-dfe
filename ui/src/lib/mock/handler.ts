@@ -11,6 +11,11 @@ import {
   auditLogsFixture,
   billingInvoicesFixture,
   billingPlansFixture,
+  WEBHOOK_MOCK_SECRET,
+  webhookDeliveriesFixture,
+  webhookDeliveryDetailFixture,
+  webhookEndpointsFixture,
+  webhooksListFixture,
   billingSubscriptionFixtures,
   certificatesFixture,
   cteConfigFixture,
@@ -489,6 +494,24 @@ function route(method: string, path: string, body: unknown, params?: Record<stri
   if (/^get \/v1\.0\/organizations\/[^/]+\/plan$/.test(key)) {
     return {data: {...billingSubscriptionFixtures[getMockState().billing], manageable: false}};
   }
+
+  // Webhooks
+  if (key === 'get /v1.0/webhooks') return {data: webhooksListFixture};
+  if (m === 'post' && path === '/v1.0/webhooks') {
+    const b = (body ?? {}) as { url?: string; events?: string[]; company_pks?: string[] };
+    return {
+      status: 201,
+      data: {
+        ...webhookEndpointsFixture[0], id: '01JAB0C5M8WZ3Q2R7T4N6V9XEC', url: b.url ?? '', events: b.events ?? [],
+        company_pks: b.company_pks ?? [], last_delivery_ok: false, last_delivery_at: undefined, secret: WEBHOOK_MOCK_SECRET,
+      },
+    };
+  }
+  if (m === 'delete' && /^\/v1\.0\/webhooks\/[^/]+$/.test(path)) return {data: undefined, status: 204};
+  if (m === 'post' && /^\/v1\.0\/webhooks\/[^/]+\/rotate-secret$/.test(path)) return {data: {secret: WEBHOOK_MOCK_SECRET}};
+  if (m === 'post' && /^\/v1\.0\/webhooks\/[^/]+\/(ping|enable|deliveries\/[^/]+\/replay)$/.test(path)) return {data: undefined, status: 204};
+  if (/^get \/v1\.0\/webhooks\/[^/]+\/deliveries$/.test(key)) return {data: {data: webhookDeliveriesFixture, next_cursor: null}};
+  if (/^get \/v1\.0\/webhooks\/[^/]+\/deliveries\/[^/]+$/.test(key)) return {data: webhookDeliveryDetailFixture};
 
   // Audit logs
   if (key === 'get /v1.0/audit-logs') return {data: paginated(auditLogsFixture)};

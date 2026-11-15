@@ -1731,3 +1731,75 @@ export const ciotValidationProblemFixture = {
     {field: 'ValorFrete', code: 'rule', message: 'O valor do frete deve ser maior que zero.', params: {rule: 'B120', antt_code: 319}},
   ],
 };
+
+// ---------------------------------------------------------------------------
+// Webhooks (api/internal/api/v1/openapi/webhooks.yaml)
+// ---------------------------------------------------------------------------
+
+export const WEBHOOK_MOCK_SECRET = 'whsec_0f3a9c1b7d5e4a2c8b6d9e0f1a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c4d';
+
+export const webhookEndpointsFixture = [
+  {
+    id: '01JAB0C5M8WZ3Q2R7T4N6V9XEA',
+    organization_id: 'org-mock-1',
+    url: 'https://erp.exemplo.com.br/hooks/dfe',
+    events: null,
+    company_pks: null,
+    status: 'active',
+    failure_run: 0,
+    last_delivery_ok: true,
+    last_delivery_at: '2026-11-14T13:02:11Z',
+    created_at: '2026-10-02T12:00:00Z',
+  },
+  {
+    id: '01JAB0C5M8WZ3Q2R7T4N6V9XEB',
+    organization_id: 'org-mock-1',
+    url: 'https://notificacoes.exemplo.com.br/fiscal',
+    events: ['document.rejected', 'document.failed'],
+    company_pks: [ORG_PK],
+    status: 'disabled',
+    failure_run: 12,
+    disabled_at: '2026-11-13T21:40:00Z',
+    last_delivery_ok: false,
+    last_delivery_at: '2026-11-13T21:40:00Z',
+    last_delivery_detail: 'HTTP 404',
+    created_at: '2026-10-20T09:30:00Z',
+  },
+];
+
+export const webhooksListFixture = {
+  data: webhookEndpointsFixture,
+  company_pks: [ORG_PK],
+  enabled: true,
+  max_endpoints: 5,
+  event_types: ['document.authorized', 'document.rejected', 'document.failed'],
+};
+
+export const webhookDeliveriesFixture = [
+  {
+    endpoint_id: '01JAB0C5M8WZ3Q2R7T4N6V9XEA', event_id: '01JC3F7K2N9P4Q6S8T0V1W3X5Z', type: 'document.authorized',
+    status: 'delivered', attempts: 1, last_status_code: 200, delivered_at: '2026-11-14T13:02:11Z', created_at: '2026-11-14T13:02:10Z',
+  },
+  {
+    endpoint_id: '01JAB0C5M8WZ3Q2R7T4N6V9XEA', event_id: '01JC3F6B1M8N3P5R7S9T0V2W4Y', type: 'document.rejected',
+    status: 'pending', attempts: 3, last_status_code: 502, last_error: 'endpoint answered 502',
+    next_attempt_at: '2026-11-14T13:12:00Z', created_at: '2026-11-14T12:41:00Z',
+  },
+  {
+    endpoint_id: '01JAB0C5M8WZ3Q2R7T4N6V9XEA', event_id: '01JC3F4A0K7M2N4P6R8S9T1V3X', type: 'ping',
+    status: 'delivered', attempts: 1, last_status_code: 204, delivered_at: '2026-11-14T12:30:05Z', created_at: '2026-11-14T12:30:04Z',
+  },
+  {
+    endpoint_id: '01JAB0C5M8WZ3Q2R7T4N6V9XEA', event_id: '01JC3E9Z8H5K0M2N4P6R7S9T0V', type: 'document.failed',
+    status: 'failed', attempts: 8, last_error: 'the endpoint did not answer in time', created_at: '2026-11-11T08:00:00Z',
+  },
+];
+
+export const webhookDeliveryDetailFixture = {
+  delivery: webhookDeliveriesFixture[1],
+  attempts: [
+    {number: 1, at: '2026-11-14T12:41:00Z', status_code: 502, duration_ms: 3120, error: 'endpoint answered 502', response: '<html>Bad Gateway</html>'},
+    {number: 2, at: '2026-11-14T12:41:30Z', status_code: 502, duration_ms: 2980, error: 'endpoint answered 502', response: '<html>Bad Gateway</html>'},
+    {number: 3, at: '2026-11-14T12:42:30Z', status_code: 502, duration_ms: 3050, error: 'endpoint answered 502', response: '<html>Bad Gateway</html>'},
+  ],
+};

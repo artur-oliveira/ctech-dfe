@@ -113,6 +113,8 @@ var Module = fx.Options(
 		newWorkspaceRoleService,
 		newLinkService,
 		newBillingService,
+		repositories.NewWebhookRepository,
+		newWebhookService,
 		newCertificateService,
 		newProductService,
 		newServiceService,
@@ -635,6 +637,7 @@ type Services struct {
 	ExternalSvc     *services.ExternalService
 	AuditLogSvc     *services.AuditLogService
 	BillingSvc      *services.BillingService
+	WebhookSvc      *services.WebhookService
 	LevelReporter   *services.LevelReporter
 	RoleRepo        *repositories.RoleRepository
 	Cache           cache.Backend
@@ -687,6 +690,7 @@ func registerRoutes(app *fiber.App, svcs Services) {
 		External:        svcs.ExternalSvc,
 		AuditLog:        svcs.AuditLogSvc,
 		Billing:         svcs.BillingSvc,
+		Webhooks:        svcs.WebhookSvc,
 		Levels:          svcs.LevelReporter,
 		RoleRepo:        svcs.RoleRepo,
 		ErasureBlocked:  blockedOf(svcs.ErasureStore),
@@ -713,8 +717,8 @@ func startServer(lc fx.Lifecycle, app *fiber.App, cfg *config.Config) {
 	})
 }
 
-func newResultsConsumer(clients *awsclient.Clients, cfg *config.Config, reg ws.Registry, c cache.Backend, billing *services.BillingService) *consumer.ResultsConsumer {
-	return consumer.NewResultsConsumer(clients.SQS, cfg.ResultsQueueURL, reg, c, billing)
+func newResultsConsumer(clients *awsclient.Clients, cfg *config.Config, reg ws.Registry, c cache.Backend, billing *services.BillingService, hooks *services.WebhookService) *consumer.ResultsConsumer {
+	return consumer.NewResultsConsumer(clients.SQS, cfg.ResultsQueueURL, reg, c, billing).WithWebhooks(hooks)
 }
 
 // newLevelReporter delivers companies levels to billing. Billing off → a nil
@@ -841,6 +845,22 @@ func newBillingService(
 	return services.NewBillingService(repo, client, users, orgs, c).
 		WithEnablement(services.NewFiscalConfigEnablement(nfe, nfce, cte, mdfe, nfse)).
 		WithWorkspaceRoles(roles)
+}
+
+// newWebhookService wires outbound webhooks: the delivery engine (ping and
+// replay attempt at once; the scheduled Lambda delivers the rest), the
+// registration challenge, and the operator alert for an endpoint the engine
+// disables after a run of failures (the endpoint id, never its URL).
+func newWebhookService(repo *repositories.WebhookRepository, billing *services.BillingService, cfg *config.Config) *services.WebhookService {
+	pub := newAlerts(cfg)
+	engine := services.NewWebhookEngine(repo, func(e repositories.WebhookEndpoint) {
+		pub.Alert(context.Background(), alerts.Alert{
+			Job:     "webhook-disabled",
+			Summary: "webhook endpoint disabled after consecutive failures",
+			Detail:  "organization " + e.OrganizationID + ", endpoint " + e.ID,
+		})
+	}, 1, services.WebhookAPIAttemptTimeout)
+	return services.NewWebhookService(repo, billing, services.NewWebhookVerifier(), engine)
 }
 
 // newReachService builds the reach check, or nil when ctech-account has not

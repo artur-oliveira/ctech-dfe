@@ -70,6 +70,12 @@ test('no secret value is written into the launch template', () => {
   expect(text).not.toMatch(/BILLING_CLIENT_SECRET=(?!\/|\$)/)
 })
 
+test('the webhook sealing key comes from SSM at start, never as a value', () => {
+  const text = userDataText(synth())
+  expect(text).toContain("'WEBHOOK_SECRET_KEY=/ctech-dfe/prod/webhooks/secret-key'")
+  expect(text).not.toMatch(/WEBHOOK_SECRET_KEY=(?!\/|\$)/)
+})
+
 test('the shared EC2 agent is installed, and the ASG stays bounded', () => {
   const template = synth()
 

@@ -110,8 +110,8 @@ test('distribution poller schedule is enabled', () => {
 test('every worker has a keep-warm ping schedule invoking it directly with {"ping":true}', () => {
   const template = buildTemplate()
 
-  // One ping schedule per worker + the distribution poller and the contingency dispatcher schedules.
-  template.resourceCountIs('AWS::Scheduler::Schedule', WORKERS.length + 2)
+  // One ping schedule per worker + the distribution poller, the contingency dispatcher and the webhook deliverer.
+  template.resourceCountIs('AWS::Scheduler::Schedule', WORKERS.length + 3)
 
   for (const worker of WORKERS) {
     template.hasResourceProperties('AWS::Scheduler::Schedule', {
@@ -303,10 +303,15 @@ describe('ciot-operation worker', () => {
 
   test('only this worker reads the CIOT SSM parameters and decrypts them via SSM', () => {
     const statements = policyStatements(buildTemplate())
-    const ssmReads = statements.filter(st => actionsOf(st).includes('ssm:GetParameter'))
+    // Scoped to the CIOT path: another Lambda may read its own parameter (the webhook deliverer's key), but
+    // nothing else may read the CIOT generator parameters.
+    const ciotOnly = (st: any) => JSON.stringify(st).includes('/ctech-dfe/*/ciot/*')
+    const ssmReads = statements.filter(st => actionsOf(st).includes('ssm:GetParameter') && ciotOnly(st))
     expect(ssmReads).toHaveLength(1)
     expect(JSON.stringify(ssmReads[0].Resource)).toContain('parameter/ctech-dfe/*/ciot/*')
-    const decrypts = statements.filter(st => actionsOf(st).includes('kms:Decrypt'))
+    expect(statements.filter(st => actionsOf(st).includes('ssm:GetParameter') && !ciotOnly(st)).map(st => JSON.stringify(st.Resource)))
+      .toEqual([expect.stringContaining('/ctech-dfe/dev/webhooks/secret-key')])
+    const decrypts = statements.filter(st => actionsOf(st).includes('kms:Decrypt') && ciotOnly(st))
     expect(decrypts).toHaveLength(1)
     expect(JSON.stringify(decrypts[0].Condition.StringEquals['kms:ViaService'])).toContain('ssm.')
     expect(JSON.stringify(decrypts[0].Condition.StringLike)).toContain('/ctech-dfe/*/ciot/*')
@@ -356,4 +361,51 @@ test('the workers that feed or probe the breaker get GetItem/UpdateItem on the c
   }
   // the probe worker alone reads the certificate and identity of the company
   expect(WORKERS.find(w => w.id === 'contingency-retransmit')!.readTables).toEqual(['organization_certificates', 'organizations'])
+})
+
+describe('webhook-deliverer', () => {
+  const find = (template: Template, type: string, pred: (r: any) => boolean) =>
+    Object.values(template.findResources(type)).find(pred) as any
+
+  test('runs every minute, one instance at a time, on the same bundler as the workers', () => {
+    const template = buildTemplate()
+    template.hasResourceProperties('AWS::Lambda::Function', {
+      FunctionName: 'dev-webhook-deliverer',
+      Runtime: 'provided.al2023',
+      Architectures: ['arm64'],
+      ReservedConcurrentExecutions: 1,
+      Environment: {
+        Variables: Match.objectLike({
+          TABLE_PREFIX: 'dev_dfe',
+          WEBHOOK_SECRET_KEY_SSM_PATH: '/ctech-dfe/dev/webhooks/secret-key',
+        }),
+      },
+    })
+    template.hasResourceProperties('AWS::Scheduler::Schedule', {
+      Name: 'dev-webhook-deliverer-schedule',
+      ScheduleExpression: 'rate(1 minute)',
+    })
+  })
+
+  test('its role touches only the webhooks table, its one SSM key and the alerts topic', () => {
+    const template = buildTemplate()
+    const role = find(template, 'AWS::IAM::Role', (r) => r.Properties.RoleName === 'dev-webhook-deliverer-role')
+    expect(role).toBeDefined()
+    const policies = Object.values(template.findResources('AWS::IAM::Policy')) as any[]
+    const mine = policies.filter((p) => JSON.stringify(p.Properties.Roles ?? []).includes('webhookdelivererrole'))
+    expect(mine.length).toBeGreaterThan(0)
+    const statements = mine.flatMap((p) => p.Properties.PolicyDocument.Statement)
+    const text = JSON.stringify(statements)
+
+    const dynamo = statements.find((s) => JSON.stringify(s.Action).includes('dynamodb:Query'))
+    expect(JSON.stringify(dynamo.Resource)).toContain('dev_dfe_webhooks')
+    expect(JSON.stringify(dynamo.Resource)).toContain('dev_dfe_webhooks/index/*')
+    expect(JSON.stringify(dynamo.Resource)).not.toMatch(/dev_dfe_(nfes|organizations|users)/)
+    expect(text).not.toContain('dynamodb:Scan')
+    expect(text).toContain('/ctech-dfe/dev/webhooks/secret-key')
+    expect(text).toContain('kms:Decrypt')
+    expect(text).toContain('kms:ViaService')
+    expect(text).toContain('PARAMETER_ARN')
+    expect(text).toContain('sns:Publish')
+  })
 })

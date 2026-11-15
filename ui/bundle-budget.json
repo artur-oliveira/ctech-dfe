@@ -4,8 +4,8 @@
   "tolerance": 0.08,
   "routes": {
     "/": 944698,
-    "/_not-found": 900405,
     "/404": 900405,
+    "/_not-found": 900405,
     "/assinatura": 1329186,
     "/audit-logs": 1318695,
     "/callback": 901944,
@@ -39,6 +39,7 @@
     "/guide/nfe": 948230,
     "/guide/nfse": 935283,
     "/guide/registries": 958761,
+    "/guide/webhooks": 949767,
     "/import-declarations": 1512216,
     "/import-declarations/edit": 1744238,
     "/import-declarations/new": 1742824,
@@ -117,6 +118,7 @@
     "/vehicle-sets/new": 2160325,
     "/vehicles": 1228737,
     "/vehicles/edit": 1744991,
-    "/vehicles/new": 1744041
+    "/vehicles/new": 1744041,
+    "/webhooks": 1301683
   }
 }

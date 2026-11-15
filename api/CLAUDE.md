@@ -98,6 +98,7 @@ Cache, WebSocket registry, JWT verification, deadline, erasure and observability
 - **NFS-e** lives in `internal/services/nfses/` (own package): the row SK is the `id_dps`, `WorkerMessage.UF` is empty
   (municipal competence), and reads that hit the ADN (`municipal.go`) call go-dfe through the go-dfe-egress Lambda
   (`ExternalService.CallDfe`, region `DFE_EGRESS_REGION`), never in process. See `../DOCS.md` (Emissao de NFS-e).
+- **Webhooks** live in `repositories/webhooks*.go` (table `webhooks`, `WebhookStore` over go-common `webhooks`), `services/webhooks.go` and `webhook_events.go`, and `api/v1/webhooks.go`. The `ResultsConsumer` calls `WebhookService.Emit` after billing settles; the scheduled delivery is `cmd/webhook-deliverer` (an `api` binary because the repository is `internal`). Secrets are sealed with `WEBHOOK_SECRET_KEY`. See `../DOCS.md` ("Webhooks de saída").
 - Health: `/v1.0/health` (liveness, skipped by the access log) and `/v1.0/health-check`.
 
 ### Where the code differs from the CTech standard (do not copy these patterns)

@@ -54,6 +54,7 @@ export type TableName = (
   'mdfe_distributions' |
   'nfse_distributions' |
   'worker_outbox' |
+  'webhooks' |
   'erasure_state' |
   'idempotency'
   )
@@ -925,6 +926,40 @@ export class DynamoDBStack extends cdk.Stack {
     this.tables.set('serie_claims', serieClaimsTable);
 
     this.tables.set('worker_outbox', workerOutboxTable);
+
+    // Webhooks de saída: endpoints, eventos, entregas e tentativas numa tabela só
+    // (pk = ORG#{org}, sk com prefixo: ENDPOINT#, EVENT#, DELIVERY#, ATTEMPT#).
+    // Eventos, entregas e tentativas expiram em 90 dias (`ttl`); endpoints não têm ttl.
+    //
+    // `due-index` é esparso: só a entrega pendente carrega `due = "1"`, e sai do
+    // índice ao ser entregue ou fechada. É o que a Lambda entregadora consulta a
+    // cada minuto, então o custo é uma Query pequena, não proporcional ao histórico.
+    // ponytail: partição única `due`; fragmentar o valor se passar de ~1k escritas/s.
+    // Custo: on-demand, chave própria da AWS; volume = resultados terminais por dia
+    // x endpoints (no máximo 5 por organização).
+    const webhooksTable = new dynamodb.TableV2(this, `${tablePrefix}_webhooks`, {
+      tableName: `${tablePrefix}_webhooks`,
+      partitionKey: {name: 'pk', type: dynamodb.AttributeType.STRING},
+      sortKey: {name: 'sk', type: dynamodb.AttributeType.STRING},
+      billing: Billing.onDemand({
+        maxReadRequestUnits: 1000,
+        maxWriteRequestUnits: 1000,
+      }),
+      timeToLiveAttribute: 'ttl',
+      removalPolicy,
+      pointInTimeRecoverySpecification,
+      encryption: dynamodb.TableEncryptionV2.dynamoOwnedKey(),
+    });
+    webhooksTable.addGlobalSecondaryIndex({
+      indexName: 'due-index',
+      partitionKey: {name: 'due', type: dynamodb.AttributeType.STRING},
+      sortKey: {name: 'next_attempt_at', type: dynamodb.AttributeType.STRING},
+      projectionType: dynamodb.ProjectionType.ALL,
+      warmThroughput: undefined,
+      maxReadRequestUnits: 1000,
+      maxWriteRequestUnits: 1000,
+    });
+    this.tables.set('webhooks', webhooksTable);
 
     // Account-deletion lock/tombstone state (SUB#{sub}, ORG#{id}), schema owned
     // by ctech-go-common erasure.Store. No PII; erased records have no TTL.

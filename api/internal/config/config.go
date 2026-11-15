@@ -113,6 +113,14 @@ type Config struct {
 	// direction, and holding one says nothing about holding the other.
 	BillingWebhookSecret string `env:"BILLING_WEBHOOK_SECRET"`
 
+	// WebhookSecretKey seals the signing secret of each outbound webhook endpoint
+	// at rest (go-common fieldcrypt: `generation:key`, 32 bytes as base64 or hex,
+	// the highest generation writes and all read). SSM SecureString
+	// /ctech-dfe/{env}/webhooks/secret-key, read by the userdata in
+	// cdk/lib/api-stack.ts. Absent means webhooks are OFF: registering one is
+	// refused (fail closed), because a secret must never be stored in clear.
+	WebhookSecretKey string `env:"WEBHOOK_SECRET_KEY"`
+
 	// Cache / WebSocket
 	RedisURL string `env:"VALKEY_URL"` // Redis/Valkey URL — optional; falls back to in-memory
 

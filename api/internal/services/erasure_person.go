@@ -73,6 +73,9 @@ func (s *ErasureService) Purge(ctx context.Context, m erasure.Message) (erasure.
 		if err := s.eraseOrganizationBilling(ctx, id, counts); err != nil {
 			return erasure.Ack{}, err
 		}
+		if err := s.eraseOrganizationWebhooks(ctx, id, counts); err != nil {
+			return erasure.Ack{}, err
+		}
 		cacheDelete(ctx, s.cache, orgBillingCacheKey(id))
 	}
 	if err := s.purgePerson(ctx, m, counts); err != nil {
@@ -470,4 +473,11 @@ func (s *ErasureService) eraseOrganizationBilling(ctx context.Context, organizat
 		}
 	}
 	return nil
+}
+
+// eraseOrganizationWebhooks removes an erased ctech-account organization's whole
+// webhook partition: its endpoints (URL, sealed secret), the count row, and the
+// deliveries (event bodies) and attempts that have not expired yet.
+func (s *ErasureService) eraseOrganizationWebhooks(ctx context.Context, organizationID string, counts map[string]int) error {
+	return s.purgePartition(ctx, "", repositories.TableWebhooks, skKey, repositories.WebhookPK(organizationID), counts)
 }

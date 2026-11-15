@@ -29,7 +29,7 @@ ctech-dfe/
 | Workers   | Go Lambda (aws-lambda-go), SQS consumers           |
 | SEFAZ lib | Go (go-dfe), run by the go-dfe-egress Lambda in sa-east-1 |
 | Frontend  | Next.js 16 (static export on Cloudflare), TypeScript, Tailwind CSS 4, shadcn |
-| Database  | DynamoDB (47 tables) + S3 (certificates and XMLs)  |
+| Database  | DynamoDB (51 tables) + S3 (certificates and XMLs)  |
 | Messaging | SQS (standard) + SNS                               |
 | Infra     | AWS CDK TypeScript                                 |
 | Auth      | OAuth 2.0 PKCE + RS256 via ctech-account           |
@@ -111,7 +111,7 @@ Certificates · Fiscal Configuration
 
 9 CDK TypeScript stacks (OIDC, DynamoDB, S3, EventBus, Dfe, GoDfeEgress, Worker, IAM, API). Tables are named `{env}_dfe_{name}` with env `dev`, `stage` or `prod`.
 
-**Main resources:** DynamoDB (47 tables) · S3 (2 buckets: certificates + documents) · Lambda (workers; go-dfe-egress in sa-east-1) · EC2 ASG behind the shared HAProxy (no ALB, no API Gateway) · IAM (least privilege) · SQS (standard) · SNS. The UI is **not** in CDK — it is a static
+**Main resources:** DynamoDB (51 tables) · S3 (2 buckets: certificates + documents) · Lambda (workers; go-dfe-egress in sa-east-1) · EC2 ASG behind the shared HAProxy (no ALB, no API Gateway) · IAM (least privilege) · SQS (standard) · SNS. The UI is **not** in CDK — it is a static
 export deployed to Cloudflare Workers by `.github/workflows/frontend.yml`; there is no `FrontendStack` in `cdk/lib` any more (S3 + CloudFront was removed from the app; delete any leftover stack manually).
 
 ---
@@ -226,6 +226,15 @@ it is enabled (its first fiscal configuration), and the organization's enabled-c
 the `dfe_companies` level (on-demand: billed monthly by peak). See `DOCS.md` ("Assinatura da organização") and
 docs/specs/2026-10-10-organization-subscription.md.
 
+## Outbound Webhooks
+
+A user registers a URL (owner/admin of the ctech-account organization); the API proves it answers a challenge before storing it.
+When the worker publishes a terminal document result, the API's `ResultsConsumer` settles billing and then writes one delivery
+per interested endpoint into the `webhooks` table (no HTTP in this path). The `webhook-deliverer` Lambda (every minute) reads the
+sparse `due-index`, signs and sends each delivery through `go-common/webhooks`, retries with backoff, and disables an endpoint after
+12 consecutive failures. The same engine serves ctech-billing's webhooks. See `DOCS.md` ("Webhooks de saída") and
+`docs/specs/2026-11-15-webhooks.md`.
+
 ## Security
 
 - **Auth:** OAuth 2.0 Authorization Code + PKCE. ui redirects to accounts.aoctech.app; ctech-account issues RS256 access
@@ -309,7 +318,7 @@ NEXT_PUBLIC_CTECH_CLIENT_ID=dfe
 |----------------------|------------------------------------|
 | `DOCS.md`            | Complete technical reference       |
 | `CONDUCT.md`         | Engineering guidelines             |
-| `DynamoDB-Tables.md` | Detailed schema for all tables (47 in CDK)  |
+| `DynamoDB-Tables.md` | Detailed schema for all tables (51 in CDK)  |
 | `DEPLOYMENT.md`      | Infrastructure deployment guide    |
 | `INTEGRATION.md`     | Frontend-backend integration guide |
 | `THEME.md`           | Color palette and design system    |

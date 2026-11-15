@@ -1,5 +1,5 @@
 import type {ReactNode} from 'react';
-import {BookOpen} from 'lucide-react';
+import {BookOpen, Webhook} from 'lucide-react';
 import {
   BriefcaseIcon,
   CalendarClockIcon,
@@ -255,6 +255,11 @@ export const NAV_GROUPS: NavGroup[] = [
       {
         href: SUBSCRIPTION_PATH, label: 'Assinatura', icon: <CardIcon/>, roles: [ROLE_OWNER, ROLE_ADMIN],
         keywords: ['plano', 'cobrança', 'fatura', 'pagamento', 'billing'],
+      },
+      // Só owner e admin: a api exige o papel owner/admin da organização na conta CTech.
+      {
+        href: '/webhooks', label: 'Webhooks', icon: <Webhook size={16}/>, roles: [ROLE_OWNER, ROLE_ADMIN],
+        keywords: ['integração', 'api', 'aviso', 'notificação', 'callback', 'evento', 'assinatura', 'entrega'],
       },
       {
         href: '/fiscal-config', label: 'Configuração Fiscal', icon: <SettingsIcon/>,

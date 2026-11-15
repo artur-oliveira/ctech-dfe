@@ -251,3 +251,37 @@ describe('DynamoDBStack — auto-contingency-index', () => {
         }
     });
 });
+
+describe('DynamoDBStack — webhooks', () => {
+    const webhooks = () => {
+        const res = Object.values(synth().findResources('AWS::DynamoDB::GlobalTable')) as any[];
+        return res.find((r) => r.Properties.TableName === 'dev_dfe_webhooks');
+    };
+
+    test('a tabela webhooks existe com pk/sk e TTL em ttl', () => {
+        const t = webhooks();
+        expect(t).toBeDefined();
+        expect(t.Properties.KeySchema).toEqual([
+            {AttributeName: 'pk', KeyType: 'HASH'},
+            {AttributeName: 'sk', KeyType: 'RANGE'},
+        ]);
+        expect(t.Properties.TimeToLiveSpecification).toEqual({AttributeName: 'ttl', Enabled: true});
+    });
+
+    test('due-index e esparso: so entregas pendentes, ordenado por next_attempt_at', () => {
+        expect(webhooks().Properties.GlobalSecondaryIndexes).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                IndexName: 'due-index',
+                KeySchema: [
+                    {AttributeName: 'due', KeyType: 'HASH'},
+                    {AttributeName: 'next_attempt_at', KeyType: 'RANGE'},
+                ],
+                Projection: {ProjectionType: 'ALL'},
+            }),
+        ]));
+    });
+
+    test('usa a chave propria da AWS (sem KMS cobrado)', () => {
+        expect(webhooks().Properties.Replicas[0].SSESpecification).toBeUndefined();
+    });
+});

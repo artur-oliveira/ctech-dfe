@@ -403,3 +403,38 @@ func TestPurge_ErasesOrganizationBilling(t *testing.T) {
 		t.Error("another organization's billing snapshot was erased")
 	}
 }
+
+// An erased organization's webhook endpoints (URL, sealed secret), deliveries and
+// attempts go with it; another organization's do not.
+func TestPurge_ErasesOrganizationWebhooks(t *testing.T) {
+	ctx := context.Background()
+	svc, _ := newErasureSvc(testsupport.NewObjectStore(), cpfOf(""))
+	svc.WithSettle(0)
+	u, o := "user-"+randomCNPJ(), "acct-hook-"+randomCNPJ()
+	pk := repositories.WebhookPK(o)
+	sks := []string{
+		repositories.WebhookEndpointSK("e1"), "META#counts",
+		"DELIVERY#e1#ev1", "DELIVERY#e1#ev2", "ATTEMPT#e1#ev1#001",
+	}
+	for _, sk := range sks {
+		putItem(t, "webhooks", map[string]any{"pk": pk, "sk": sk})
+	}
+	otherPK := repositories.WebhookPK("acct-other-" + o)
+	putItem(t, "webhooks", map[string]any{"pk": otherPK, "sk": repositories.WebhookEndpointSK("e9")})
+
+	ack, err := svc.Purge(ctx, eraseMessage("req-hook-"+u, u, o))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, sk := range sks {
+		if getItem(t, "webhooks", map[string]any{"pk": pk, "sk": sk}) != nil {
+			t.Errorf("webhook row %s survived", sk)
+		}
+	}
+	if getItem(t, "webhooks", map[string]any{"pk": otherPK, "sk": repositories.WebhookEndpointSK("e9")}) == nil {
+		t.Error("another organization's webhook endpoint was erased")
+	}
+	if ack.Counts["webhooks"] != len(sks) {
+		t.Errorf("counts[webhooks] = %d, want %d", ack.Counts["webhooks"], len(sks))
+	}
+}

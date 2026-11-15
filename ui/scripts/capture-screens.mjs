@@ -387,6 +387,18 @@ const CAPTURES = [
   {slug: 'organizations', route: '/organizations', waitText: 'EMPRESA MOCK'},
   {slug: 'members', route: '/members', waitText: 'Mock User'},
   {slug: 'profile', route: '/profile', waitText: 'Mock'},
+  // ── Webhooks ─────────────────────────────────────────────────────────────
+  {slug: 'webhooks', route: '/webhooks', waitText: 'erp.exemplo.com.br'},
+  {
+    slug: 'webhooks-add',
+    route: '/webhooks',
+    steps: [{waitText: 'erp.exemplo.com.br'}, {click: 'Novo webhook'}, {waitText: 'Quais eventos avisar'}],
+  },
+  {
+    slug: 'webhooks-deliveries',
+    route: '/webhooks',
+    steps: [{waitText: 'erp.exemplo.com.br'}, {click: 'Entregas'}, {waitText: 'Reenviar'}],
+  },
 
   // ── Estados ──────────────────────────────────────────────────────────────
   {

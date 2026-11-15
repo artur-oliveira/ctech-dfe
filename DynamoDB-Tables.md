@@ -58,6 +58,7 @@ PITR: enabled in production only.
 | 36 | `account_billing`           | `ORG_{id}` / `USER_{sub}` / `QUOTA_GUARD_…` / `USAGE_…` / `LEVEL_DIRTY_…` | — | `level-dirty-index` (sparse) |
 | 46 | `erasure_state`             | `SUB#{sub}` / `ORG#{id}`     | —                                        | —                                                |
 | 47 | `idempotency`               | `IDEM#{sub}#{org_pk}`        | `KEY#{Idempotency-Key}`                  | —                                                |
+| 50 | `webhooks`                  | `ORG_{organization_id}`      | `ENDPOINT#…` / `META#counts` / `DELIVERY#…` / `ATTEMPT#…` | `due-index` (sparse)          |
 
 ---
 
@@ -1167,3 +1168,25 @@ Append-only evidence of what was sent to the ANTT and what came back. `pk` = the
 `{RFC3339 nano}#{operation}`. Attributes: `operation`, `body_hash` (sha256 of the sent body), `body`, `response`
 (both SSE at rest, never logged), `antt_code`, `created_at`. Written with `attribute_not_exists`; never updated or deleted by the services (only
 the LGPD purge removes it, `ScopeDocEvents`). On-demand, PITR in prod, no TTL (compliance evidence).
+
+## 50. `webhooks`
+
+Outbound webhooks (spec `docs/specs/2026-11-15-webhooks.md`): endpoints, deliveries and attempts in one table, by prefix.
+`pk` is `ORG_{organization_id}`, the **ctech-account organization**, not the company: one set of endpoints serves every
+company of the organization (an endpoint may filter by company).
+
+| `sk` | Row | Notes |
+|------|-----|-------|
+| `ENDPOINT#{ulid}` | one destination | `url`, `secret` (sealed AES-GCM with go-common `fieldcrypt`, bound to its own `pk`/`sk` as associated data, so a copy on another row does not open), `events` and `company_pks` filters (empty is everything), `status` (`active`/`disabled`), `failure_run`, `disabled_at`, `last_delivery_ok/at/detail`, `created_by`, `created_at`. No `ttl` |
+| `META#counts` | the limit's guard | `endpoints` (N). The endpoint and this counter are written in one transaction conditioned on `endpoints < 5`, so concurrent registrations never pass the limit |
+| `DELIVERY#{endpoint_id}#{event_id}` | one event on its way to one endpoint | the exact payload (`body`), `type`, `status` (`pending`/`delivered`/`failed`), `attempts`, `next_attempt_at`, `last_status_code`, `last_error`, `delivered_at`, `ttl`. The event id is a ULID derived from the queue's `SentTimestamp` and a hash of the document and status, so it sorts by time and repeats on an SQS redelivery (a put-if-absent no-op) |
+| `DEDUPE#{endpoint_id}#{hash}` | marker | written with the delivery, put-if-absent, `ttl`: the same document and status never reaches an endpoint twice even when two queue messages (two event ids) report it |
+| `ATTEMPT#{endpoint_id}#{event_id}#{NNN}` | one try | `status_code`, `duration_ms`, `error`, `response` (first 512 bytes of the answer, never the request), `ttl`. Put-if-absent: idempotent on the number |
+
+There is no event row: the payload lives on each delivery, so an event nobody subscribed to writes nothing.
+
+`due-index` (hash `due`, range `next_attempt_at`, ALL) is **sparse**: only a pending delivery carries `due = "1"`, and it leaves
+the index when delivered or closed. The `webhook-deliverer` Lambda Query reads a few rows, never the history.
+
+Cost: on-demand, PITR in prod, AWS-owned key. Deliveries and attempts expire after 90 days (`ttl`); endpoints and the counter do not.
+Erasure: `ScopeOrgAccount`, the whole `ORG_{organization_id}` partition goes with the account organization (`eraseOrganizationWebhooks`).

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"strconv"
 	"strings"
 	"time"
 
@@ -33,6 +34,8 @@ const (
 	resultKeyOrgPK                 = "org_pk"
 	resultKeyResultKind            = "result_kind"
 	resultKeyStatus                = "status"
+	resultKeySefazStatus           = "sefaz_status"
+	resultKeySefazMotive           = "sefaz_motive"
 	resultKeyTableName             = "table_name"
 	resultKeyType                  = "type"
 	resultKeyBillingUserID         = "billing_user_id"
@@ -60,6 +63,19 @@ type ResultsConsumer struct {
 	registry  ws.Registry
 	cache     cache.Backend
 	billing   *services.BillingService
+	webhooks  WebhookEmitter
+}
+
+// WebhookEmitter turns a terminal document result into webhook deliveries
+// (services.WebhookService). Nil leaves webhooks off.
+type WebhookEmitter interface {
+	Emit(ctx context.Context, r services.WebhookResult) error
+}
+
+// WithWebhooks wires the webhook emission.
+func (r *ResultsConsumer) WithWebhooks(e WebhookEmitter) *ResultsConsumer {
+	r.webhooks = e
+	return r
 }
 
 func NewResultsConsumer(sqsClient *sqs.Client, queueURL string, reg ws.Registry, c cache.Backend, billing *services.BillingService) *ResultsConsumer {
@@ -136,6 +152,8 @@ func (r *ResultsConsumer) receive(ctx context.Context) ([]sqstypes.Message, erro
 		QueueUrl:            aws.String(r.queueURL),
 		MaxNumberOfMessages: resultsMaxMessages,
 		WaitTimeSeconds:     resultsWaitSeconds,
+		// The publish time is what makes a webhook event id repeat on a redelivery.
+		MessageSystemAttributeNames: []sqstypes.MessageSystemAttributeName{sqstypes.MessageSystemAttributeNameSentTimestamp},
 	})
 	if err != nil {
 		return nil, err
@@ -215,7 +233,46 @@ func (r *ResultsConsumer) dispatch(ctx context.Context, msg sqstypes.Message) er
 	r.registry.Broadcast(ctx, orgPK, payload)
 	slog.Info("results consumer: broadcast sent", "org", orgPK, "key", accessKey)
 
-	return r.settleBilling(ctx, event, orgPK, accessKey)
+	if err := r.settleBilling(ctx, event, orgPK, accessKey); err != nil {
+		return err
+	}
+	return r.emitWebhook(ctx, msg, event, orgPK, accessKey)
+}
+
+// emitWebhook hands a terminal document result to the webhook service. It runs
+// after billing settled, so a failure here only repeats idempotent work.
+func (r *ResultsConsumer) emitWebhook(ctx context.Context, msg sqstypes.Message, event map[string]any, orgPK, accessKey string) error {
+	if r.webhooks == nil {
+		return nil
+	}
+	if kind, _ := event[resultKeyResultKind].(string); kind != resultKindDocument {
+		return nil
+	}
+	table, _ := event[resultKeyTableName].(string)
+	if _, isDocument := services.MeterForTable[table]; !isDocument {
+		return nil // CIOT and the like are not among the documents a webhook reports
+	}
+	status, _ := event[resultKeyStatus].(string)
+	switch status {
+	case statusAuthorized, statusRejected, statusFailed:
+	default:
+		return nil // still in flight: only a terminal outcome is worth a webhook
+	}
+	sefazStatus, _ := event[resultKeySefazStatus].(string)
+	sefazMotive, _ := event[resultKeySefazMotive].(string)
+	organizationID, _ := event[resultKeyBillingOrganizationID].(string)
+	var sentAt time.Time
+	if ms, err := strconv.ParseInt(msg.Attributes[string(sqstypes.MessageSystemAttributeNameSentTimestamp)], 10, 64); err == nil {
+		sentAt = time.UnixMilli(ms)
+	}
+	if err := r.webhooks.Emit(ctx, services.WebhookResult{
+		CompanyPK: orgPK, OrganizationID: organizationID, DocumentKey: accessKey, Table: table, Status: status,
+		SefazStatus: sefazStatus, SefazMotive: sefazMotive, SentAt: sentAt,
+	}); err != nil {
+		slog.ErrorContext(ctx, "results consumer: webhook event not written", "org", orgPK, "key", accessKey, "err", err)
+		return err
+	}
+	return nil
 }
 
 // billingAction is what a result message owes billing.

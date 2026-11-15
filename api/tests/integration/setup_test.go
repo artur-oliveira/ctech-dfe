@@ -101,6 +101,8 @@ func TestMain(m *testing.M) {
 	cfg = &config.Config{
 		TablePrefix: tablePrefix,
 		AWSRegion:   "us-east-1",
+		// Hex, 32 bytes: the webhook signing secrets are sealed with it.
+		WebhookSecretKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 	}
 
 	if err := createTables(ctx, db); err != nil {
@@ -331,7 +333,14 @@ func createTables(ctx context.Context, db *dynamodb.Client) error {
 			AttributeDefinitions: []types.AttributeDefinition{
 				{AttributeName: aws.String("pk"), AttributeType: types.ScalarAttributeTypeS},
 				{AttributeName: aws.String("sk"), AttributeType: types.ScalarAttributeTypeS},
+				{AttributeName: aws.String(repositories.AttrSweep), AttributeType: types.ScalarAttributeTypeS},
 			},
+			// The purge's e-CPF search enumerates certificates through the sparse sweep-index.
+			GlobalSecondaryIndexes: []types.GlobalSecondaryIndex{{
+				IndexName:  aws.String(repositories.SweepIndex),
+				KeySchema:  []types.KeySchemaElement{{AttributeName: aws.String(repositories.AttrSweep), KeyType: types.KeyTypeHash}},
+				Projection: &types.Projection{ProjectionType: types.ProjectionTypeKeysOnly},
+			}},
 		},
 		{
 			TableName:   aws.String(tablePrefix + "_organization_nfe_configs"),
@@ -529,6 +538,30 @@ func createTables(ctx context.Context, db *dynamodb.Client) error {
 			}},
 		},
 		{
+			// Webhooks: endpoints, deliveries and attempts by prefix; due-index is
+			// sparse (only pending deliveries carry `due`).
+			TableName:   aws.String(tablePrefix + "_" + repositories.TableWebhooks),
+			BillingMode: types.BillingModePayPerRequest,
+			KeySchema: []types.KeySchemaElement{
+				{AttributeName: aws.String("pk"), KeyType: types.KeyTypeHash},
+				{AttributeName: aws.String("sk"), KeyType: types.KeyTypeRange},
+			},
+			AttributeDefinitions: []types.AttributeDefinition{
+				{AttributeName: aws.String("pk"), AttributeType: types.ScalarAttributeTypeS},
+				{AttributeName: aws.String("sk"), AttributeType: types.ScalarAttributeTypeS},
+				{AttributeName: aws.String("due"), AttributeType: types.ScalarAttributeTypeS},
+				{AttributeName: aws.String("next_attempt_at"), AttributeType: types.ScalarAttributeTypeS},
+			},
+			GlobalSecondaryIndexes: []types.GlobalSecondaryIndex{{
+				IndexName: aws.String(repositories.IndexWebhookDue),
+				KeySchema: []types.KeySchemaElement{
+					{AttributeName: aws.String("due"), KeyType: types.KeyTypeHash},
+					{AttributeName: aws.String("next_attempt_at"), KeyType: types.KeyTypeRange},
+				},
+				Projection: &types.Projection{ProjectionType: types.ProjectionTypeAll},
+			}},
+		},
+		{
 			TableName:   aws.String(tablePrefix + "_organization_invitations"),
 			BillingMode: types.BillingModePayPerRequest,
 			KeySchema: []types.KeySchemaElement{
@@ -638,6 +671,7 @@ func dropTables(ctx context.Context, db *dynamodb.Client) {
 		tablePrefix + "_organization_users",
 		tablePrefix + "_organization_invitations",
 		tablePrefix + "_account_billing",
+		tablePrefix + "_" + repositories.TableWebhooks,
 	}
 	for _, t := range tables {
 		_, _ = db.DeleteTable(ctx, &dynamodb.DeleteTableInput{TableName: aws.String(t)})
