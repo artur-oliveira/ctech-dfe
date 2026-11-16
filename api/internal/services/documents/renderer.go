@@ -133,6 +133,8 @@ func (r *folioRenderer) Render(ctx context.Context, docType string, xmlBytes []b
 		} else {
 			data, err = buildCTeContext(root, state == StateCancelled)
 		}
+	case DocTypeNFCom:
+		data, err = buildNFComContext(root, state == StateCancelled)
 	case DocTypeNFSe:
 		data, err = buildNFSeContext(root, state)
 	}

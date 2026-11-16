@@ -70,6 +70,15 @@ func RegisterNFComs(router fiber.Router, svc *nfcomsvc.NfcomService, userSvc *se
 		return c.JSON(download)
 	})
 
+	// GET /nfcoms/:access_key/danfecom: cached DANFE-COM PDF URL rendered in-process
+	g.Get("/:access_key/danfecom", perm.Require("get.nfcoms"), func(c fiber.Ctx) error {
+		download, err := svc.GetDANFEComURL(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"), c.Query("format"))
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		return c.JSON(download)
+	})
+
 	// POST /nfcoms/:access_key/cancel
 	g.Post("/:access_key/cancel", perm.Require("delete.nfcoms"), func(c fiber.Ctx) error {
 		var body CancelEventBody
@@ -87,7 +96,7 @@ func RegisterNFComs(router fiber.Router, svc *nfcomsvc.NfcomService, userSvc *se
 	// GET /nfcoms/:access_key/events
 	g.Get("/:access_key/events", perm.Require("get.nfcom_events"), func(c fiber.Ctx) error {
 		cursor := c.Query("cursor")
-		res, err := svc.ListNFComEvents(c.Context(), c.Params("access_key"), intQuery(c, "limit", 50), decodeCursor(cursor))
+		res, err := svc.ListNFComEvents(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"), intQuery(c, "limit", 50), decodeCursor(cursor))
 		if err != nil {
 			return sendProblem(c, err)
 		}

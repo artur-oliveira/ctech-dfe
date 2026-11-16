@@ -149,8 +149,16 @@ func (s *NfcomService) GetNFComXML(ctx context.Context, orgPK, accessKey string)
 	return s.documentSvc.SignFile(ctx, s3Key, documents.XMLFilename(accessKey), documents.ContentTypeXML)
 }
 
-// ListNFComEvents lists all events of a document.
-func (s *NfcomService) ListNFComEvents(ctx context.Context, accessKey string, limit int, startKey map[string]types.AttributeValue) (*repositories.QueryResult, error) {
+// ListNFComEvents lists all events of a document. The events table is keyed by the access key alone, so the tenant is
+// checked first: a key of another organization is a 404, never a list.
+func (s *NfcomService) ListNFComEvents(ctx context.Context, orgPK, accessKey string, limit int, startKey map[string]types.AttributeValue) (*repositories.QueryResult, error) {
+	doc, err := s.GetNFCom(ctx, orgPK, accessKey)
+	if err != nil {
+		return nil, err
+	}
+	if doc == nil {
+		return nil, ErrNFComNotFound
+	}
 	return s.eventRepo.GetDocumentEvents(ctx, accessKey, limit, startKey)
 }
 

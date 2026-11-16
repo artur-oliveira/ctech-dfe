@@ -12,6 +12,7 @@ import (
 
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"
+	"gopkg.aoctech.app/dfe/api/internal/services/nfcoms"
 )
 
 func nfcomConfigFields() map[string]types.AttributeValue {
@@ -95,5 +96,29 @@ func TestNfcomConfig_OfflineEmissionAndAutoRefused(t *testing.T) {
 	}
 	if _, err := nfcomConfigSvc.SetEmission(ctx, orgPK, services.EmissionUpdate{Type: "svc", Reason: reason}); problemStatus(err) != 422 {
 		t.Errorf("SVC não existe para a NFCom: status %d", problemStatus(err))
+	}
+}
+
+// Os eventos de uma NFCom só saem para a organização dona dela: a chave de acesso sozinha não abre a lista (IDOR).
+func TestNfcom_ListEventsChecksTenant(t *testing.T) {
+	ctx := context.Background()
+	orgA, orgB := "CNPJ_"+randomCNPJ(), "CNPJ_"+randomCNPJ()
+	key := strings.Repeat("0", 43) + "7"
+	item, _ := repositories.EncodeItem(nfcomRow("hom#"+orgA, key, 1))
+	if err := nfcomRepo.Create(ctx, item); err != nil {
+		t.Fatal(err)
+	}
+	events := repositories.NewDocumentEventRepository(db, cfg, "nfcom")
+	if _, err := events.CreateEvent(ctx, key, "110111", 1, "pending", nil, nil, nil, testUserID, testUserName); err != nil {
+		t.Fatal(err)
+	}
+	svc := nfcoms.NewNfcomService(nil, nil, nfcomConfigRepo, nfcomRepo, events, nil, nil, nil, nil, "", nfcoms.TechData{}, nil)
+
+	res, err := svc.ListNFComEvents(ctx, orgA, key, 50, nil)
+	if err != nil || len(res.Items) != 1 {
+		t.Fatalf("dono: %v %v", res, err)
+	}
+	if _, err := svc.ListNFComEvents(ctx, orgB, key, 50, nil); problemStatus(err) != 404 {
+		t.Fatalf("outra organização: status %d, queria 404 (%v)", problemStatus(err), err)
 	}
 }

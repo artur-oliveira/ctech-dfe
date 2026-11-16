@@ -102,6 +102,25 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /v1.0/nfcoms/{access_key}/danfecom:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/AccessKey'
+    get:
+      tags: [ NFCom ]
+      summary: Baixa o DANFE-COM em PDF
+      description: |
+        Documento auxiliar da NFCom (MOC Anexo II), A4 retrato, de leiaute único: qualquer `format` devolve 400
+        `invalid-document-format`. Nota em contingência offline pendente imprime "EMITIDO EM CONTINGÊNCIA Pendente de
+        autorização" no lugar do protocolo.
+      operationId: getNfcomDanfecom
+      responses:
+        '200': { $ref: '#/components/responses/CachedPdfDownload' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
   /v1.0/nfcoms/{access_key}/cancel:
     parameters:
       - $ref: '#/components/parameters/OrgHeader'
