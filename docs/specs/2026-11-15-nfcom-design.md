@@ -1,6 +1,6 @@
 # Design: NFCom (modelo 62)
 
-Status: proposta, aguardando aprovação. Data: 2026-11-15. Escopo: novo documento no `go-dfe`, `worker`, `api`, `ui` e
+Status: implementada na branch `feat/nfcom` (api, worker, go-dfe, cdk, ui), sem homologação real; ver `CONDUCT.md`. Data: 2026-11-15. Escopo: novo documento no `go-dfe`, `worker`, `api`, `ui` e
 `cdk`. Contexto e priorização: `2026-11-15-novos-documentos-svrs.md`. Precedente de módulo novo:
 `2026-08-04-nfse-design.md`; de SOAP síncrono com mTLS: CT-e e MDF-e.
 

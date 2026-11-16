@@ -110,6 +110,7 @@ CI deploys through `.github/workflows/deploy.yml`; see `../DEPLOYMENT.md`.
   `docs/specs/2026-11-02-sns-lambda-worker-delivery.md`). `{env}-dfe-dlq` is an unconsumed parking queue. **No CloudWatch alarm exists on any
   queue** (removed); the `*-ops-alerts` SNS topics are kept only because subscriptions were added outside
   CloudFormation. Family policy is alerts through `ctech-{env}-alerts`; no DFE component uses go-common `alerts` yet (nothing under `api/` or `worker/` imports it).
+- NFCom: tables `nfcom_configs` (sweep-index), `nfcoms` (contingency-index) and `nfcom_events`; Lambdas `nfcom-emission` and `nfcom-event` from the shared worker binary; no distribution table or dispatcher (no distribution service).
 - `webhook-deliverer` (WorkerStack) is the one Lambda built from the **api** module (`goLambdaCode(api, ./cmd/webhook-deliverer)`): it drives `api/internal/repositories`. EventBridge Scheduler `rate(1 minute)`, reserved concurrency 1, IAM limited to the `webhooks` table and indexes, the `/ctech-dfe/{env}/webhooks/secret-key` parameter (KMS only via SSM) and the alerts topic. No Scan, no queue, nothing running between invocations.
 - At-least-once delivery, no ordering: idempotency is enforced in the application.
 - Worker keep-warm: EventBridge Scheduler pings each worker every **1 minute** (`worker-stack.ts`; the comment in the

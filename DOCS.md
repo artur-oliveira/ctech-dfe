@@ -813,6 +813,39 @@ O corpo é lido para uma coisa só: qual assinatura ir consultar no billing. Nad
 da sincronização idempotente terminar; assim uma falha transitória continua elegível ao retry. Duas entregas concorrentes
 podem repetir a leitura e o `Put` integral sem produzir estados diferentes.
 
+### NFCom (modelo 62): `/v1.0/nfcoms`
+
+Nota Fiscal Fatura de Serviço de Comunicação Eletrônica (internet, telefonia, TV por assinatura). Spec:
+`docs/specs/2026-11-15-nfcom-design.md`; plano: `docs/plans/2026-11-15-nfcom.md`. **Sem homologação real ainda**: sem
+certificado e autorizador de teste, só há testes unitários e de integração local. Não anunciar na landing até homologar.
+
+- **Rotas** (`api/v1/nfcoms.go`, spec em `openapi/nfcom.yaml`): `POST /nfcoms` (emite, 201 `pending`), `GET /nfcoms`,
+  `GET /nfcoms/{access_key}`, `/xml`, `/danfecom` (PDF, formato único), `POST /{access_key}/cancel` (110111),
+  `GET /events` (confere o tenant: a tabela de eventos é chaveada só pela chave) e `/events/{event_sk}/xml`.
+  Configuração: `GET|PUT /organizations/{org_pk}/nfcom-config` (corpo comum `FiscalConfigBody`) e
+  `PUT /nfcom-emission` (`normal` ou `offline`; a troca automática é recusada com 422 `auto_contingency_unsupported`).
+- **Emissão** (`services/nfcoms/`): `NfcomEmitBody` tipado (seletores por `oneof`), validação em `validate.go`, montagem em
+  `builder.go` (chave de 44 posições com `nSiteAutoriz` 0, `vProd` do item = `quantidade x valor - desconto + outras
+  despesas`, ICMS/PIS/COFINS com base = valor do item, totais) e portão `prevalidate.go`. Numeração por
+  `TransactReserveAndCreate`; cota pelo medidor `nfcom` (`MeterNFCom`): plano sem `quota_nfcom` recebe 402 (venda sob
+  demanda, o catálogo do ctech-billing precisa declarar o medidor).
+- **Fora da v1:** substituição, ajuste e cofaturamento (`finNFCom` 3 e 4, `tpFat` 1 e 2), IBS/CBS, FUST, FUNTTEL, retenções,
+  partilha de ICMS, ICMS 20, eventos 110300 e 110301 (vinculação de pagamento), consulta de situação na SEFAZ e
+  distribuição (a NFCom não tem serviço de distribuição).
+- **Contingência offline** (`tpEmis` 2): `dhCont` e `xJust` no leiaute (justificativa do corpo ou a do `PUT /nfcom-emission`),
+  chave regerada com `tpEmis` 2, QR Code com `sign`, XML assinado guardado (`contingency-index`), retransmissão pelo worker
+  de contingência com a mesma chave. Janela do sweep: 72 h (MOC: até o fim do primeiro dia útil, sem calendário).
+- **go-dfe:** `DocTypeNFCOM`, serviços `NFComRecepcao` (GZip+Base64), `NFComConsulta`, `NFComStatusServico` e
+  `NFComRecepcaoEvento`; autorizadores SVRS, MG, MS e MT (`internal/endpoints/table.go`; UF emitente MG, MS e MT usa o próprio,
+  as demais a SVRS: regra usual, a confirmar). Schemas vendorizados em `go-dfe/schemas/nfcom` (NT 2026.005) e regras do MOC em
+  `validate/rules_nfcom.go` (24 regras só com o documento). Nomes SOAP (`nfcomDadosMsg`, `nfcomResultMsg`, sem cabeçalho)
+  vêm de relatos de homologação: o WSDL da SVRS responde 403 fora da rede autorizada.
+- **Worker:** Lambdas `nfcom-emission` e `nfcom-event` (mesmo binário `worker`); a duplicidade 204 reconcilia por
+  `NFComConsulta`. Tabelas: `organization_nfcom_configs`, `nfcoms`, `nfcom_events` (ver `DynamoDB-Tables.md`).
+- **Webhooks e erasure:** `document_type` `nfcom`; as três tabelas entram no catálogo de erasure.
+- **DANFE-COM:** `services/documents/nfcom.go` e `templates/danfecom.html` (A4 retrato, MOC Anexo II).
+- **UI:** `/nfcom`, `/nfcom/emit`, `/nfcom/detail`, aba NFCom em `/fiscal-config`, guia `/guide/nfcom`.
+
 ### Webhooks de saída — `/v1.0/webhooks`
 
 Spec: `docs/specs/2026-11-15-webhooks.md`. O usuário cadastra uma URL; o DF-e confirma que ela responde a um desafio antes de

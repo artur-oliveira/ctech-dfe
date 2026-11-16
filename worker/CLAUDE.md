@@ -111,7 +111,7 @@ Run: `go test ./... -race` from `worker/`.
 
 ## Critical Areas (require analysis before touching)
 
-- DFe issuance (NF-e, NFC-e, CT-e, MDF-e, NFS-e) and go-dfe-egress invocation/response parsing
+- DFe issuance (NF-e, NFC-e, CT-e, MDF-e, NFS-e, NFCom) and go-dfe-egress invocation/response parsing
 - DynamoDB status persistence and idempotency checks
 - SNS results publish; DLQ handling and retry logic; outbox publisher
 
