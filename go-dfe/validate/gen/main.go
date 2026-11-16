@@ -429,6 +429,7 @@ func main() {
 		{"../schemas/cte/PL_CTe_400_NT2026.005_SN_1.00", "CTe", "specs/cte.json"},
 		{"../schemas/cte/PL_CTe_400_NT2026.005_SN_1.00", "CTeOS", "specs/cteos.json"},
 		{"../schemas/cte/PL_CTe_400_NT2026.005_SN_1.00", "CTeSimp", "specs/ctesimp.json"},
+		{"../schemas/nfcom/PL_NFCOM_1.00_NT2026.005_SN_1.00", "NFCom", "specs/nfcom.json"},
 		// Modais: o infModal do documento é xs:any; o conteúdo tem schema próprio.
 		{"../schemas/mdfe/PL_MDFe_300b_NT012025_1.05", "rodo", "specs/mdfe_rodo.json"},
 		{"../schemas/mdfe/PL_MDFe_300b_NT012025_1.05", "aereo", "specs/mdfe_aereo.json"},
@@ -505,6 +506,7 @@ var eventPkgs = []struct {
 	{"nfe", "../schemas/nfe/PL_010e_v1.02", "e[0-9][0-9][0-9][0-9][0-9][0-9]_v*.xsd", "envEvento_v1.00.xsd", "envEvento"},
 	{"cte", "../schemas/cte/PL_CTe_400_NT2026.005_SN_1.00", "ev[A-Z]*_v*.xsd", "eventoCTe_v4.00.xsd", "eventoCTe"},
 	{"mdfe", "../schemas/mdfe/PL_MDFe_300b_NT012025_1.05", "ev[A-Z]*_v*.xsd", "eventoMDFe_v3.00.xsd", "eventoMDFe"},
+	{"nfcom", "../schemas/nfcom/PL_NFCOM_1.00_NT2026.005_SN_1.00", "ev[A-Z]*_v*.xsd", "eventoNFCom_v1.00.xsd", "eventoNFCom"},
 }
 
 func genEvents() {
