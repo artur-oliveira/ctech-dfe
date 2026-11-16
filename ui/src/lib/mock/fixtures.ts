@@ -334,6 +334,41 @@ export const mdfesFixture = [
   {...mdfeList('authorized', 5, 7, 'ES'), ...inContingency('authorized_late', '2026-07-14T08:00:00Z')},
 ];
 
+// ─── NFCom ──────────────────────────────────────────────────────────────────
+
+function nfcomList(status: string, number: number, day: number, customer: string, total: string) {
+  return {
+    pk: `${ORG_PK}#nfcom#${number}`,
+    sk: accessKey(ORG_PK, '62', 1, number, number * 17),
+    incoming: 0,
+    year: 2026,
+    month: 11,
+    day,
+    status,
+    sefaz_status: status === 'authorized' ? '100' : null,
+    sefaz_motive: null,
+    sefaz_protocol: status === 'authorized' ? `13526000000${String(number).padStart(5, '0')}` : null,
+    emit_cpf_cnpj: ORG_PK,
+    emit_name: 'Empresa Mock LTDA',
+    number,
+    serie: 1,
+    customer_name: customer,
+    customer_doc: '33000167000101',
+    subscriber_code: `ASS-${String(number).padStart(3, '0')}`,
+    total,
+    items: 2,
+    dh_emi: `2026-11-${String(day).padStart(2, '0')}T10:00:00Z`,
+    created_at: `2026-11-${String(day).padStart(2, '0')}T10:00:00Z`,
+  };
+}
+
+export const nfcomsFixture = [
+  nfcomList('authorized', 1, 5, 'Cliente Exemplo LTDA', '149.90'),
+  nfcomList('authorized', 2, 6, 'Provedor Parceiro ME', '89.90'),
+  nfcomList('pending', 3, 7, 'Cliente Exemplo LTDA', '199.00'),
+  nfcomList('cancelled', 4, 8, 'Comércio Modelo EPP', '59.90'),
+];
+
 // ─── CT-e ───────────────────────────────────────────────────────────────────
 // Notas recebidas (incoming 1): o fornecedor é o emitente, a organização o destino.
 // Com as emitidas de `nfesFixture`, cobrem os três estados da emissão de CT-e:
@@ -578,6 +613,13 @@ export const mdfeConfigFixture = {
   hom_current_number: 2,
   hom_nsu: 0,
   hom_last_dist_nsu_at: null,
+};
+
+export const nfcomConfigFixture = {
+  ...nfeConfigFixture,
+  pk: `${ORG_PK}#nfcom-config`,
+  emission_options: ['normal', 'offline'],
+  hom_current_number: 4,
 };
 
 
@@ -1017,6 +1059,10 @@ export const nfceEventsFixture = [
 export const mdfeEventsFixture = [
   dfeEvent(mdfesFixture[0].sk, 'emission', 1, 'authorized', '2026-07-01T08:00:00Z'),
   dfeEvent(mdfesFixture[0].sk, '110112', 1, 'success', '2026-07-02T18:40:00Z'),
+];
+
+export const nfcomEventsFixture = [
+  dfeEvent(nfcomsFixture[0].sk, 'emission', 1, 'authorized', '2026-11-05T10:00:00Z'),
 ];
 
 /** Eventos do CT-e: o 31 tem CC-e e um desacordo autorizado (a organização é a tomadora); o 33 foi cancelado. */

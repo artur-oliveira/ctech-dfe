@@ -1979,6 +1979,94 @@ export interface MdfeListOut extends ContingencyDocFields {
   created_at: string
 }
 
+// ── NFCom (modelo 62) ────────────────────────────────────────────────────────
+
+export type NfcomStatus = DfeStatus
+
+/** Configuração fiscal da NFCom: a mesma forma da NF-e (séries e numeração por ambiente, certificado). */
+export type NFComConfigOut = NFeConfigOut
+
+export interface NfcomListOut extends ContingencyDocFields {
+  pk: string
+  sk: string            // 44-digit chave de acesso
+  incoming: number
+  year: number
+  month: number
+  day: number
+  status: NfcomStatus
+  sefaz_status: string | null
+  sefaz_motive: string | null
+  sefaz_protocol?: string | null
+  emit_cpf_cnpj: string
+  emit_name: string
+  number: number
+  serie: number
+  customer_name: string
+  customer_doc: string
+  subscriber_code: string
+  total: string
+  items: number
+  dh_emi: string | null
+  created_at: string
+}
+
+export type NfcomDetailOut = NfcomListOut
+
+export interface NfcomAddressIn {
+  street: string
+  number: string
+  complement?: string
+  neighborhood: string
+  ibge_code: string
+  city: string
+  postal_code: string
+  uf: string
+  phone?: string
+  email?: string
+}
+
+export interface NfcomItemIn {
+  code: string
+  description: string
+  class_code: string
+  cfop?: string
+  unit: string
+  quantity: string
+  unit_value: string
+  discount?: string
+  other_charges?: string
+  icms: { cst: string; rate?: string }
+  pis?: { cst: string; rate: string }
+  cofins?: { cst: string; rate: string }
+}
+
+export interface NfcomEmit {
+  customer: {
+    name: string
+    cnpj?: string
+    cpf?: string
+    other_id?: string
+    ie_indicator: string
+    ie?: string
+    municipal_registration?: string
+    address: NfcomAddressIn
+  }
+  subscriber: {
+    code: string
+    type: string
+    service_used: string
+    contract_number?: string
+    contract_start?: string
+    contract_end?: string
+    primary_terminal?: string
+  }
+  items: NfcomItemIn[]
+  invoice?: { competence: string; due_date: string; bar_code: string }
+  prepaid?: boolean
+  additional_info?: string
+  contingency_reason?: string
+}
+
 export interface MdfeUnloadingOut extends MdfeMunIn {
   access_keys: string[]
 }

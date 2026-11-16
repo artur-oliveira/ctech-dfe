@@ -230,6 +230,19 @@
     --brand-900: #78350f;
 }
 
+[data-dfe-theme="nfcom"] {
+    --brand-50: #fff1f2;
+    --brand-100: #ffe4e6;
+    --brand-200: #fecdd3;
+    --brand-300: #fda4af;
+    --brand-400: #fb7185;
+    --brand-500: #f43f5e;
+    --brand-600: #e11d48;
+    --brand-700: #be123c;
+    --brand-800: #9f1239;
+    --brand-900: #881337;
+}
+
 * {
     box-sizing: border-box;
 }

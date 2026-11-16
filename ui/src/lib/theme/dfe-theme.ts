@@ -1,6 +1,6 @@
 import {contextForPath} from '@/lib/navigation/nav';
 
-export type DfeThemeKey = 'nfe' | 'nfce' | 'nfse' | 'cte' | 'mdfe'
+export type DfeThemeKey = 'nfe' | 'nfce' | 'nfse' | 'cte' | 'mdfe' | 'nfcom'
 
 /** Maps the current route to the DF-e document context it belongs to, so the
  *  UI can recolor via the `data-dfe-theme` attribute (see globals.css).

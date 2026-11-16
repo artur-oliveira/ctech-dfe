@@ -5,13 +5,14 @@ import {apiClient, ApiError} from '@/lib/api/client';
 import {queryKeys} from '@/lib/api/query-keys';
 import {EMISSION_DOCS, type EmissionBody, type EmissionDoc, type EmissionFields, inContingency} from '@/lib/contingency';
 import type {DocVariant} from '@/lib/schemas/fiscal-configs';
-import type {CTeConfigOut, MDFeConfigOut, NFCeConfigOut, NFeConfigOut, NfseConfigOut} from '@/lib/types/api';
+import type {CTeConfigOut, MDFeConfigOut, NFCeConfigOut, NFComConfigOut, NFeConfigOut, NfseConfigOut} from '@/lib/types/api';
 
 type FiscalConfigOut<V extends DocVariant> =
   V extends 'nfe' ? NFeConfigOut :
   V extends 'nfce' ? NFCeConfigOut :
   V extends 'cte' ? CTeConfigOut :
   V extends 'mdfe' ? MDFeConfigOut :
+  V extends 'nfcom' ? NFComConfigOut :
   NfseConfigOut
 
 function fetchConfig(variant: DocVariant, pk: string) {
@@ -21,6 +22,7 @@ function fetchConfig(variant: DocVariant, pk: string) {
     case 'cte': return apiClient.getCTeConfig(pk);
     case 'mdfe': return apiClient.getMDFeConfig(pk);
     case 'nfse': return apiClient.getNfseConfig(pk);
+    case 'nfcom': return apiClient.getNFComConfig(pk);
     default: return Promise.reject(new Error(`Unknown variant: ${variant}`));
   }
 }
@@ -32,6 +34,7 @@ function saveConfig(variant: DocVariant, pk: string, data: Record<string, unknow
     case 'cte': return apiClient.upsertCTeConfig(pk, data);
     case 'mdfe': return apiClient.upsertMDFeConfig(pk, data);
     case 'nfse': return apiClient.upsertNfseConfig(pk, data);
+    case 'nfcom': return apiClient.upsertNFComConfig(pk, data);
     default: return Promise.reject(new Error(`Unknown variant: ${variant}`));
   }
 }
@@ -43,6 +46,7 @@ function configQueryKey(variant: DocVariant, pk: string): readonly string[] {
     case 'cte': return queryKeys.cteConfig(pk);
     case 'mdfe': return queryKeys.mdfeConfig(pk);
     case 'nfse': return queryKeys.nfseConfig(pk);
+    case 'nfcom': return queryKeys.nfcomConfig(pk);
     default: throw new Error('Unknown variant: ' + variant);
   }
 }

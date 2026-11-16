@@ -7,8 +7,11 @@
 import type {DocVariant} from '@/lib/schemas/fiscal-configs';
 
 export type EmissionType = 'normal' | 'svc' | 'epec' | 'offline'
-/** Documentos que têm forma de emissão (a NFS-e não tem). */
-export type EmissionDoc = Exclude<DocVariant, 'nfse'>
+/**
+ * Documentos que têm forma de emissão nesta tela (a NFS-e não tem). A NFCom aceita `offline` pela API
+ * (`PUT /nfcom-emission`), mas a tela de configuração ainda não a oferece.
+ */
+export type EmissionDoc = Exclude<DocVariant, 'nfse' | 'nfcom'>
 
 export const EMISSION_DOCS: readonly EmissionDoc[] = ['nfe', 'nfce', 'cte', 'mdfe'];
 export const EMISSION_NORMAL: EmissionType = 'normal';

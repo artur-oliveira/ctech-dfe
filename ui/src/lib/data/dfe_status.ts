@@ -103,6 +103,7 @@ export const DOC_GENDER: Record<string, DfeGender> = {
   nfses: 'f',
   ctes: 'm',
   mdfes: 'm',
+  nfcoms: 'f',
 };
 
 /** Status que uma NFS-e alcança (spec §3.4) — alimenta o filtro da lista. */

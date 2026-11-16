@@ -13,10 +13,11 @@ export const METER_NFCE = 'nfce';
 export const METER_CTE = 'cte';
 export const METER_MDFE = 'mdfe';
 export const METER_NFSE = 'nfse';
+export const METER_NFCOM = 'nfcom';
 export const METER_COMPANIES = 'companies';
 
 /** Meters counted per issuance, in the order the screens list them. */
-export const DOCUMENT_METERS = [METER_NFE, METER_NFCE, METER_CTE, METER_MDFE, METER_NFSE] as const;
+export const DOCUMENT_METERS = [METER_NFE, METER_NFCE, METER_CTE, METER_MDFE, METER_NFSE, METER_NFCOM] as const;
 export type DocumentMeter = (typeof DOCUMENT_METERS)[number]
 
 /**
@@ -32,6 +33,7 @@ export const METER_LABELS: Record<string, string> = {
   [METER_CTE]: 'CT-e',
   [METER_MDFE]: 'MDF-e',
   [METER_NFSE]: 'NFS-e',
+  [METER_NFCOM]: 'NFCom',
   [METER_COMPANIES]: 'Empresas',
 };
 

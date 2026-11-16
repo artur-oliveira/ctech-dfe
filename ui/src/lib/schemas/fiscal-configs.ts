@@ -132,4 +132,4 @@ export const nfseConfigSchema = z.object({
 
 export type NfseConfigFormData = z.infer<typeof nfseConfigSchema>
 
-export type DocVariant = 'nfe' | 'nfce' | 'cte' | 'mdfe' | 'nfse'
+export type DocVariant = 'nfe' | 'nfce' | 'cte' | 'mdfe' | 'nfse' | 'nfcom'

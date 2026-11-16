@@ -17,6 +17,7 @@ const DOC_LABELS: Record<DocVariant, string> = {
   cte: 'CT-e',
   mdfe: 'MDF-e',
   nfse: 'NFS-e',
+  nfcom: 'NFCom',
 };
 
 /**

@@ -10,6 +10,7 @@ const DOC_PURPOSE: Record<DocVariant, string> = {
   cte: 'Frete: o conhecimento de transporte de uma carga.',
   mdfe: 'Manifesto da viagem, que agrupa as notas e os conhecimentos a bordo.',
   nfse: 'Prestação de serviço, emitida pela prefeitura.',
+  nfcom: 'Fatura de serviço de comunicação: internet, telefonia e TV por assinatura.',
 };
 
 interface DocumentPickerProps {

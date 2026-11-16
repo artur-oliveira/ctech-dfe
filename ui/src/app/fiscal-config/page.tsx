@@ -24,6 +24,7 @@ const TABS: { id: DocVariant; label: string; description: string }[] = [
   {id: 'cte', label: 'CT-e', description: 'Conhecimento de Transporte Eletrônico'},
   {id: 'mdfe', label: 'MDF-e', description: 'Manifesto Eletrônico de Documentos Fiscais'},
   {id: 'nfse', label: 'NFS-e', description: 'Nota Fiscal de Serviços Eletrônica'},
+  {id: 'nfcom', label: 'NFCom', description: 'Nota Fiscal Fatura de Serviço de Comunicação Eletrônica'},
 ];
 
 function isDocVariant(v: string | null): v is DocVariant {
@@ -45,6 +46,7 @@ function FiscalConfigContent() {
   const cteQuery = useFiscalConfig('cte', pk);
   const mdfeQuery = useFiscalConfig('mdfe', pk);
   const nfseQuery = useFiscalConfig('nfse', pk);
+  const nfcomQuery = useFiscalConfig('nfcom', pk);
 
   const nfeMutation = useMutation({
     mutationFn: (d: object) => apiClient.upsertNFeConfig(pk, d),
@@ -62,6 +64,10 @@ function FiscalConfigContent() {
     mutationFn: (d: object) => apiClient.upsertMDFeConfig(pk, d),
     onSuccess: () => qc.invalidateQueries({queryKey: queryKeys.mdfeConfig(pk)}),
   });
+  const nfcomMutation = useMutation({
+    mutationFn: (d: object) => apiClient.upsertNFComConfig(pk, d),
+    onSuccess: () => qc.invalidateQueries({queryKey: queryKeys.nfcomConfig(pk)}),
+  });
   const nfseMutation = useMutation({
     mutationFn: (d: object) => apiClient.upsertNfseConfig(pk, d),
     onSuccess: () => qc.invalidateQueries({queryKey: queryKeys.nfseConfig(pk)}),
@@ -73,6 +79,7 @@ function FiscalConfigContent() {
     cte: {query: cteQuery, mutation: cteMutation},
     mdfe: {query: mdfeQuery, mutation: mdfeMutation},
     nfse: {query: nfseQuery, mutation: nfseMutation},
+    nfcom: {query: nfcomQuery, mutation: nfcomMutation},
   };
   
   const active = configByTab[activeTab];
