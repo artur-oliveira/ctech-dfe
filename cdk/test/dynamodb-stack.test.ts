@@ -152,6 +152,27 @@ describe('DynamoDBStack — sweep-index', () => {
     });
 });
 
+describe('DynamoDBStack — NFCom', () => {
+    test('nfcoms, nfcom_events e a configuração fiscal existem, com sweep-index e contingency-index', () => {
+        const template = synth();
+        for (const name of ['dev_dfe_nfcoms', 'dev_dfe_nfcom_events', 'dev_dfe_organization_nfcom_configs']) {
+            template.hasResourceProperties('AWS::DynamoDB::GlobalTable', {TableName: name});
+        }
+        template.hasResourceProperties('AWS::DynamoDB::GlobalTable', {
+            TableName: 'dev_dfe_organization_nfcom_configs',
+            GlobalSecondaryIndexes: Match.arrayWith([
+                Match.objectLike({IndexName: 'sweep-index', Projection: {ProjectionType: 'KEYS_ONLY'}}),
+            ]),
+        });
+        template.hasResourceProperties('AWS::DynamoDB::GlobalTable', {
+            TableName: 'dev_dfe_nfcoms',
+            GlobalSecondaryIndexes: Match.arrayWith([
+                Match.objectLike({IndexName: 'contingency-index', Projection: {ProjectionType: 'KEYS_ONLY'}}),
+            ]),
+        });
+    });
+});
+
 describe('DynamoDBStack — contingency-index', () => {
     test('as quatro tabelas de documento têm o GSI esparso contingency-index (KEYS_ONLY, ordenado por prazo)', () => {
         const template = synth();
