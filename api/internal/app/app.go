@@ -88,11 +88,13 @@ var Module = fx.Options(
 		repositories.NewCteConfigRepository,
 		repositories.NewMdfeConfigRepository,
 		repositories.NewNfseConfigRepository,
+		repositories.NewNfcomConfigRepository,
 		repositories.NewSerieClaimRepository,
 		repositories.NewNfeRepository,
 		repositories.NewNfceRepository,
 		repositories.NewCteRepository,
 		repositories.NewMdfeRepository,
+		repositories.NewNfcomRepository,
 		repositories.NewCiotRepository,
 		repositories.NewCiotAuditRepository,
 		repositories.NewNfseRepository,
@@ -138,6 +140,7 @@ var Module = fx.Options(
 		services.NewNfceConfigService,
 		services.NewCteConfigService,
 		services.NewMdfeConfigService,
+		services.NewNfcomConfigService,
 		services.NewNfseConfigService,
 		newExternalService,
 		newWorkerService,
@@ -837,13 +840,14 @@ func newBillingService(
 	cte *repositories.CteConfigRepository,
 	mdfe *repositories.MdfeConfigRepository,
 	nfse *repositories.NfseConfigRepository,
+	nfcom *repositories.NfcomConfigRepository,
 	c cache.Backend,
 	roles *services.WorkspaceRoleService,
 ) *services.BillingService {
 	// A nil *WorkspaceRoleService refuses every management attempt (fail
 	// closed); it is passed as a typed nil on purpose, which its methods handle.
 	return services.NewBillingService(repo, client, users, orgs, c).
-		WithEnablement(services.NewFiscalConfigEnablement(nfe, nfce, cte, mdfe, nfse)).
+		WithEnablement(services.NewFiscalConfigEnablement(nfe, nfce, cte, mdfe, nfse, nfcom)).
 		WithWorkspaceRoles(roles)
 }
 
@@ -1042,12 +1046,12 @@ func newAlerts(cfg *config.Config) alerts.Publisher {
 
 func newXMLExportService(
 	nfe *repositories.NfeRepository, nfce *repositories.NfceRepository, cte *repositories.CteRepository,
-	mdfe *repositories.MdfeRepository, nfse *repositories.NfseRepository,
+	mdfe *repositories.MdfeRepository, nfse *repositories.NfseRepository, nfcom *repositories.NfcomRepository,
 	db *dynamodb.Client, clients *awsclient.Clients, cfg *config.Config,
 ) *services.XMLExportService {
 	docs := map[string]*repositories.DocumentRepository{
 		"nfe": &nfe.DocumentRepository, "nfce": &nfce.DocumentRepository, "cte": &cte.DocumentRepository,
-		"mdfe": &mdfe.DocumentRepository, "nfse": &nfse.DocumentRepository,
+		"mdfe": &mdfe.DocumentRepository, "nfse": &nfse.DocumentRepository, "nfcom": &nfcom.DocumentRepository,
 	}
 	events := make(map[string]*repositories.DocumentEventRepository, len(docs))
 	for docType := range docs {

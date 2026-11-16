@@ -30,6 +30,7 @@ const (
 	AuditResourceNfceConfig      = "NFCE_CONFIG"
 	AuditResourceCteConfig       = "CTE_CONFIG"
 	AuditResourceMdfeConfig      = "MDFE_CONFIG"
+	AuditResourceNfcomConfig     = "NFCOM_CONFIG"
 	AuditResourceNfseConfig      = "NFSE_CONFIG"
 	AuditResourceTaxProfile      = "TAX_PROFILE"
 	AuditResourceOperation       = "OPERATION"

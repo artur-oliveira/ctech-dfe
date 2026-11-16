@@ -116,7 +116,7 @@ func wire(ctx context.Context, prefix, region string) (deps, error) {
 		WithEnablement(services.NewFiscalConfigEnablement(
 			repositories.NewNfeConfigRepository(db, cfg), repositories.NewNfceConfigRepository(db, cfg),
 			repositories.NewCteConfigRepository(db, cfg), repositories.NewMdfeConfigRepository(db, cfg),
-			repositories.NewNfseConfigRepository(db, cfg)))
+			repositories.NewNfseConfigRepository(db, cfg), repositories.NewNfcomConfigRepository(db, cfg)))
 	levels := services.NewLevelReporter(billingRepo, bill, billingSvc)
 
 	return deps{

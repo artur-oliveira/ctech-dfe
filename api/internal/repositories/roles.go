@@ -67,6 +67,7 @@ var actions = []string{actionList, actionGet, actionCreate, actionUpdate, action
 var resources = []string{
 	"ctes", "cte_distributions", "cte_events",
 	"mdfes", "mdfe_distributions", "mdfe_events",
+	"nfcoms", "nfcom_events",
 	"ciots",
 	"nfces", "nfce_events",
 	"nfes", "nfe_distributions", "nfe_events",
@@ -83,7 +84,7 @@ var resources = []string{
 	"organization_service_locations", "organization_reference_documents",
 	"organization_nfe_configs", "organization_nfce_configs",
 	"organization_cte_configs", "organization_mdfe_configs",
-	"organization_nfse_configs",
+	"organization_nfse_configs", "organization_nfcom_configs",
 	"organization_certificates",
 }
 

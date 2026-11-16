@@ -47,7 +47,7 @@ func NewXMLExportService(
 func (s *XMLExportService) Page(ctx context.Context, orgPK, docType string, start map[string]types.AttributeValue) ([]byte, map[string]types.AttributeValue, error) {
 	docs, events := s.docs[docType], s.events[docType]
 	if docs == nil || events == nil {
-		return nil, nil, problem.BadRequest("tipo de documento inválido; use nfe, nfce, cte, mdfe ou nfse")
+		return nil, nil, problem.BadRequest("tipo de documento inválido; use nfe, nfce, cte, mdfe, nfcom ou nfse")
 	}
 	res, err := docs.List(ctx, EnvProd+"#"+orgPK, repositories.DocumentListOpts{Limit: xmlExportPageSize, StartKey: start})
 	if err != nil {
