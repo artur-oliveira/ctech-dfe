@@ -48,3 +48,13 @@ func TestClassifyOfflineLateSuccess(t *testing.T) {
 		t.Error("state")
 	}
 }
+
+// A NFCom emitida em contingência offline (tpEmis 2) é varrida e retransmitida como as demais.
+func TestTablesCoverNFCom(t *testing.T) {
+	for _, tb := range Tables {
+		if tb == "nfcoms" {
+			return
+		}
+	}
+	t.Fatalf("Tables = %v, falta nfcoms", Tables)
+}

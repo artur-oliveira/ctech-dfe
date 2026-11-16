@@ -23,10 +23,11 @@ type consultaSpec struct {
 }
 
 var consultaSpecs = map[string]consultaSpec{
-	docTypeNFe:  {"NfeConsultaProtocolo", "consSitNFe", "4.00", nsNFe, "chNFe", "protNFe", "retConsSitNFe"},
-	docTypeNFCe: {"NfeConsultaProtocolo", "consSitNFe", "4.00", nsNFe, "chNFe", "protNFe", "retConsSitNFe"},
-	docTypeMDFe: {"MDFeConsulta", "consSitMDFe", "3.00", nsMDFe, "chMDFe", "protMDFe", "retConsSitMDFe"},
-	docTypeCTe:  {"CTeConsulta", "consSitCTe", "4.00", nsCTe, "chCTe", "protCTe", "retConsSitCTe"},
+	docTypeNFe:   {"NfeConsultaProtocolo", "consSitNFe", "4.00", nsNFe, "chNFe", "protNFe", "retConsSitNFe"},
+	docTypeNFCe:  {"NfeConsultaProtocolo", "consSitNFe", "4.00", nsNFe, "chNFe", "protNFe", "retConsSitNFe"},
+	docTypeMDFe:  {"MDFeConsulta", "consSitMDFe", "3.00", nsMDFe, "chMDFe", "protMDFe", "retConsSitMDFe"},
+	docTypeCTe:   {"CTeConsulta", "consSitCTe", "4.00", nsCTe, "chCTe", "protCTe", "retConsSitCTe"},
+	docTypeNFCom: {"NFComConsulta", "consSitNFCom", "1.00", nsNFCom, "chNFCom", "protNFCom", "retConsSitNFCom"},
 }
 
 // reconciled é o resultado de uma duplicidade confirmada como o mesmo documento.
