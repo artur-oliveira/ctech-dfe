@@ -121,6 +121,12 @@ func TestAccessKeyReason_ModelsAndAlphanumericCNPJ(t *testing.T) {
 		{"alphanumeric cnpj", withDV(validAccessKeyNumeric[:6] + "12ABC34501DE35" + "58" + tail), []string{AccessKeyModMDFe}, true},
 		{"alphanumeric cnpj bad dv", withDV(validAccessKeyNumeric[:6] + "12ABC34501DE34" + "58" + tail), []string{AccessKeyModMDFe}, false},
 		{"cnpj starting with 000", withDV(validAccessKeyNumeric[:6] + "00000000000191" + "55" + tail), []string{AccessKeyModNFe}, true},
+		{"nfcom", withDV(base + "62" + tail), []string{AccessKeyModNFCom}, true},
+		{"nfcom tpEmis 2 offline", withDV(base + "62" + tail[:12] + "2" + tail[13:]), []string{AccessKeyModNFCom}, true},
+		{"nfcom tpEmis 3 invalid", withDV(base + "62" + tail[:12] + "3" + tail[13:]), []string{AccessKeyModNFCom}, false},
+		{"nfcom alternative site 8", withDV(base + "62" + tail[:13] + "8" + tail[14:]), []string{AccessKeyModNFCom}, true},
+		{"nfcom refuses nfe", withDV(base + "55" + tail), []string{AccessKeyModNFCom}, false},
+		{"nfcom alphanumeric cnpj", withDV(validAccessKeyNumeric[:6] + "12ABC34501DE35" + "62" + tail), []string{AccessKeyModNFCom}, true},
 		{"mdfe tpEmis 5 invalid", withDV(base + "58" + tail[:12] + "5" + tail[13:]), []string{AccessKeyModMDFe}, false},
 	}
 	for _, c := range cases {
