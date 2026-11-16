@@ -35,6 +35,7 @@ import (
 	ctesvc "gopkg.aoctech.app/dfe/api/internal/services/ctes"
 	"gopkg.aoctech.app/dfe/api/internal/services/documents"
 	mdfesvc "gopkg.aoctech.app/dfe/api/internal/services/mdfes"
+	nfcomsvc "gopkg.aoctech.app/dfe/api/internal/services/nfcoms"
 	nfesvc "gopkg.aoctech.app/dfe/api/internal/services/nfes"
 	nfsesvc "gopkg.aoctech.app/dfe/api/internal/services/nfses"
 
@@ -148,6 +149,7 @@ var Module = fx.Options(
 		newNFeService,
 		newNFCeService,
 		newMDFeService,
+		newNFComService,
 		newCTeService,
 		newNfseService,
 		newDistributionService,
@@ -535,6 +537,34 @@ func newMDFeService(
 	)
 }
 
+func newNFComService(
+	orgRepo *repositories.OrganizationRepository,
+	certRepo *repositories.CertificateRepository,
+	configRepo *repositories.NfcomConfigRepository,
+	nfcomRepo *repositories.NfcomRepository,
+	clients *awsclient.Clients,
+	workerSvc *services.WorkerService,
+	db *dynamodb.Client,
+	cfg *config.Config,
+	billingSvc *services.BillingService,
+	documentSvc *documents.Service,
+	extSvc *services.ExternalService,
+) *nfcomsvc.NfcomService {
+	eventRepo := repositories.NewDocumentEventRepository(db, cfg, "nfcom")
+	return nfcomsvc.NewNfcomService(
+		orgRepo, certRepo, configRepo, nfcomRepo, eventRepo,
+		clients, workerSvc, billingSvc, documentSvc, cfg.S3BucketDocuments,
+		nfcomsvc.TechData{
+			CNPJ:    cfg.TechnicalCNPJ,
+			Name:    cfg.TechnicalName,
+			Email:   cfg.TechnicalEmail,
+			Phone:   cfg.TechnicalPhone,
+			Version: cfg.AppVersion,
+		},
+		extSvc,
+	)
+}
+
 func newCTeService(
 	orgRepo *repositories.OrganizationRepository,
 	certRepo *repositories.CertificateRepository,
@@ -625,6 +655,7 @@ type Services struct {
 	NfeSvc          *nfesvc.NfeService
 	NfceSvc         *nfesvc.NfceService
 	MdfeSvc         *mdfesvc.MdfeService
+	NfcomSvc        *nfcomsvc.NfcomService
 	CiotSvc         *ciotsvc.Service
 	CteSvc          *ctesvc.CteService
 	NfseSvc         *nfsesvc.NfseService
@@ -632,6 +663,7 @@ type Services struct {
 	NfceConf        *services.NfceConfigService
 	CteConf         *services.CteConfigService
 	MdfeConf        *services.MdfeConfigService
+	NfcomConf       *services.NfcomConfigService
 	NfseConf        *services.NfseConfigService
 	SerieClaims     *repositories.SerieClaimRepository
 	ReachSvc        *services.ReachService
@@ -678,6 +710,7 @@ func registerRoutes(app *fiber.App, svcs Services) {
 		NFe:             svcs.NfeSvc,
 		NFCe:            svcs.NfceSvc,
 		MDFe:            svcs.MdfeSvc,
+		NFCom:           svcs.NfcomSvc,
 		CIOT:            svcs.CiotSvc,
 		CTe:             svcs.CteSvc,
 		Nfse:            svcs.NfseSvc,
@@ -685,6 +718,7 @@ func registerRoutes(app *fiber.App, svcs Services) {
 		NfceConfig:      svcs.NfceConf,
 		CteConfig:       svcs.CteConf,
 		MdfeConfig:      svcs.MdfeConf,
+		NfcomConfig:     svcs.NfcomConf,
 		NfseConfig:      svcs.NfseConf,
 		SerieClaims:     svcs.SerieClaims,
 		Reach:           svcs.ReachSvc,

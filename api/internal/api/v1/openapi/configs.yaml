@@ -263,6 +263,56 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '422': { $ref: '#/components/responses/ValidationError' }
 
+  /v1.0/organizations/{org_pk}/nfcom-emission:
+    parameters:
+      - $ref: '#/components/parameters/OrgPk'
+    put:
+      tags: [ Fiscal Configs ]
+      summary: Define a forma de emissão corrente da NFCom
+      description: |
+        Tipos válidos: `normal` e `offline` (`tpEmis` 2); sem SVC e sem EPEC. Sair de `normal` exige `justification`
+        (15 a 256 caracteres, vira `xJust`; 422 `emission_reason_required`). A contingência automática não existe para
+        a NFCom na v1: `auto_contingency` é recusado. O `PUT /nfcom-config` nunca altera estes campos.
+      operationId: putNfcomEmission
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EmissionBody' }
+      responses:
+        '200': { $ref: '#/components/responses/FiscalConfig' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/organizations/{org_pk}/nfcom-config:
+    parameters:
+      - $ref: '#/components/parameters/OrgPk'
+    get:
+      tags: [ Fiscal Configs ]
+      summary: Lê a configuração de NFCom
+      operationId: getNfcomConfig
+      responses:
+        '200': { $ref: '#/components/responses/FiscalConfig' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [ Fiscal Configs ]
+      summary: Grava a configuração de NFCom
+      operationId: putNfcomConfig
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FiscalConfigBody' }
+      responses:
+        '200': { $ref: '#/components/responses/FiscalConfig' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
   /v1.0/organizations/{org_pk}/nfse-config:
     parameters:
       - $ref: '#/components/parameters/OrgPk'

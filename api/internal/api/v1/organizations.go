@@ -37,6 +37,7 @@ type OrgHandlers struct {
 	NfceConfig  *services.NfceConfigService
 	CteConfig   *services.CteConfigService
 	MdfeConfig  *services.MdfeConfigService
+	NfcomConfig *services.NfcomConfigService
 	NfseConfig  *services.NfseConfigService
 	SerieClaims *repositories.SerieClaimRepository
 	// LinkSvc adopts a company created in ctech-account (the handoff's return
@@ -319,6 +320,9 @@ func RegisterOrganizations(router fiber.Router, h OrgHandlers, authMw fiber.Hand
 	emission("/mdfe-emission", "update.organization_mdfe_configs", func(ctx context.Context, pk string, u services.EmissionUpdate) (map[string]types.AttributeValue, error) {
 		return h.MdfeConfig.SetEmission(ctx, pk, u)
 	})
+	emission("/nfcom-emission", "update.organization_nfcom_configs", func(ctx context.Context, pk string, u services.EmissionUpdate) (map[string]types.AttributeValue, error) {
+		return h.NfcomConfig.SetEmission(ctx, pk, u)
+	})
 	registerFiscalConfig(scoped, "/nfce-config",
 		"get.organization_nfce_configs", "update.organization_nfce_configs",
 		h.NfceConfig, perm, bindAVValidated[NfceConfigBody], h.UserSvc, serieDeps(services.ModelNFCe))
@@ -328,6 +332,9 @@ func RegisterOrganizations(router fiber.Router, h OrgHandlers, authMw fiber.Hand
 	registerFiscalConfig(scoped, "/mdfe-config",
 		"get.organization_mdfe_configs", "update.organization_mdfe_configs",
 		h.MdfeConfig, perm, bindAVValidated[MdfeConfigBody], h.UserSvc, serieDeps(services.ModelMDFe))
+	registerFiscalConfig(scoped, "/nfcom-config",
+		"get.organization_nfcom_configs", "update.organization_nfcom_configs",
+		h.NfcomConfig, perm, bindAVValidated[FiscalConfigBody], h.UserSvc, serieDeps(services.ModelNFCom))
 	registerFiscalConfig(scoped, "/nfse-config",
 		"get.organization_nfse_configs", "update.organization_nfse_configs",
 		h.NfseConfig, perm, bindAVValidated[NfseConfigBody], h.UserSvc, enablement)

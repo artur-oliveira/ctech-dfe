@@ -193,6 +193,18 @@ func NewNfcomConfigService(repo *repositories.NfcomConfigRepository, auditRepo *
 	}}
 }
 
+// CodeAutoContingencyUnsupported: the document has no automatic contingency switch.
+const CodeAutoContingencyUnsupported = "auto_contingency_unsupported"
+
+// SetEmission refuses the automatic switch: the NFCom has none in v1 (no SVC, no breaker, no probe), so the flag would
+// do nothing and mislead the owner.
+func (s *NfcomConfigService) SetEmission(ctx context.Context, orgPK string, u EmissionUpdate) (map[string]types.AttributeValue, error) {
+	if u.Auto {
+		return nil, problem.UnprocessableEntity("a contingência automática não existe para a NFCom").WithCode(CodeAutoContingencyUnsupported)
+	}
+	return s.fiscalConfigService.SetEmission(ctx, orgPK, u)
+}
+
 // NfseConfigService wraps NfseConfigRepository.
 type NfseConfigService struct{ fiscalConfigService }
 

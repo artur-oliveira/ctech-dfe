@@ -2,6 +2,7 @@ package services
 
 import (
 	"slices"
+	"strings"
 	"testing"
 
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
@@ -32,5 +33,14 @@ func TestNFComEnablementKnowsDocType(t *testing.T) {
 	e := NewFiscalConfigEnablement(nil, nil, nil, nil, nil, nil)
 	if _, ok := e.repos[DocTypeNFCom]; !ok {
 		t.Error("a configuração fiscal da NFCom não conta para a cota de empresas")
+	}
+}
+
+// A troca automática de contingência não existe para a NFCom na v1: ligar a flag não faria nada e enganaria o dono.
+func TestNFComConfigRefusesAutoContingency(t *testing.T) {
+	s := &NfcomConfigService{}
+	_, err := s.SetEmission(t.Context(), "ORG1", EmissionUpdate{Type: repositories.EmissionOffline, Reason: "Falha de comunicação com a SEFAZ", Auto: true, AutoType: repositories.EmissionOffline})
+	if err == nil || !strings.Contains(err.Error(), "automática") {
+		t.Fatalf("erro = %v", err)
 	}
 }
