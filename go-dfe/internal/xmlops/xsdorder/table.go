@@ -878,6 +878,7 @@ func buildTable() map[string][]string {
 		servicosCte,
 		envimdfe,
 		servicosMdfe,
+		nfcomGenerated,
 	} {
 		for k, v := range src {
 			t[k] = v

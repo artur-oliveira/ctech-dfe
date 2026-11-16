@@ -94,6 +94,16 @@ var implemented = map[string]map[string]bool{
 		"MDFeRecepcaoSinc":   true,
 		"MDFeRecepcaoEvento": true,
 	},
+	// NFCom (modelo 62): SOAP síncrono pela SVRS e por MG, MS e MT. Sem inutilização nem distribuição na v1.00.
+	// Assinados sem homologação ainda (sem autorizador de teste); o portão é o teste em homologação real.
+	constants.DocTypeNFCOM: {
+		constants.ServiceSignText: true,
+		constants.ServiceSignOnly: true,
+		"NFComStatusServico":      true,
+		"NFComConsulta":           true,
+		"NFComRecepcao":           true,
+		"NFComRecepcaoEvento":     true,
+	},
 	// NFS-e nunca teve cliente anterior, então não existe autoridade contra a
 	// qual rodar shadow-mode nem corpus para o portão de assinatura
 	// byte-idêntica. O portão aplicável é a homologação em produção restrita

@@ -591,7 +591,7 @@ func TestTableKeyCount(t *testing.T) {
 	// (emissão rodoviária, mesma paridade, agora estrita para o CT-e) + 4 dos eventos do CT-e
 	// (evCCeCTe, infCorrecao, evPrestDesacordo, evCancPrestDesacordo) + 10 dos eventos da reforma tributária da NF-e
 	// + 5 dos eventos de entrega do CT-e (evCECTe, evCancCECTe, evIECTe, evCancIECTe, infEntrega) + (detEvento:gCredPresOper e filhos, gImobilizacao, gConsumoComb, gPerecimento, gItemNaoFornecido, gCredito, gPgto, gControleEstoque) + 3 dos eventos de vinculação de pagamento do CT-e (evVincPgto, evVincPgto:pgto, evCancVincPgto) + 17 dos modais do CT-e (aereo, aquav, ferrov, duto, multimodal e subgrupos) + 3 dos eventos da NFCom (eventoNFCom, eventoNFCom:infEvento, evCancNFCom).
-	const wantKeys = 349
+	wantKeys := 349 + len(nfcomGenerated) // 349 à mão + a tabela gerada da NFCom
 	if got := len(Table); got != wantKeys {
 		t.Errorf("Table has %d keys, want %d", got, wantKeys)
 	}
@@ -752,4 +752,15 @@ func TestOrdemXSDValorLiquidoNT2026008(t *testing.T) {
 
 	total := mustResolve(t, "infNFe", "total")
 	assertBefore(t, total, "vProdLiqTot", "ICMSTot")
+}
+
+// A tabela da NFCom é gerada do XSD e achada pelo caminho completo, sem colidir com as de NF-e, CT-e e MDF-e.
+func TestResolveNFComGenerated(t *testing.T) {
+	order, ok := Resolve("NFCom:infNFCom", "ide")
+	if !ok || len(order) < 5 || order[0] != "cUF" {
+		t.Fatalf("ide da NFCom: ok=%v order=%v", ok, order)
+	}
+	if o, ok := Resolve("NFCom", "NFCom"); ok && len(o) > 0 && o[0] == "cUF" {
+		t.Error("raiz não deve resolver como ide")
+	}
 }

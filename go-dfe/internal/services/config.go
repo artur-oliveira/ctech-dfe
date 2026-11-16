@@ -98,6 +98,23 @@ var (
 		},
 	}
 
+	// NFComConfig: NFCom 1.00 (modelo 62). Assinatura sobre infNFCom/infEvento; a autorização é GZip+Base64.
+	NFComConfig = Config{
+		DocType:       "nfcom",
+		SchemaVersion: "1.00",
+		WSDLServices:  nfcomWSDLService,
+		ServicesRequiringSignature: map[string]bool{
+			"NFComRecepcao": true, "NFComRecepcaoEvento": true,
+		},
+		ServicesRequiringValidation: map[string]bool{
+			"NFComRecepcao": true, "NFComRecepcaoEvento": true,
+		},
+		SignIDXPath: map[string]string{
+			"NFComRecepcao":       "infNFCom",
+			"NFComRecepcaoEvento": "infEvento",
+		},
+	}
+
 	MDFeConfig = Config{
 		DocType:       "mdfe",
 		SchemaVersion: "3.00",
@@ -132,6 +149,10 @@ var (
 		"CTeConsulta": "CTeConsultaV4", "CTeStatusServico": "CTeStatusServicoV4",
 		"CTeRecepcaoEvento": "CTeRecepcaoEventoV4", "CTeDistribuicaoDFe": "CTeDistribuicaoDFe",
 	}
+	nfcomWSDLService = map[string]string{
+		"NFComRecepcao": "NFComRecepcao", "NFComConsulta": "NFComConsulta",
+		"NFComStatusServico": "NFComStatusServico", "NFComRecepcaoEvento": "NFComRecepcaoEvento",
+	}
 	mdfeWSDLService = map[string]string{
 		"MDFeRecepcaoSinc": "MDFeRecepcaoSinc", "MDFeConsulta": "MDFeConsulta",
 		"MDFeStatusServico": "MDFeStatusServico", "MDFeConsNaoEnc": "MDFeConsNaoEnc",
@@ -142,10 +163,11 @@ var (
 // configs indexes NFeConfig/NFCeConfig/CTeConfig/MDFeConfig by doc_type
 // string, mirroring the original Python client's SERVICE_CONFIGS/get_config.
 var configs = map[string]Config{
-	"nfe":  NFeConfig,
-	"nfce": NFCeConfig,
-	"cte":  CTeConfig,
-	"mdfe": MDFeConfig,
+	"nfe":   NFeConfig,
+	"nfce":  NFCeConfig,
+	"cte":   CTeConfig,
+	"mdfe":  MDFeConfig,
+	"nfcom": NFComConfig,
 }
 
 // GetConfig returns the Config for docType, or an error if docType is unknown.

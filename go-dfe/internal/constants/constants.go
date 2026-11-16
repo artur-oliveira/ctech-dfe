@@ -21,7 +21,9 @@ const (
 	DocTypeNFCE = "nfce"
 	DocTypeCTE  = "cte"
 	DocTypeMDFE = "mdfe"
-	DocTypeNFSE = "nfse"
+	// DocTypeNFCOM is the NFCom (modelo 62): SOAP síncrono, sem lote, sem inutilização.
+	DocTypeNFCOM = "nfcom"
+	DocTypeNFSE  = "nfse"
 	// DocTypeCIOT is the ANTT CIOT (REST+JSON, go-dfe/ciot).
 	DocTypeCIOT = "ciot"
 )
@@ -80,10 +82,11 @@ func GetUFIBGE(uf string) (int, error) {
 
 // DocTypeCode maps doc_type -> SEFAZ model code (mod).
 var DocTypeCode = map[string]string{
-	DocTypeNFE:  "55",
-	DocTypeNFCE: "65",
-	DocTypeCTE:  "57",
-	DocTypeMDFE: "58",
+	DocTypeNFE:   "55",
+	DocTypeNFCE:  "65",
+	DocTypeCTE:   "57",
+	DocTypeMDFE:  "58",
+	DocTypeNFCOM: "62",
 }
 
 // GetDocTypeCode returns the SEFAZ model code for docType, or an error if unknown.
@@ -96,10 +99,11 @@ func GetDocTypeCode(docType string) (string, error) {
 
 // SchemaVersion maps doc_type -> XSD schema version.
 var SchemaVersion = map[string]string{
-	DocTypeNFE:  "4.00",
-	DocTypeNFCE: "4.00",
-	DocTypeCTE:  "4.00",
-	DocTypeMDFE: "3.00",
+	DocTypeNFE:   "4.00",
+	DocTypeNFCE:  "4.00",
+	DocTypeCTE:   "4.00",
+	DocTypeMDFE:  "3.00",
+	DocTypeNFCOM: "1.00",
 }
 
 // SOAPHeaderVersionOverride: some services use a payload schema version
@@ -111,10 +115,11 @@ var SOAPHeaderVersionOverride = map[string]string{
 
 // DocNamespace maps doc_type -> XML namespace.
 var DocNamespace = map[string]string{
-	DocTypeNFE:  "http://www.portalfiscal.inf.br/nfe",
-	DocTypeNFCE: "http://www.portalfiscal.inf.br/nfe",
-	DocTypeCTE:  "http://www.portalfiscal.inf.br/cte",
-	DocTypeMDFE: "http://www.portalfiscal.inf.br/mdfe",
+	DocTypeNFE:   "http://www.portalfiscal.inf.br/nfe",
+	DocTypeNFCE:  "http://www.portalfiscal.inf.br/nfe",
+	DocTypeCTE:   "http://www.portalfiscal.inf.br/cte",
+	DocTypeMDFE:  "http://www.portalfiscal.inf.br/mdfe",
+	DocTypeNFCOM: "http://www.portalfiscal.inf.br/nfcom",
 }
 
 // SOAPElementNames names the SOAP header/body/result element per doc_type.
@@ -129,6 +134,9 @@ var SOAPElements = map[string]SOAPElementNames{
 	DocTypeNFCE: {Header: "nfeCabecMsg", Body: "nfeDadosMsg", Result: "nfeResultMsg"},
 	DocTypeCTE:  {Header: "cteCabecMsg", Body: "cteDadosMsg", Result: "cteResultMsg"},
 	DocTypeMDFE: {Header: "mdfeCabecMsg", Body: "mdfeDadosMsg", Result: "mdfeResultMsg"},
+	// NFCom: o client nunca envia cabeçalho SOAP; nomes do corpo e do resultado conforme os relatos de homologação
+	// da SVRS (WSDL não acessível fora da rede autorizada). Confirmar no primeiro teste em homologação.
+	DocTypeNFCOM: {Header: "nfcomCabecMsg", Body: "nfcomDadosMsg", Result: "nfcomResultMsg"},
 }
 
 // NFeWSDLService covers both nfe and nfce doc types (nfce reuses NFe's WSDL).
@@ -163,12 +171,22 @@ var MDFeWSDLService = map[string]string{
 	"MDFeRecepcaoEvento":  "MDFeRecepcaoEvento",
 }
 
+// NFComWSDLService: serviços da NFCom v1.00 (MOC NFCom, relação de serviços do portal SVRS). Sem inutilização
+// nem distribuição.
+var NFComWSDLService = map[string]string{
+	"NFComRecepcao":       "NFComRecepcao",
+	"NFComConsulta":       "NFComConsulta",
+	"NFComStatusServico":  "NFComStatusServico",
+	"NFComRecepcaoEvento": "NFComRecepcaoEvento",
+}
+
 // WSDLServiceByDocType resolves the WSDL service name given doc_type+service.
 var WSDLServiceByDocType = map[string]map[string]string{
-	DocTypeNFE:  NFeWSDLService,
-	DocTypeNFCE: NFeWSDLService,
-	DocTypeCTE:  CTeWSDLService,
-	DocTypeMDFE: MDFeWSDLService,
+	DocTypeNFE:   NFeWSDLService,
+	DocTypeNFCE:  NFeWSDLService,
+	DocTypeCTE:   CTeWSDLService,
+	DocTypeMDFE:  MDFeWSDLService,
+	DocTypeNFCOM: NFComWSDLService,
 }
 
 var NFeWSDLOperation = map[string]string{
@@ -202,12 +220,21 @@ var MDFeWSDLOperation = map[string]string{
 	"MDFeDistribuicaoDFe": "mdfeDistDFeInteresse",
 }
 
+// NFComWSDLOperation: métodos SOAP descritos nas páginas de serviço do MOC NFCom.
+var NFComWSDLOperation = map[string]string{
+	"NFComRecepcao":       "nfcomRecepcao",
+	"NFComConsulta":       "nfcomConsultaNF",
+	"NFComStatusServico":  "nfcomStatusServicoNF",
+	"NFComRecepcaoEvento": "nfcomRecepcaoEvento",
+}
+
 // WSDLOperationByDocType resolves the SOAP operation element name given doc_type+service.
 var WSDLOperationByDocType = map[string]map[string]string{
-	DocTypeNFE:  NFeWSDLOperation,
-	DocTypeNFCE: NFeWSDLOperation,
-	DocTypeCTE:  CTeWSDLOperation,
-	DocTypeMDFE: MDFeWSDLOperation,
+	DocTypeNFE:   NFeWSDLOperation,
+	DocTypeNFCE:  NFeWSDLOperation,
+	DocTypeCTE:   CTeWSDLOperation,
+	DocTypeMDFE:  MDFeWSDLOperation,
+	DocTypeNFCOM: NFComWSDLOperation,
 }
 
 // SOAPWrappedBodyServices are services that always require a wrapped SOAP
@@ -318,8 +345,9 @@ const (
 // SignOnlyBaseService is, per doc type, the signed service whose build and signature SignOnly
 // reproduces. A doc type absent here has no SignOnly.
 var SignOnlyBaseService = map[string]string{
-	DocTypeNFE:  "NFeAutorizacao", // NF-e EPEC (tpEmis 4): signed first, transmitted after the EPEC event
-	DocTypeNFCE: "NFeAutorizacao",
-	DocTypeMDFE: "MDFeRecepcaoSinc",
-	DocTypeCTE:  "CTeRecepcaoSinc",
+	DocTypeNFE:   "NFeAutorizacao", // NF-e EPEC (tpEmis 4): signed first, transmitted after the EPEC event
+	DocTypeNFCE:  "NFeAutorizacao",
+	DocTypeMDFE:  "MDFeRecepcaoSinc",
+	DocTypeCTE:   "CTeRecepcaoSinc",
+	DocTypeNFCOM: "NFComRecepcao",
 }
