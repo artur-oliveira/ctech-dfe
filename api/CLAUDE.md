@@ -100,6 +100,7 @@ Cache, WebSocket registry, JWT verification, deadline, erasure and observability
   (`ExternalService.CallDfe`, region `DFE_EGRESS_REGION`), never in process. See `../DOCS.md` (Emissao de NFS-e).
 - **Webhooks** live in `repositories/webhooks*.go` (table `webhooks`, `WebhookStore` over go-common `webhooks`), `services/webhooks.go` and `webhook_events.go`, and `api/v1/webhooks.go`. The `ResultsConsumer` calls `WebhookService.Emit` after billing settles; the scheduled delivery is `cmd/webhook-deliverer` (an `api` binary because the repository is `internal`). Secrets are sealed with `WEBHOOK_SECRET_KEY`. See `../DOCS.md` ("Webhooks de saída").
 - **NFCom** lives in `internal/services/nfcoms/` (own package, mirrors `mdfes/`): typed `NfcomEmitBody`, server-side totals and taxes, offline contingency, cancellation; `documents/nfcom.go` renders the DANFE-COM. Metered by `MeterNFCom` (plan without `quota_nfcom` gets 402). See `../DOCS.md` (NFCom) and `../CONDUCT.md` (what is not proven yet).
+- **BP-e** lives in `internal/services/bpes/` (mirrors `nfcoms/`): three typed bodies (comum, TM, TA) over one `emission` flow, server-side totals, variant-aware events (`eventAllowed`), offline contingency; `documents/bpe.go` renders the DABPE (not for TM). Metered by `MeterBPe`. See `../DOCS.md` (BP-e) and `../CONDUCT.md` (what is not proven yet).
 - Health: `/v1.0/health` (liveness, skipped by the access log) and `/v1.0/health-check`.
 
 ### Where the code differs from the CTech standard (do not copy these patterns)

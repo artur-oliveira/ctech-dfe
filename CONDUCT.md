@@ -1548,3 +1548,19 @@ enviados só um certificado descartável e uma chave falsa, e a ANTT respondeu 4
   IBS/CBS, Simples e as notas técnicas 2026.002, 2026.004 e 2026.005 não foram lidas: a v1 não preenche IBS/CBS (opcional no
   XSD) e não há garantia de que o autorizador não o exija na vigência.
 - Antes de anunciar o documento (landing, home, `DFE_DOCUMENTS`), homologar e rever a cobrança (`quota_nfcom` no catálogo).
+
+
+## BP-e (modelo 63, TM e TA): o que ainda não foi provado
+
+- Nenhum teste contra autorizador real e sem credenciamento para TM e TA. Os nomes SOAP do serviço de recepção do comum e do TM
+  (`bpeRecepcao`, `bpeRecepcaoTM`) e o documento processado do TA (não há `procBPeTA` no pacote) vieram de leitura dos manuais, não de
+  resposta do autorizador; confirmar no primeiro envio em homologação e corrigir só as constantes de `go-dfe`.
+- O TA calcula IBS e CBS com as alíquotas que o emitente informa e `vTotDFe` igual ao valor pago. As regras de validação de IBS/CBS
+  (F76 a F111) não estão implementadas e as tabelas de CST e `cClassTrib` não foram obtidas: os campos são validados só por formato.
+  Diferimento, redução, tributação regular, compra governamental, Simples Nacional e estorno de crédito do TA ficam fora.
+- Mapa UF do emitente para autorizador: SVRS por padrão, MG, MS, MT, PR e SP próprios; regra usual, a confirmar.
+- Código de `cStat` de evento duplicado para BP-e e NFCom não foi catalogado; o rótulo de `tPag` 06 e o PDF417 do DABPE
+  (`boardPassBPe`), a Divisão I (agência) e o formato reduzido de 56 mm não foram feitos.
+- Fora da v1: substituição, agência, BP-e múltiplo e vinculado, evento 112130 (ajuste do TA), vinculação de pagamento, ICMS 20 e
+  partilha. O DABPE não existe para o TM.
+- Antes de anunciar o documento (landing, home, `DFE_DOCUMENTS`), homologar e rever a cobrança (`quota_bpe` no catálogo).

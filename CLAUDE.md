@@ -8,7 +8,7 @@ frontend and infra (patterns, resilience, scale, cost). If anything in this file
 wins and this file must be fixed. Install on a new machine:
 `/plugin marketplace add artur-oliveira/ctech-skills` then `/plugin install ctech-skills@ctech-skills`.
 
-Brazilian tax SaaS (NF-e, NFC-e, CT-e, MDF-e, NFS-e, NFCom) — direct SEFAZ communication via SOAP + mTLS (NFS-e: national REST), always through the go-dfe-egress Lambda.
+Brazilian tax SaaS (NF-e, NFC-e, CT-e, MDF-e, NFS-e, NFCom, BP-e) — direct SEFAZ communication via SOAP + mTLS (NFS-e: national REST), always through the go-dfe-egress Lambda.
 
 **Before any task:** Read `OVERVIEW.md`. For cross-project changes also read `CONDUCT.md` and `DOCS.md`.
 

@@ -59,6 +59,8 @@ go-dfe/
 
 NFCom (modelo 62) is another generic `docType` (`nfcom`): SOAP síncrono, sem cabeçalho, autorização em GZip+Base64; sua tabela de ordem de elementos é gerada do XSD (`internal/xmlops/xsdorder/table_nfcom_gen.go`, por `validate/gen`) e os schemas ficam em `schemas/nfcom`.
 
+BP-e (modelo 63) é o `docType` `bpe`, com três famílias de schema e regras (`bpe`, `bpetm`, `bpeta`; schemas em `schemas/bpe`, regras em `validate/rules_bpe.go`); o TM e o TA usam serviços de recepção próprios e o TA só a SVRS.
+
 No `nf.go`/`cte.go`/`mdfe.go` per-doc-type facade classes — `services.Client` is generic over `docType` via
 `services.Config`. The per-(authorizer,service) response-shape logic (`_RESPONSE_NODE_PATH`, `_ensure_list` in the
 original Python client) lives in `response.go` as data tables + `unwrapResponseNode`/`ensureList`. Getting this wrong is
