@@ -104,7 +104,7 @@ tags:
   - name: NFCom
     description: Nota Fiscal Fatura de Serviço de Comunicação Eletrônica (modelo 62).
   - name: BP-e
-    description: Bilhete de Passagem Eletrônico (modelo 63): comum, TM e TA.
+    description: Bilhete de Passagem Eletrônico (modelo 63), nas variantes comum, TM e TA.
   - name: CIOT
     description: Código Identificador da Operação de Transporte (ANTT), declaração, retificação, cancelamento e encerramento.
   - name: CT-e
