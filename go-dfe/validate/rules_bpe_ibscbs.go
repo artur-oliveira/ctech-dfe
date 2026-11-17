@@ -126,17 +126,17 @@ func ibsPerEnte(ids [3]string, mode Mode, cstat func(e ibsEnte) int, check func(
 func ibsExpectedRate(e ibsEnte, year int) (float64, bool) {
 	switch e.group {
 	case "gIBSUF":
-		switch {
-		case year == 2026:
+		switch year {
+		case 2026:
 			return 0.1, true
-		case year == 2027 || year == 2028:
+		case 2027, 2028:
 			return 0.05, true
 		}
 	case "gIBSMun":
-		switch {
-		case year == 2026:
+		switch year {
+		case 2026:
 			return 0, true
-		case year == 2027 || year == 2028:
+		case 2027, 2028:
 			return 0.05, true
 		}
 	case "gCBS":
