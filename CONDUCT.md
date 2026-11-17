@@ -1558,9 +1558,14 @@ enviados só um certificado descartável e uma chave falsa, e a ANTT respondeu 4
   (`protBPe`, NT 2025.002); o corpo SOAP é `bpeDadosMsg` e o resultado `bpeResultMsg` no MOC (comum, TM, evento, consulta e status) e
   `BPeDadosMsg` e `BPeResultMsg` na NT do TA, então o `BPeRecepcaoTA` envia com B maiúsculo (`constants.SOAPBodyElementOverride`) e a
   resposta é lida sem distinguir caixa. Se o autorizador recusar o corpo, trocar só essa constante.
-- O TA calcula IBS e CBS com as alíquotas que o emitente informa e `vTotDFe` igual ao valor pago. As regras de validação de IBS/CBS
-  (F76 a F111) não estão implementadas e as tabelas de CST e `cClassTrib` não foram obtidas: os campos são validados só por formato.
-  Diferimento, redução, tributação regular, compra governamental, Simples Nacional e estorno de crédito do TA ficam fora.
+- IBS/CBS do TA (regras F76 a F140 em `go-dfe/validate/rules_bpe_ibscbs.go`, tabelas em `validate/tables/ibscbs.json`, do IT 2025.002 RT
+  v1.71 de 30/10/2026; reimportar a tabela quando o fisco publicar versão nova). Só oito classificações valem para o TA (indBPeTA) e
+  nenhuma exige diferimento nem tributação regular: esses grupos existem na API, no builder e nas regras, mas só foram provados com
+  documentos de teste, não com um cClassTrib real. A CBS de 2027 e o IBS de 2029 em diante não têm alíquota em lei: vêm do corpo.
+  Ficam fora: F138 (a regra do MOC não diz se a soma de `gTribCompraGov` deve igualar ou diferir de `vIBS` + `vCBS`), F139e a F139k
+  (consultam o banco do autorizador), as regras do Simples Nacional da NT 2026.005 (só a emissão do `gTribSN` com alíquotas informadas;
+  CRT 1, 2 e 4 e `tpRegimeIBSCBS` não são checados) e `vINSSRet` (só no BP-e múltiplo, fora da v1). As regras de aritmética e de
+  estrutura são Block no catálogo, mas a emissão só recusa localmente as de `blockRules` (`prevalidate.go`); as demais ficam no shadow.
 - A URL do QR Code vem da página de serviços do portal (2026-11-17): MG, MS, MT, PR, SP e PB têm página própria (`bpeQRCodeByUF`,
   produção e homologação); as demais UFs e todo TA usam a da SVRS. A associação UF do emitente para página de QR Code é a do
   autorizador (PB autoriza na SVRS e só publica o QR Code); falta confirmar em homologação que cada autorizador aceita só a sua página.

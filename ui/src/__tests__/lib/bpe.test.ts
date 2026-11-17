@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest';
-import {bpeTicketSchema, emptyBpeTicket, toBpeTicketBody, toOffsetDateTime, type BpeTicketForm} from '@/lib/schemas/bpe';
+import {bpeTicketSchema, emptyBpeTicket, toBpeTicketBody, toOffsetDateTime, toTaTax, type BpeTicketForm} from '@/lib/schemas/bpe';
 import {bpeTmSchema, emptyBpeTm, toBpeTmBody, type BpeTmForm} from '@/lib/schemas/bpe-tm';
 import {BPE_KEY_PATTERN} from '@/lib/constants/bpe';
 
@@ -22,9 +22,21 @@ function ta(): BpeTicketForm {
   f.trips = [{...f.trips[0], flight_number: '1234', carrier: 'LA', from_airport: 'GRU', to_airport: 'SDU', departure: '2026-11-10T08:00'}];
   f.components = [{type: '01', value: '300.00'}];
   f.payments = [{type: '06', value: '300.00', desc: ''}];
-  f.tax = {...f.tax, cst: '000', class_trib: '000001', cbs_rate: '0.9'};
+  f.tax = {...f.tax, class_trib: '000001', cbs_rate: '8.8'};
   return f;
 }
+
+describe('toTaTax', () => {
+  it('só envia alíquota onde a lei do ano não a fixa e nunca em classe sem tributo', () => {
+    const f = ta();
+    f.tax = {...f.tax, ibs_uf_rate: '0.1', ibs_mun_rate: '0.1', cbs_rate: '8.8'};
+    expect(toTaTax(f.tax, 2026)).toMatchObject({ibs_uf_rate: undefined, cbs_rate: undefined});
+    expect(toTaTax(f.tax, 2027)).toMatchObject({ibs_uf_rate: undefined, cbs_rate: '8.8'});
+    expect(toTaTax(f.tax, 2029)).toMatchObject({ibs_uf_rate: '0.1', ibs_mun_rate: '0.1', cbs_rate: '8.8'});
+    f.tax.class_trib = '410004';
+    expect(toTaTax(f.tax, 2029)).toMatchObject({ibs_uf_rate: undefined, cbs_rate: undefined});
+  });
+});
 
 describe('bpeTicketSchema', () => {
   it('aceita o bilhete comum e o TA completos', () => {
@@ -52,12 +64,41 @@ describe('bpeTicketSchema', () => {
     expect(bpeTicketSchema.safeParse(f).success).toBe(false);
   });
 
-  it('o TA exige CST de 3 dígitos, classificação de 6 e aeroportos', () => {
+  it('o TA exige classificação da tabela e aeroportos', () => {
     const f = ta();
-    f.tax.cst = '00';
+    f.tax.class_trib = '999999';
     expect(bpeTicketSchema.safeParse(f).success).toBe(false);
-    f.tax.cst = '000';
+    f.tax.class_trib = '000001';
     f.trips[0].from_airport = 'G';
+    expect(bpeTicketSchema.safeParse(f).success).toBe(false);
+  });
+
+  it('a classificação manda no indicador de doação, no estorno e na compra governamental', () => {
+    const f = ta();
+    f.tax.class_trib = '410003';
+    expect(bpeTicketSchema.safeParse(f).success).toBe(false); // exige doação
+    f.tax.donation = true;
+    expect(bpeTicketSchema.safeParse(f).success).toBe(true);
+    f.tax.class_trib = '410026';
+    expect(bpeTicketSchema.safeParse(f).success).toBe(false); // exige estorno
+    f.tax.reversal = {ibs: '1.00', cbs: '2.00'};
+    expect(bpeTicketSchema.safeParse(f).success).toBe(true);
+    f.tax.class_trib = '410001';
+    f.tax.donation = true;
+    expect(bpeTicketSchema.safeParse(f).success).toBe(false); // veda doação
+  });
+
+  it('compra governamental valida ente, operação e chaves por operação', () => {
+    const key = '35261112345678000190630010000000101012345671';
+    const f = ta();
+    f.tax.government = {enabled: true, entity: '1', reducer: '0', operation: '2', references: ''};
+    expect(bpeTicketSchema.safeParse(f).success).toBe(false); // operação 2 pede uma chave
+    f.tax.government.references = key;
+    expect(bpeTicketSchema.safeParse(f).success).toBe(true);
+    f.tax.government.operation = '1';
+    expect(bpeTicketSchema.safeParse(f).success).toBe(true); // texto sobrando é ignorado
+    expect(toTaTax(f.tax).government).toEqual({entity: '1', reducer: '0', operation: '1', references: []});
+    f.tax.government = {enabled: true, entity: '', reducer: '0', operation: '', references: ''};
     expect(bpeTicketSchema.safeParse(f).success).toBe(false);
   });
 
@@ -116,7 +157,8 @@ describe('toBpeTicketBody', () => {
     expect(body.variant).toBe('ta');
     if (body.variant !== 'ta') return;
     expect(body.trips[0]).toMatchObject({flight_number: '1234', carrier: 'LA', from_airport: 'GRU'});
-    expect(body.tax).toMatchObject({cst: '000', class_trib: '000001', cbs_rate: '0.9'});
+    expect(body.tax).toMatchObject({class_trib: '000001'});
+    expect('cst' in body.tax).toBe(false);
     expect('icms' in body).toBe(false);
   });
 

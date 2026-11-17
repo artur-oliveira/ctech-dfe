@@ -874,8 +874,13 @@ unitários e de integração local. Não anunciar na landing até homologar.
 - **Emissão** (`services/bpes/`): três DTOs (`BpeEmitBody`, `BpeTMEmitBody`, `BpeTAEmitBody`) sobre um fluxo único (`emission`).
   O servidor monta o documento: chave de 44 posições, `vBP` = soma dos componentes, `vPgto` = `vBP` menos desconto, `vTroco`,
   ICMS com base `vPgto` (comum). TM: total = soma dos itens, base do ICMS = valor do item, sem QR Code, `idEqpCont` e `nViagem`
-  assumem a posição. TA: imposto é IBS/CBS (sem ICMS), base = valor pago, `vTotDFe` = valor pago, só compra normal
-  (`tpCompra` 0). Portão `prevalidate.go` (regras do MOC que só precisam do documento) antes de reservar número e cota.
+  assumem a posição. TA: imposto é IBS/CBS (sem ICMS), só compra normal (`tpCompra` 0). O corpo escolhe a
+  classificação tributária (`tax.class_trib`, uma das oito com `indBPeTA` na tabela do IT 2025.002 RT v1.71, em
+  `go-dfe/validate/tables/ibscbs.json`); o CST sai da tabela e os grupos exigidos ou vedados saem dos indicadores do CST e da
+  classificação (doação, estorno de crédito, redução `gRed`, diferimento, tributação regular). Base = valor pago; as
+  alíquotas de 2026 a 2028 (IBS) e de 2026 (CBS) são as da LC 214/25 e o servidor as aplica (informá-las é 400; a CBS de 2027 e o IBS
+  de 2029 em diante vêm do corpo); `vTotDFe` = `vBP` em 2026 e `vBP` + IBS + CBS de 2027 em diante (F140). Compra governamental
+  (`tax.government`) vai em `ide/gCompraGov` com `gTribCompraGov`, e as alíquotas zeram conforme o ente (F139). Portão `prevalidate.go` (regras do MOC que só precisam do documento) antes de reservar número e cota.
   Cota pelo medidor `bpe` (`MeterBPe`, sob demanda, sem limite próprio; plano sem `quota_bpe` recebe 402).
 - **Eventos permitidos** por variante em `eventAllowed` (MOC I20a a I20c): excesso de bagagem não vale para TM nem TA;
   fornecimento não realizado só TA.
@@ -883,7 +888,7 @@ unitários e de integração local. Não anunciar na landing até homologar.
   guardado e retransmissão pelo `contingency-index`.
 - **go-dfe:** `DocTypeBPE`; serviços de recepção (normal, TM e TA), evento, consulta e status; autorizadores SVRS, MG, MS, MT, PR
   e SP (o TA só SVRS). Schemas vendorizados em `go-dfe/schemas/bpe` (NT 2026.005, `SHA256SUMS`), 22 regras do MOC em
-  `validate/rules_bpe.go` (famílias `bpe`, `bpetm`, `bpeta`).
+  `validate/rules_bpe.go` (famílias `bpe`, `bpetm`, `bpeta`) mais as de IBS/CBS do TA (F76 a F140) em `validate/rules_bpe_ibscbs.go`.
 - **Worker:** Lambdas `bpe-emission` (três serviços SEFAZ) e `bpe-event`. Tabelas: `organization_bpe_configs`, `bpes`,
   `bpe_events` (ver `DynamoDB-Tables.md`).
 - **Webhooks e erasure:** `document_type` `bpe`; as três tabelas entram no catálogo de erasure.

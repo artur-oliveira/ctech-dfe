@@ -613,14 +613,70 @@ components:
               value: { type: string }
         tax:
           type: object
-          required: [ cst, class_trib ]
+          description: |
+            IBS e CBS do TA. `class_trib` é um cClassTrib da tabela do IT 2025.002 RT v1.71 com `indBPeTA` (oito classificações:
+            000001, 200050, 222001, 410001, 410003, 410004, 410026 e 410999); o CST sai da linha da tabela e os grupos exigidos ou
+            vedados saem dos indicadores do CST e da classificação. As alíquotas de 2026 a 2028 (IBS) e de 2026 (CBS) são as da
+            lei e o servidor as aplica; informá-las onde a lei já as fixa é 400, e omiti-las onde ainda não existem também.
+            Base de cálculo = valor pago. `vTotDFe` = valor do bilhete (2026) ou valor do bilhete + IBS + CBS (2027 em diante).
+          required: [ class_trib ]
           properties:
-            cst: { type: string, pattern: '^[0-9]{3}$' }
             class_trib: { type: string, pattern: '^[0-9]{6}$' }
-            donation: { type: boolean }
-            ibs_uf_rate: { type: string, description: Alíquota em %. }
-            ibs_mun_rate: { type: string }
-            cbs_rate: { type: string }
+            donation: { type: boolean, description: '`indDoacao`: a classificação exige, veda ou admite.' }
+            ibs_uf_rate: { type: string, description: 'Alíquota em %, só a partir de 2029.' }
+            ibs_mun_rate: { type: string, description: 'Alíquota em %, só a partir de 2029.' }
+            cbs_rate: { type: string, description: 'Alíquota em %, só a partir de 2027.' }
+            deferral:
+              type: object
+              description: Percentuais de diferimento (`pDif`); só com CST que exige diferimento (nenhuma classificação do TA na tabela v1.71).
+              properties:
+                ibs_uf: { type: string }
+                ibs_mun: { type: string }
+                cbs: { type: string }
+            devolution:
+              type: object
+              description: Valores devolvidos (`vDevTrib`), abatidos do tributo.
+              properties:
+                ibs_uf: { type: string }
+                ibs_mun: { type: string }
+                cbs: { type: string }
+            regular:
+              type: object
+              description: Tributação regular (`gTribRegular`); só nas classificações que a exigem (nenhuma do TA na tabela v1.71).
+              required: [ cst, class_trib, ibs_uf_rate, ibs_mun_rate, cbs_rate ]
+              properties:
+                cst: { type: string, pattern: '^[0-9]{3}$' }
+                class_trib: { type: string, pattern: '^[0-9]{6}$' }
+                ibs_uf_rate: { type: string }
+                ibs_mun_rate: { type: string }
+                cbs_rate: { type: string }
+            government:
+              type: object
+              description: Compra governamental (`ide/gCompraGov` e `gTribCompraGov`).
+              required: [ entity, reducer, operation ]
+              properties:
+                entity: { type: string, enum: [ '1', '2', '3', '4', '5', '6' ], description: '`tpEnteGov`: 1 União, 2 Estados, 3 Distrito Federal, 4 Municípios, 5 consórcio público, 6 Comitê Gestor do IBS.' }
+                reducer: { type: string, description: 'Redutor `pRedutor`, em %.' }
+                operation: { type: string, enum: [ '1', '2', '3', '4' ], description: '`tpOperGov`; com 2 vai uma chave referenciada, com 3 uma ou mais, com 1 e 4 nenhuma.' }
+                references:
+                  type: array
+                  maxItems: 99
+                  items: { type: string, pattern: '^[0-9]{6}[A-Z0-9]{12}[0-9]{26}$' }
+            credit_reversal:
+              type: object
+              description: Estorno de crédito (`gEstornoCred`), exigido por classificações como a 410026 e vedado nas demais.
+              required: [ ibs, cbs ]
+              properties:
+                ibs: { type: string }
+                cbs: { type: string }
+            simples:
+              type: object
+              description: Composição do IBS e da CBS do optante do Simples Nacional (`gTribSN`), alíquotas efetivas sobre o valor pago.
+              properties:
+                ibs_rate: { type: string }
+                cbs_rate: { type: string }
+            total_taxes: { type: string, description: '`vTotTrib`.' }
+            fiscal_info: { type: string, minLength: 1, maxLength: 2000, description: '`infAdFisco`.' }
         iata_number: { type: string, minLength: 1, maxLength: 20 }
         additional_info: { type: string, maxLength: 5000 }
         authorized_xml:

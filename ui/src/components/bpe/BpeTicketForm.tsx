@@ -15,6 +15,7 @@ import {bpeTicketSchema, emptyBpeTicket, emptyBpeTrip, toBpeTicketBody, type Bpe
 import {
   BPE_ACCOMMODATIONS, BPE_BUYER_DOC_KINDS, BPE_COMPONENT_TYPES, BPE_COMPONENTS_MAX, BPE_DISCOUNT_TYPES, BPE_DOC_TYPES, BPE_ICMS_OPTIONS, BPE_ICMS_WITH_RATE,
   BPE_LEG_TYPES, BPE_MODALS, BPE_PAYMENT_OTHER, BPE_PAYMENT_TYPES, BPE_PAYMENTS_MAX, BPE_PRESENCE, BPE_SERVICE_TYPES,
+  BPE_CBS_RATE_FROM_YEAR, BPE_GOV_ENTITIES, BPE_GOV_OPERATIONS, BPE_IBS_RATE_FROM_YEAR, BPE_TA_CLASSES, BPE_TA_NO_TAX_CST,
   BPE_TA_ACCOMMODATIONS, BPE_TA_COMPONENT_TYPES, BPE_TA_DISCOUNT_TYPES, BPE_TA_SERVICE_TYPES, BPE_TA_TRIP_TYPES, BPE_TRIP_TYPES, BPE_TRIPS_MAX,
 } from '@/lib/constants/bpe';
 import {MunicipalityField} from '@/components/ui/municipality-field';
@@ -59,6 +60,9 @@ export function BpeTicketForm({variant}: { variant: 'normal' | 'ta' }) {
   }, onInvalid);
 
   const hasDiscount = Number(values.discount) > 0;
+  const year = new Date().getFullYear();
+  const taClass = BPE_TA_CLASSES.find((c) => c.value === values.tax.class_trib);
+  const taTaxed = taClass !== undefined && taClass.cst !== BPE_TA_NO_TAX_CST;
   const total = estimate(values);
 
   return (
@@ -213,20 +217,69 @@ export function BpeTicketForm({variant}: { variant: 'normal' | 'ta' }) {
           {ta ? (
             <>
               <div className={GRID}>
-                {text('tax.cst', 'CST do IBS e CBS (3 dígitos)', {inputMode: 'numeric', maxLength: 3})}
-                {text('tax.class_trib', 'Classificação tributária (6 dígitos)', {inputMode: 'numeric', maxLength: 6})}
-                {text('tax.ibs_uf_rate', 'Alíquota do IBS da UF (%)', {inputMode: 'decimal'})}
-                {text('tax.ibs_mun_rate', 'Alíquota do IBS do município (%)', {inputMode: 'decimal'})}
-                {text('tax.cbs_rate', 'Alíquota da CBS (%)', {inputMode: 'decimal'})}
+                {select('tax.class_trib', 'Classificação tributária', BPE_TA_CLASSES, 'sm:col-span-2 lg:col-span-3')}
                 {text('iata_number', 'Número do bilhete na IATA')}
+                {taTaxed && year >= BPE_IBS_RATE_FROM_YEAR && text('tax.ibs_uf_rate', 'Alíquota do IBS da UF (%)', {inputMode: 'decimal'})}
+                {taTaxed && year >= BPE_IBS_RATE_FROM_YEAR && text('tax.ibs_mun_rate', 'Alíquota do IBS do município (%)', {inputMode: 'decimal'})}
+                {taTaxed && year >= BPE_CBS_RATE_FROM_YEAR && text('tax.cbs_rate', 'Alíquota da CBS (%)', {inputMode: 'decimal'})}
+                {text('tax.total_taxes', 'Total aproximado de tributos (R$)', {inputMode: 'decimal'})}
               </div>
-              <FormField control={form.control} name="tax.donation" render={({field}) => (
+              {taClass && taClass.donation !== 0 && (
+                <FormField control={form.control} name="tax.donation" render={({field}) => (
+                  <label className="flex items-center gap-2 text-sm text-gray-700">
+                    <input type="checkbox" checked={field.value} onChange={(e) => field.onChange(e.target.checked)}/>
+                    Operação de doação{taClass.donation === 1 ? ' (obrigatório nesta classificação)' : ''}
+                  </label>
+                )}/>
+              )}
+              {taClass?.reversal && (
+                <div className={GRID}>
+                  {text('tax.reversal.ibs', 'IBS estornado (R$)', {inputMode: 'decimal'})}
+                  {text('tax.reversal.cbs', 'CBS estornada (R$)', {inputMode: 'decimal'})}
+                </div>
+              )}
+              {taTaxed && (
+                <>
+                  <FormField control={form.control} name="tax.government.enabled" render={({field}) => (
+                    <label className="flex items-center gap-2 text-sm text-gray-700">
+                      <input type="checkbox" checked={field.value} onChange={(e) => field.onChange(e.target.checked)}/>
+                      Compra governamental
+                    </label>
+                  )}/>
+                  {values.tax.government.enabled && (
+                    <div className={SUBCARD}>
+                      <div className={GRID}>
+                        {select('tax.government.entity', 'Ente comprador', BPE_GOV_ENTITIES)}
+                        {select('tax.government.operation', 'Tipo da operação', BPE_GOV_OPERATIONS, 'sm:col-span-2')}
+                        {text('tax.government.reducer', 'Redutor da compra governamental (%)', {inputMode: 'decimal'})}
+                      </div>
+                      {['2', '3'].includes(values.tax.government.operation) && text('tax.government.references', 'Chave de acesso do DFe anterior (uma por linha ou separadas por espaço)')}
+                    </div>
+                  )}
+                  <div className={GRID}>
+                    {text('tax.devolution.ibs_uf', 'Devolução de IBS da UF (R$)', {inputMode: 'decimal'})}
+                    {text('tax.devolution.ibs_mun', 'Devolução de IBS do município (R$)', {inputMode: 'decimal'})}
+                    {text('tax.devolution.cbs', 'Devolução de CBS (R$)', {inputMode: 'decimal'})}
+                  </div>
+                </>
+              )}
+              <FormField control={form.control} name="tax.simples.enabled" render={({field}) => (
                 <label className="flex items-center gap-2 text-sm text-gray-700">
                   <input type="checkbox" checked={field.value} onChange={(e) => field.onChange(e.target.checked)}/>
-                  Operação de doação
+                  Emitente optante do Simples Nacional (grupo de composição do IBS e da CBS)
                 </label>
               )}/>
-              <p className="text-xs text-gray-500">Sem alíquotas, só o CST e a classificação seguem no documento (situações sem tributo). O servidor calcula os valores sobre o total pago.</p>
+              {values.tax.simples.enabled && (
+                <div className={GRID}>
+                  {text('tax.simples.ibs_rate', 'Alíquota efetiva do IBS (%)', {inputMode: 'decimal'})}
+                  {text('tax.simples.cbs_rate', 'Alíquota efetiva da CBS (%)', {inputMode: 'decimal'})}
+                </div>
+              )}
+              {text('tax.fiscal_info', 'Informações adicionais de interesse do Fisco')}
+              <p className="text-xs text-gray-500">
+                A classificação vem da tabela oficial e define o CST. As alíquotas de IBS e CBS fixadas em lei (2026 a 2028 para o IBS e 2026 para a CBS)
+                são aplicadas pelo servidor, sobre o total pago, junto com a redução da classe, o redutor e o valor total do documento.
+              </p>
             </>
           ) : (
             <div className={GRID}>
