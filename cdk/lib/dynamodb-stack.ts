@@ -23,6 +23,7 @@ export type TableName = (
   'cte_configs' |
   'mdfe_configs' |
   'nfcom_configs' |
+  'bpe_configs' |
   'nfse_configs' |
   'services' |
   'tax_profiles' |
@@ -43,6 +44,7 @@ export type TableName = (
   'ctes' |
   'mdfes' |
   'nfcoms' |
+  'bpes' |
   'ciots' |
   'nfses' |
   'nfe_events' |
@@ -50,6 +52,7 @@ export type TableName = (
   'cte_events' |
   'mdfe_events' |
   'nfcom_events' |
+  'bpe_events' |
   'ciot_audit' |
   'nfse_events' |
   'nfe_distributions' |
@@ -758,6 +761,12 @@ export class DynamoDBStack extends cdk.Stack {
     addSweepIndex(nfcomConfigTable);
     this.tables.set('nfcom_configs', nfcomConfigTable);
 
+    // BP-e (modelo 63, com TM e TA): sweep-index so the erasure/backfill readers see the config rows; no
+    // auto-contingency-index (the automatic switch is not offered in v1). On-demand like the other config tables.
+    const bpeConfigTable = getDfeConfigTable(this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'bpe_configs');
+    addSweepIndex(bpeConfigTable);
+    this.tables.set('bpe_configs', bpeConfigTable);
+
     const nfseConfigTable = getDfeConfigTable(this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'nfse_configs');
     addSweepIndex(nfseConfigTable);
     this.tables.set('nfse_configs', nfseConfigTable);
@@ -778,6 +787,9 @@ export class DynamoDBStack extends cdk.Stack {
 
     const nfcomEventsTable = getEventsTable(this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'nfcom_events');
     this.tables.set('nfcom_events', nfcomEventsTable);
+
+    const bpeEventsTable = getEventsTable(this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'bpe_events');
+    this.tables.set('bpe_events', bpeEventsTable);
 
     const nfseEventsTable = getEventsTable(this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'nfse_events');
     this.tables.set('nfse_events', nfseEventsTable);
@@ -803,6 +815,12 @@ export class DynamoDBStack extends cdk.Stack {
     const nfcomsTable = getDfeTable(this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'nfcoms');
     this.tables.set('nfcoms', nfcomsTable);
     addContingencyIndex(nfcomsTable);
+
+    // bpes: same shape as mdfes/nfcoms (number-index-v2, dfe-index) plus the sparse contingency-index for the offline
+    // retransmission. One table for the three variants (comum, TM, TA). Cost: on-demand, one row per ticket, PITR in prod.
+    const bpesTable = getDfeTable(this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'bpes');
+    this.tables.set('bpes', bpesTable);
+    addContingencyIndex(bpesTable);
 
     // ============== CIOT (ANTT) ==============
     // ciots: pk = {env}#{org_pk}, sk = CIOT_{request id}. The 12-char code only exists after the generator runs in

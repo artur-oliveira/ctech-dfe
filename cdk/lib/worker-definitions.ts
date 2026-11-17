@@ -138,6 +138,26 @@ export const WORKERS: WorkerDefinition[] = [
     environment: {},
   },
   {
+    // BP-e (modelo 63) with TM and TA: synchronous SOAP, no batch; one worker for the three reception services. Same
+    // cost profile as the NFCom workers: ~1 invocation per ticket or event, 128 MB arm64, plus the shared keep-warm ping.
+    id: 'bpe-emission',
+    name: 'bpe-emission-worker',
+    timeoutSeconds: 300,
+    memory: 128,
+    dynamoTables: ['bpes'],
+    sefazServices: ['BPeRecepcao', 'BPeRecepcaoTM', 'BPeRecepcaoTA'],
+    environment: {},
+  },
+  {
+    id: 'bpe-event',
+    name: 'bpe-event-worker',
+    timeoutSeconds: SEFAZ_CALL_TIMEOUT_SECONDS,
+    memory: 128,
+    dynamoTables: ['bpes', 'bpe_events'],
+    sefazServices: ['BPeRecepcaoEvento'],
+    environment: {},
+  },
+  {
     // ANTT CIOT (declare, cancel, rectify, close). Cost: ~1 invocation per CIOT operation, 128 MB arm64, plus the
     // 1-minute keep-warm ping shared by every worker; no reserved concurrency.
     id: 'ciot-operation',
@@ -220,7 +240,7 @@ export const WORKERS: WorkerDefinition[] = [
     // worker-stack.ts gives every worker the env vars, S3, egress invoke and results publish.
     // Cost: ~2,900 invocations/month of a 128 MB arm64 function, inside the free tier; no
     // reserved concurrency (it would eat the account's unreserved floor for a rare burst).
-    dynamoTables: ['nfes', 'nfces', 'mdfes', 'ctes', 'nfcoms', 'nfe_events', 'nfce_events', 'cte_events', 'mdfe_events', 'nfcom_events'],
+    dynamoTables: ['nfes', 'nfces', 'mdfes', 'ctes', 'nfcoms', 'bpes', 'nfe_events', 'nfce_events', 'cte_events', 'mdfe_events', 'nfcom_events', 'bpe_events'],
     // Health probe of the automatic contingency (spec 4.1): the dispatcher invokes this worker once per
     // configuration row with the flag on; it reads the company's certificate and identity, calls the status
     // service through the egress and writes the breaker (and the return to normal) on the configuration row.
