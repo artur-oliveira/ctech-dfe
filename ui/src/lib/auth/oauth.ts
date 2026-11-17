@@ -15,6 +15,10 @@ export const DFE_USER_SCOPES = [
   'dfe:mdfes:write',
   'dfe:nfses:read',
   'dfe:nfses:write',
+  'dfe:nfcoms:read',
+  'dfe:nfcoms:write',
+  'dfe:bpes:read',
+  'dfe:bpes:write',
   'dfe:organization_services:read',
   'dfe:organization_services:write',
   'dfe:organization_toll_providers:read',
@@ -33,6 +37,10 @@ export const DFE_USER_SCOPES = [
   'dfe:organization_payment_terminals:write',
   'dfe:organization_products:read',
   'dfe:organization_products:write',
+  'dfe:organization_reference_documents:read',
+  'dfe:organization_reference_documents:write',
+  'dfe:organization_service_locations:read',
+  'dfe:organization_service_locations:write',
   'dfe:organization_vehicles:read',
   'dfe:organization_vehicles:write',
   'dfe:organization_operations:read',
@@ -94,6 +102,27 @@ export async function startOAuthFlow(returnTo = '/'): Promise<void> {
 export function currentReturnTo(): string {
   const {pathname, search} = window.location;
   return pathname === '/callback' ? '/' : `${pathname}${search}`;
+}
+
+/** Trecho do `detail` da API quando o token não traz o escopo da rota. */
+export const INSUFFICIENT_SCOPE_DETAIL = 'escopo do token insuficiente';
+const SCOPE_REAUTH_KEY = 'dfe:scope-reauth';
+
+/**
+ * Um token emitido antes de um escopo entrar em `DFE_USER_SCOPES` (ou de a lista ser corrigida) leva 403 em toda rota
+ * nova, e o refresh devolve o mesmo conjunto. Refaz o login uma vez por conjunto de escopos pedido, para o Account
+ * reemitir o token com a lista atual. A trava fica na aba (sessionStorage): se o Account negar o escopo de verdade, o 403
+ * volta como erro comum em vez de laço de redirecionamentos. Devolve true quando o redirecionamento foi iniciado.
+ */
+export async function reauthForMissingScopes(): Promise<boolean> {
+  try {
+    if (sessionStorage.getItem(SCOPE_REAUTH_KEY) === DFE_OAUTH_SCOPE) return false;
+    sessionStorage.setItem(SCOPE_REAUTH_KEY, DFE_OAUTH_SCOPE);
+  } catch {
+    return false;
+  }
+  await startOAuthFlow(currentReturnTo());
+  return true;
 }
 
 export async function exchangeCode(
