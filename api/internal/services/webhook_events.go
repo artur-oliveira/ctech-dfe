@@ -29,7 +29,7 @@ const WebhookUserAgent = "ctech-dfe-webhooks/1"
 // own credential, so a URL that is wrong leaks an id, never a fiscal document.
 type WebhookDocument struct {
 	ID, AccessKey, Status string
-	// DocumentType says which API to read the document from: nfe, nfce, cte, mdfe, nfcom or nfse.
+	// DocumentType says which API to read the document from: nfe, nfce, cte, mdfe, nfcom, bpe or nfse.
 	DocumentType string
 	// RejectionCode and RejectionMessage are set only for a rejection.
 	RejectionCode, RejectionMessage string

@@ -58,6 +58,24 @@
       "status": "active"
     },
     {
+      "name": "dfe:bpes:read",
+      "descriptions": {
+        "pt-BR": "Consultar BP-e, eventos e configuracoes.",
+        "en": "Read BP-e documents, events, and settings."
+      },
+      "visibility": "public",
+      "status": "active"
+    },
+    {
+      "name": "dfe:bpes:write",
+      "descriptions": {
+        "pt-BR": "Criar e alterar BP-e, eventos e configuracoes.",
+        "en": "Create and change BP-e documents, events, and settings."
+      },
+      "visibility": "public",
+      "status": "active"
+    },
+    {
       "name": "dfe:nfces:read",
       "descriptions": {
         "pt-BR": "Consultar NFC-e, eventos e configuracoes.",

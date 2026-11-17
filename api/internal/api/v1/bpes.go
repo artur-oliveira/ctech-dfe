@@ -1,0 +1,154 @@
+package v1
+
+import (
+	"gopkg.aoctech.app/dfe/api/internal/middleware"
+	"gopkg.aoctech.app/dfe/api/internal/repositories"
+	"gopkg.aoctech.app/dfe/api/internal/services"
+	bpesvc "gopkg.aoctech.app/dfe/api/internal/services/bpes"
+
+	"github.com/gofiber/fiber/v3"
+)
+
+// RegisterBPes mounts all /bpes routes.
+func RegisterBPes(router fiber.Router, svc *bpesvc.BpeService, userSvc *services.UserService, authMw fiber.Handler, perm *middleware.PermChecker) {
+	g := router.Group("/bpes", authMw)
+
+	// POST /bpes: emit a new BPe
+	g.Post("", perm.Require("create.bpes"), func(c fiber.Ctx) error {
+		var body bpesvc.BpeEmitBody
+		if p := bindJSON(c, &body); p != nil {
+			return sendProblem(c, p)
+		}
+		userID, userName := resolveActor(c, userSvc)
+		doc, err := svc.Emit(c.Context(), middleware.GetOrgPK(c), body, userID, userName)
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		m, err := unmarshal(doc)
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		return c.Status(fiber.StatusCreated).JSON(m)
+	})
+
+	// GET /bpes
+	g.Get("", perm.Require("list.bpes"), func(c fiber.Ctx) error {
+		cursor := c.Query("cursor")
+		res, err := svc.ListBPes(c.Context(), middleware.GetOrgPK(c), repositories.NFeListOpts{
+			Limit:    intQuery(c, "limit", 50),
+			StartKey: decodeCursor(cursor),
+			Number:   ptrIntQuery(c, "number"),
+			Year:     ptrIntQuery(c, "year"),
+			Month:    ptrIntQuery(c, "month"),
+			Day:      ptrIntQuery(c, "day"),
+			Sort:     c.Query("sort", "asc"),
+		})
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		return sendPage(c, res, cursor)
+	})
+
+	// GET /bpes/:access_key
+	g.Get("/:access_key", perm.Require("get.bpes"), func(c fiber.Ctx) error {
+		doc, err := svc.GetBPe(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"))
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		if doc == nil {
+			return sendProblem(c, bpesvc.ErrBPeNotFound)
+		}
+		return sendItem(c, doc)
+	})
+
+	// GET /bpes/:access_key/xml
+	g.Get("/:access_key/xml", perm.Require("get.bpes"), func(c fiber.Ctx) error {
+		download, err := svc.GetBPeXML(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"))
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		return c.JSON(download)
+	})
+
+	// POST /bpes/:access_key/cancel
+	g.Post("/:access_key/cancel", perm.Require("delete.bpes"), func(c fiber.Ctx) error {
+		var body CancelEventBody
+		if p := bindJSON(c, &body); p != nil {
+			return sendProblem(c, p)
+		}
+		userID, userName := resolveActor(c, userSvc)
+		doc, err := svc.Cancel(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"), body.Justification, defaultSeq(body.SequenceNumber), userID, userName)
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		return sendItem(c, doc)
+	})
+
+	// POST /bpes/:access_key/no-show: passageiro não embarcou (110115)
+	g.Post("/:access_key/no-show", perm.Require("create.bpe_events"), func(c fiber.Ctx) error {
+		var body CancelEventBody
+		if p := bindJSON(c, &body); p != nil {
+			return sendProblem(c, p)
+		}
+		userID, userName := resolveActor(c, userSvc)
+		doc, err := svc.NoShow(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"), body.Justification, defaultSeq(body.SequenceNumber), userID, userName)
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		return sendItem(c, doc)
+	})
+
+	// POST /bpes/:access_key/seat-change: alteração de poltrona (110116)
+	g.Post("/:access_key/seat-change", perm.Require("create.bpe_events"), func(c fiber.Ctx) error {
+		var body struct {
+			Seat           string `json:"seat" validate:"required,max=3,numeric"`
+			SequenceNumber int    `json:"sequence_number" validate:"omitempty,gte=1"`
+		}
+		if p := bindJSON(c, &body); p != nil {
+			return sendProblem(c, p)
+		}
+		userID, userName := resolveActor(c, userSvc)
+		doc, err := svc.ChangeSeat(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"), body.Seat, defaultSeq(body.SequenceNumber), userID, userName)
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		return sendItem(c, doc)
+	})
+
+	// POST /bpes/:access_key/excess-baggage: excesso de bagagem (110117)
+	g.Post("/:access_key/excess-baggage", perm.Require("create.bpe_events"), func(c fiber.Ctx) error {
+		var body struct {
+			Quantity       string `json:"quantity" validate:"required,min=1,max=20"`
+			Value          string `json:"value" validate:"required"`
+			SequenceNumber int    `json:"sequence_number" validate:"omitempty,gte=1"`
+		}
+		if p := bindJSON(c, &body); p != nil {
+			return sendProblem(c, p)
+		}
+		userID, userName := resolveActor(c, userSvc)
+		doc, err := svc.ExcessBaggage(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"), body.Quantity, body.Value, defaultSeq(body.SequenceNumber), userID, userName)
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		return sendItem(c, doc)
+	})
+
+	// GET /bpes/:access_key/events
+	g.Get("/:access_key/events", perm.Require("get.bpe_events"), func(c fiber.Ctx) error {
+		cursor := c.Query("cursor")
+		res, err := svc.ListBPeEvents(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"), intQuery(c, "limit", 50), decodeCursor(cursor))
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		return sendPage(c, res, cursor)
+	})
+
+	// GET /bpes/:access_key/events/:event_sk/xml
+	g.Get("/:access_key/events/:event_sk/xml", perm.Require("get.bpe_events"), func(c fiber.Ctx) error {
+		download, err := svc.GetEventXML(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"), c.Params("event_sk"))
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		return c.JSON(download)
+	})
+}

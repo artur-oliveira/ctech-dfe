@@ -19,6 +19,10 @@ const (
 	SpecCTe  = "cte"
 	// SpecNFCom é o esquema da NFCom (modelo 62, NT 2026.005); as regras do MOC vêm da família "nfcom".
 	SpecNFCom = "nfcom"
+	// SpecBPe, SpecBPeTM e SpecBPeTA: os esquemas do BP-e e das variantes TM e TA; as regras do MOC vêm das famílias de mesmo nome.
+	SpecBPe   = "bpe"
+	SpecBPeTM = "bpetm"
+	SpecBPeTA = "bpeta"
 )
 
 // Códigos dos 422 do Gate que a UI mapeia, os mesmos em todo documento: problem.code e errors[].code.
@@ -76,10 +80,12 @@ const (
 	KindCTeOS      Kind = "cteos"
 	KindMDFe       Kind = "mdfe"
 	KindNFCom      Kind = "nfcom"
+	KindBPe        Kind = "bpe"
 	KindNFeEvent   Kind = "nfe_event"
 	KindCTeEvent   Kind = "cte_event"
 	KindMDFeEvent  Kind = "mdfe_event"
 	KindNFComEvent Kind = "nfcom_event"
+	KindBPeEvent   Kind = "bpe_event"
 )
 
 // schemaDefaults é a tabela de promoção: o modo de schema de cada tipo quando nenhuma variável de ambiente o
@@ -90,6 +96,7 @@ var schemaDefaults = map[Kind]validate.Mode{
 	KindCTeOS: validate.ModeShadow, KindMDFe: validate.ModeShadow,
 	KindNFeEvent: validate.ModeShadow, KindCTeEvent: validate.ModeShadow, KindMDFeEvent: validate.ModeShadow,
 	KindNFCom: validate.ModeShadow, KindNFComEvent: validate.ModeShadow,
+	KindBPe: validate.ModeShadow, KindBPeEvent: validate.ModeShadow,
 }
 
 // Variáveis de ambiente do interruptor: DFE_GATE_SCHEMA_<TIPO> (por exemplo DFE_GATE_SCHEMA_NFCE) vale para um
@@ -218,6 +225,27 @@ func ShadowNFCom(accessKey string, body map[string]any) {
 		Shadow(SpecNFCom, "nfcom", accessKey, nfcom)
 	}
 }
+
+// GateBPe é o Gate do documento do corpo do builder de qualquer variante do BP-e. variant é "bpe", "bpetm" ou "bpeta": cada
+// uma tem raiz (BPe, BPeTM, BPeTA), esquema e família de regras do MOC próprios.
+func GateBPe(variant string, body map[string]any, block validate.Modes) []validate.Violation {
+	root := bpeRoots[variant]
+	doc, ok := body[root].(map[string]any)
+	if root == "" || !ok {
+		return nil
+	}
+	return Gate(variant, variant, doc, block, SchemaMode(KindBPe))
+}
+
+// ShadowBPe valida o documento do corpo do builder de qualquer variante do BP-e.
+func ShadowBPe(variant, accessKey string, body map[string]any) {
+	root := bpeRoots[variant]
+	if doc, ok := body[root].(map[string]any); ok && root != "" {
+		Shadow(variant, variant, accessKey, doc)
+	}
+}
+
+var bpeRoots = map[string]string{SpecBPe: "BPe", SpecBPeTM: "BPeTM", SpecBPeTA: "BPeTA"}
 
 // GateCTe é o Gate do CTe do corpo do builder: o documento e o conteúdo do modal rodoviário (infModal é xs:any).
 func GateCTe(body map[string]any, block validate.Modes) []validate.Violation {

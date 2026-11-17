@@ -798,7 +798,9 @@ const (
 	MeterMDFe = "mdfe"
 	// MeterNFCom is reserved by NFCom emission. It is sold on demand: a plan without `quota_nfcom` refuses the
 	// emission with 402, like any meter the plan does not grant.
-	MeterNFCom     = "nfcom"
+	MeterNFCom = "nfcom"
+	// MeterBPe is reserved by BP-e emission (all three variants). Sold on demand: a plan without `quota_bpe` is refused.
+	MeterBPe       = "bpe"
 	MeterNFSe      = "nfse"
 	MeterCompanies = "companies"
 )
@@ -807,7 +809,7 @@ const (
 // purpose: it is a current-state count derived by counting rows, not a running
 // total — disabling a company gives the slot back, and a counter would have to
 // be decremented by every path that removes one.
-var DocumentMeters = []string{MeterNFe, MeterNFCe, MeterCTe, MeterMDFe, MeterNFSe, MeterNFCom}
+var DocumentMeters = []string{MeterNFe, MeterNFCe, MeterCTe, MeterMDFe, MeterNFSe, MeterNFCom, MeterBPe}
 
 // MeterForTable maps a document table to the meter its issuance consumes.
 //
@@ -823,6 +825,7 @@ var MeterForTable = map[string]string{
 	"ctes":                  MeterCTe,
 	"mdfes":                 MeterMDFe,
 	"nfcoms":                MeterNFCom,
+	"bpes":                  MeterBPe,
 	repositories.TableNfses: MeterNFSe,
 }
 

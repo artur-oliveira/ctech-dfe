@@ -75,7 +75,7 @@ type fiscalConfigReader interface {
 // map is a document type that never counts toward the quota, which is why the
 // map is built here and not discovered.
 func NewFiscalConfigEnablement(
-	nfe, nfce, cte, mdfe, nfse, nfcom fiscalConfigReader,
+	nfe, nfce, cte, mdfe, nfse, nfcom, bpe fiscalConfigReader,
 ) *FiscalConfigEnablement {
 	return &FiscalConfigEnablement{repos: map[string]fiscalConfigReader{
 		DocTypeNFe:   nfe,
@@ -84,6 +84,7 @@ func NewFiscalConfigEnablement(
 		DocTypeMDFe:  mdfe,
 		DocTypeNfse:  nfse,
 		DocTypeNFCom: nfcom,
+		DocTypeBPe:   bpe,
 	}}
 }
 

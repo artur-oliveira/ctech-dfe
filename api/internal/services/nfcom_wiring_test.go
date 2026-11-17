@@ -30,7 +30,7 @@ func TestNFComEmissionOptions(t *testing.T) {
 }
 
 func TestNFComEnablementKnowsDocType(t *testing.T) {
-	e := NewFiscalConfigEnablement(nil, nil, nil, nil, nil, nil)
+	e := NewFiscalConfigEnablement(nil, nil, nil, nil, nil, nil, nil)
 	if _, ok := e.repos[DocTypeNFCom]; !ok {
 		t.Error("a configuração fiscal da NFCom não conta para a cota de empresas")
 	}

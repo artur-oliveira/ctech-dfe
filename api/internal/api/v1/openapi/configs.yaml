@@ -313,6 +313,56 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '422': { $ref: '#/components/responses/ValidationError' }
 
+  /v1.0/organizations/{org_pk}/bpe-emission:
+    parameters:
+      - $ref: '#/components/parameters/OrgPk'
+    put:
+      tags: [ Fiscal Configs ]
+      summary: Define a forma de emissão corrente do BP-e
+      description: |
+        Tipos válidos: `normal` e `offline` (`tpEmis` 2); sem SVC e sem EPEC. Sair de `normal` exige `justification`
+        (15 a 256 caracteres, vira `xJust`; 422 `emission_reason_required`). A contingência automática não existe para
+        o BP-e na v1: `auto_contingency` é recusado. O `PUT /bpe-config` nunca altera estes campos.
+      operationId: putBpeEmission
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EmissionBody' }
+      responses:
+        '200': { $ref: '#/components/responses/FiscalConfig' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/organizations/{org_pk}/bpe-config:
+    parameters:
+      - $ref: '#/components/parameters/OrgPk'
+    get:
+      tags: [ Fiscal Configs ]
+      summary: Lê a configuração de BP-e
+      operationId: getBpeConfig
+      responses:
+        '200': { $ref: '#/components/responses/FiscalConfig' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [ Fiscal Configs ]
+      summary: Grava a configuração de BP-e
+      operationId: putBpeConfig
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FiscalConfigBody' }
+      responses:
+        '200': { $ref: '#/components/responses/FiscalConfig' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
   /v1.0/organizations/{org_pk}/nfse-config:
     parameters:
       - $ref: '#/components/parameters/OrgPk'

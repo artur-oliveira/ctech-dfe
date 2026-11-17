@@ -33,6 +33,7 @@ var scopeFamilies = map[string][]string{
 	"mdfes":                            {"mdfes", "mdfe_events", "mdfe_distributions", "organization_mdfe_configs", "ciots"},
 	"nfses":                            {"nfses", "nfse_events", "nfse_distributions", "organization_nfse_configs"},
 	"nfcoms":                           {"nfcoms", "nfcom_events", "organization_nfcom_configs"},
+	"bpes":                             {"bpes", "bpe_events", "organization_bpe_configs"},
 	"organization_services":            {"organization_services"},
 	"organization_products":            {"organization_products"},
 	"organization_vehicles":            {"organization_vehicles"},

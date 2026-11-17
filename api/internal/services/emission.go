@@ -46,6 +46,8 @@ var emissionOptions = map[string][]string{
 	ModelMDFe: {repositories.EmissionNormal, repositories.EmissionOffline},
 	// NFCom: offline (2) only; the MOC has no SVC and no EPEC for it.
 	ModelNFCom: {repositories.EmissionNormal, repositories.EmissionOffline},
+	// BP-e: offline (2) only; the MOC has no SVC and no EPEC for it.
+	ModelBPe: {repositories.EmissionNormal, repositories.EmissionOffline},
 }
 
 // EmissionOptions is the emission types valid for a model (nil if none).

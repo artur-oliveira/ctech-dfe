@@ -1,0 +1,424 @@
+paths:
+
+  # ── BP-e ──────────────────────────────────────────────────────────────────
+
+  /v1.0/bpes:
+    post:
+      tags: [ BP-e ]
+      summary: Emite um BP-e (variante comum)
+      description: |
+        Bilhete de Passagem Eletrônico (modelo 63) comum: rodoviário, aquaviário ou ferroviário. As variantes TM
+        (transporte metropolitano) e TA (transporte aéreo) têm leiaute próprio e ainda não estão disponíveis: `variant`
+        diferente de `normal` devolve 400. A autorização é síncrona (`BPeRecepcao`, sem lote) e passa pelo outbox: a
+        resposta é 201 com o bilhete `pending` e o resultado chega por WebSocket e por webhook (`document_type` `bpe`).
+
+        O servidor monta o documento: chave de acesso, `vBP` (soma dos componentes), `vPgto` (`vBP` menos o desconto),
+        `vTroco` (o que os pagamentos passam de `vPgto`) e o ICMS (base = `vPgto`). Antes de reservar número e cota, o
+        documento passa pelo portão do MOC: regra determinística violada (campos de contingência, composição do Id, DV da
+        chave, DV de CPF ou CNPJ) ou schema fora do leiaute é 422 com `code` `fiscal_prevalidation`.
+
+        Na contingência offline (`PUT /bpe-emission`), o bilhete é assinado no egress, o QR Code leva `sign` e o documento
+        fica pendente (`contingency_state=pending`) até o reenvio com a mesma chave.
+
+        Fora desta versão: agência, substituição, IBS/CBS, ICMS 20 e partilha. A emissão é cobrada pelo medidor `bpe`:
+        plano sem `quota_bpe` recebe 402.
+      operationId: emitBpe
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BpeEmitBody' }
+      responses:
+        '201':
+          description: BP-e registrado e enfileirado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BpeDocument' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    get:
+      tags: [ BP-e ]
+      summary: Lista BP-e
+      operationId: listBpes
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/FilterNumber'
+        - $ref: '#/components/parameters/FilterYear'
+        - $ref: '#/components/parameters/FilterMonth'
+        - $ref: '#/components/parameters/FilterDay'
+      responses:
+        '200':
+          description: Página de BP-e
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/BpeDocument' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /v1.0/bpes/{access_key}:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/AccessKey'
+    get:
+      tags: [ BP-e ]
+      summary: Lê um BP-e
+      operationId: getBpe
+      responses:
+        '200':
+          description: O BP-e
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BpeDocument' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1.0/bpes/{access_key}/xml:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/AccessKey'
+    get:
+      tags: [ BP-e ]
+      summary: Baixa o XML autorizado
+      operationId: getBpeXml
+      responses:
+        '200': { $ref: '#/components/responses/XmlDownload' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1.0/bpes/{access_key}/cancel:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/AccessKey'
+    post:
+      tags: [ BP-e ]
+      summary: Cancela um BP-e (evento 110111)
+      description: |
+        `justification` de 15 a 255 caracteres. Os prazos são do autorizador: antes do embarque, e com um evento de não
+        embarque registrado o cancelamento é recusado (rejeição 504); o evento rejeitado devolve o bilhete a `authorized`.
+        Só bilhete `authorized` aceita o evento.
+      operationId: cancelBpe
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CancelEventBody' }
+      responses:
+        '200':
+          description: Evento registrado e enfileirado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BpeDocument' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/bpes/{access_key}/no-show:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/AccessKey'
+    post:
+      tags: [ BP-e ]
+      summary: Registra o não embarque (evento 110115)
+      description: |
+        `justification` de 15 a 255 caracteres. O prazo (até 24 horas depois do embarque) e a exclusão com cancelamento são
+        do autorizador. Não vale para o TM.
+      operationId: noShowBpe
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CancelEventBody' }
+      responses:
+        '200':
+          description: Evento registrado e enfileirado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BpeDocument' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/bpes/{access_key}/seat-change:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/AccessKey'
+    post:
+      tags: [ BP-e ]
+      summary: Altera a poltrona (evento 110116)
+      description: Troca a poltrona sem alterar valor nem data de embarque. Não vale para o TA.
+      operationId: seatChangeBpe
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ seat ]
+              properties:
+                seat: { type: string, maxLength: 3, pattern: '^[0-9]{1,3}$' }
+                sequence_number: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Evento registrado e enfileirado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BpeDocument' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/bpes/{access_key}/excess-baggage:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/AccessKey'
+    post:
+      tags: [ BP-e ]
+      summary: Registra o excesso de bagagem (evento 110117)
+      description: Só vale para o BP-e comum (não para o TM nem para o TA). `quantity` é o texto do leiaute (até 20 caracteres).
+      operationId: excessBaggageBpe
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ quantity, value ]
+              properties:
+                quantity: { type: string, minLength: 1, maxLength: 20 }
+                value: { type: string, description: Valor total cobrado, decimal não negativo. }
+                sequence_number: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Evento registrado e enfileirado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BpeDocument' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/bpes/{access_key}/events:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/AccessKey'
+    get:
+      tags: [ BP-e ]
+      summary: Lista os eventos de um BP-e
+      operationId: listBpeEvents
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Página de eventos
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/DocumentEvent' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1.0/bpes/{access_key}/events/{event_sk}/xml:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/AccessKey'
+      - $ref: '#/components/parameters/EventSk'
+    get:
+      tags: [ BP-e ]
+      summary: Baixa o XML de um evento
+      operationId: getBpeEventXml
+      responses:
+        '200': { $ref: '#/components/responses/XmlDownload' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+components:
+  schemas:
+
+    BpeDocument:
+      allOf:
+        - $ref: '#/components/schemas/FiscalDocument'
+        - type: object
+          properties:
+            variant: { type: string, enum: [ normal, tm, ta ] }
+            modal: { type: string, enum: [ rodoviario, aquaviario, ferroviario ] }
+            passenger_name: { type: string }
+            from_name: { type: string }
+            to_name: { type: string }
+            boarding: { type: string, format: date-time }
+            total: { type: string, description: 'Valor total do bilhete (`vBP`), duas casas.' }
+            trips: { type: integer, description: Quantidade de trechos. }
+
+    BpeEmitBody:
+      type: object
+      required: [ modal, presence, origin, destination, passage, trips, components, payments, icms ]
+      properties:
+        variant: { type: string, enum: [ normal, tm, ta ], description: 'Padrão `normal`; `tm` e `ta` ainda não estão disponíveis.' }
+        modal: { type: string, enum: [ rodoviario, aquaviario, ferroviario ] }
+        presence: { type: string, enum: [ '1', '2', '3', '4', '5', '9' ], description: '`indPres`: 1 presencial, 2 internet, 3 teleatendimento, 4 entrega em domicílio, 5 presencial fora do estabelecimento, 9 outros.' }
+        origin: { $ref: '#/components/schemas/BpePlace' }
+        destination: { $ref: '#/components/schemas/BpePlace' }
+        buyer: { $ref: '#/components/schemas/BpeBuyer' }
+        passage: { $ref: '#/components/schemas/BpePassage' }
+        trips:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items: { $ref: '#/components/schemas/BpeTrip' }
+        components:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items:
+            type: object
+            required: [ type, value ]
+            properties:
+              type: { type: string, enum: [ '01', '02', '03', '04', '05', '06', '99' ], description: '`tpComp`: 01 tarifa, 02 pedágio, 03 taxa de embarque, 04 seguro, 05 TMR, 06 SCT, 99 outros.' }
+              value: { type: string }
+        discount: { type: string, description: Decimal não negativo; com desconto maior que zero o tipo e a descrição são obrigatórios. }
+        discount_type: { type: string, enum: [ '01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13', '99' ] }
+        discount_desc: { type: string, minLength: 2, maxLength: 100 }
+        discount_code: { type: string, maxLength: 20 }
+        payments:
+          type: array
+          minItems: 1
+          maxItems: 10
+          items:
+            type: object
+            required: [ type, value ]
+            properties:
+              type: { type: string, enum: [ '01', '02', '03', '04', '05', '06', '99' ], description: '`tPag`: 01 dinheiro, 02 cheque, 03 cartão de crédito, 04 cartão de débito, 05 vale, 06 PIX, 99 outros.' }
+              desc: { type: string, maxLength: 60 }
+              doc: { type: string, maxLength: 20 }
+              value: { type: string }
+              card:
+                type: object
+                required: [ integration ]
+                properties:
+                  integration: { type: string, enum: [ '1', '2' ] }
+                  cnpj: { type: string }
+                  brand: { type: string, enum: [ '01', '02', '03', '04', '05', '06', '99' ] }
+                  authorization: { type: string, maxLength: 20 }
+        icms:
+          type: object
+          required: [ cst ]
+          properties:
+            cst: { type: string, enum: [ '00', '40', '41', '51', '90', sn ], description: '`sn` é Simples Nacional (CST 90, indSN 1).' }
+            rate: { type: string, description: Alíquota em %; obrigatória em 00 e 90. }
+        additional_info: { type: string, maxLength: 5000 }
+        authorized_xml:
+          type: array
+          maxItems: 10
+          items: { type: string }
+        contingency_reason: { type: string, minLength: 15, maxLength: 256 }
+
+    BpePlace:
+      type: object
+      required: [ uf, ibge_code ]
+      properties:
+        uf: { $ref: '#/components/schemas/Uf' }
+        ibge_code: { type: string, pattern: '^[0-9]{7}$' }
+
+    BpeBuyer:
+      type: object
+      required: [ name, address ]
+      description: Comprador. Informe exatamente um entre `cnpj`, `cpf` e `foreign_id`.
+      properties:
+        name: { type: string, minLength: 2, maxLength: 60 }
+        cnpj: { type: string }
+        cpf: { type: string }
+        foreign_id: { type: string }
+        ie: { type: string, maxLength: 14 }
+        address:
+          type: object
+          required: [ street, number, neighborhood, ibge_code, city, uf ]
+          properties:
+            street: { type: string }
+            number: { type: string }
+            complement: { type: string }
+            neighborhood: { type: string }
+            ibge_code: { type: string, pattern: '^[0-9]{7}$' }
+            city: { type: string }
+            postal_code: { type: string, pattern: '^[0-9]{8}$' }
+            uf: { type: string, description: UF ou EX. }
+            phone: { type: string }
+            email: { type: string, format: email }
+
+    BpePassage:
+      type: object
+      required: [ from_code, from_name, to_code, to_name, boarding, validity ]
+      properties:
+        from_code: { type: string, maxLength: 7 }
+        from_name: { type: string, minLength: 2, maxLength: 60 }
+        to_code: { type: string, maxLength: 7 }
+        to_name: { type: string, minLength: 2, maxLength: 60 }
+        boarding: { type: string, format: date-time, description: Embarque (`dhEmb`), com fuso. }
+        validity: { type: string, format: date-time, description: Validade (`dhValidade`), não anterior ao embarque. }
+        passenger:
+          type: object
+          required: [ name, doc_type, doc_number ]
+          properties:
+            name: { type: string, minLength: 2, maxLength: 60 }
+            cpf: { type: string }
+            doc_type: { type: string, enum: [ '1', '2', '3', '4', '5' ], description: '`tpDoc`: 1 CPF, 2 RG, 3 passaporte, 4 CNH, 5 outros.' }
+            doc_number: { type: string, maxLength: 20 }
+            doc_desc: { type: string, maxLength: 100 }
+            birth: { type: string, format: date }
+            phone: { type: string }
+            email: { type: string, format: email }
+
+    BpeTrip:
+      type: object
+      required: [ route_code, route_name, trip_type, service_type, accommodation, leg_type, departure ]
+      properties:
+        route_code: { type: string, maxLength: 20 }
+        route_name: { type: string, minLength: 2, maxLength: 100 }
+        trip_type: { type: string, enum: [ '00', '01' ], description: '`tpViagem`: 00 convencional, 01 fretamento.' }
+        service_type: { type: string, enum: [ '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11' ], description: '`tpServ`.' }
+        accommodation: { type: string, enum: [ '1', '2', '3', '4', '5' ], description: '`tpAcomodacao`: 1 assento, 2 rede, 3 cabine, 4 outros, 5 ferroviário.' }
+        leg_type: { type: string, enum: [ '1', '2', '3' ], description: '`tpTrecho`: 1 normal, 2 inicial, 3 conexão.' }
+        departure: { type: string, format: date-time }
+        connection: { type: string, format: date-time, description: Só no trecho de conexão (3), e obrigatória nele. }
+        prefix: { type: string, maxLength: 20 }
+        seat: { type: string, maxLength: 3 }
+        platform: { type: string, maxLength: 20 }
+        crossing:
+          type: object
+          required: [ vehicle_type, vehicle_status ]
+          properties:
+            vehicle_type: { type: string, minLength: 2, maxLength: 2 }
+            vehicle_status: { type: string, enum: [ '1', '2', '3' ] }

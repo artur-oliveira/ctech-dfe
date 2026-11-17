@@ -10,6 +10,8 @@ const (
 	DocTypeCTe  = "cte"
 	// DocTypeNFCom is the NFCom (modelo 62); its auxiliary document is the DANFE-COM.
 	DocTypeNFCom = "nfcom"
+	// DocTypeBPe is the BP-e (modelo 63, all variants); its auxiliary document is the DABPE.
+	DocTypeBPe = "bpe"
 
 	modelNFe   = "55"
 	modelNFCe  = "65"
