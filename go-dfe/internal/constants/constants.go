@@ -23,7 +23,9 @@ const (
 	DocTypeMDFE = "mdfe"
 	// DocTypeNFCOM is the NFCom (modelo 62): SOAP síncrono, sem lote, sem inutilização.
 	DocTypeNFCOM = "nfcom"
-	DocTypeNFSE  = "nfse"
+	// DocTypeBPE is the BP-e (modelo 63) with its TM and TA variants: SOAP síncrono, sem lote, sem inutilização.
+	DocTypeBPE  = "bpe"
+	DocTypeNFSE = "nfse"
 	// DocTypeCIOT is the ANTT CIOT (REST+JSON, go-dfe/ciot).
 	DocTypeCIOT = "ciot"
 )
@@ -87,6 +89,7 @@ var DocTypeCode = map[string]string{
 	DocTypeCTE:   "57",
 	DocTypeMDFE:  "58",
 	DocTypeNFCOM: "62",
+	DocTypeBPE:   "63",
 }
 
 // GetDocTypeCode returns the SEFAZ model code for docType, or an error if unknown.
@@ -104,6 +107,7 @@ var SchemaVersion = map[string]string{
 	DocTypeCTE:   "4.00",
 	DocTypeMDFE:  "3.00",
 	DocTypeNFCOM: "1.00",
+	DocTypeBPE:   "1.00",
 }
 
 // SOAPHeaderVersionOverride: some services use a payload schema version
@@ -120,6 +124,7 @@ var DocNamespace = map[string]string{
 	DocTypeCTE:   "http://www.portalfiscal.inf.br/cte",
 	DocTypeMDFE:  "http://www.portalfiscal.inf.br/mdfe",
 	DocTypeNFCOM: "http://www.portalfiscal.inf.br/nfcom",
+	DocTypeBPE:   "http://www.portalfiscal.inf.br/bpe",
 }
 
 // SOAPElementNames names the SOAP header/body/result element per doc_type.
@@ -137,6 +142,8 @@ var SOAPElements = map[string]SOAPElementNames{
 	// NFCom: o client nunca envia cabeçalho SOAP; nomes do corpo e do resultado conforme os relatos de homologação
 	// da SVRS (WSDL não acessível fora da rede autorizada). Confirmar no primeiro teste em homologação.
 	DocTypeNFCOM: {Header: "nfcomCabecMsg", Body: "nfcomDadosMsg", Result: "nfcomResultMsg"},
+	// BP-e: os nomes são os do MOC (NT 2025.002, 2.4: BPeDadosMsg e BPeResultMsg); o client não envia cabeçalho.
+	DocTypeBPE: {Header: "bpeCabecMsg", Body: "BPeDadosMsg", Result: "BPeResultMsg"},
 }
 
 // NFeWSDLService covers both nfe and nfce doc types (nfce reuses NFe's WSDL).
@@ -180,6 +187,16 @@ var NFComWSDLService = map[string]string{
 	"NFComRecepcaoEvento": "NFComRecepcaoEvento",
 }
 
+// BPeWSDLService: serviços do BP-e v1.00. Sem inutilização nem distribuição.
+var BPeWSDLService = map[string]string{
+	"BPeRecepcao":       "BPeRecepcao",
+	"BPeRecepcaoTM":     "BPeRecepcaoTM",
+	"BPeRecepcaoTA":     "BPeRecepcaoTA",
+	"BPeConsulta":       "BPeConsulta",
+	"BPeStatusServico":  "BPeStatusServico",
+	"BPeRecepcaoEvento": "BPeRecepcaoEvento",
+}
+
 // WSDLServiceByDocType resolves the WSDL service name given doc_type+service.
 var WSDLServiceByDocType = map[string]map[string]string{
 	DocTypeNFE:   NFeWSDLService,
@@ -187,6 +204,7 @@ var WSDLServiceByDocType = map[string]map[string]string{
 	DocTypeCTE:   CTeWSDLService,
 	DocTypeMDFE:  MDFeWSDLService,
 	DocTypeNFCOM: NFComWSDLService,
+	DocTypeBPE:   BPeWSDLService,
 }
 
 var NFeWSDLOperation = map[string]string{
@@ -228,6 +246,17 @@ var NFComWSDLOperation = map[string]string{
 	"NFComRecepcaoEvento": "nfcomRecepcaoEvento",
 }
 
+// BPeWSDLOperation: métodos SOAP do MOC e da NT 2025.002 (bpeConsultaBP, bpeStatusServicoBP, bpeRecepcaoEvento,
+// bpeRecepcaoTA lidos nas páginas; bpeRecepcao e bpeRecepcaoTM seguem o mesmo padrão e ficam por confirmar).
+var BPeWSDLOperation = map[string]string{
+	"BPeRecepcao":       "bpeRecepcao",
+	"BPeRecepcaoTM":     "bpeRecepcaoTM",
+	"BPeRecepcaoTA":     "bpeRecepcaoTA",
+	"BPeConsulta":       "bpeConsultaBP",
+	"BPeStatusServico":  "bpeStatusServicoBP",
+	"BPeRecepcaoEvento": "bpeRecepcaoEvento",
+}
+
 // WSDLOperationByDocType resolves the SOAP operation element name given doc_type+service.
 var WSDLOperationByDocType = map[string]map[string]string{
 	DocTypeNFE:   NFeWSDLOperation,
@@ -235,6 +264,7 @@ var WSDLOperationByDocType = map[string]map[string]string{
 	DocTypeCTE:   CTeWSDLOperation,
 	DocTypeMDFE:  MDFeWSDLOperation,
 	DocTypeNFCOM: NFComWSDLOperation,
+	DocTypeBPE:   BPeWSDLOperation,
 }
 
 // SOAPWrappedBodyServices are services that always require a wrapped SOAP
@@ -350,4 +380,5 @@ var SignOnlyBaseService = map[string]string{
 	DocTypeMDFE:  "MDFeRecepcaoSinc",
 	DocTypeCTE:   "CTeRecepcaoSinc",
 	DocTypeNFCOM: "NFComRecepcao",
+	DocTypeBPE:   "BPeRecepcao",
 }

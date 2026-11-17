@@ -369,6 +369,51 @@ export const nfcomsFixture = [
   nfcomList('cancelled', 4, 8, 'Comércio Modelo EPP', '59.90'),
 ];
 
+// ─── BP-e ───────────────────────────────────────────────────────────────────
+
+function bpeList(variant: 'normal' | 'tm' | 'ta', status: string, number: number, day: number, total: string) {
+  const ta = variant === 'ta';
+  const tm = variant === 'tm';
+  return {
+    pk: `${ORG_PK}#bpe#${number}`,
+    sk: accessKey(ORG_PK, '63', 1, number, number * 19),
+    incoming: 0,
+    year: 2026,
+    month: 11,
+    day,
+    status,
+    sefaz_status: status === 'authorized' ? '100' : null,
+    sefaz_motive: null,
+    sefaz_protocol: status === 'authorized' ? `13526000000${String(number).padStart(4, '0')}` : null,
+    emit_cpf_cnpj: ORG_PK,
+    emit_name: 'Empresa Mock LTDA',
+    number,
+    serie: 1,
+    variant,
+    modal: ta ? 'aereo' : 'rodoviario',
+    total,
+    ...(tm
+      ? {competence: '2026-11-01', passengers: '320', groups: 1, items: 2}
+      : {
+        passenger_name: 'Maria Souza',
+        from_name: ta ? 'GRU' : 'São Paulo',
+        to_name: ta ? 'SDU' : 'Rio de Janeiro',
+        boarding: `2026-11-${String(day + 3).padStart(2, '0')}T08:00:00Z`,
+        trips: 1,
+      }),
+    dh_emi: `2026-11-${String(day).padStart(2, '0')}T10:00:00Z`,
+    created_at: `2026-11-${String(day).padStart(2, '0')}T10:00:00Z`,
+  };
+}
+
+export const bpesFixture = [
+  bpeList('normal', 'authorized', 1, 5, '120.00'),
+  bpeList('ta', 'authorized', 2, 6, '480.00'),
+  bpeList('tm', 'authorized', 3, 7, '1360.00'),
+  bpeList('normal', 'pending', 4, 8, '95.50'),
+  bpeList('normal', 'cancelled', 5, 9, '60.00'),
+];
+
 // ─── CT-e ───────────────────────────────────────────────────────────────────
 // Notas recebidas (incoming 1): o fornecedor é o emitente, a organização o destino.
 // Com as emitidas de `nfesFixture`, cobrem os três estados da emissão de CT-e:
@@ -613,6 +658,13 @@ export const mdfeConfigFixture = {
   hom_current_number: 2,
   hom_nsu: 0,
   hom_last_dist_nsu_at: null,
+};
+
+export const bpeConfigFixture = {
+  ...nfeConfigFixture,
+  pk: `${ORG_PK}#bpe-config`,
+  emission_options: ['normal', 'offline'],
+  hom_current_number: 5,
 };
 
 export const nfcomConfigFixture = {
@@ -1059,6 +1111,11 @@ export const nfceEventsFixture = [
 export const mdfeEventsFixture = [
   dfeEvent(mdfesFixture[0].sk, 'emission', 1, 'authorized', '2026-07-01T08:00:00Z'),
   dfeEvent(mdfesFixture[0].sk, '110112', 1, 'success', '2026-07-02T18:40:00Z'),
+];
+
+export const bpeEventsFixture = [
+  dfeEvent(bpesFixture[0].sk, 'emission', 1, 'authorized', '2026-11-05T10:00:00Z'),
+  dfeEvent(bpesFixture[0].sk, '110116', 1, 'success', '2026-11-06T09:00:00Z'),
 ];
 
 export const nfcomEventsFixture = [

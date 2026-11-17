@@ -34,6 +34,7 @@ const TABLE_LABEL: Record<string, string> = {
   ctes: 'CT-e',
   mdfes: 'MDF-e',
   nfcoms: 'NFCom',
+  bpes: 'BP-e',
 };
 
 // Eventos que cancelam o documento (110112 só cancela NF-e/NFC-e; no MDF-e encerra) e carta de correção.
@@ -49,6 +50,7 @@ const DETAIL_ROUTE: Record<string, { path: string; param: string }> = {
   ctes: {path: '/cte/detail', param: 'key'},
   mdfes: {path: '/mdfe/detail', param: 'key'},
   nfcoms: {path: '/nfcom/detail', param: 'key'},
+  bpes: {path: '/bpe/detail', param: 'key'},
 };
 
 export const LABEL_VER_PDF = 'Ver PDF';

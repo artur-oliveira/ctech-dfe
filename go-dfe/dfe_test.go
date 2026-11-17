@@ -72,6 +72,15 @@ func TestImplements(t *testing.T) {
 		{"nfcom", "NFComRecepcaoEvento", true},
 		{"nfcom", "SignOnly", true},
 		{"nfcom", "SignText", true},
+		{"bpe", "BPeRecepcao", true},
+		{"bpe", "BPeRecepcaoTM", true},
+		{"bpe", "BPeRecepcaoTA", true},
+		{"bpe", "BPeConsulta", true},
+		{"bpe", "BPeStatusServico", true},
+		{"bpe", "BPeRecepcaoEvento", true},
+		{"bpe", "SignOnly", true},
+		{"bpe", "SignText", true},
+		{"bpe", "BPeInutilizacao", false},
 		{"nfcom", "NFComInutilizacao", false},
 		{"nfcom", "NFComDistribuicaoDFe", false},
 		{"nfe", "NotAService", false},
@@ -289,6 +298,7 @@ func TestCallSignOnlyMDFeCTe(t *testing.T) {
 		{constants.DocTypeMDFE, "MDFe", "infMDFe", "infMDFeSupl"},
 		{constants.DocTypeCTE, "CTe", "infCte", "infCTeSupl"},
 		{constants.DocTypeNFCOM, "NFCom", "infNFCom", "infNFComSupl"},
+		{constants.DocTypeBPE, "BPe", "infBPe", "infBPeSupl"},
 	}
 	for _, c := range cases {
 		if !Implements(c.docType, constants.ServiceSignText) || !Implements(c.docType, constants.ServiceSignOnly) {

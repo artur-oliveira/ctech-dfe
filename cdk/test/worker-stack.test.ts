@@ -84,6 +84,7 @@ test('every sefaz_service published by the API has a Lambda subscription', () =>
     'CTeRecepcaoSinc', 'CTeRecepcaoOS', 'CTeRecepcaoGTVe', 'CTeRecepcaoSimp', 'CTeRecepcaoEvento',
     'MDFeRecepcaoSinc', 'MDFeRecepcaoEvento',
     'NFComRecepcao', 'NFComRecepcaoEvento',
+    'BPeRecepcao', 'BPeRecepcaoTM', 'BPeRecepcaoTA', 'BPeRecepcaoEvento',
     'NFSeRecepcao', 'NFSeEvento',
   ]) {
     expect(subscribed).toContain(service)

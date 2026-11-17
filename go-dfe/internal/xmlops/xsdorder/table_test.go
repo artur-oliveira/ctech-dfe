@@ -594,7 +594,7 @@ func TestTableKeyCount(t *testing.T) {
 	// (emissão rodoviária, mesma paridade, agora estrita para o CT-e) + 4 dos eventos do CT-e
 	// (evCCeCTe, infCorrecao, evPrestDesacordo, evCancPrestDesacordo) + 10 dos eventos da reforma tributária da NF-e
 	// + 5 dos eventos de entrega do CT-e (evCECTe, evCancCECTe, evIECTe, evCancIECTe, infEntrega) + (detEvento:gCredPresOper e filhos, gImobilizacao, gConsumoComb, gPerecimento, gItemNaoFornecido, gCredito, gPgto, gControleEstoque) + 3 dos eventos de vinculação de pagamento do CT-e (evVincPgto, evVincPgto:pgto, evCancVincPgto) + 17 dos modais do CT-e (aereo, aquav, ferrov, duto, multimodal e subgrupos) + 3 dos eventos da NFCom (eventoNFCom, eventoNFCom:infEvento, evCancNFCom).
-	wantKeys := 351 + len(nfcomGenerated) // 351 à mão (inclui consSitNFCom e consStatServNFCom) + a tabela gerada da NFCom
+	wantKeys := 360 + len(nfcomGenerated) + len(bpeGenerated) + len(bpetmGenerated) + len(bpetaGenerated) // 358 à mão (inclui as consultas da NFCom e os 7 do BP-e) + a tabela gerada da NFCom
 	if got := len(Table); got != wantKeys {
 		t.Errorf("Table has %d keys, want %d", got, wantKeys)
 	}

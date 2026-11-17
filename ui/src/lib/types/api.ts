@@ -2067,6 +2067,145 @@ export interface NfcomEmit {
   contingency_reason?: string
 }
 
+// ── BP-e (modelo 63: comum, TM e TA) ─────────────────────────────────────────
+
+export type BpeStatus = DfeStatus
+
+/** Configuração fiscal do BP-e: a mesma forma da NF-e (séries e numeração por ambiente, certificado). */
+export type BPeConfigOut = NFeConfigOut
+
+export interface BpeListOut extends ContingencyDocFields {
+  pk: string
+  sk: string            // 44-digit chave de acesso
+  incoming: number
+  year: number
+  month: number
+  day: number
+  status: BpeStatus
+  sefaz_status: string | null
+  sefaz_motive: string | null
+  sefaz_protocol?: string | null
+  emit_cpf_cnpj: string
+  emit_name: string
+  number: number
+  serie: number
+  variant: 'normal' | 'tm' | 'ta'
+  modal: string
+  total: string
+  passenger_name?: string
+  from_name?: string
+  to_name?: string
+  boarding?: string
+  trips?: number
+  competence?: string
+  passengers?: string
+  groups?: number
+  items?: number
+  dh_emi: string | null
+  created_at: string
+}
+
+export type BpeDetailOut = BpeListOut
+
+export interface BpePlaceIn {
+  uf: string
+  ibge_code: string
+}
+
+export interface BpeIcmsIn {
+  cst: string
+  rate?: string
+}
+
+export interface BpeTripIn {
+  route_code?: string
+  route_name?: string
+  flight_number?: string
+  carrier?: string
+  from_airport?: string
+  to_airport?: string
+  trip_type: string
+  service_type: string
+  accommodation: string
+  leg_type: string
+  departure: string
+  connection?: string
+  prefix?: string
+  seat?: string
+  platform?: string
+}
+
+interface BpeTicketBase {
+  presence: string
+  origin: BpePlaceIn
+  destination: BpePlaceIn
+  components: { type: string; value: string }[]
+  discount?: string
+  discount_type?: string
+  discount_desc?: string
+  discount_code?: string
+  payments: { type: string; value: string; desc?: string }[]
+  additional_info?: string
+  contingency_reason?: string
+}
+
+export interface BpeNormalEmit extends BpeTicketBase {
+  variant: 'normal'
+  modal: string
+  passage: {
+    from_code: string
+    from_name: string
+    to_code: string
+    to_name: string
+    boarding: string
+    validity: string
+    passenger?: { name: string; doc_type: string; doc_number: string }
+  }
+  trips: BpeTripIn[]
+  icms: BpeIcmsIn
+}
+
+export interface BpeTaEmit extends BpeTicketBase {
+  variant: 'ta'
+  passage: { boarding: string; validity: string; passenger?: { name: string; doc_type: string; doc_number: string } }
+  trips: BpeTripIn[]
+  tax: {
+    cst: string
+    class_trib: string
+    donation?: boolean
+    ibs_uf_rate?: string
+    ibs_mun_rate?: string
+    cbs_rate?: string
+  }
+  iata_number?: string
+}
+
+export interface BpeTmEmit {
+  variant: 'tm'
+  modal: string
+  cfop: string
+  competence: string
+  supply_indicator?: boolean
+  groups: {
+    origin_uf: string
+    dest_uf?: string
+    plate?: string
+    prefix?: string
+    items: {
+      origin_ibge_code: string
+      dest_ibge_code?: string
+      passengers: string
+      value: string
+      components: { name: string; quantity: number }[]
+      icms: BpeIcmsIn
+    }[]
+  }[]
+  additional_info?: string
+  contingency_reason?: string
+}
+
+export type BpeEmit = BpeNormalEmit | BpeTaEmit | BpeTmEmit
+
 export interface MdfeUnloadingOut extends MdfeMunIn {
   access_keys: string[]
 }

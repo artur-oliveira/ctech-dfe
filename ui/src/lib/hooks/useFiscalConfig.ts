@@ -5,7 +5,7 @@ import {apiClient, ApiError} from '@/lib/api/client';
 import {queryKeys} from '@/lib/api/query-keys';
 import {EMISSION_DOCS, type EmissionBody, type EmissionDoc, type EmissionFields, inContingency} from '@/lib/contingency';
 import type {DocVariant} from '@/lib/schemas/fiscal-configs';
-import type {CTeConfigOut, MDFeConfigOut, NFCeConfigOut, NFComConfigOut, NFeConfigOut, NfseConfigOut} from '@/lib/types/api';
+import type {CTeConfigOut, MDFeConfigOut, NFCeConfigOut, BPeConfigOut, NFComConfigOut, NFeConfigOut, NfseConfigOut} from '@/lib/types/api';
 
 type FiscalConfigOut<V extends DocVariant> =
   V extends 'nfe' ? NFeConfigOut :
@@ -13,6 +13,7 @@ type FiscalConfigOut<V extends DocVariant> =
   V extends 'cte' ? CTeConfigOut :
   V extends 'mdfe' ? MDFeConfigOut :
   V extends 'nfcom' ? NFComConfigOut :
+  V extends 'bpe' ? BPeConfigOut :
   NfseConfigOut
 
 function fetchConfig(variant: DocVariant, pk: string) {
@@ -23,6 +24,7 @@ function fetchConfig(variant: DocVariant, pk: string) {
     case 'mdfe': return apiClient.getMDFeConfig(pk);
     case 'nfse': return apiClient.getNfseConfig(pk);
     case 'nfcom': return apiClient.getNFComConfig(pk);
+    case 'bpe': return apiClient.getBPeConfig(pk);
     default: return Promise.reject(new Error(`Unknown variant: ${variant}`));
   }
 }
@@ -35,6 +37,7 @@ function saveConfig(variant: DocVariant, pk: string, data: Record<string, unknow
     case 'mdfe': return apiClient.upsertMDFeConfig(pk, data);
     case 'nfse': return apiClient.upsertNfseConfig(pk, data);
     case 'nfcom': return apiClient.upsertNFComConfig(pk, data);
+    case 'bpe': return apiClient.upsertBPeConfig(pk, data);
     default: return Promise.reject(new Error(`Unknown variant: ${variant}`));
   }
 }
@@ -47,6 +50,7 @@ function configQueryKey(variant: DocVariant, pk: string): readonly string[] {
     case 'mdfe': return queryKeys.mdfeConfig(pk);
     case 'nfse': return queryKeys.nfseConfig(pk);
     case 'nfcom': return queryKeys.nfcomConfig(pk);
+    case 'bpe': return queryKeys.bpeConfig(pk);
     default: throw new Error('Unknown variant: ' + variant);
   }
 }

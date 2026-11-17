@@ -104,6 +104,17 @@ var implemented = map[string]map[string]bool{
 		"NFComRecepcao":           true,
 		"NFComRecepcaoEvento":     true,
 	},
+	// BP-e (modelo 63) com TM e TA: SOAP síncrono; TM e TA só pela SVRS. Sem inutilização nem distribuição.
+	constants.DocTypeBPE: {
+		constants.ServiceSignText: true,
+		constants.ServiceSignOnly: true,
+		"BPeStatusServico":        true,
+		"BPeConsulta":             true,
+		"BPeRecepcao":             true,
+		"BPeRecepcaoTM":           true,
+		"BPeRecepcaoTA":           true,
+		"BPeRecepcaoEvento":       true,
+	},
 	// NFS-e nunca teve cliente anterior, então não existe autoridade contra a
 	// qual rodar shadow-mode nem corpus para o portão de assinatura
 	// byte-idêntica. O portão aplicável é a homologação em produção restrita

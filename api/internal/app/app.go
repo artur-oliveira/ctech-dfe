@@ -31,6 +31,7 @@ import (
 	"gopkg.aoctech.app/dfe/api/internal/consumer"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"
+	bpesvc "gopkg.aoctech.app/dfe/api/internal/services/bpes"
 	ciotsvc "gopkg.aoctech.app/dfe/api/internal/services/ciots"
 	ctesvc "gopkg.aoctech.app/dfe/api/internal/services/ctes"
 	"gopkg.aoctech.app/dfe/api/internal/services/documents"
@@ -90,12 +91,14 @@ var Module = fx.Options(
 		repositories.NewMdfeConfigRepository,
 		repositories.NewNfseConfigRepository,
 		repositories.NewNfcomConfigRepository,
+		repositories.NewBpeConfigRepository,
 		repositories.NewSerieClaimRepository,
 		repositories.NewNfeRepository,
 		repositories.NewNfceRepository,
 		repositories.NewCteRepository,
 		repositories.NewMdfeRepository,
 		repositories.NewNfcomRepository,
+		repositories.NewBpeRepository,
 		repositories.NewCiotRepository,
 		repositories.NewCiotAuditRepository,
 		repositories.NewNfseRepository,
@@ -142,6 +145,7 @@ var Module = fx.Options(
 		services.NewCteConfigService,
 		services.NewMdfeConfigService,
 		services.NewNfcomConfigService,
+		services.NewBpeConfigService,
 		services.NewNfseConfigService,
 		newExternalService,
 		newWorkerService,
@@ -150,6 +154,7 @@ var Module = fx.Options(
 		newNFCeService,
 		newMDFeService,
 		newNFComService,
+		newBPeService,
 		newCTeService,
 		newNfseService,
 		newDistributionService,
@@ -565,6 +570,34 @@ func newNFComService(
 	)
 }
 
+func newBPeService(
+	orgRepo *repositories.OrganizationRepository,
+	certRepo *repositories.CertificateRepository,
+	configRepo *repositories.BpeConfigRepository,
+	bpeRepo *repositories.BpeRepository,
+	clients *awsclient.Clients,
+	workerSvc *services.WorkerService,
+	db *dynamodb.Client,
+	cfg *config.Config,
+	billingSvc *services.BillingService,
+	documentSvc *documents.Service,
+	extSvc *services.ExternalService,
+) *bpesvc.BpeService {
+	eventRepo := repositories.NewDocumentEventRepository(db, cfg, "bpe")
+	return bpesvc.NewBpeService(
+		orgRepo, certRepo, configRepo, bpeRepo, eventRepo,
+		clients, workerSvc, billingSvc, documentSvc, cfg.S3BucketDocuments,
+		bpesvc.TechData{
+			CNPJ:    cfg.TechnicalCNPJ,
+			Name:    cfg.TechnicalName,
+			Email:   cfg.TechnicalEmail,
+			Phone:   cfg.TechnicalPhone,
+			Version: cfg.AppVersion,
+		},
+		extSvc,
+	)
+}
+
 func newCTeService(
 	orgRepo *repositories.OrganizationRepository,
 	certRepo *repositories.CertificateRepository,
@@ -656,6 +689,7 @@ type Services struct {
 	NfceSvc         *nfesvc.NfceService
 	MdfeSvc         *mdfesvc.MdfeService
 	NfcomSvc        *nfcomsvc.NfcomService
+	BpeSvc          *bpesvc.BpeService
 	CiotSvc         *ciotsvc.Service
 	CteSvc          *ctesvc.CteService
 	NfseSvc         *nfsesvc.NfseService
@@ -664,6 +698,7 @@ type Services struct {
 	CteConf         *services.CteConfigService
 	MdfeConf        *services.MdfeConfigService
 	NfcomConf       *services.NfcomConfigService
+	BpeConf         *services.BpeConfigService
 	NfseConf        *services.NfseConfigService
 	SerieClaims     *repositories.SerieClaimRepository
 	ReachSvc        *services.ReachService
@@ -711,6 +746,7 @@ func registerRoutes(app *fiber.App, svcs Services) {
 		NFCe:            svcs.NfceSvc,
 		MDFe:            svcs.MdfeSvc,
 		NFCom:           svcs.NfcomSvc,
+		BPe:             svcs.BpeSvc,
 		CIOT:            svcs.CiotSvc,
 		CTe:             svcs.CteSvc,
 		Nfse:            svcs.NfseSvc,
@@ -719,6 +755,7 @@ func registerRoutes(app *fiber.App, svcs Services) {
 		CteConfig:       svcs.CteConf,
 		MdfeConfig:      svcs.MdfeConf,
 		NfcomConfig:     svcs.NfcomConf,
+		BpeConfig:       svcs.BpeConf,
 		NfseConfig:      svcs.NfseConf,
 		SerieClaims:     svcs.SerieClaims,
 		Reach:           svcs.ReachSvc,
@@ -875,13 +912,14 @@ func newBillingService(
 	mdfe *repositories.MdfeConfigRepository,
 	nfse *repositories.NfseConfigRepository,
 	nfcom *repositories.NfcomConfigRepository,
+	bpe *repositories.BpeConfigRepository,
 	c cache.Backend,
 	roles *services.WorkspaceRoleService,
 ) *services.BillingService {
 	// A nil *WorkspaceRoleService refuses every management attempt (fail
 	// closed); it is passed as a typed nil on purpose, which its methods handle.
 	return services.NewBillingService(repo, client, users, orgs, c).
-		WithEnablement(services.NewFiscalConfigEnablement(nfe, nfce, cte, mdfe, nfse, nfcom)).
+		WithEnablement(services.NewFiscalConfigEnablement(nfe, nfce, cte, mdfe, nfse, nfcom, bpe)).
 		WithWorkspaceRoles(roles)
 }
 
@@ -1080,12 +1118,12 @@ func newAlerts(cfg *config.Config) alerts.Publisher {
 
 func newXMLExportService(
 	nfe *repositories.NfeRepository, nfce *repositories.NfceRepository, cte *repositories.CteRepository,
-	mdfe *repositories.MdfeRepository, nfse *repositories.NfseRepository, nfcom *repositories.NfcomRepository,
+	mdfe *repositories.MdfeRepository, nfse *repositories.NfseRepository, nfcom *repositories.NfcomRepository, bpe *repositories.BpeRepository,
 	db *dynamodb.Client, clients *awsclient.Clients, cfg *config.Config,
 ) *services.XMLExportService {
 	docs := map[string]*repositories.DocumentRepository{
 		"nfe": &nfe.DocumentRepository, "nfce": &nfce.DocumentRepository, "cte": &cte.DocumentRepository,
-		"mdfe": &mdfe.DocumentRepository, "nfse": &nfse.DocumentRepository, "nfcom": &nfcom.DocumentRepository,
+		"mdfe": &mdfe.DocumentRepository, "nfse": &nfse.DocumentRepository, "nfcom": &nfcom.DocumentRepository, "bpe": &bpe.DocumentRepository,
 	}
 	events := make(map[string]*repositories.DocumentEventRepository, len(docs))
 	for docType := range docs {

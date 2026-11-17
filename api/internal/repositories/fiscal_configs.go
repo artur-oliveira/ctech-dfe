@@ -77,6 +77,17 @@ func NewNfcomConfigRepository(db *dynamodb.Client, cfg *config.Config) *NfcomCon
 	}
 }
 
+// BpeConfigRepository — organization_bpe_configs. No NSU cursor: the BP-e has no distribution service.
+type BpeConfigRepository struct {
+	FiscalConfigRepository
+}
+
+func NewBpeConfigRepository(db *dynamodb.Client, cfg *config.Config) *BpeConfigRepository {
+	return &BpeConfigRepository{
+		FiscalConfigRepository: newFiscalConfigBase(db, cfg, "organization_bpe_configs", nil),
+	}
+}
+
 // NfseConfigRepository — organization_nfse_configs.
 // preserve: cursor NSU da distribuição ADN. Os contadores de numeração da
 // DPS/RPS (prod_current_number/hom_current_number) NÃO entram aqui: são

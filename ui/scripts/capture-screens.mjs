@@ -20,7 +20,7 @@ import {mkdir, writeFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
 // As chaves saem das próprias fixtures: se uma mudar, a captura acompanha em vez
 // de apontar para um documento que não existe mais.
-import {ciotsFixture, ctesFixture, mdfesFixture, nfcesFixture, nfcomsFixture, nfesFixture, nfsesFixture} from '../src/lib/mock/fixtures.ts';
+import {bpesFixture, ciotsFixture, ctesFixture, mdfesFixture, nfcesFixture, nfcomsFixture, nfesFixture, nfsesFixture} from '../src/lib/mock/fixtures.ts';
 
 const ORIGIN = process.env.CAPTURE_ORIGIN || 'http://127.0.0.1:3000';
 const OUTPUT_DIR = resolve('public/guide');
@@ -44,6 +44,7 @@ const CTE_COMPLEMENT_KEY = ctesFixture[8].sk;
 const CTE_OS_KEY = ctesFixture[10].sk;
 const NFSE_ID = nfsesFixture[0].sk;
 const NFCOM_KEY = nfcomsFixture[0].sk;
+const BPE_KEY = bpesFixture[0].sk;
 // CIOT: [0] declarado (carga lotação, com aviso ao transportador).
 const CIOT_ID = ciotsFixture[0].id;
 // [5] fracionada em vigor: a retificação abre preenchida e válida, e os passos seguintes ficam alcançáveis.
@@ -340,6 +341,9 @@ const CAPTURES = [
   {slug: 'nfcom-list', route: '/nfcom', waitText: 'Cliente Exemplo LTDA'},
   {slug: 'nfcom-emit', route: '/nfcom/emit', waitText: 'Cliente (destinatário)'},
   {slug: 'nfcom-detail', route: `/nfcom/detail?key=${NFCOM_KEY}`, waitText: 'Cliente Exemplo LTDA'},
+  {slug: 'bpe-list', route: '/bpe', waitText: 'São Paulo para Rio de Janeiro'},
+  {slug: 'bpe-emit', route: '/bpe/emit', waitText: 'Tipo de bilhete'},
+  {slug: 'bpe-detail', route: `/bpe/detail?key=${BPE_KEY}`, waitText: 'Maria Souza'},
   {slug: 'nfse-list', route: '/nfse', waitText: 'Cliente Exemplo LTDA'},
   {slug: 'nfse-emit', route: '/nfse/emit', waitText: 'Prévia da DPS'},
   {slug: 'nfse-detail', route: `/nfse/detail?id=${NFSE_ID}`, waitText: 'Empresa Mock LTDA'},

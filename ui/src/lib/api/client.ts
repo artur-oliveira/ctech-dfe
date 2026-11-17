@@ -56,6 +56,10 @@ import type {
   MdfeSituationOut,
   MdfeUnclosedOut,
   NFComConfigOut,
+  BPeConfigOut,
+  BpeDetailOut,
+  BpeEmit,
+  BpeListOut,
   NfcomDetailOut,
   NfcomEmit,
   NfcomListOut,
@@ -864,6 +868,14 @@ class ApiClient {
     return this.put(`/v1.0/organizations/${unformatCpfCnpj(pk)}/nfcom-config`, data);
   }
 
+  async getBPeConfig(pk: string): Promise<BPeConfigOut> {
+    return this.get(`/v1.0/organizations/${unformatCpfCnpj(pk)}/bpe-config`);
+  }
+
+  async upsertBPeConfig(pk: string, data: object): Promise<BPeConfigOut> {
+    return this.put(`/v1.0/organizations/${unformatCpfCnpj(pk)}/bpe-config`, data);
+  }
+
   async getNfseConfig(pk: string): Promise<NfseConfigOut> {
     return this.get(`/v1.0/organizations/${unformatCpfCnpj(pk)}/nfse-config`);
   }
@@ -1210,6 +1222,62 @@ class ApiClient {
 
   async downloadNfcomDanfecom(accessKey: string): Promise<AuxiliaryDocumentDownload> {
     return this.get(`/v1.0/nfcoms/${encodeURIComponent(accessKey)}/danfecom`, auxiliaryDocumentConfig());
+  }
+
+  async getBpes(params?: {
+    limit?: number
+    cursor?: string
+    sort?: 'asc' | 'desc'
+    number?: number
+    year?: number
+    month?: number
+    day?: number
+  }): Promise<PaginatedResponse<BpeListOut>> {
+    return this.get('/v1.0/bpes', {params});
+  }
+
+  async getBpe(accessKey: string): Promise<BpeDetailOut> {
+    return this.get(`/v1.0/bpes/${encodeURIComponent(accessKey)}`);
+  }
+
+  async emitBpe(data: BpeEmit): Promise<BpeDetailOut> {
+    return this.post('/v1.0/bpes', data);
+  }
+
+  async cancelBpe(accessKey: string, justification: string, sequenceNumber = 1): Promise<BpeDetailOut> {
+    return this.post(`/v1.0/bpes/${encodeURIComponent(accessKey)}/cancel`, {justification, sequence_number: sequenceNumber});
+  }
+
+  async bpeNoShow(accessKey: string, justification: string, sequenceNumber = 1): Promise<BpeDetailOut> {
+    return this.post(`/v1.0/bpes/${encodeURIComponent(accessKey)}/no-show`, {justification, sequence_number: sequenceNumber});
+  }
+
+  async bpeSeatChange(accessKey: string, seat: string, sequenceNumber = 1): Promise<BpeDetailOut> {
+    return this.post(`/v1.0/bpes/${encodeURIComponent(accessKey)}/seat-change`, {seat, sequence_number: sequenceNumber});
+  }
+
+  async bpeExcessBaggage(accessKey: string, quantity: string, value: string, sequenceNumber = 1): Promise<BpeDetailOut> {
+    return this.post(`/v1.0/bpes/${encodeURIComponent(accessKey)}/excess-baggage`, {quantity, value, sequence_number: sequenceNumber});
+  }
+
+  async bpeSupplyNotPerformed(accessKey: string, ibsValue: string, cbsValue: string, sequenceNumber = 1): Promise<BpeDetailOut> {
+    return this.post(`/v1.0/bpes/${encodeURIComponent(accessKey)}/supply-not-performed`, {ibs_value: ibsValue, cbs_value: cbsValue, sequence_number: sequenceNumber});
+  }
+
+  async getBpeEvents(accessKey: string): Promise<PaginatedResponse<NfeEventOut>> {
+    return this.get(`/v1.0/bpes/${encodeURIComponent(accessKey)}/events`, {params: {limit: 50}});
+  }
+
+  async downloadBpeXml(accessKey: string): Promise<SignedFileDownload> {
+    return this.get(`/v1.0/bpes/${encodeURIComponent(accessKey)}/xml`);
+  }
+
+  async downloadBpeEventXml(accessKey: string, eventSk: string): Promise<SignedFileDownload> {
+    return this.get(`/v1.0/bpes/${encodeURIComponent(accessKey)}/events/${encodeURIComponent(eventSk)}/xml`);
+  }
+
+  async downloadBpeDabpe(accessKey: string): Promise<AuxiliaryDocumentDownload> {
+    return this.get(`/v1.0/bpes/${encodeURIComponent(accessKey)}/dabpe`, auxiliaryDocumentConfig());
   }
 
   async getMdfes(params?: {

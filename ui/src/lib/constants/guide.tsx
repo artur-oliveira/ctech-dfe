@@ -98,6 +98,17 @@ export const GUIDE_TOPICS: GuideTopic[] = [
     accent: '#e11d48',
   },
   {
+    href: '/guide/bpe',
+    label: 'BP-e',
+    title: 'Emitir BP-e',
+    time: '6 min',
+    description:
+      'Bilhete de passagem eletrônico comum, TM e TA: viagem, valores e pagamento com totais e tributos calculados pelo servidor, DABPE, eventos e cancelamento.',
+    tags: ['Passagem', 'Passageiro', 'TM e TA'],
+    icon: <TruckIcon width={20} height={20}/>,
+    accent: '#0d9488',
+  },
+  {
     href: '/guide/nfse',
     label: 'NFS-e',
     title: 'Emitir NFS-e',

@@ -95,6 +95,15 @@ func NewNfcomRepository(db *dynamodb.Client, cfg *config.Config) *NfcomRepositor
 	return &NfcomRepository{DocumentRepository: DocumentRepository{Base: NewBase(db, cfg, "nfcoms"), db: db}}
 }
 
+// BpeRepository — bpes table (BP-e comum, TM and TA). Same key schema and GSIs as the other DFe tables.
+type BpeRepository struct {
+	DocumentRepository
+}
+
+func NewBpeRepository(db *dynamodb.Client, cfg *config.Config) *BpeRepository {
+	return &BpeRepository{DocumentRepository: DocumentRepository{Base: NewBase(db, cfg, "bpes"), db: db}}
+}
+
 // NFeListOpts mirrors list_nfes parameters in Python NfeRepository.
 type NFeListOpts struct {
 	Limit    int

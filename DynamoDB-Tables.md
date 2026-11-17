@@ -61,6 +61,9 @@ PITR: enabled in production only.
 | 51 | `organization_nfcom_configs` | `{org_pk}`                  | —                                        | `sweep-index`                                      |
 | 52 | `nfcoms`                    | `{env}#{org_pk}`             | `{access_key}`                           | `number-index-v2`, `dfe-index`, `contingency-index` |
 | 53 | `nfcom_events`              | `{access_key}`               | `{ulid}`                                 | `org-event-key-index`                              |
+| 54 | `organization_bpe_configs`  | `{org_pk}`                   | —                                        | `sweep-index`                                      |
+| 55 | `bpes`                      | `{env}#{org_pk}`             | `{access_key}`                           | `number-index-v2`, `dfe-index`, `contingency-index` |
+| 56 | `bpe_events`                | `{access_key}`               | `{ulid}`                                 | `org-event-key-index`                              |
 | 50 | `webhooks`                  | `ORG_{organization_id}`      | `ENDPOINT#…` / `META#counts` / `DELIVERY#…` / `ATTEMPT#…` | `due-index` (sparse)          |
 
 ---
@@ -1201,3 +1204,12 @@ empresa (`sweep-index`, sem `auto-contingency-index`: a troca automática de con
 documento (`nfcoms`, chave de acesso de 44 posições como `sk`, `number-index-v2`, `dfe-index` e o `contingency-index` esparso
 da retransmissão offline) e os eventos (`nfcom_events`: cancelamento 110111 e vinculação de pagamento 110300 e 110301).
 Sem tabela de distribuição: a NFCom não tem serviço de distribuição. On-demand, PITR em prod, chave própria da AWS; sem TTL.
+
+## 54–56. `organization_bpe_configs` / `bpes` / `bpe_events`
+
+BP-e (modelo 63, spec `docs/specs/2026-11-15-bpe-design.md`). Mesma forma da NFCom: configuração fiscal por empresa
+(`sweep-index`, sem `auto-contingency-index`), documento (`bpes`, chave de 44 posições como `sk`, `number-index-v2`, `dfe-index`
+e `contingency-index` esparso da retransmissão offline) e eventos (`bpe_events`: cancelamento 110111, não embarque 110115,
+alteração de poltrona 110116, excesso de bagagem 110117, vinculação de pagamento 110300 e 110301 e fornecimento não
+realizado 112140). Uma tabela só para as três variantes (comum, TM e TA); a variante vai no atributo do documento. Sem
+tabela de distribuição. On-demand, PITR em prod, chave própria da AWS; sem TTL.

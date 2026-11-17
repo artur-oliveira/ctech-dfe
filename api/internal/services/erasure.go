@@ -44,7 +44,7 @@ const (
 
 var (
 	erasureEnvs     = []string{EnvHom, EnvProd}
-	erasureDocTypes = []string{"nfe", "nfce", "cte", "mdfe", "nfse", "nfcom"}
+	erasureDocTypes = []string{"nfe", "nfce", "cte", "mdfe", "nfse", "nfcom", "bpe"}
 	// serieConfigModels are the fiscal configs whose séries are claimed
 	// (NFS-e is municipal and claims none).
 	serieConfigModels = map[string]string{
@@ -53,6 +53,7 @@ var (
 		"organization_cte_configs":   ModelCTe,
 		"organization_mdfe_configs":  ModelMDFe,
 		"organization_nfcom_configs": ModelNFCom,
+		"organization_bpe_configs":   ModelBPe,
 	}
 )
 

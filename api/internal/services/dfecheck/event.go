@@ -20,6 +20,8 @@ const (
 	specEventMDFePrefix  = "evento_mdfe_"
 	specEventNFComEnv    = "evento_nfcom_eventoNFCom"
 	specEventNFComPrefix = "evento_nfcom_"
+	specEventBPeEnv      = "evento_bpe_eventoBPe"
+	specEventBPePrefix   = "evento_bpe_"
 	// Caminhos preenchidos depois, pelo egress (assinatura do evento).
 	signaturePathNFeEvent = "evento/Signature"
 )
@@ -47,13 +49,15 @@ func EventFindings(doc string, body map[string]any) []validate.Violation {
 		det, _ := inf["detEvento"].(map[string]any)
 		tp, _ := inf["tpEvento"].(string)
 		found = append(found, CheckEvent(specEventNFePrefix+tp, det)...)
-	case "cte", "mdfe", "nfcom":
+	case "cte", "mdfe", "nfcom", "bpe":
 		envSpec, prefix, rootKey := specEventCTeEnv, specEventCTePrefix, "eventoCTe"
 		switch doc {
 		case "mdfe":
 			envSpec, prefix, rootKey = specEventMDFeEnv, specEventMDFePrefix, "eventoMDFe"
 		case "nfcom":
 			envSpec, prefix, rootKey = specEventNFComEnv, specEventNFComPrefix, "eventoNFCom"
+		case "bpe":
+			envSpec, prefix, rootKey = specEventBPeEnv, specEventBPePrefix, "eventoBPe"
 		}
 		env, _ := body[rootKey].(map[string]any)
 		found = CheckEvent(envSpec, env)

@@ -58,3 +58,13 @@ func TestTablesCoverNFCom(t *testing.T) {
 	}
 	t.Fatalf("Tables = %v, falta nfcoms", Tables)
 }
+
+// O BP-e emitido em contingência offline (tpEmis 2) é varrido e retransmitido como os demais.
+func TestTablesCoverBPe(t *testing.T) {
+	for _, tb := range Tables {
+		if tb == "bpes" {
+			return
+		}
+	}
+	t.Fatalf("Tables = %v, falta bpes", Tables)
+}

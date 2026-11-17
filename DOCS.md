@@ -846,6 +846,39 @@ certificado e autorizador de teste, só há testes unitários e de integração 
 - **DANFE-COM:** `services/documents/nfcom.go` e `templates/danfecom.html` (A4 retrato, MOC Anexo II).
 - **UI:** `/nfcom`, `/nfcom/emit`, `/nfcom/detail`, aba NFCom em `/fiscal-config`, guia `/guide/nfcom`.
 
+### BP-e (modelo 63, comum, TM e TA): `/v1.0/bpes`
+
+Bilhete de Passagem Eletrônico: comum (rodoviário, aquaviário, ferroviário), TM (transporte metropolitano, `tpBPe` 4, apuração
+por viagem) e TA (aéreo, modal 2, só SVRS). Spec: `docs/specs/2026-11-15-bpe-design.md`; plano: `docs/plans/2026-11-16-bpe.md`.
+**Sem homologação real**: não há contribuinte credenciado para TM e TA e nenhum teste correu contra autorizador; só testes
+unitários e de integração local. Não anunciar na landing até homologar.
+
+- **Rotas** (`api/v1/bpes.go`, spec em `openapi/bpe.yaml`): `POST /bpes` (emite, 201 `pending`; `variant` `normal` padrão, `tm` ou
+  `ta` escolhe o corpo), `GET /bpes`, `GET /bpes/{access_key}`, `/xml`, `/dabpe` (PDF, formato único; o TM não tem DABPE),
+  `POST /{access_key}/cancel` (110111), `/no-show` (110115), `/seat-change` (110116), `/excess-baggage` (110117, só comum),
+  `/supply-not-performed` (112140, só TA), `GET /events` (confere o tenant) e `/events/{event_sk}/xml`. Configuração:
+  `GET|PUT /organizations/{org_pk}/bpe-config` e `PUT /bpe-emission` (`normal` ou `offline`; troca automática recusada com 422).
+  Escopos `dfe:bpes:read` e `dfe:bpes:write`.
+- **Emissão** (`services/bpes/`): três DTOs (`BpeEmitBody`, `BpeTMEmitBody`, `BpeTAEmitBody`) sobre um fluxo único (`emission`).
+  O servidor monta o documento: chave de 44 posições, `vBP` = soma dos componentes, `vPgto` = `vBP` menos desconto, `vTroco`,
+  ICMS com base `vPgto` (comum). TM: total = soma dos itens, base do ICMS = valor do item, sem QR Code, `idEqpCont` e `nViagem`
+  assumem a posição. TA: imposto é IBS/CBS (sem ICMS), base = valor pago, `vTotDFe` = valor pago, só compra normal
+  (`tpCompra` 0). Portão `prevalidate.go` (regras do MOC que só precisam do documento) antes de reservar número e cota.
+  Cota pelo medidor `bpe` (`MeterBPe`, sob demanda, sem limite próprio; plano sem `quota_bpe` recebe 402).
+- **Eventos permitidos** por variante em `eventAllowed` (MOC I20a a I20c): excesso de bagagem não vale para TM nem TA;
+  fornecimento não realizado só TA.
+- **Contingência offline** (`tpEmis` 2): `dhCont` e `xJust`, mesma chave, QR Code com `sign` (TM não tem QR), XML assinado
+  guardado e retransmissão pelo `contingency-index`.
+- **go-dfe:** `DocTypeBPE`; serviços de recepção (normal, TM e TA), evento, consulta e status; autorizadores SVRS, MG, MS, MT, PR
+  e SP (o TA só SVRS). Schemas vendorizados em `go-dfe/schemas/bpe` (NT 2026.005, `SHA256SUMS`), 22 regras do MOC em
+  `validate/rules_bpe.go` (famílias `bpe`, `bpetm`, `bpeta`).
+- **Worker:** Lambdas `bpe-emission` (três serviços SEFAZ) e `bpe-event`. Tabelas: `organization_bpe_configs`, `bpes`,
+  `bpe_events` (ver `DynamoDB-Tables.md`).
+- **Webhooks e erasure:** `document_type` `bpe`; as três tabelas entram no catálogo de erasure.
+- **DABPE:** `services/documents/bpe.go` e `templates/dabpe.html` (A4 retrato, MOC Anexo II); contingência pendente imprime do
+  XML assinado guardado.
+- **UI:** `/bpe`, `/bpe/emit`, `/bpe/detail`, aba BP-e em `/fiscal-config`, guia `/guide/bpe`.
+
 ### Webhooks de saída — `/v1.0/webhooks`
 
 Spec: `docs/specs/2026-11-15-webhooks.md`. O usuário cadastra uma URL; o DF-e confirma que ela responde a um desafio antes de

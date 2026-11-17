@@ -1,6 +1,6 @@
 # Design: BP-e (modelo 63), com TM e TA
 
-Status: proposta, aguardando aprovação. Data: 2026-11-15. Decisão do usuário: v1 cobre BP-e comum, **TM e TA também**.
+Status: implementado em feat/bpe (sem homologação real; ver CONDUCT.md). Data: 2026-11-15. Decisão do usuário: v1 cobre BP-e comum, **TM e TA também**.
 Contexto: `2026-11-15-novos-documentos-svrs.md`. Fazer depois da NFCom; reaproveita o que a NFCom deixar pronto
 (geração SOAP síncrona, QR Code, contingência offline, webhooks).
 

@@ -48,6 +48,8 @@ var (
 	nfseConfigRepo  *repositories.NfseConfigRepository
 	nfcomConfigRepo *repositories.NfcomConfigRepository
 	nfcomRepo       *repositories.NfcomRepository
+	bpeConfigRepo   *repositories.BpeConfigRepository
+	bpeRepo         *repositories.BpeRepository
 	orgSvc          *services.OrganizationService
 	productSvc      *services.ProductService
 	serviceSvc      *services.ServiceService
@@ -69,6 +71,7 @@ var (
 	mdfeConfigSvc   *services.MdfeConfigService
 	nfseConfigSvc   *services.NfseConfigService
 	nfcomConfigSvc  *services.NfcomConfigService
+	bpeConfigSvc    *services.BpeConfigService
 	serviceRepo     *repositories.ServiceRepository
 	taxProfileRepo  *repositories.TaxProfileRepository
 	operationRepo   *repositories.OperationRepository
@@ -130,6 +133,8 @@ func TestMain(m *testing.M) {
 	nfseConfigRepo = repositories.NewNfseConfigRepository(db, cfg)
 	nfcomConfigRepo = repositories.NewNfcomConfigRepository(db, cfg)
 	nfcomRepo = repositories.NewNfcomRepository(db, cfg)
+	bpeConfigRepo = repositories.NewBpeConfigRepository(db, cfg)
+	bpeRepo = repositories.NewBpeRepository(db, cfg)
 
 	// certSvc is Delete-only usable in this harness: Upload needs a real S3
 	// client (no S3 test double exists in this codebase), so it's wired with a
@@ -167,6 +172,7 @@ func TestMain(m *testing.M) {
 	mdfeConfigSvc = services.NewMdfeConfigService(mdfeConfigRepo, auditRepo)
 	nfseConfigSvc = services.NewNfseConfigService(nfseConfigRepo, auditRepo)
 	nfcomConfigSvc = services.NewNfcomConfigService(nfcomConfigRepo, auditRepo)
+	bpeConfigSvc = services.NewBpeConfigService(bpeConfigRepo, auditRepo)
 
 	// NfseService roda inteiro contra o DynamoDB local: BuildOutboxTx só monta
 	// item de transação e PublishWorkerEvent é no-op com topicARN vazio. As

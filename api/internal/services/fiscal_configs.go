@@ -19,6 +19,7 @@ const (
 	cteConfigResourceID   = "cte_config"
 	mdfeConfigResourceID  = "mdfe_config"
 	nfcomConfigResourceID = "nfcom_config"
+	bpeConfigResourceID   = "bpe_config"
 	nfseConfigResourceID  = "nfse_config"
 )
 
@@ -180,6 +181,25 @@ func NewMdfeConfigService(repo *repositories.MdfeConfigRepository, auditRepo *re
 		resourceType: repositories.AuditResourceMdfeConfig, resourceID: mdfeConfigResourceID,
 		notFoundMsg: "mdfe config not found", emissionModel: ModelMDFe,
 	}}
+}
+
+// BpeConfigService wraps BpeConfigRepository.
+type BpeConfigService struct{ fiscalConfigService }
+
+func NewBpeConfigService(repo *repositories.BpeConfigRepository, auditRepo *repositories.AuditLogRepository) *BpeConfigService {
+	return &BpeConfigService{fiscalConfigService{
+		repo: repo, auditRepo: auditRepo,
+		resourceType: repositories.AuditResourceBpeConfig, resourceID: bpeConfigResourceID,
+		notFoundMsg: "bpe config not found", emissionModel: ModelBPe,
+	}}
+}
+
+// SetEmission refuses the automatic switch: the BP-e has none in v1 (no SVC, no breaker, no probe).
+func (s *BpeConfigService) SetEmission(ctx context.Context, orgPK string, u EmissionUpdate) (map[string]types.AttributeValue, error) {
+	if u.Auto {
+		return nil, problem.UnprocessableEntity("a contingência automática não existe para o BP-e").WithCode(CodeAutoContingencyUnsupported)
+	}
+	return s.fiscalConfigService.SetEmission(ctx, orgPK, u)
 }
 
 // NfcomConfigService wraps NfcomConfigRepository.

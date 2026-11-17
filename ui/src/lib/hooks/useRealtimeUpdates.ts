@@ -59,6 +59,7 @@ const DOC_QUERY_KEYS = {
   ctes: queryKeys.ctes,
   nfses: queryKeys.nfses,
   nfcoms: queryKeys.nfcoms,
+  bpes: queryKeys.bpes,
 } as const;
 
 // Inutilização queries are keyed by doc_type ('nfe'/'nfce'), not by the
@@ -76,13 +77,17 @@ const AUXILIARY_PDF: Record<string, (id: string) => Promise<{ url: string }>> = 
   ctes: (id) => apiClient.downloadCteDacte(id),
   mdfes: (id) => apiClient.downloadMdfeDamdfe(id),
   nfcoms: (id) => apiClient.downloadNfcomDanfecom(id),
+  bpes: (id) => apiClient.downloadBpeDabpe(id),
 };
 
 async function openAuxiliaryPdf(tableName: string, id: string): Promise<void> {
   try {
     triggerRemoteDownload((await AUXILIARY_PDF[tableName](id)).url);
   } catch (e) {
-    toast.error(printProblemMessage(e));
+    const message = printProblemMessage(e);
+    // O BP-e TM não tem DABPE (a mensagem de realtime não traz a variante): não é falha para o usuário.
+    if (tableName === 'bpes' && message.includes('não tem DABPE')) return;
+    toast.error(message);
   }
 }
 

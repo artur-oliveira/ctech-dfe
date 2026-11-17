@@ -82,6 +82,8 @@ const (
 	ModelMDFe = "58"
 	// ModelNFCom is the NFCom (nota fiscal fatura de serviço de comunicação), modelo 62.
 	ModelNFCom = "62"
+	// ModelBPe is the BP-e (bilhete de passagem eletrônico), modelo 63; TM and TA share it.
+	ModelBPe = "63"
 )
 
 // go-dfe doc_type values (Request.doc_type).
@@ -91,6 +93,7 @@ const (
 	DocTypeCTe   = "cte"
 	DocTypeMDFe  = "mdfe"
 	DocTypeNFCom = "nfcom"
+	DocTypeBPe   = "bpe"
 	DocTypeNfse  = "nfse"
 )
 

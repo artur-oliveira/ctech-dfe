@@ -17,6 +17,7 @@ const (
 	AccessKeyModCTeOS = "67"
 	AccessKeyModGTVe  = "64"
 	AccessKeyModNFCom = "62"
+	AccessKeyModBPe   = "63"
 )
 
 // accessKeyTpEmis holds, per model, the tpEmis codes (position 35) a key of
@@ -32,6 +33,7 @@ var accessKeyTpEmis = map[string]string{
 	AccessKeyModGTVe:  "12",
 	AccessKeyModMDFe:  "123",
 	AccessKeyModNFCom: "12",
+	AccessKeyModBPe:   "12",
 }
 
 // accessKeyUFCodes is the set of valid IBGE cUF codes, derived once from

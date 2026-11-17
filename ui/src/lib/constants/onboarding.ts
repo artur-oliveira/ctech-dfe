@@ -132,5 +132,6 @@ export const FIRST_ISSUANCE_PATH: Record<DocVariant, string> = {
   mdfe: '/mdfe/emit',
   nfse: '/nfse/emit',
   nfcom: '/nfcom/emit',
+  bpe: '/bpe/emit',
 };
 

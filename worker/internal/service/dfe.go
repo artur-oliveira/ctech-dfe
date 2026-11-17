@@ -447,10 +447,10 @@ func (s *DfeService) handleSefazResponse(ctx context.Context, msg WorkerMessage,
 	var xmlS3Key *string
 	var eventStatus string
 
-	// NFCom autorizada sem protocolo (cStat 100 sem protNFCom) não vale: sem nProt o cancelamento nunca seria possível.
+	// NFCom e BP-e autorizados sem protocolo (cStat 100 sem protNFCom/protBPe) não valem: sem nProt o cancelamento nunca seria possível.
 	// Falha retentável: o documento fica como está e a mensagem volta.
-	if msg.DocType == docTypeNFCom && !isSefazEvent && cStat != nil && authorizedStats[*cStat] && (nProt == nil || *nProt == "") {
-		return fmt.Errorf("NFCom: cStat %s sem protocolo de autorização", *cStat)
+	if (msg.DocType == docTypeNFCom || msg.DocType == docTypeBPe) && !isSefazEvent && cStat != nil && authorizedStats[*cStat] && (nProt == nil || *nProt == "") {
+		return fmt.Errorf("%s: cStat %s sem protocolo de autorização", msg.DocType, *cStat)
 	}
 
 	switch {

@@ -8,7 +8,7 @@ frontend and infra (patterns, resilience, scale, cost). If anything in this file
 wins and this file must be fixed. Install on a new machine:
 `/plugin marketplace add artur-oliveira/ctech-skills` then `/plugin install ctech-skills@ctech-skills`.
 
-Brazilian tax SaaS (NF-e, NFC-e, CT-e, MDF-e, NFS-e, NFCom) — direct SEFAZ communication via SOAP + mTLS (NFS-e: national REST), always through the go-dfe-egress Lambda.
+Brazilian tax SaaS (NF-e, NFC-e, CT-e, MDF-e, NFS-e, NFCom, BP-e) — direct SEFAZ communication via SOAP + mTLS (NFS-e: national REST), always through the go-dfe-egress Lambda.
 
 **Before any task:** Read `OVERVIEW.md`. For cross-project changes also read `CONDUCT.md` and `DOCS.md`.
 
@@ -94,7 +94,7 @@ Every core function must be covered by an integration test in addition to unit t
 | `OVERVIEW.md`        | System architecture + data flow    |
 | `DOCS.md`            | Complete technical reference       |
 | `CONDUCT.md`         | Engineering guidelines             |
-| `DynamoDB-Tables.md` | Schema for all tables (54 in CDK)  |
+| `DynamoDB-Tables.md` | Schema for all tables (57 in CDK)  |
 | `DEPLOYMENT.md`      | Infrastructure deployment guide    |
 | `INTEGRATION.md`     | Frontend-backend integration guide |
 | `THEME.md`           | Color palette and design system    |

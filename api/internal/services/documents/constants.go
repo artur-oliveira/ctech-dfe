@@ -10,6 +10,8 @@ const (
 	DocTypeCTe  = "cte"
 	// DocTypeNFCom is the NFCom (modelo 62); its auxiliary document is the DANFE-COM.
 	DocTypeNFCom = "nfcom"
+	// DocTypeBPe is the BP-e (modelo 63, all variants); its auxiliary document is the DABPE.
+	DocTypeBPe = "bpe"
 
 	modelNFe   = "55"
 	modelNFCe  = "65"
@@ -24,6 +26,7 @@ const (
 	templateDACTE    = "dacte_retrato.html"
 	templateDANFECOM = "danfecom.html"
 	templateDACTEOS  = "dacte_os_retrato.html"
+	templateDABPE    = "dabpe.html"
 
 	// nfseConsultaURL is the national NFS-e lookup page the DANFSe QR code and
 	// footer must print (NT 008 v1.02); the access key is appended verbatim.
@@ -60,6 +63,7 @@ var templateByDocType = map[string]string{
 	DocTypeNFSe:  templateDANFSe,
 	DocTypeCTe:   templateDACTE,
 	DocTypeNFCom: templateDANFECOM,
+	DocTypeBPe:   templateDABPE,
 }
 
 // accessKeyLengthByDocType is the digit count of each document's access key.
@@ -72,6 +76,7 @@ var accessKeyLengthByDocType = map[string]int{
 	DocTypeNFSe:  50,
 	DocTypeCTe:   44,
 	DocTypeNFCom: 44,
+	DocTypeBPe:   44,
 }
 
 // DocumentState is the closed set of fiscal states an auxiliary document can

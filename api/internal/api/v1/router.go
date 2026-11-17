@@ -11,6 +11,7 @@ import (
 	"gopkg.aoctech.app/dfe/api/internal/oauthresource"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"
+	bpesvc "gopkg.aoctech.app/dfe/api/internal/services/bpes"
 	ciotsvc "gopkg.aoctech.app/dfe/api/internal/services/ciots"
 	ctesvc "gopkg.aoctech.app/dfe/api/internal/services/ctes"
 	mdfesvc "gopkg.aoctech.app/dfe/api/internal/services/mdfes"
@@ -49,6 +50,7 @@ type Services struct {
 	NFCe            *nfesvc.NfceService
 	MDFe            *mdfesvc.MdfeService
 	NFCom           *nfcomsvc.NfcomService
+	BPe             *bpesvc.BpeService
 	CIOT            *ciotsvc.Service
 	CTe             *ctesvc.CteService
 	Nfse            *nfsesvc.NfseService
@@ -57,6 +59,7 @@ type Services struct {
 	CteConfig       *services.CteConfigService
 	MdfeConfig      *services.MdfeConfigService
 	NfcomConfig     *services.NfcomConfigService
+	BpeConfig       *services.BpeConfigService
 	NfseConfig      *services.NfseConfigService
 	// SerieClaims enforces ADR 0022's rule that two companies sharing a CNPJ
 	// must not emit on the same série. A repository rather than a service: the
@@ -119,6 +122,7 @@ func Register(app *fiber.App, cacheBackend cache.Backend, cfg *config.Config, ws
 		CteConfig:   svcs.CteConfig,
 		MdfeConfig:  svcs.MdfeConfig,
 		NfcomConfig: svcs.NfcomConfig,
+		BpeConfig:   svcs.BpeConfig,
 		NfseConfig:  svcs.NfseConfig,
 		SerieClaims: svcs.SerieClaims,
 		LinkSvc:     svcs.Link,
@@ -153,6 +157,7 @@ func Register(app *fiber.App, cacheBackend cache.Backend, cfg *config.Config, ws
 	RegisterNFCes(v1, svcs.NFCe, svcs.User, authMw, perm)
 	RegisterMDFes(v1, svcs.MDFe, svcs.User, authMw, perm)
 	RegisterNFComs(v1, svcs.NFCom, svcs.User, authMw, perm)
+	RegisterBPes(v1, svcs.BPe, svcs.User, authMw, perm)
 	RegisterCIOTs(v1, svcs.CIOT, svcs.User, authMw, perm)
 	RegisterCTes(v1, svcs.CTe, svcs.User, authMw, perm)
 	RegisterNfses(v1, svcs.Nfse, svcs.User, authMw, perm)

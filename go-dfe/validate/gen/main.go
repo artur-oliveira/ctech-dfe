@@ -430,6 +430,9 @@ func main() {
 		{"../schemas/cte/PL_CTe_400_NT2026.005_SN_1.00", "CTeOS", "specs/cteos.json"},
 		{"../schemas/cte/PL_CTe_400_NT2026.005_SN_1.00", "CTeSimp", "specs/ctesimp.json"},
 		{"../schemas/nfcom/PL_NFCOM_1.00_NT2026.005_SN_1.00", "NFCom", "specs/nfcom.json"},
+		{"../schemas/bpe/PL_BPe_100b_NT2026.005_SN_1.00", "BPe", "specs/bpe.json"},
+		{"../schemas/bpe/PL_BPe_100b_NT2026.005_SN_1.00", "BPeTM", "specs/bpetm.json"},
+		{"../schemas/bpe/PL_BPe_100b_NT2026.005_SN_1.00", "BPeTA", "specs/bpeta.json"},
 		// Modais: o infModal do documento é xs:any; o conteúdo tem schema próprio.
 		{"../schemas/mdfe/PL_MDFe_300b_NT012025_1.05", "rodo", "specs/mdfe_rodo.json"},
 		{"../schemas/mdfe/PL_MDFe_300b_NT012025_1.05", "aereo", "specs/mdfe_aereo.json"},
@@ -465,12 +468,20 @@ func main() {
 			os.Exit(1)
 		}
 		fmt.Printf("%s: %d nós (%s)\n", t.out, count(root), t.root)
-		if t.root == "NFCom" {
-			// O builder de XML ordena os filhos pela tabela do xsdorder; o documento da NFCom é grande demais
-			// para manter à mão, então a tabela sai do mesmo XSD (chaves com o caminho completo, sem colisão).
-			writeOrderTable(root, "../internal/xmlops/xsdorder/table_nfcom_gen.go", "nfcomGenerated")
+		// O builder de XML ordena os filhos pela tabela do xsdorder; estes documentos são grandes demais para manter
+		// à mão, então a tabela sai do mesmo XSD (chaves com o caminho completo, sem colisão).
+		if gen, ok := orderTables[t.root]; ok {
+			writeOrderTable(root, gen.out, gen.name)
 		}
 	}
+}
+
+// orderTables: raízes cuja ordem de elementos sai do XSD, com o arquivo e a variável gerados.
+var orderTables = map[string]struct{ out, name string }{
+	"NFCom": {"../internal/xmlops/xsdorder/table_nfcom_gen.go", "nfcomGenerated"},
+	"BPe":   {"../internal/xmlops/xsdorder/table_bpe_gen.go", "bpeGenerated"},
+	"BPeTM": {"../internal/xmlops/xsdorder/table_bpetm_gen.go", "bpetmGenerated"},
+	"BPeTA": {"../internal/xmlops/xsdorder/table_bpeta_gen.go", "bpetaGenerated"},
 }
 
 // writeOrderTable grava, para cada nó com 2 ou mais filhos, a ordem do XSD sob a chave "raiz:...:pai:nó".
@@ -562,6 +573,7 @@ var eventPkgs = []struct {
 	{"cte", "../schemas/cte/PL_CTe_400_NT2026.005_SN_1.00", "ev[A-Z]*_v*.xsd", "eventoCTe_v4.00.xsd", "eventoCTe"},
 	{"mdfe", "../schemas/mdfe/PL_MDFe_300b_NT012025_1.05", "ev[A-Z]*_v*.xsd", "eventoMDFe_v3.00.xsd", "eventoMDFe"},
 	{"nfcom", "../schemas/nfcom/PL_NFCOM_1.00_NT2026.005_SN_1.00", "ev[A-Z]*_v*.xsd", "eventoNFCom_v1.00.xsd", "eventoNFCom"},
+	{"bpe", "../schemas/bpe/PL_BPe_100b_NT2026.005_SN_1.00", "ev[A-Z]*_v*.xsd", "eventoBPe_v1.00.xsd", "eventoBPe"},
 }
 
 func genEvents() {

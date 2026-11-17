@@ -111,7 +111,7 @@ func TestTheFallbackCountsOwnedAndIsStricter(t *testing.T) {
 // type this deployment does not wire is a document type nobody can configure,
 // so it cannot be what makes a company enabled.
 func TestANilReaderIsSkipped(t *testing.T) {
-	e := NewFiscalConfigEnablement(nil, nil, nil, nil, nil, nil)
+	e := NewFiscalConfigEnablement(nil, nil, nil, nil, nil, nil, nil)
 	got, err := e.ConfiguredDocTypes(context.Background(), "cmp_1")
 	if err != nil {
 		t.Fatalf("ConfiguredDocTypes: %v", err)
