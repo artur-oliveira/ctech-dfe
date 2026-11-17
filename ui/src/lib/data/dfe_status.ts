@@ -19,6 +19,8 @@ export type DfeStatus =
   | 'failed'
   | 'error'
   | 'cancelled'
+  // BP-e substituído por outro autorizado (worker: StatusSubstituted).
+  | 'substituted'
   | 'closed'
   // Exclusivo de evento SEFAZ (worker: EventStatusSuccess).
   | 'success'
@@ -56,6 +58,7 @@ const STATUS_META: Record<DfeStatus, StatusMeta> = {
   failed: {label: 'Falha', tone: 'danger', motiveTitle: 'Motivo da falha'},
   error: {label: 'Erro', tone: 'danger', motiveTitle: 'Motivo da falha'},
   cancelled: {label: 'Cancelad@', tone: 'neutral'},
+  substituted: {label: 'Substituíd@', tone: 'neutral'},
   closed: {label: 'Encerrad@', tone: 'info'},
   success: {label: 'Registrad@', tone: 'success'},
 };

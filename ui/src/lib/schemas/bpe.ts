@@ -1,14 +1,28 @@
 import {z} from 'zod';
 import {
-  BPE_CBS_RATE_FROM_YEAR, BPE_IBS_RATE_FROM_YEAR, BPE_ICMS_WITH_RATE, BPE_PAYMENT_OTHER, BPE_TA_CLASSES, BPE_TA_NO_TAX_CST,
+  BPE_BOARD_PASS_MAX, BPE_BOARD_PASS_MIN, BPE_CBS_RATE_FROM_YEAR, BPE_IBS_RATE_FROM_YEAR, BPE_ICMS_WITH_RATE, BPE_KEY_PATTERN,
+  BPE_PAYMENT_OTHER, BPE_TA_CLASSES, BPE_TA_NO_TAX_CST,
 } from '@/lib/constants/bpe';
 import {validateCNPJ, validateCPF} from '@/lib/utils/validators';
-import type {BpeBuyerIn, BpeIcmsIn, BpeNormalEmit, BpeTaEmit, BpeTripIn} from '@/lib/types/api';
+import type {BpeAddressIn, BpeAgencyIn, BpeBuyerIn, BpeIcmsIn, BpeNormalEmit, BpeSubstitutionIn, BpeTaEmit, BpeTripIn} from '@/lib/types/api';
 
 const decimal = /^\d+(\.\d+)?$/;
 const blank = (s: string) => s.trim() === '';
 const orUndefined = (s: string): string | undefined => (blank(s) ? undefined : s.trim());
 const optDecimal = (s: string) => blank(s) || decimal.test(s);
+const digits = (s: string) => s.replace(/\D/g, '');
+
+const agencyAddressSchema = z.object({
+  street: z.string(),
+  number: z.string(),
+  neighborhood: z.string(),
+  ibge_code: z.string(),
+  city: z.string(),
+  uf: z.string(),
+  postal_code: z.string(),
+});
+
+const emptyAgencyAddress = (): z.infer<typeof agencyAddressSchema> => ({street: '', number: '', neighborhood: '', ibge_code: '', city: '', uf: '', postal_code: ''});
 
 /**
  * `datetime-local` entrega AAAA-MM-DDThh:mm sem fuso; o leiaute exige o deslocamento (AAAA-MM-DDThh:mm:ss±hh:mm),
@@ -93,12 +107,12 @@ export const bpeTicketSchema = z.object({
     uf: z.string(),
   }),
   trips: z.array(tripSchema).min(1, 'Informe ao menos um trecho').max(20),
-  components: z.array(componentSchema).min(1, 'Informe ao menos um componente').max(20),
+  components: z.array(componentSchema).max(20),
   discount: z.string(),
   discount_type: z.string(),
   discount_desc: z.string().max(100),
   discount_code: z.string().max(20),
-  payments: z.array(paymentSchema).min(1, 'Informe ao menos um pagamento').max(10),
+  payments: z.array(paymentSchema).max(10),
   icms: z.object({cst: z.string(), rate: z.string()}),
   tax: z.object({
     class_trib: z.string(),
@@ -114,11 +128,45 @@ export const bpeTicketSchema = z.object({
     fiscal_info: z.string().max(2000),
   }),
   iata_number: z.string().max(20),
+  purchase_type: z.enum(['normal', 'multiple', 'linked']),
+  multiple_key: z.string(),
+  agency: z.object({enabled: z.boolean(), name: z.string(), cnpj: z.string(), address: agencyAddressSchema}),
+  substitution: z.object({enabled: z.boolean(), original_key: z.string(), type: z.string()}),
+  board_pass: z.string(),
   additional_info: z.string().max(5000),
 }).superRefine((f, ctx) => {
   const issue = (path: (string | number)[], message: string) => ctx.addIssue({code: 'custom', path, message});
   const ta = f.variant === 'ta';
+  const linked = ta && f.purchase_type === 'linked';
+  const multiple = ta && f.purchase_type === 'multiple';
   if (!ta && blank(f.modal)) issue(['modal'], 'Selecione o modal');
+  if (multiple && !f.buyer.enabled) issue(['buyer', 'enabled'], 'O BP-e múltiplo exige o comprador');
+  if (f.agency.enabled) {
+    const a = f.agency;
+    if (a.name.trim().length < 2) issue(['agency', 'name'], 'Informe o nome da agência');
+    if (!validateCNPJ(a.cnpj)) issue(['agency', 'cnpj'], 'CNPJ inválido');
+    const at = (k: string, message: string) => issue(['agency', 'address', k], message);
+    if (a.address.street.trim().length < 2) at('street', 'Informe o logradouro');
+    if (blank(a.address.number)) at('number', 'Informe o número');
+    if (a.address.neighborhood.trim().length < 2) at('neighborhood', 'Informe o bairro');
+    if (!/^\d{7}$/.test(a.address.ibge_code)) at('ibge_code', 'Código IBGE com 7 dígitos');
+    if (a.address.city.trim().length < 2) at('city', 'Informe o município');
+    if (a.address.uf.length !== 2) at('uf', 'Selecione a UF');
+    if (!blank(a.address.postal_code) && digits(a.address.postal_code).length !== 8) at('postal_code', 'CEP com 8 dígitos');
+  }
+  if (f.substitution.enabled) {
+    if (!BPE_KEY_PATTERN.test(f.substitution.original_key.trim().toUpperCase())) issue(['substitution', 'original_key'], 'Chave de acesso com 44 caracteres');
+    if (blank(f.substitution.type)) issue(['substitution', 'type'], 'Selecione o tipo da substituição');
+  }
+  if (!ta && !blank(f.board_pass) && (f.board_pass.length < BPE_BOARD_PASS_MIN || f.board_pass.length > BPE_BOARD_PASS_MAX)) {
+    issue(['board_pass'], `Conteúdo do PDF417 com ${BPE_BOARD_PASS_MIN} a ${BPE_BOARD_PASS_MAX} caracteres`);
+  }
+  if (linked) {
+    if (!BPE_KEY_PATTERN.test(f.multiple_key.trim().toUpperCase())) issue(['multiple_key'], 'Chave de acesso do BP-e múltiplo com 44 caracteres');
+  } else {
+    if (f.components.length < 1) issue(['components'], 'Informe ao menos um componente');
+    if (f.payments.length < 1) issue(['payments'], 'Informe ao menos um pagamento');
+  }
   if (!optDecimal(f.discount)) issue(['discount'], 'Desconto inválido');
   if (Number(f.discount) > 0) {
     if (blank(f.discount_type)) issue(['discount_type'], 'Selecione o tipo do desconto');
@@ -131,6 +179,7 @@ export const bpeTicketSchema = z.object({
   if (f.passage.validity && f.passage.boarding && f.passage.validity < f.passage.boarding) {
     issue(['passage', 'validity'], 'A validade não pode ser anterior ao embarque');
   }
+  if (ta && !multiple && !f.passage.identified) issue(['passage', 'identified'], 'O TA exige a identificação do passageiro');
   if (f.passage.identified) {
     if (f.passage.passenger.name.trim().length < 2) issue(['passage', 'passenger', 'name'], 'Informe o nome do passageiro');
     if (blank(f.passage.passenger.doc_type)) issue(['passage', 'passenger', 'doc_type'], 'Selecione o documento');
@@ -151,7 +200,7 @@ export const bpeTicketSchema = z.object({
     if (b.uf.length !== 2) at('uf', 'Selecione a UF');
     if (!blank(b.postal_code) && b.postal_code.replace(/\D/g, '').length !== 8) at('postal_code', 'CEP com 8 dígitos');
   }
-  if (ta) {
+  if (ta && !linked) {
     const t = f.tax;
     const cls = BPE_TA_CLASSES.find((c) => c.value === t.class_trib);
     if (!cls) issue(['tax', 'class_trib'], 'Selecione a classificação tributária');
@@ -192,7 +241,7 @@ export const bpeTicketSchema = z.object({
         if (!optDecimal(t.simples[k])) issue(['tax', 'simples', k], 'Alíquota inválida');
       });
     }
-  } else {
+  } else if (!ta) {
     if (blank(f.icms.cst)) issue(['icms', 'cst'], 'Selecione o ICMS');
     if (BPE_ICMS_WITH_RATE.includes(f.icms.cst) && !decimal.test(f.icms.rate)) issue(['icms', 'rate'], 'Informe a alíquota do ICMS');
     if (f.passage.from_code.trim().length < 1) issue(['passage', 'from_code'], 'Informe o código do local de origem');
@@ -233,7 +282,7 @@ export function emptyBpeTicket(variant: 'normal' | 'ta' = 'normal'): BpeTicketFo
     origin: {uf: '', ibge_code: ''}, destination: {uf: '', ibge_code: ''},
     passage: {
       from_code: '', from_name: '', to_code: '', to_name: '', boarding: '', validity: '',
-      identified: false, passenger: {name: '', doc_type: '1', doc_number: ''},
+      identified: variant === 'ta', passenger: {name: '', doc_type: '1', doc_number: ''},
     },
     buyer: {
       enabled: false, name: '', doc_kind: 'cpf', document: '', ie: '', street: '', number: '', complement: '',
@@ -251,6 +300,10 @@ export function emptyBpeTicket(variant: 'normal' | 'ta' = 'normal'): BpeTicketFo
       simples: {enabled: false, ibs_rate: '', cbs_rate: ''}, total_taxes: '', fiscal_info: '',
     },
     iata_number: '', additional_info: '',
+    purchase_type: 'normal', multiple_key: '',
+    agency: {enabled: false, name: '', cnpj: '', address: emptyAgencyAddress()},
+    substitution: {enabled: false, original_key: '', type: ''},
+    board_pass: '',
   };
 }
 
@@ -264,7 +317,7 @@ function govRefs(g: BpeTicketForm['tax']['government']): string[] {
   return g.operation === '2' || g.operation === '3' ? govKeys(g.references) : [];
 }
 
-export function toTaTax(t: BpeTicketForm['tax'], year = new Date().getFullYear()): BpeTaEmit['tax'] {
+export function toTaTax(t: BpeTicketForm['tax'], year = new Date().getFullYear()): NonNullable<BpeTaEmit['tax']> {
   const cls = BPE_TA_CLASSES.find((c) => c.value === t.class_trib);
   const taxed = cls !== undefined && cls.cst !== BPE_TA_NO_TAX_CST;
   const dev = t.devolution;
@@ -304,15 +357,31 @@ function toTrip(t: BpeTripForm, ta: boolean): BpeTripIn {
   };
 }
 
+function toAgency(f: BpeTicketForm): BpeAgencyIn | undefined {
+  const a = f.agency;
+  if (!a.enabled) return undefined;
+  const address: BpeAddressIn = {
+    street: a.address.street.trim(), number: a.address.number.trim(), neighborhood: a.address.neighborhood.trim(),
+    ibge_code: a.address.ibge_code, city: a.address.city.trim(), uf: a.address.uf,
+    postal_code: blank(a.address.postal_code) ? undefined : digits(a.address.postal_code),
+  };
+  return {name: a.name.trim(), cnpj: a.cnpj.replace(/[^0-9A-Za-z]/g, '').toUpperCase(), address};
+}
+
+function toSubstitution(f: BpeTicketForm): BpeSubstitutionIn | undefined {
+  const s = f.substitution;
+  return s.enabled ? {original_key: s.original_key.trim().toUpperCase(), type: s.type} : undefined;
+}
+
 /** Corpo de `POST /bpes` do bilhete comum ou do TA (`variant` escolhe o DTO da API). */
 export function toBpeTicketBody(f: BpeTicketForm): BpeNormalEmit | BpeTaEmit {
   const ta = f.variant === 'ta';
   const p = f.passage;
-  const passenger = p.identified
+  const linked = ta && f.purchase_type === 'linked';
+  const passenger = p.identified && !(ta && f.purchase_type === 'multiple')
     ? {name: p.passenger.name.trim(), doc_type: p.passenger.doc_type, doc_number: p.passenger.doc_number.trim()}
     : undefined;
   const hasDiscount = Number(f.discount) > 0;
-  const digits = (s: string) => s.replace(/\D/g, '');
   const bu = f.buyer;
   const buyer: BpeBuyerIn | undefined = bu.enabled
     ? {
@@ -333,12 +402,15 @@ export function toBpeTicketBody(f: BpeTicketForm): BpeNormalEmit | BpeTaEmit {
     origin: f.origin,
     destination: f.destination,
     buyer,
-    components: f.components.map((c) => ({type: c.type, value: c.value})),
-    discount: hasDiscount ? f.discount : undefined,
-    discount_type: hasDiscount ? f.discount_type : undefined,
-    discount_desc: hasDiscount ? f.discount_desc.trim() : undefined,
-    discount_code: hasDiscount && f.discount_type === '99' ? f.discount_code.trim() : undefined,
-    payments: f.payments.map((x) => ({type: x.type, value: x.value, desc: x.type === BPE_PAYMENT_OTHER ? x.desc.trim() : undefined})),
+    agency: toAgency(f),
+    substitution: toSubstitution(f),
+    // O vinculado a múltiplo não leva valores, imposto nem pagamento.
+    components: linked ? undefined : f.components.map((c) => ({type: c.type, value: c.value})),
+    discount: !linked && hasDiscount ? f.discount : undefined,
+    discount_type: !linked && hasDiscount ? f.discount_type : undefined,
+    discount_desc: !linked && hasDiscount ? f.discount_desc.trim() : undefined,
+    discount_code: !linked && hasDiscount && f.discount_type === '99' ? f.discount_code.trim() : undefined,
+    payments: linked ? undefined : f.payments.map((x) => ({type: x.type, value: x.value, desc: x.type === BPE_PAYMENT_OTHER ? x.desc.trim() : undefined})),
     additional_info: orUndefined(f.additional_info),
   };
   const trips = f.trips.map((t) => toTrip(t, ta));
@@ -348,14 +420,16 @@ export function toBpeTicketBody(f: BpeTicketForm): BpeNormalEmit | BpeTaEmit {
     const t = f.tax;
     return {
       ...base, variant: 'ta', trips,
+      purchase_type: f.purchase_type,
+      multiple_key: linked ? f.multiple_key.trim().toUpperCase() : undefined,
       passage: {boarding, validity, passenger},
-      tax: toTaTax(t),
+      tax: linked ? undefined : toTaTax(t),
       iata_number: orUndefined(f.iata_number),
     };
   }
   const icms: BpeIcmsIn = {cst: f.icms.cst, ...(BPE_ICMS_WITH_RATE.includes(f.icms.cst) ? {rate: f.icms.rate} : {})};
   return {
-    ...base, variant: 'normal', modal: f.modal, trips, icms,
+    ...base, variant: 'normal', modal: f.modal, trips, icms, board_pass: orUndefined(f.board_pass),
     passage: {
       from_code: p.from_code.trim(), from_name: p.from_name.trim(),
       to_code: p.to_code.trim(), to_name: p.to_name.trim(), boarding, validity, passenger,

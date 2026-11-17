@@ -39,7 +39,7 @@ const MONTHS = [
 ];
 const CURRENT_YEAR = new Date().getFullYear();
 const YEARS = Array.from({length: 5}, (_, i) => CURRENT_YEAR - i);
-const STATUS_OPTIONS = [{value: '', label: 'Todos'}, ...dfeStatusOptions(NFSE_STATUSES)];
+const STATUS_OPTIONS = [{value: '', label: 'Todos'}, ...dfeStatusOptions([...NFSE_STATUSES, 'substituted'])];
 const PAGE_SIZE = 10;
 const VARIANT_LABEL: Record<string, string> = {normal: 'Comum', tm: 'TM', ta: 'TA'};
 

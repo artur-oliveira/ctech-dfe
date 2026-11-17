@@ -882,6 +882,12 @@ unitários e de integração local. Não anunciar na landing até homologar.
   de 2029 em diante vêm do corpo); `vTotDFe` = `vBP` em 2026 e `vBP` + IBS + CBS de 2027 em diante (F140). Compra governamental
   (`tax.government`) vai em `ide/gCompraGov` com `gTribCompraGov`, e as alíquotas zeram conforme o ente (F139). Portão `prevalidate.go` (regras do MOC que só precisam do documento) antes de reservar número e cota.
   Cota pelo medidor `bpe` (`MeterBPe`, sob demanda, sem limite próprio; plano sem `quota_bpe` recebe 402).
+- **Substituição, agência e compra do TA:** `substitution` (`original_key`, `type`) liga `tpBPe` 3 e `infBPeSub` (comum: tipos
+  1 a 3; TA: 1 a 7 e 9); o original precisa ser da organização, autorizado e da mesma variante (422 nas regras que se provam
+  localmente) e, autorizado o substituto, o worker o marca `substituted`. `agency` monta o grupo `agencia` (Divisão I do
+  DABPE). No comum, `board_pass` vai em `boardPassBPe` e o DABPE o imprime em PDF417 (Divisão IX). No TA, `purchase_type` é
+  `normal` (padrão, exige passageiro), `multiple` (sem passageiro e com comprador) ou `linked` (`multiple_key`, sem valores,
+  imposto nem pagamento: `infBPeVinculado`). Evento 112130 segue fora (NT sem especificação, ver `CONDUCT.md`).
 - **Eventos permitidos** por variante em `eventAllowed` (MOC I20a a I20c): excesso de bagagem não vale para TM nem TA;
   fornecimento não realizado só TA.
 - **Contingência offline** (`tpEmis` 2): `dhCont` e `xJust`, mesma chave, QR Code com `sign` (TM não tem QR), XML assinado

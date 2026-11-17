@@ -200,6 +200,32 @@ export const BPE_EVENT_LABELS: Record<string, string> = {
   '110301': 'Cancelamento da vinculação',
 };
 
+/** tpCompra do TA (purchase_type da API). */
+export const BPE_PURCHASE_TYPES: readonly BpeOption[] = [
+  {value: 'normal', label: 'Compra normal'},
+  {value: 'multiple', label: 'BP-e múltiplo (fretamento)'},
+  {value: 'linked', label: 'Vinculado a um BP-e múltiplo'},
+];
+
+/** tpSub do bilhete comum. */
+export const BPE_SUBSTITUTION_TYPES: readonly BpeOption[] = [
+  {value: '1', label: 'Remarcação'},
+  {value: '2', label: 'Transferência'},
+  {value: '3', label: 'Transferência e remarcação'},
+];
+
+/** tpSub do TA: os do comum e mais os de correção. */
+export const BPE_TA_SUBSTITUTION_TYPES: readonly BpeOption[] = [
+  ...BPE_SUBSTITUTION_TYPES,
+  {value: '4', label: 'Erro de tarifa'},
+  {value: '5', label: 'Erro de tributação'},
+  {value: '6', label: 'Decisão judicial'},
+  {value: '7', label: 'Erro cadastral'},
+  {value: '9', label: 'Outros'},
+];
+
+export const BPE_BOARD_PASS_MIN = 50;
+export const BPE_BOARD_PASS_MAX = 1000;
 export const BPE_JUSTIFICATION_MIN = 15;
 export const BPE_JUSTIFICATION_MAX = 255;
 /** Chave de acesso do BP-e: 44 caracteres alfanuméricos (CNPJ alfanumérico). */
