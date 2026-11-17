@@ -27,6 +27,7 @@ var consultaSpecs = map[string]consultaSpec{
 	docTypeNFCe:  {"NfeConsultaProtocolo", "consSitNFe", "4.00", nsNFe, "chNFe", "protNFe", "retConsSitNFe"},
 	docTypeMDFe:  {"MDFeConsulta", "consSitMDFe", "3.00", nsMDFe, "chMDFe", "protMDFe", "retConsSitMDFe"},
 	docTypeCTe:   {"CTeConsulta", "consSitCTe", "4.00", nsCTe, "chCTe", "protCTe", "retConsSitCTe"},
+	docTypeBPe:   {"BPeConsulta", "consSitBPe", "1.00", nsBPe, "chBPe", "protBPe", "retConsSitBPe"},
 	docTypeNFCom: {"NFComConsulta", "consSitNFCom", "1.00", nsNFCom, "chNFCom", "protNFCom", "retConsSitNFCom"},
 }
 

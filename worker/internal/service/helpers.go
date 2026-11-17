@@ -58,6 +58,8 @@ const (
 	docTypeNFCe = "nfce"
 	// docTypeNFCom: NFCom (modelo 62). Segue o caminho genérico do DfeService (tabela vinda da mensagem).
 	docTypeNFCom = "nfcom"
+	// docTypeBPe: BP-e (modelo 63) e as variantes TM e TA. Segue o caminho genérico do DfeService.
+	docTypeBPe = "bpe"
 
 	cancellationEvent = "110111"
 	// cancellationSubstEvent — NFC-e "Cancelamento por Substituição"; like a

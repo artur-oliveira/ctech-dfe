@@ -47,7 +47,7 @@ const (
 )
 
 // Tables are the document tables the sweep covers, without the table prefix.
-var Tables = []string{"nfes", "nfces", "mdfes", "ctes", "nfcoms"}
+var Tables = []string{"nfes", "nfces", "mdfes", "ctes", "nfcoms", "bpes"}
 
 // Automatic contingency probe (spec 4.1): the sparse index of the fiscal configuration tables that lists the rows
 // with auto_contingency on. Mirrors api/internal/repositories (AttrAutoSweep, AutoSweepIndex).
