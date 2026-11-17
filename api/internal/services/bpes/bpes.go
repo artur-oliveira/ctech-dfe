@@ -33,7 +33,9 @@ const (
 
 	// SEFAZ service names (go-dfe routing).
 	sefazServiceAutorizacao = "BPeRecepcao"
-	sefazServiceEvento      = "BPeRecepcaoEvento"
+	// BPeRecepcaoTM é o serviço de recepção do BP-e TM (só SVRS, GZip+Base64).
+	sefazServiceAutorizacaoTM = "BPeRecepcaoTM"
+	sefazServiceEvento        = "BPeRecepcaoEvento"
 
 	// DynamoDB / S3 identifiers.
 	tableBpes      = "bpes"

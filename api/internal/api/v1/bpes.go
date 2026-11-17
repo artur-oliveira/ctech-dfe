@@ -1,6 +1,9 @@
 package v1
 
 import (
+	"encoding/json"
+
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"gopkg.aoctech.app/dfe/api/internal/middleware"
 	"gopkg.aoctech.app/dfe/api/internal/repositories"
 	"gopkg.aoctech.app/dfe/api/internal/services"
@@ -13,14 +16,24 @@ import (
 func RegisterBPes(router fiber.Router, svc *bpesvc.BpeService, userSvc *services.UserService, authMw fiber.Handler, perm *middleware.PermChecker) {
 	g := router.Group("/bpes", authMw)
 
-	// POST /bpes: emit a new BPe
+	// POST /bpes: emite um BP-e. `variant` escolhe o corpo: normal (padrão) ou tm; ta ainda não está disponível.
 	g.Post("", perm.Require("create.bpes"), func(c fiber.Ctx) error {
-		var body bpesvc.BpeEmitBody
-		if p := bindJSON(c, &body); p != nil {
-			return sendProblem(c, p)
-		}
 		userID, userName := resolveActor(c, userSvc)
-		doc, err := svc.Emit(c.Context(), middleware.GetOrgPK(c), body, userID, userName)
+		var doc map[string]types.AttributeValue
+		var err error
+		if emitVariant(c.Body()) == bpesvc.VariantTM {
+			var body bpesvc.BpeTMEmitBody
+			if p := bindJSON(c, &body); p != nil {
+				return sendProblem(c, p)
+			}
+			doc, err = svc.EmitTM(c.Context(), middleware.GetOrgPK(c), body, userID, userName)
+		} else {
+			var body bpesvc.BpeEmitBody
+			if p := bindJSON(c, &body); p != nil {
+				return sendProblem(c, p)
+			}
+			doc, err = svc.Emit(c.Context(), middleware.GetOrgPK(c), body, userID, userName)
+		}
 		if err != nil {
 			return sendProblem(c, err)
 		}
@@ -151,4 +164,16 @@ func RegisterBPes(router fiber.Router, svc *bpesvc.BpeService, userSvc *services
 		}
 		return c.JSON(download)
 	})
+}
+
+// emitVariant lê só o campo `variant` do corpo para escolher o DTO; JSON inválido devolve "" e o bindJSON do DTO comum
+// responde o 400.
+func emitVariant(body []byte) string {
+	var peek struct {
+		Variant string `json:"variant"`
+	}
+	if err := json.Unmarshal(body, &peek); err != nil {
+		return ""
+	}
+	return peek.Variant
 }

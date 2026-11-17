@@ -5,11 +5,12 @@ paths:
   /v1.0/bpes:
     post:
       tags: [ BP-e ]
-      summary: Emite um BP-e (variante comum)
+      summary: Emite um BP-e (comum ou TM)
       description: |
-        Bilhete de Passagem Eletrônico (modelo 63) comum: rodoviário, aquaviário ou ferroviário. As variantes TM
-        (transporte metropolitano) e TA (transporte aéreo) têm leiaute próprio e ainda não estão disponíveis: `variant`
-        diferente de `normal` devolve 400. A autorização é síncrona (`BPeRecepcao`, sem lote) e passa pelo outbox: a
+        Bilhete de Passagem Eletrônico (modelo 63) comum (rodoviário, aquaviário ou ferroviário) ou TM (transporte
+        metropolitano, `tpBPe` 4, serviço `BPeRecepcaoTM`, credenciamento específico). O TA (transporte aéreo) tem
+        leiaute próprio e ainda não está disponível: `variant`
+        diferente de `normal` e `tm` devolve 400. Com `variant` `tm` o corpo é o `BpeTmEmitBody` (ver abaixo). A autorização é síncrona (`BPeRecepcao`, sem lote) e passa pelo outbox: a
         resposta é 201 com o bilhete `pending` e o resultado chega por WebSocket e por webhook (`document_type` `bpe`).
 
         O servidor monta o documento: chave de acesso, `vBP` (soma dos componentes), `vPgto` (`vBP` menos o desconto),
@@ -29,7 +30,12 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: '#/components/schemas/BpeEmitBody' }
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/BpeEmitBody'
+                - $ref: '#/components/schemas/BpeTmEmitBody'
+              description: '`variant` escolhe o corpo: `normal` (padrão) ou `tm`.'
+
       responses:
         '201':
           description: BP-e registrado e enfileirado
@@ -281,7 +287,11 @@ components:
             to_name: { type: string }
             boarding: { type: string, format: date-time }
             total: { type: string, description: 'Valor total do bilhete (`vBP`), duas casas.' }
-            trips: { type: integer, description: Quantidade de trechos. }
+            trips: { type: integer, description: Quantidade de trechos (comum). }
+            competence: { type: string, format: date, description: Competência (TM). }
+            passengers: { type: string, description: Total de passageiros (TM). }
+            groups: { type: integer, description: Grupos de viagem (TM). }
+            items: { type: integer, description: Itens (TM). }
 
     BpeEmitBody:
       type: object
@@ -339,6 +349,70 @@ components:
           properties:
             cst: { type: string, enum: [ '00', '40', '41', '51', '90', sn ], description: '`sn` é Simples Nacional (CST 90, indSN 1).' }
             rate: { type: string, description: Alíquota em %; obrigatória em 00 e 90. }
+        additional_info: { type: string, maxLength: 5000 }
+        authorized_xml:
+          type: array
+          maxItems: 10
+          items: { type: string }
+        contingency_reason: { type: string, minLength: 15, maxLength: 256 }
+
+    BpeTmEmitBody:
+      type: object
+      description: |
+        BP-e TM: apuração por grupo de viagem (linha, veículo, UF) com itens por trecho. Não tem passageiro, viagem
+        nem pagamento; o `total` sai da soma dos itens (`vBP`, `qPass` e o ICMS, com base igual ao valor do item).
+        O TM não tem QR Code. `counter_id` (`idEqpCont`) e `trip_number` (`nViagem`) vazios usam a posição.
+      required: [ variant, modal, cfop, competence, groups ]
+      properties:
+        variant: { type: string, enum: [ tm ] }
+        modal: { type: string, enum: [ rodoviario, aquaviario, ferroviario ] }
+        cfop: { type: string, pattern: '^[123567][0-9]([0-9][1-9]|[1-9][0-9])$' }
+        competence: { type: string, format: date }
+        supply_indicator: { type: boolean, description: '`indFornecimento` (valor 1).' }
+        groups:
+          type: array
+          minItems: 1
+          maxItems: 99
+          items:
+            type: object
+            required: [ origin_uf, items ]
+            properties:
+              counter_id: { type: integer, minimum: 1, maximum: 990 }
+              origin_uf: { $ref: '#/components/schemas/Uf' }
+              dest_uf: { type: string, description: UF ou EX. }
+              plate: { type: string }
+              prefix: { type: string, maxLength: 20 }
+              items:
+                type: array
+                minItems: 1
+                maxItems: 990
+                items:
+                  type: object
+                  required: [ origin_ibge_code, passengers, value, components, icms ]
+                  properties:
+                    trip_number: { type: integer, minimum: 1, maximum: 990 }
+                    origin_ibge_code: { type: string, pattern: '^[0-9]{7}$' }
+                    dest_ibge_code: { type: string, pattern: '^[0-9]{7}$' }
+                    start_counter: { type: string, pattern: '^[0-9]{1,20}$' }
+                    end_counter: { type: string, pattern: '^[0-9]{1,20}$' }
+                    passengers: { type: string, pattern: '^[0-9]{1,6}$' }
+                    value: { type: string, description: Decimal não negativo. }
+                    components:
+                      type: array
+                      minItems: 1
+                      maxItems: 20
+                      items:
+                        type: object
+                        required: [ name, quantity ]
+                        properties:
+                          name: { type: string, minLength: 1, maxLength: 15 }
+                          quantity: { type: integer, minimum: 0, maximum: 99999 }
+                    icms:
+                      type: object
+                      required: [ cst ]
+                      properties:
+                        cst: { type: string, enum: [ '00', '40', '41', '51', '90', sn ] }
+                        rate: { type: string, description: Obrigatória em 00 e 90. }
         additional_info: { type: string, maxLength: 5000 }
         authorized_xml:
           type: array

@@ -57,6 +57,8 @@ type buildParams struct {
 	environment int
 	now         time.Time
 	req         BpeEmitBody
+	tm          BpeTMEmitBody // corpo do TM, usado quando variant é tm
+	variant     string
 	tpEmis      string
 	// qrSign é a assinatura da chave (parâmetro sign do QR Code) na contingência offline.
 	qrSign            string

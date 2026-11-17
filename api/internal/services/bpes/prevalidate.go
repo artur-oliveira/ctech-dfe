@@ -20,8 +20,11 @@ var blockRules = validate.Modes{
 	"F18": validate.ModeBlock, "F24": validate.ModeBlock, "F34": validate.ModeBlock, "F35": validate.ModeBlock,
 }
 
-// specBPe é a família do BP-e comum; TM e TA usam "bpetm" e "bpeta" nas tarefas seguintes.
-const specBPe = dfecheck.SpecBPe
+// specBPe e specBPeTM são as famílias de esquema e regras do BP-e comum e do TM (o TA entra na Task 6c).
+const (
+	specBPe   = dfecheck.SpecBPe
+	specBPeTM = dfecheck.SpecBPeTM
+)
 
 // gateBPe recusa o BP-e montado com regra bloqueante ou schema fora do leiaute, nomeando cada achado.
 func gateBPe(variant string, body map[string]any) error {
