@@ -1208,6 +1208,11 @@ class ApiClient {
     return this.post(`/v1.0/nfcoms/${encodeURIComponent(accessKey)}/cancel`, {justification, sequence_number: sequenceNumber});
   }
 
+  /** Vinculação de pagamento (110300) ou cancelamento dela (110301) da NFCom. */
+  async nfcomPaymentLink(accessKey: string, route: 'payment-link' | 'payment-link-cancel', body: object): Promise<NfcomDetailOut> {
+    return this.post(`/v1.0/nfcoms/${encodeURIComponent(accessKey)}/${route}`, body);
+  }
+
   async getNfcomEvents(accessKey: string): Promise<PaginatedResponse<NfeEventOut>> {
     return this.get(`/v1.0/nfcoms/${encodeURIComponent(accessKey)}/events`, {params: {limit: 50}});
   }
@@ -1262,6 +1267,11 @@ class ApiClient {
 
   async bpeSupplyNotPerformed(accessKey: string, ibsValue: string, cbsValue: string, sequenceNumber = 1): Promise<BpeDetailOut> {
     return this.post(`/v1.0/bpes/${encodeURIComponent(accessKey)}/supply-not-performed`, {ibs_value: ibsValue, cbs_value: cbsValue, sequence_number: sequenceNumber});
+  }
+
+  /** Vinculação de pagamento (110300) ou cancelamento dela (110301) do BP-e. */
+  async bpePaymentLink(accessKey: string, route: 'payment-link' | 'payment-link-cancel', body: object): Promise<BpeDetailOut> {
+    return this.post(`/v1.0/bpes/${encodeURIComponent(accessKey)}/${route}`, body);
   }
 
   async getBpeEvents(accessKey: string): Promise<PaginatedResponse<NfeEventOut>> {

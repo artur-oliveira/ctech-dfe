@@ -16,9 +16,16 @@ import {CopyableCode} from '@/components/ui/copyable-code';
 import {DownloadPdfButton} from '@/components/dfe/DownloadPdfButton';
 import {CancelDfeModal, CANCEL_JUSTIFICATION_MIN_LENGTH} from '@/components/dfe/CancelDfeModal';
 import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell';
+import dynamic from 'next/dynamic';
+import type {PaymentLinkKind} from '@/components/dfe/PaymentLinkModal';
+import {PAYMENT_LINK_EVENT_TYPE} from '@/lib/constants/payment-link';
+import {NFCOM_EVENT_LABELS} from '@/lib/constants/nfcom';
 import {formatCpfCnpj} from '@/lib/utils/document';
 import {formatCurrency} from '@/lib/utils/helpers';
 import {formatDatetimeBR, triggerRemoteDownload} from '@/lib/utils/dfe';
+
+// O modal puxa o seletor de pessoas e os campos de pagamento: só carrega quando o usuário abre a vinculação.
+const PaymentLinkModal = dynamic(() => import('@/components/dfe/PaymentLinkModal').then((m) => m.PaymentLinkModal), {ssr: false});
 
 function Field({label, children}: { label: string; children: React.ReactNode }) {
   return (
@@ -37,6 +44,7 @@ function NfcomDetailContent() {
   const qc = useQueryClient();
   const [cancelOpen, setCancelOpen] = useState(false);
   const [justification, setJustification] = useState('');
+  const [paymentKind, setPaymentKind] = useState<PaymentLinkKind | null>(null);
 
   const doc = useQuery({queryKey: queryKeys.nfcoms.detail(key), queryFn: () => apiClient.getNfcom(key), enabled: !!key});
   const events = useQuery({queryKey: queryKeys.nfcoms.events(key), queryFn: () => apiClient.getNfcomEvents(key), enabled: !!key});
@@ -50,6 +58,16 @@ function NfcomDetailContent() {
       void qc.invalidateQueries({queryKey: queryKeys.nfcoms.events(key)});
     },
   });
+
+  const paymentLink = useMutation({
+    mutationFn: ({route, body}: { route: 'payment-link' | 'payment-link-cancel'; body: object }) => apiClient.nfcomPaymentLink(key, route, body),
+    onSuccess: () => {
+      setPaymentKind(null);
+      void qc.invalidateQueries({queryKey: queryKeys.nfcoms.detail(key)});
+      void qc.invalidateQueries({queryKey: queryKeys.nfcoms.events(key)});
+    },
+  });
+  const links = (events.data?.items ?? []).filter((e) => e.event_type === PAYMENT_LINK_EVENT_TYPE && e.status === 'success');
 
   const downloadXml = async (download: () => Promise<{ url: string }>) => {
     try {
@@ -82,6 +100,8 @@ function NfcomDetailContent() {
                     <>
                       <Button variant="outline" size="sm" onClick={() => downloadXml(() => apiClient.downloadNfcomXml(key))}>XML</Button>
                       <DownloadPdfButton fetchPdf={() => apiClient.downloadNfcomDanfecom(key)} label="DANFE-COM" variant="outline"/>
+                      <Button variant="outline" size="sm" onClick={() => setPaymentKind('link')}>Vincular pagamento</Button>
+                      {links.length > 0 && <Button variant="outline" size="sm" onClick={() => setPaymentKind('cancel')}>Cancelar vinculação</Button>}
                       <Button variant="outline" size="sm" className="text-danger" onClick={() => setCancelOpen(true)}>Cancelar</Button>
                     </>
                   )}
@@ -108,7 +128,7 @@ function NfcomDetailContent() {
                 <TableShell ariaLabel="Eventos da NFCom" headers={['Evento', 'Status', 'Protocolo', 'Registrado em', {label: '', align: 'right'}]}>
                   {events.data!.items.map((ev) => (
                     <tr key={ev.sk} className={TABLE_ROW}>
-                      <td className={TABLE_CELL} data-label="Evento">{ev.event_type === '110111' ? 'Cancelamento' : ev.event_type}</td>
+                      <td className={TABLE_CELL} data-label="Evento">{NFCOM_EVENT_LABELS[ev.event_type] ?? ev.event_type}</td>
                       <td className={TABLE_CELL} data-label="Status"><DfeStatusBadge status={ev.status} gender="m" size="sm"/></td>
                       <td className={`${TABLE_CELL} font-mono text-xs`} data-label="Protocolo">{ev.sefaz_protocol ?? '-'}</td>
                       <td className={`${TABLE_CELL} text-xs text-gray-500`} data-label="Registrado em">{formatDatetimeBR(ev.created_at)}</td>
@@ -127,6 +147,16 @@ function NfcomDetailContent() {
         )}
       </div>
 
+      <PaymentLinkModal
+        kind={paymentKind}
+        docLabel="NFCom"
+        docNumber={nf?.number ?? ''}
+        links={links}
+        loading={paymentLink.isPending}
+        error={paymentLink.error}
+        onClose={() => { setPaymentKind(null); paymentLink.reset(); }}
+        onConfirm={(route, body) => paymentLink.mutate({route, body})}
+      />
       <CancelDfeModal
         isOpen={cancelOpen}
         docLabel="NFCom"

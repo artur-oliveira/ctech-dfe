@@ -109,6 +109,29 @@ export default function GuideNfcom() {
             </>
           ),
         },
+        {
+          id: 'payment-link',
+          title: 'Vinculação de pagamento',
+          summary: 'Liga à NFCom a transação de pagamento; o meio vem de uma lista.',
+          image: {
+            src: '/guide/nfcom-payment-link.webp',
+            alt: 'Janela de vinculação de pagamento da NFCom, com número, identificador da transação, meio, recebedor e PSP',
+          },
+          body: (
+            <>
+              <p>
+                No detalhe de uma NFCom autorizada, <b>Vincular pagamento</b> registra o evento 110300: o número do
+                pagamento (de 1 a 990), o identificador da transação (de 2 a 35 caracteres), o meio de pagamento na
+                lista, o recebedor e o PSP (só a raiz de 8 dígitos do CNPJ). Cada vinculação ganha o próximo número de
+                sequência sozinho; a lista do número é opcional.
+              </p>
+              <p>
+                Para desfazer, <b>Cancelar vinculação</b> (evento 110301) pede a vinculação que o autorizador já aceitou;
+                o protocolo dela é lido do registro, não digitado. 
+              </p>
+            </>
+          ),
+        },
       ]}
     />
   );

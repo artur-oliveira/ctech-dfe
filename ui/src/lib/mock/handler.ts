@@ -339,7 +339,7 @@ function route(method: string, path: string, body: unknown, params?: Record<stri
   if (key === 'get /v1.0/nfcoms') return {data: paginated(nfcomsFixture)};
   if (m === 'post' && path === '/v1.0/nfcoms') return {data: {...nfcomsFixture[2], ...echo(body, 'nfcom')}, status: 201};
   {
-    const nfcom = /^(get|post) \/v1\.0\/nfcoms\/([^/]+)(\/events|\/cancel)?$/.exec(key);
+    const nfcom = /^(get|post) \/v1\.0\/nfcoms\/([^/]+)(\/events|\/cancel|\/payment-link|\/payment-link-cancel)?$/.exec(key);
     if (nfcom) {
       const [, , sk, action] = nfcom;
       if (action === '/events') return {data: paginated(nfcomEventsFixture)};
@@ -350,7 +350,7 @@ function route(method: string, path: string, body: unknown, params?: Record<stri
   if (key === 'get /v1.0/bpes') return {data: paginated(bpesFixture)};
   if (m === 'post' && path === '/v1.0/bpes') return {data: {...bpesFixture[3], ...echo(body, 'bpe')}, status: 201};
   {
-    const bpe = /^(get|post) \/v1\.0\/bpes\/([^/]+)(\/events|\/cancel|\/no-show|\/seat-change|\/excess-baggage|\/supply-not-performed)?$/.exec(key);
+    const bpe = /^(get|post) \/v1\.0\/bpes\/([^/]+)(\/events|\/cancel|\/no-show|\/seat-change|\/excess-baggage|\/supply-not-performed|\/payment-link|\/payment-link-cancel)?$/.exec(key);
     if (bpe) {
       const [, , sk, action] = bpe;
       if (action === '/events') return {data: paginated(bpeEventsFixture)};

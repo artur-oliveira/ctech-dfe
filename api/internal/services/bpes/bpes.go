@@ -45,7 +45,7 @@ const (
 	s3PrefixBpe    = "bpe"
 
 	// Eventos do emitente nesta versão: cancelamento, não embarque, alteração de poltrona, excesso de bagagem e, só no TA,
-	// fornecimento não realizado (112140). Vinculação de pagamento (110300 e 110301) fica fora.
+	// fornecimento não realizado (112140). A vinculação de pagamento (110300 e 110301) está em services/payment_link.go.
 	TpEventoCancelamento             = "110111"
 	TpEventoNaoEmbarque              = "110115"
 	TpEventoAlteracaoPoltrona        = "110116"

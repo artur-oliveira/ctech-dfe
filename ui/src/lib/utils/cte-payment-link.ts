@@ -7,6 +7,7 @@ import {emptyReformDraft, paymentBody, paymentIssues, type PaymentDraft} from '@
 
 export const PAYMENT_NUMBER_MAX = 990;
 
+
 export interface PaymentLinkDraft {
   /** nPag, número sequencial do pagamento. */
   number: string

@@ -821,6 +821,7 @@ certificado e autorizador de teste, só há testes unitários e de integração 
 
 - **Rotas** (`api/v1/nfcoms.go`, spec em `openapi/nfcom.yaml`): `POST /nfcoms` (emite, 201 `pending`), `GET /nfcoms`,
   `GET /nfcoms/{access_key}`, `/xml`, `/danfecom` (PDF, formato único), `POST /{access_key}/cancel` (110111),
+  `POST /{access_key}/payment-link` (vinculação de pagamento, 110300) e `/payment-link-cancel` (110301, por `event_sk`; ver abaixo),
   `GET /events` (confere o tenant: a tabela de eventos é chaveada só pela chave) e `/events/{event_sk}/xml`.
   Configuração: `GET|PUT /organizations/{org_pk}/nfcom-config` (corpo comum `FiscalConfigBody`) e
   `PUT /nfcom-emission` (`normal` ou `offline`; a troca automática é recusada com 422 `auto_contingency_unsupported`).
@@ -830,7 +831,7 @@ certificado e autorizador de teste, só há testes unitários e de integração 
   `TransactReserveAndCreate`; cota pelo medidor `nfcom` (`MeterNFCom`): plano sem `quota_nfcom` recebe 402 (venda sob
   demanda, o catálogo do ctech-billing precisa declarar o medidor).
 - **Fora da v1:** substituição, ajuste e cofaturamento (`finNFCom` 3 e 4, `tpFat` 1 e 2), IBS/CBS, FUST, FUNTTEL, retenções,
-  partilha de ICMS, ICMS 20, eventos 110300 e 110301 (vinculação de pagamento), consulta de situação na SEFAZ e
+  partilha de ICMS, ICMS 20, consulta de situação na SEFAZ e
   distribuição (a NFCom não tem serviço de distribuição).
 - **Contingência offline** (`tpEmis` 2): `dhCont` e `xJust` no leiaute (justificativa do corpo ou a do `PUT /nfcom-emission`),
   chave regerada com `tpEmis` 2, QR Code com `sign`, XML assinado guardado (`contingency-index`), retransmissão pelo worker
@@ -846,6 +847,17 @@ certificado e autorizador de teste, só há testes unitários e de integração 
 - **DANFE-COM:** `services/documents/nfcom.go` e `templates/danfecom.html` (A4 retrato, MOC Anexo II).
 - **UI:** `/nfcom`, `/nfcom/emit`, `/nfcom/detail`, aba NFCom em `/fiscal-config`, guia `/guide/nfcom`.
 
+### Vinculação de pagamento da NFCom e do BP-e (110300 e 110301)
+
+NT 2026.001, mesmo leiaute do CT-e (`evVincPgto` e `evCancVincPgto`, XSD vendorizados). `POST /nfcoms/{k}/payment-link` e
+`POST /bpes/{k}/payment-link` (corpo `number` nPag 1 a 990, `transaction_id` 2 a 35, `payment_method` 2 dígitos, `receiver_cnpj`,
+`psp_base_cnpj`, `sequence_number` opcional) registram o 110300 sobre o protocolo do documento autorizado; `/payment-link-cancel`
+(corpo `event_sk`) cancela um 110300 `success`, e o protocolo dele (NFCom 16 dígitos, BP-e 15) vem do registro, nunca é digitado.
+Sem `sequence_number` o servidor usa o próximo livre (cada vinculação tem o seu, até 20). Código compartilhado em
+`api/internal/services/payment_link.go`; no BP-e o evento vale para as três variantes (`eventAllowed`). O worker e o go-dfe já
+tratam o evento de forma genérica (tabelas de ordem e specs de schema por `evVincPgto`). UI: botões "Vincular pagamento" e
+"Cancelar vinculação" no detalhe, modal único `PaymentLinkModal` (carregado sob demanda), seções nos guias `/guide/nfcom` e `/guide/bpe`.
+
 ### BP-e (modelo 63, comum, TM e TA): `/v1.0/bpes`
 
 Bilhete de Passagem Eletrônico: comum (rodoviário, aquaviário, ferroviário), TM (transporte metropolitano, `tpBPe` 4, apuração
@@ -856,7 +868,7 @@ unitários e de integração local. Não anunciar na landing até homologar.
 - **Rotas** (`api/v1/bpes.go`, spec em `openapi/bpe.yaml`): `POST /bpes` (emite, 201 `pending`; `variant` `normal` padrão, `tm` ou
   `ta` escolhe o corpo), `GET /bpes`, `GET /bpes/{access_key}`, `/xml`, `/dabpe` (PDF, formato único; o TM não tem DABPE),
   `POST /{access_key}/cancel` (110111), `/no-show` (110115), `/seat-change` (110116), `/excess-baggage` (110117, só comum),
-  `/supply-not-performed` (112140, só TA), `GET /events` (confere o tenant) e `/events/{event_sk}/xml`. Configuração:
+  `/supply-not-performed` (112140, só TA), `/payment-link` (110300) e `/payment-link-cancel` (110301), `GET /events` (confere o tenant) e `/events/{event_sk}/xml`. Configuração:
   `GET|PUT /organizations/{org_pk}/bpe-config` e `PUT /bpe-emission` (`normal` ou `offline`; troca automática recusada com 422).
   Escopos `dfe:bpes:read` e `dfe:bpes:write`.
 - **Emissão** (`services/bpes/`): três DTOs (`BpeEmitBody`, `BpeTMEmitBody`, `BpeTAEmitBody`) sobre um fluxo único (`emission`).

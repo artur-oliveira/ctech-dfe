@@ -189,6 +189,8 @@ export const BPE_EVENT_LABELS: Record<string, string> = {
   '110116': 'Alteração de poltrona',
   '110117': 'Excesso de bagagem',
   '112140': 'Fornecimento não realizado',
+  '110300': 'Vinculação de pagamento',
+  '110301': 'Cancelamento da vinculação',
 };
 
 export const BPE_JUSTIFICATION_MIN = 15;
