@@ -81,7 +81,7 @@ type BpePassage struct {
 	Passenger *BpePassenger `json:"passenger" validate:"omitempty"`
 }
 
-// BpePassenger é o passageiro (infPassageiro). tpDoc: 1 CPF, 2 RG, 3 passaporte, 4 CNH, 5 outros.
+// BpePassenger é o passageiro (infPassageiro). tpDoc: 1 RG, 2 título de eleitor, 3 passaporte, 4 CNH, 5 outros.
 type BpePassenger struct {
 	Name      string  `json:"name" validate:"required,min=2,max=60"`
 	CPF       *string `json:"cpf" validate:"omitempty,cpf"`

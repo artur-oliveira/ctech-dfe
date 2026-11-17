@@ -90,6 +90,15 @@ func RegisterBPes(router fiber.Router, svc *bpesvc.BpeService, userSvc *services
 		return c.JSON(download)
 	})
 
+	// GET /bpes/:access_key/dabpe: URL do PDF do DABPE em cache, renderizado no processo
+	g.Get("/:access_key/dabpe", perm.Require("get.bpes"), func(c fiber.Ctx) error {
+		download, err := svc.GetDABPEURL(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"), c.Query("format"))
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		return c.JSON(download)
+	})
+
 	// POST /bpes/:access_key/cancel
 	g.Post("/:access_key/cancel", perm.Require("delete.bpes"), func(c fiber.Ctx) error {
 		var body CancelEventBody

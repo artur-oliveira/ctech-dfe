@@ -109,6 +109,25 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  /v1.0/bpes/{access_key}/dabpe:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/AccessKey'
+    get:
+      tags: [ BP-e ]
+      summary: Baixa o DABPE em PDF
+      description: |
+        Documento auxiliar do BP-e (MOC Anexo II), A4 retrato, de leiaute único: qualquer `format` devolve 400
+        `invalid-document-format`. Vale para o BP-e comum e o TA; o TM não tem bilhete individual e devolve 400. Bilhete em
+        contingência offline pendente imprime "EMITIDO EM CONTINGÊNCIA Pendente de autorização" no lugar do protocolo.
+      operationId: getBpeDabpe
+      responses:
+        '200': { $ref: '#/components/responses/CachedPdfDownload' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   /v1.0/bpes/{access_key}/cancel:
     parameters:
       - $ref: '#/components/parameters/OrgHeader'
@@ -582,7 +601,7 @@ components:
           properties:
             name: { type: string, minLength: 2, maxLength: 60 }
             cpf: { type: string }
-            doc_type: { type: string, enum: [ '1', '2', '3', '4', '5' ], description: '`tpDoc`: 1 CPF, 2 RG, 3 passaporte, 4 CNH, 5 outros.' }
+            doc_type: { type: string, enum: [ '1', '2', '3', '4', '5' ], description: '`tpDoc`: 1 RG, 2 título de eleitor, 3 passaporte, 4 CNH, 5 outros.' }
             doc_number: { type: string, maxLength: 20 }
             doc_desc: { type: string, maxLength: 100 }
             birth: { type: string, format: date }

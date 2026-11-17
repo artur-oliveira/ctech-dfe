@@ -35,3 +35,7 @@ Task 6: 6b (TM) done; 6c (TA) still open.
 - Rulings: TA v1 só tpCompra 0; imp do TA e IBSCBS + vTotDFe (sem ICMS), descoberto pelo schema; vTotDFe = valor pago; IBS/CBS calculados sobre vPgto com alíquotas informadas; sem alíquotas só CST/cClassTrib.
 - Limitações: regras MOC F76-F111 (IBS/CBS) não implementadas; tabelas CST/cClassTrib indisponíveis (campos validados só por formato); diferimento, redução, tributação regular, compra governamental, SN e estorno de crédito fora.
 - Rotas: POST /bpes variant=ta; POST /bpes/{key}/supply-not-performed (112140, só TA).
+
+## Task 7 (DABPE) done
+- Rulings: DABPE A4 retrato de leiaute único; TM não gera DABPE (400); contingência offline pendente imprime do XML assinado; tpDoc é 1 RG, 2 título de eleitor (corrigido DTO e OpenAPI, antes dizia CPF); rótulo de tPag 06 não verificado (imprime "Outros (06)").
+- Não feito: Divisão I (agência, opcional), Divisão IX (PDF417, opcional), formato reduzido 56 mm, "Via do Estabelecimento" da 2a via em contingência.
