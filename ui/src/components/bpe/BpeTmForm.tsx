@@ -13,6 +13,7 @@ import {Button, Textarea} from '@aoctech/ui';
 import {UF_OPTIONS} from '@/lib/schemas/entity';
 import {bpeTmSchema, emptyBpeTm, emptyBpeTmItem, toBpeTmBody, type BpeTmForm} from '@/lib/schemas/bpe-tm';
 import {BPE_ICMS_OPTIONS, BPE_ICMS_WITH_RATE, BPE_MODALS, BPE_TM_COMPONENT_NAME_MAX, BPE_TM_COMPONENTS_MAX, BPE_TM_GROUPS_MAX, BPE_TM_ITEMS_MAX} from '@/lib/constants/bpe';
+import {MunicipalityField} from '@/components/ui/municipality-field';
 import {bpeFields, GRID, H2, SECTION, SUBCARD} from './fields';
 
 function Components({control, name}: { control: Control<BpeTmForm>; name: `groups.${number}.items.${number}.components` }) {
@@ -54,8 +55,8 @@ function Items({control, g}: { control: Control<BpeTmForm>; g: number }) {
             {fields.length > 1 && <Button type="button" variant="ghost" size="sm" className="text-danger" onClick={() => remove(i)}>Remover</Button>}
           </div>
           <div className={GRID}>
-            {text(`${name}.${i}.origin_ibge_code`, 'Município de origem (IBGE)', {inputMode: 'numeric'})}
-            {text(`${name}.${i}.dest_ibge_code`, 'Município de destino (IBGE)', {inputMode: 'numeric'})}
+            <MunicipalityField control={control} name={`${name}.${i}.origin_ibge_code`} label="Município de origem"/>
+            <MunicipalityField control={control} name={`${name}.${i}.dest_ibge_code`} label="Município de destino"/>
             {text(`${name}.${i}.passengers`, 'Total de passageiros', {inputMode: 'numeric'})}
             {text(`${name}.${i}.value`, 'Valor do item (R$)', {inputMode: 'decimal'})}
             {select(`${name}.${i}.icms.cst`, 'Situação do ICMS', BPE_ICMS_OPTIONS, 'sm:col-span-2')}

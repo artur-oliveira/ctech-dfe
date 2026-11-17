@@ -25,7 +25,12 @@ func TestBuild_BPeServices(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		want := `<BPeDadosMsg xmlns="http://www.portalfiscal.inf.br/bpe/wsdl/` + c.wsdl + `"><x/></BPeDadosMsg>`
+		// MOC: bpeDadosMsg; NT 2025.002 (TA): BPeDadosMsg.
+		el := "bpeDadosMsg"
+		if c.service == "BPeRecepcaoTA" {
+			el = "BPeDadosMsg"
+		}
+		want := `<` + el + ` xmlns="http://www.portalfiscal.inf.br/bpe/wsdl/` + c.wsdl + `"><x/></` + el + `>`
 		if !bytes.Contains(env, []byte(want)) {
 			t.Errorf("%s: faltou %s em %s", c.service, want, env)
 		}
@@ -33,7 +38,7 @@ func TestBuild_BPeServices(t *testing.T) {
 			t.Errorf("%s: content type %s", c.service, ct)
 		}
 	}
-	resp := syntheticResponse("BPeResultMsg", `<retBPe xmlns="http://www.portalfiscal.inf.br/bpe"><cStat>100</cStat></retBPe>`)
+	resp := syntheticResponse("bpeResultMsg", `<retBPe xmlns="http://www.portalfiscal.inf.br/bpe"><cStat>100</cStat></retBPe>`)
 	got, err := ParseResult("bpe", resp)
 	if err != nil || !bytes.Contains(got, []byte("<cStat>100</cStat>")) {
 		t.Errorf("ParseResult: %v %s", err, got)

@@ -1,6 +1,7 @@
 import {z} from 'zod';
 import {BPE_ICMS_WITH_RATE, BPE_PAYMENT_OTHER} from '@/lib/constants/bpe';
-import type {BpeIcmsIn, BpeNormalEmit, BpeTaEmit, BpeTripIn} from '@/lib/types/api';
+import {validateCNPJ, validateCPF} from '@/lib/utils/validators';
+import type {BpeBuyerIn, BpeIcmsIn, BpeNormalEmit, BpeTaEmit, BpeTripIn} from '@/lib/types/api';
 
 const decimal = /^\d+(\.\d+)?$/;
 const blank = (s: string) => s.trim() === '';
@@ -74,6 +75,21 @@ export const bpeTicketSchema = z.object({
       doc_number: z.string().max(20),
     }),
   }),
+  buyer: z.object({
+    enabled: z.boolean(),
+    name: z.string().max(60),
+    doc_kind: z.enum(['cnpj', 'cpf', 'foreign']),
+    document: z.string(),
+    ie: z.string().max(14),
+    street: z.string().max(60),
+    number: z.string().max(60),
+    complement: z.string().max(60),
+    neighborhood: z.string().max(60),
+    ibge_code: z.string(),
+    city: z.string().max(60),
+    postal_code: z.string(),
+    uf: z.string(),
+  }),
   trips: z.array(tripSchema).min(1, 'Informe ao menos um trecho').max(20),
   components: z.array(componentSchema).min(1, 'Informe ao menos um componente').max(20),
   discount: z.string(),
@@ -112,6 +128,21 @@ export const bpeTicketSchema = z.object({
     if (f.passage.passenger.name.trim().length < 2) issue(['passage', 'passenger', 'name'], 'Informe o nome do passageiro');
     if (blank(f.passage.passenger.doc_type)) issue(['passage', 'passenger', 'doc_type'], 'Selecione o documento');
     if (blank(f.passage.passenger.doc_number)) issue(['passage', 'passenger', 'doc_number'], 'Informe o número do documento');
+  }
+  const b = f.buyer;
+  if (b.enabled) {
+    const at = (k: string, message: string) => issue(['buyer', k], message);
+    if (b.name.trim().length < 2) at('name', 'Informe o nome do comprador');
+    if (b.doc_kind === 'cnpj' && !validateCNPJ(b.document)) at('document', 'CNPJ inválido');
+    if (b.doc_kind === 'cpf' && !validateCPF(b.document)) at('document', 'CPF inválido');
+    if (b.doc_kind === 'foreign' && (b.document.trim().length < 2 || b.document.trim().length > 20)) at('document', 'Identificador de 2 a 20 caracteres');
+    if (b.street.trim().length < 2) at('street', 'Informe o logradouro');
+    if (blank(b.number)) at('number', 'Informe o número');
+    if (b.neighborhood.trim().length < 2) at('neighborhood', 'Informe o bairro');
+    if (!/^\d{7}$/.test(b.ibge_code)) at('ibge_code', 'Código IBGE com 7 dígitos');
+    if (b.city.trim().length < 2) at('city', 'Informe o município');
+    if (b.uf.length !== 2) at('uf', 'Selecione a UF');
+    if (!blank(b.postal_code) && b.postal_code.replace(/\D/g, '').length !== 8) at('postal_code', 'CEP com 8 dígitos');
   }
   if (ta) {
     if (!/^\d{3}$/.test(f.tax.cst)) issue(['tax', 'cst'], 'CST com 3 dígitos');
@@ -162,6 +193,10 @@ export function emptyBpeTicket(variant: 'normal' | 'ta' = 'normal'): BpeTicketFo
       from_code: '', from_name: '', to_code: '', to_name: '', boarding: '', validity: '',
       identified: false, passenger: {name: '', doc_type: '1', doc_number: ''},
     },
+    buyer: {
+      enabled: false, name: '', doc_kind: 'cpf', document: '', ie: '', street: '', number: '', complement: '',
+      neighborhood: '', ibge_code: '', city: '', postal_code: '', uf: '',
+    },
     trips: [emptyBpeTrip(variant)],
     components: [{type: '01', value: ''}],
     discount: '', discount_type: '', discount_desc: '', discount_code: '',
@@ -198,10 +233,27 @@ export function toBpeTicketBody(f: BpeTicketForm): BpeNormalEmit | BpeTaEmit {
     ? {name: p.passenger.name.trim(), doc_type: p.passenger.doc_type, doc_number: p.passenger.doc_number.trim()}
     : undefined;
   const hasDiscount = Number(f.discount) > 0;
+  const digits = (s: string) => s.replace(/\D/g, '');
+  const bu = f.buyer;
+  const buyer: BpeBuyerIn | undefined = bu.enabled
+    ? {
+      name: bu.name.trim(),
+      cnpj: bu.doc_kind === 'cnpj' ? bu.document.replace(/[^0-9A-Za-z]/g, '').toUpperCase() : undefined,
+      cpf: bu.doc_kind === 'cpf' ? digits(bu.document) : undefined,
+      foreign_id: bu.doc_kind === 'foreign' ? bu.document.trim() : undefined,
+      ie: orUndefined(bu.ie),
+      address: {
+        street: bu.street.trim(), number: bu.number.trim(), complement: orUndefined(bu.complement),
+        neighborhood: bu.neighborhood.trim(), ibge_code: bu.ibge_code, city: bu.city.trim(),
+        postal_code: blank(bu.postal_code) ? undefined : digits(bu.postal_code), uf: bu.uf,
+      },
+    }
+    : undefined;
   const base = {
     presence: f.presence,
     origin: f.origin,
     destination: f.destination,
+    buyer,
     components: f.components.map((c) => ({type: c.type, value: c.value})),
     discount: hasDiscount ? f.discount : undefined,
     discount_type: hasDiscount ? f.discount_type : undefined,

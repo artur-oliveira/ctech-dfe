@@ -2,6 +2,7 @@ package services
 
 import (
 	"fmt"
+	"strings"
 
 	"gopkg.aoctech.app/dfe/go-dfe/internal/constants"
 	"gopkg.aoctech.app/dfe/go-dfe/internal/endpoints"
@@ -113,6 +114,15 @@ func unwrapResponseNode(docType, uf, service string, raw map[string]any) (map[st
 			return nil, fmt.Errorf("expected node %q not found in sefaz response (parent is not an object)", node)
 		}
 		next, ok := m[node]
+		if !ok {
+			// BP-e: o MOC e a NT do TA divergem na caixa do nome do elemento de resultado.
+			for k, v := range m {
+				if strings.EqualFold(k, node) {
+					next, ok = v, true
+					break
+				}
+			}
+		}
 		if !ok {
 			return nil, fmt.Errorf("expected node %q not found in sefaz response", node)
 		}

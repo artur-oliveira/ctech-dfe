@@ -68,6 +68,37 @@ describe('bpeTicketSchema', () => {
   });
 });
 
+describe('comprador opcional', () => {
+  const buyer = (over: Partial<BpeTicketForm['buyer']> = {}): BpeTicketForm['buyer'] => ({
+    enabled: true, name: 'Agencia Exemplo', doc_kind: 'cnpj', document: '11.222.333/0001-81', ie: '', street: 'Rua A', number: '10',
+    complement: '', neighborhood: 'Centro', ibge_code: '3550308', city: 'Sao Paulo', postal_code: '01001-000', uf: 'SP', ...over,
+  });
+
+  it('desligado não vai no corpo e não valida os campos', () => {
+    const f = normal();
+    expect(bpeTicketSchema.safeParse(f).success).toBe(true);
+    expect(toBpeTicketBody(f).buyer).toBeUndefined();
+  });
+
+  it('ligado exige documento válido e endereço, e monta o corpo com um só documento', () => {
+    const f = normal();
+    f.buyer = buyer({document: '11.222.333/0001-80'});
+    expect(bpeTicketSchema.safeParse(f).success).toBe(false);
+    f.buyer = buyer();
+    expect(bpeTicketSchema.safeParse(f).success).toBe(true);
+    const b = toBpeTicketBody(f).buyer;
+    expect(b).toMatchObject({name: 'Agencia Exemplo', cnpj: '11222333000181', address: {postal_code: '01001000', uf: 'SP'}});
+    expect(b?.cpf).toBeUndefined();
+    expect(b?.foreign_id).toBeUndefined();
+  });
+
+  it('identificador estrangeiro vai como foreign_id', () => {
+    const f = normal();
+    f.buyer = buyer({doc_kind: 'foreign', document: 'AB123456'});
+    expect(toBpeTicketBody(f).buyer).toMatchObject({foreign_id: 'AB123456'});
+  });
+});
+
 describe('toBpeTicketBody', () => {
   it('monta o corpo comum com data-hora e deslocamento, sem campos vazios', () => {
     const body = toBpeTicketBody(normal());

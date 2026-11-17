@@ -117,10 +117,16 @@ paths:
       tags: [ BP-e ]
       summary: Baixa o DABPE em PDF
       description: |
-        Documento auxiliar do BP-e (MOC Anexo II), A4 retrato, de leiaute único: qualquer `format` devolve 400
-        `invalid-document-format`. Vale para o BP-e comum e o TA; o TM não tem bilhete individual e devolve 400. Bilhete em
-        contingência offline pendente imprime "EMITIDO EM CONTINGÊNCIA Pendente de autorização" no lugar do protocolo.
+        Documento auxiliar do BP-e (MOC Anexo II). Vale para o BP-e comum e o TA; o TM não tem bilhete individual e devolve 400.
+        Bilhete em contingência offline pendente imprime "EMITIDO EM CONTINGÊNCIA Pendente de autorização" no lugar do
+        protocolo e sai com duas vias (a segunda, "Via do Estabelecimento").
       operationId: getBpeDabpe
+      parameters:
+        - name: format
+          in: query
+          required: false
+          description: "Formato impresso. Vazio ou retrato: A4. reduzido: bobina de 58 mm (o MOC pede no mínimo 56 mm). Valor fora da lista: 400 invalid-document-format."
+          schema: { type: string, enum: [ retrato, reduzido ] }
       responses:
         '200': { $ref: '#/components/responses/CachedPdfDownload' }
         '400': { $ref: '#/components/responses/BadRequest' }

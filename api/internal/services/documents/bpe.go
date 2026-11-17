@@ -24,7 +24,7 @@ var (
 		"5": "Leito sem ar condicionado", "6": "Executivo", "7": "Semiurbano", "8": "Longitudinal", "9": "Travessia",
 	}
 	bpeDocLabels       = map[string]string{"1": "RG", "2": "TÍTULO DE ELEITOR", "3": "PASSAPORTE", "4": "CNH", "5": "OUTROS"}
-	bpePaymentLabels   = map[string]string{"01": "Dinheiro", "02": "Cheque", "03": "Cartão de crédito", "04": "Cartão de débito", "05": "Vale transporte", "99": "Outros"}
+	bpePaymentLabels   = map[string]string{"01": "Dinheiro", "02": "Cheque", "03": "Cartão de crédito", "04": "Cartão de débito", "05": "Vale transporte", "06": "PIX", "99": "Outros"}
 	bpeComponentLabels = map[string]string{
 		"01": "Tarifa", "02": "Pedágio", "03": "Taxa de embarque", "04": "Seguro", "05": "TMR", "06": "SCT", "07": "Taxa de serviço",
 		"08": "Taxa de conveniência", "99": "Outros",
@@ -34,7 +34,7 @@ var (
 		"homologacao":  "EMITIDO EM AMBIENTE DE HOMOLOGAÇÃO - SEM VALOR FISCAL",
 		"contingencia": "EMITIDO EM CONTINGÊNCIA", "contingencia_2": "Pendente de autorização",
 		"protocolo": "Protocolo de autorização:", "cancelada": "CANCELADA", "consulta": "Consulte pela Chave de Acesso em",
-		"nao_identificado": "PASSAGEIRO NÃO IDENTIFICADO", "conexao": "- CONEXÃO -",
+		"nao_identificado": "PASSAGEIRO NÃO IDENTIFICADO", "conexao": "- CONEXÃO -", "via_estabelecimento": "Via do Estabelecimento",
 	}
 )
 

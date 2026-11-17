@@ -168,6 +168,19 @@ func (r *folioRenderer) Render(ctx context.Context, docType string, xmlBytes []b
 			return parts[0], nil
 		}
 	}
+	if docType == DocTypeBPe && data["is_contingencia"] == true {
+		// MOC DABPE 2.2.10: a contingência imprime uma segunda via, "Via do Estabelecimento", ao lado da data de emissão.
+		parts := make([][]byte, 0, 2)
+		for _, estab := range []bool{false, true} {
+			data["via_estabelecimento"] = estab
+			part, err := r.renderOne(ctx, templateName, map[string]any{"ctx": data})
+			if err != nil {
+				return nil, err
+			}
+			parts = append(parts, part)
+		}
+		return mergePDFs(parts)
+	}
 	return r.renderOne(ctx, templateName, map[string]any{"ctx": data})
 }
 

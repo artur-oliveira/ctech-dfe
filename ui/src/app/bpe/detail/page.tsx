@@ -119,6 +119,7 @@ function BpeDetailContent() {
                     <>
                       <Button variant="outline" size="sm" onClick={() => downloadXml(() => apiClient.downloadBpeXml(key))}>XML</Button>
                       {nf.variant !== 'tm' && <DownloadPdfButton fetchPdf={() => apiClient.downloadBpeDabpe(key)} label="DABPE" variant="outline"/>}
+                      {nf.variant !== 'tm' && <DownloadPdfButton fetchPdf={() => apiClient.downloadBpeDabpe(key, 'reduzido')} label="DABPE reduzido" variant="outline"/>}
                       {nf.variant === 'normal' && (
                         <>
                           <Button variant="outline" size="sm" onClick={() => setEventKind('no-show')}>Não embarque</Button>

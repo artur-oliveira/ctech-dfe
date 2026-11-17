@@ -229,8 +229,9 @@ func (p buildParams) buildDest() map[string]any {
 	case c.OtherID != nil:
 		dest["idOutros"] = *c.OtherID
 	}
-	if c.IEIndicator != "9" {
-		setIfPtr(dest, "IE", c.IE)
+	if c.IEIndicator != "9" && c.IE != nil {
+		// A IE do isento é o literal ISENTO (a validação aceita qualquer caixa).
+		dest["IE"] = strings.ToUpper(strings.TrimSpace(*c.IE))
 	}
 	setIfPtr(dest, "IM", c.MunicipalRegistration)
 	return dest
@@ -274,7 +275,9 @@ func (p buildParams) buildItems() ([]any, totals) {
 	var t totals
 	out := make([]any, 0, len(p.req.Items))
 	for i, it := range p.req.Items {
-		qty, unit := parseDec(it.Quantity), parseDec(it.UnitValue)
+		// vProd usa os valores como saem no XML (qFaturada com até 4 casas, vItem com até 8), senão a conta do item e a
+		// que a SEFAZ refaz sobre o documento divergem em 1 centavo.
+		qty, unit := parseDec(it.Quantity).Round(4), parseDec(it.UnitValue).Round(8)
 		desc, other := parseOpt(it.Discount), parseOpt(it.OtherCharges)
 		vProd := qty.Mul(unit).Sub(desc).Add(other).Round(moneyScale)
 		prod := map[string]any{

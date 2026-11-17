@@ -112,7 +112,45 @@ func TestDABPERendersPDF(t *testing.T) {
 	}
 	x := sampleBPeXML("2", "0")
 	x = x[strings.Index(x, "<BPe>"):strings.Index(x, "<protBPe")]
-	if _, err := renderer.Render(context.Background(), DocTypeBPe, []byte(x), StateContingencyPending, ""); err != nil {
+	pdfCont, err := renderer.Render(context.Background(), DocTypeBPe, []byte(x), StateContingencyPending, "")
+	if err != nil {
 		t.Fatalf("contingência: %v", err)
+	}
+	// MOC DABPE 2.2.10: contingência imprime também a "Via do Estabelecimento" (2 páginas).
+	if contParsed, err := reader.Parse(pdfCont); err != nil || contParsed.PageCount() != 2 {
+		t.Fatalf("contingência deveria ter 2 vias: %v", err)
+	}
+}
+
+func TestDABPEReducedFormat(t *testing.T) {
+	renderer, err := newFolioRenderer()
+	if err != nil {
+		t.Fatal(err)
+	}
+	pdf, err := renderer.Render(context.Background(), DocTypeBPe, []byte(sampleBPeXML("1", "0")), StateActive, FormatReduzido)
+	if err != nil {
+		t.Fatal(err)
+	}
+	parsed, err := reader.Parse(pdf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 58 mm = 164,4 pt; o MOC pede no mínimo 56 mm.
+	if page, _ := parsed.Page(0); page.MediaBox.Width() < 158 || page.MediaBox.Width() > 170 {
+		t.Fatalf("largura da bobina = %.2f pt", page.MediaBox.Width())
+	}
+	if p := ValidateFormat(DocTypeBPe, "a3"); p == nil {
+		t.Error("formato desconhecido deveria ser recusado")
+	}
+}
+
+func TestDABPEPaymentLabelPIX(t *testing.T) {
+	root, _ := parseXML([]byte(strings.Replace(sampleBPeXML("1", "0"), "<tPag>01</tPag>", "<tPag>06</tPag>", 1)))
+	data, err := buildBPeContext(root, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := data["valores"].(map[string]any)["pagamentos"].([]map[string]any)[0]["forma"]; got != "PIX" {
+		t.Errorf("forma = %v", got)
 	}
 }

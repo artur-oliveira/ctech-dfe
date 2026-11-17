@@ -17,8 +17,8 @@ import (
 const (
 	bpeVersao = "1.00"
 	bpeXMLNS  = "http://www.portalfiscal.inf.br/bpe"
-	// bpeQRCodeBase é o endereço do Portal Nacional (SVRS) do QR Code do BP-e (portal SVRS, serviços do BP-e).
-	bpeQRCodeBase = "https://dfe-portal.svrs.rs.gov.br/bpe/qrCode"
+	// bpeQRCodeSVRS é a página de QR Code do Portal Nacional (SVRS): vale para as UFs sem página própria e para o TA.
+	bpeQRCodeSVRS = "https://dfe-portal.svrs.rs.gov.br/bpe/qrCode"
 
 	tpEmisNormal  = services.TpEmisNormal // forma de emissão: normal
 	tpEmisOffline = "2"                   // contingência offline
@@ -150,9 +150,32 @@ func (p buildParams) respTec() map[string]any {
 	return services.BuildRespTec(p.tech.CNPJ, p.tech.Name, p.tech.Email, onlyDigits(p.tech.Phone), p.csrtID, p.csrt, p.accessKey)
 }
 
+// bpeQRCodeByUF: páginas de QR Code próprias por UF do emitente, {produção, homologação} (portal SVRS, /BPE/Servicos,
+// lido em 2026-11-17). MG, MS, MT, PR e SP autorizam o próprio emitente; a PB só publica a página de QR Code.
+var bpeQRCodeByUF = map[string][2]string{
+	"MG": {"https://portalbpe.fazenda.mg.gov.br/portalbpe/sistema/qrcode.xhtml", "https://portalbpe.fazenda.mg.gov.br/portalbpe/sistema/qrcode.xhtml"},
+	"MS": {"http://www.dfe.ms.gov.br/bpe/qrcode", "http://www.dfe.ms.gov.br/bpe/qrcode"},
+	"MT": {"https://www.sefaz.mt.gov.br/BPe/qrcode", "https://homologacao.sefaz.mt.gov.br/BPe/qrcode"},
+	"PR": {"https://www.fazenda.pr.gov.br/bpe/qrcode", "https://www.fazenda.pr.gov.br/bpe/qrcode"},
+	"SP": {"https://bpe.fazenda.sp.gov.br/BPe/qrcode", "https://homologacao.bpe.fazenda.sp.gov.br/BPe/qrcode"},
+	"PB": {"http://www.receita.pb.gov.br/bpe/qrCode", "http://www.receita.pb.gov.br/bpe/qrCode"},
+}
+
+// qrCodeBase escolhe a página de QR Code: a da UF do emitente no BP-e comum; a da SVRS nas demais UFs e no TA (só SVRS).
+func qrCodeBase(variant, accessKey string, environment int) string {
+	pages, ok := bpeQRCodeByUF[emitUFFromAccessKey(accessKey)]
+	if variant == VariantTA || !ok {
+		return bpeQRCodeSVRS
+	}
+	if environment == 1 {
+		return pages[0]
+	}
+	return pages[1]
+}
+
 // qrCode é URL?chBPe=...&tpAmb=... mais &sign=... na contingência offline.
 func (p buildParams) qrCode() string {
-	u := fmt.Sprintf("%s?chBPe=%s&tpAmb=%d", bpeQRCodeBase, p.accessKey, p.environment)
+	u := fmt.Sprintf("%s?chBPe=%s&tpAmb=%d", qrCodeBase(p.variant, p.accessKey, p.environment), p.accessKey, p.environment)
 	if p.qrSign != "" {
 		u += "&sign=" + p.qrSign
 	}

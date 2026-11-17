@@ -997,6 +997,8 @@ func TestRejectedEventDocStatus(t *testing.T) {
 		{"cte 631 cancelamento", docTypeCTe, "631", false, StatusCancelled},
 		{"cte 218 ja cancelado", docTypeCTe, "218", false, StatusCancelled},
 		{"cte 609 nao vale", docTypeCTe, "609", false, StatusAuthorized},
+		{"bpe 631 cancelamento", docTypeBPe, "631", false, StatusCancelled},
+		{"bpe 218 ja cancelado", docTypeBPe, "218", false, StatusCancelled},
 		{"631 fora do mdfe e cte nao vale", "nfe", "631", false, StatusAuthorized},
 		{"609 fora do mdfe nao vale", "nfe", "609", false, StatusAuthorized},
 		{"outra rejeicao reverte", docTypeMDFe, "999", true, StatusAuthorized},

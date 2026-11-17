@@ -887,8 +887,12 @@ unitários e de integração local. Não anunciar na landing até homologar.
 - **Worker:** Lambdas `bpe-emission` (três serviços SEFAZ) e `bpe-event`. Tabelas: `organization_bpe_configs`, `bpes`,
   `bpe_events` (ver `DynamoDB-Tables.md`).
 - **Webhooks e erasure:** `document_type` `bpe`; as três tabelas entram no catálogo de erasure.
-- **DABPE:** `services/documents/bpe.go` e `templates/dabpe.html` (A4 retrato, MOC Anexo II); contingência pendente imprime do
-  XML assinado guardado.
+- **DABPE:** `services/documents/bpe.go`, `templates/dabpe.html` (A4, padrão) e `dabpe_reduzido.html` (bobina de 58 mm), escolhidos
+  por `?format=` (`retrato` ou `reduzido`); MOC Anexo II. Contingência pendente imprime do XML assinado guardado, em duas vias
+  (a segunda com "Via do Estabelecimento").
+- **QR Code:** página própria por UF do emitente no comum (MG, MS, MT, PR, SP e PB, `bpeQRCodeByUF`), SVRS nas demais e no TA.
+- **SOAP:** corpo `bpeDadosMsg` e resultado `bpeResultMsg` (MOC); só o `BPeRecepcaoTA` envia `BPeDadosMsg` (NT 2025.002).
+  Evento e consulta de TM e TA vão sempre à SVRS.
 - **UI:** `/bpe`, `/bpe/emit`, `/bpe/detail`, aba BP-e em `/fiscal-config`, guia `/guide/bpe`.
 
 ### Webhooks de saída — `/v1.0/webhooks`

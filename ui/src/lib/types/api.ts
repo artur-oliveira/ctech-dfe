@@ -2135,10 +2135,24 @@ export interface BpeTripIn {
   platform?: string
 }
 
+/** Comprador opcional (grupo comp): um entre cnpj, cpf e foreign_id. */
+export interface BpeBuyerIn {
+  name: string
+  cnpj?: string
+  cpf?: string
+  foreign_id?: string
+  ie?: string
+  address: {
+    street: string; number: string; complement?: string; neighborhood: string
+    ibge_code: string; city: string; postal_code?: string; uf: string
+  }
+}
+
 interface BpeTicketBase {
   presence: string
   origin: BpePlaceIn
   destination: BpePlaceIn
+  buyer?: BpeBuyerIn
   components: { type: string; value: string }[]
   discount?: string
   discount_type?: string

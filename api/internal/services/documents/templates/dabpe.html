@@ -94,7 +94,7 @@
   <td style="width:10%"><span class="lbl">Modelo</span><span class="val">63</span></td>
   <td style="width:10%"><span class="lbl">Série</span><span class="val">{{ ctx.ide.serie }}</span></td>
   <td style="width:20%"><span class="lbl">Número</span><span class="val">{{ ctx.ide.nBP }}</span></td>
-  <td style="width:22%"><span class="lbl">Data de emissão</span><span class="val">{{ ctx.ide.dhEmi }}</span></td>
+  <td style="width:22%"><span class="lbl">Data de emissão{% if ctx.via_estabelecimento %} - {{ ctx.text.via_estabelecimento }}{% endif %}</span><span class="val">{{ ctx.ide.dhEmi }}</span></td>
   <td style="width:38%">
     {% if ctx.protocolo %}
     <span class="lbl">{{ ctx.text.protocolo }}</span><span class="val">{{ ctx.protocolo.nProt }} - {{ ctx.protocolo.dhRecbto }}</span>
