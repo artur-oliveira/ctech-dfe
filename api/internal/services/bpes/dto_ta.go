@@ -66,7 +66,7 @@ func (b BpeTAEmitBody) common() BpeEmitBody {
 	}
 	comps := make([]BpeComponent, 0, len(b.Components))
 	for _, c := range b.Components {
-		comps = append(comps, BpeComponent{Type: c.Type, Value: c.Value})
+		comps = append(comps, BpeComponent(c))
 	}
 	return BpeEmitBody{
 		Presence: b.Presence, Origin: b.Origin, Destination: b.Destination, Buyer: b.Buyer,

@@ -58,10 +58,6 @@ const (
 	ModalFerroviario = "ferroviario"
 
 	minJustification = 15
-
-	// indIEDest of the customer.
-	bpeIEContribuinte = "1"
-	bpeIEIsento       = "2"
 )
 
 // ErrBPeNotFound is returned when an BPe cannot be found in any partition.
