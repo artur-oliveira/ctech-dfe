@@ -243,6 +243,19 @@
     --brand-900: #881337;
 }
 
+[data-dfe-theme="bpe"] {
+    --brand-50: #f0fdfa;
+    --brand-100: #ccfbf1;
+    --brand-200: #99f6e4;
+    --brand-300: #5eead4;
+    --brand-400: #2dd4bf;
+    --brand-500: #14b8a6;
+    --brand-600: #0d9488;
+    --brand-700: #0f766e;
+    --brand-800: #115e59;
+    --brand-900: #134e4a;
+}
+
 * {
     box-sizing: border-box;
 }

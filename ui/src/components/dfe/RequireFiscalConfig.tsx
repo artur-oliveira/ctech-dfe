@@ -18,6 +18,7 @@ const DOC_LABELS: Record<DocVariant, string> = {
   mdfe: 'MDF-e',
   nfse: 'NFS-e',
   nfcom: 'NFCom',
+  bpe: 'BP-e',
 };
 
 /**

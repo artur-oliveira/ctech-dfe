@@ -52,6 +52,7 @@ const SCHEMA_BY_VARIANT = {
   mdfe: mdfeConfigSchema,
   // A NFCom usa o corpo comum de configuração (séries e numeração por ambiente), como NF-e e CT-e.
   nfcom: nfeConfigSchema,
+  bpe: nfeConfigSchema,
 };
 
 const QR_VERSION_LABELS: Record<(typeof QR_CODE_VERSIONS)[number], string> = {
@@ -66,6 +67,7 @@ const LABEL_BY_VARIANT: Record<DocVariant, string> = {
   mdfe: 'MDF-e',
   nfse: 'NFS-e',
   nfcom: 'NFCom',
+  bpe: 'BP-e',
 };
 
 function toFormValues(variant: DocVariant, data: AnyConfigOut): AnyFormData {
@@ -225,7 +227,7 @@ function FiscalConfigFormInner({variant, initialData, onSave, loading = false, e
   const showCsc = variant === 'nfce';
   const showMdfeFields = variant === 'mdfe';
   // NFC-e e NFCom não têm distribuição (sem cursor NSU).
-  const showNsu = variant !== 'nfce' && variant !== 'nfcom';
+  const showNsu = variant !== 'nfce' && variant !== 'nfcom' && variant !== 'bpe';
   const qrVersion = useWatch({control: form.control, name: 'qr_code_version' as never}) as unknown as string | undefined;
   const cscOptional = qrVersion === QR_CODE_VERSION_WITHOUT_CSC;
   const nsuConfig = showNsu ? (initialData as NFeConfigOut | null) : null;

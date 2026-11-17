@@ -108,6 +108,7 @@ export function useOnboarding() {
   const mdfe = useFiscalConfig('mdfe', orgPk);
   const nfse = useFiscalConfig('nfse', orgPk);
   const nfcom = useFiscalConfig('nfcom', orgPk);
+  const bpe = useFiscalConfig('bpe', orgPk);
 
   const configured = useMemo<Record<DocVariant, boolean>>(
     () => ({
@@ -117,17 +118,18 @@ export function useOnboarding() {
       mdfe: !!mdfe.config,
       nfse: !!nfse.config,
       nfcom: !!nfcom.config,
+      bpe: !!bpe.config,
     }),
-    [nfe.config, nfce.config, cte.config, mdfe.config, nfse.config, nfcom.config],
+    [nfe.config, nfce.config, cte.config, mdfe.config, nfse.config, nfcom.config, bpe.config],
   );
 
   const configsPending =
-    nfe.isPending || nfce.isPending || cte.isPending || mdfe.isPending || nfse.isPending || nfcom.isPending;
+    nfe.isPending || nfce.isPending || cte.isPending || mdfe.isPending || nfse.isPending || nfcom.isPending || bpe.isPending;
 
   // A failed lookup is not an answer. Treating an unreachable API as "nothing
   // configured" is what puts a finished account back in front of the setup
   // checklist, so an error suppresses the flow instead of contradicting it.
-  const configsFailed = !!(nfe.error || nfce.error || cte.error || mdfe.error || nfse.error || nfcom.error);
+  const configsFailed = !!(nfe.error || nfce.error || cte.error || mdfe.error || nfse.error || nfcom.error || bpe.error);
 
   const needsProducts = PRODUCT_DOC_VARIANTS.some((v) => configured[v]);
   const needsServices = SERVICE_DOC_VARIANTS.some((v) => configured[v]);
