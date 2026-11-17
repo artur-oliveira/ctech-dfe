@@ -59,3 +59,23 @@ func TestConsultaSpecs_NFCom(t *testing.T) {
 		t.Errorf("consultaSpec = %+v, want %+v", got, want)
 	}
 }
+
+// cStat 100 sem protocolo não autoriza a NFCom (sem nProt o cancelamento nunca seria possível): erro retentável.
+func TestProcess_NFComAuthorizedWithoutProtocolIsNotSaved(t *testing.T) {
+	dynm := &mockDynamo{}
+	msg := baseMsg
+	msg.DocType = docTypeNFCom
+	msg.TableName = "nfcoms"
+	msg.S3Prefix = "nfcom"
+	msg.SefazService = "NFComRecepcao"
+	svc := newSvc(certS3(), &mockLambda{payload: invokeResp("100", "Autorizado o uso da NFCom", "")}, dynm)
+
+	if err := svc.Process(context.Background(), msg); err == nil {
+		t.Fatal("esperava erro retentável para cStat 100 sem protocolo")
+	}
+	for _, u := range dynm.updates {
+		if u.status == StatusAuthorized {
+			t.Fatalf("NFCom sem protocolo foi marcada autorizada: %+v", u)
+		}
+	}
+}

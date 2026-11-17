@@ -785,6 +785,10 @@ var servicosMdfe = map[string][]string{
 
 	// Consulta MDF-e
 	"consSitMDFe":    {"tpAmb", "xServ", "chMDFe"},
+
+	// Consultas da NFCom (consSitNFCom e consStatServNFCom, NT 2026.005)
+	"consSitNFCom":      {"tpAmb", "xServ", "chNFCom"},
+	"consStatServNFCom": {"tpAmb", "xServ"},
 	"consNaoEncMDFe": {"tpAmb", "xServ", "CNPJ", "CPF"},
 
 	// Eventos MDF-e
