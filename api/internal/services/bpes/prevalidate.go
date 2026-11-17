@@ -20,10 +20,11 @@ var blockRules = validate.Modes{
 	"F18": validate.ModeBlock, "F24": validate.ModeBlock, "F34": validate.ModeBlock, "F35": validate.ModeBlock,
 }
 
-// specBPe e specBPeTM são as famílias de esquema e regras do BP-e comum e do TM (o TA entra na Task 6c).
+// specBPe e specBPeTM são as famílias de esquema e regras do BP-e comum e do TM e do TA.
 const (
 	specBPe   = dfecheck.SpecBPe
 	specBPeTM = dfecheck.SpecBPeTM
+	specBPeTA = dfecheck.SpecBPeTA
 )
 
 // gateBPe recusa o BP-e montado com regra bloqueante ou schema fora do leiaute, nomeando cada achado.

@@ -16,18 +16,25 @@ import (
 func RegisterBPes(router fiber.Router, svc *bpesvc.BpeService, userSvc *services.UserService, authMw fiber.Handler, perm *middleware.PermChecker) {
 	g := router.Group("/bpes", authMw)
 
-	// POST /bpes: emite um BP-e. `variant` escolhe o corpo: normal (padrão) ou tm; ta ainda não está disponível.
+	// POST /bpes: emite um BP-e. `variant` escolhe o corpo: normal (padrão), tm ou ta.
 	g.Post("", perm.Require("create.bpes"), func(c fiber.Ctx) error {
 		userID, userName := resolveActor(c, userSvc)
 		var doc map[string]types.AttributeValue
 		var err error
-		if emitVariant(c.Body()) == bpesvc.VariantTM {
+		switch emitVariant(c.Body()) {
+		case bpesvc.VariantTM:
 			var body bpesvc.BpeTMEmitBody
 			if p := bindJSON(c, &body); p != nil {
 				return sendProblem(c, p)
 			}
 			doc, err = svc.EmitTM(c.Context(), middleware.GetOrgPK(c), body, userID, userName)
-		} else {
+		case bpesvc.VariantTA:
+			var body bpesvc.BpeTAEmitBody
+			if p := bindJSON(c, &body); p != nil {
+				return sendProblem(c, p)
+			}
+			doc, err = svc.EmitTA(c.Context(), middleware.GetOrgPK(c), body, userID, userName)
+		default:
 			var body bpesvc.BpeEmitBody
 			if p := bindJSON(c, &body); p != nil {
 				return sendProblem(c, p)
@@ -140,6 +147,24 @@ func RegisterBPes(router fiber.Router, svc *bpesvc.BpeService, userSvc *services
 		}
 		userID, userName := resolveActor(c, userSvc)
 		doc, err := svc.ExcessBaggage(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"), body.Quantity, body.Value, defaultSeq(body.SequenceNumber), userID, userName)
+		if err != nil {
+			return sendProblem(c, err)
+		}
+		return sendItem(c, doc)
+	})
+
+	// POST /bpes/:access_key/supply-not-performed: fornecimento não realizado, só TA (112140)
+	g.Post("/:access_key/supply-not-performed", perm.Require("create.bpe_events"), func(c fiber.Ctx) error {
+		var body struct {
+			IBSValue       string `json:"ibs_value" validate:"required"`
+			CBSValue       string `json:"cbs_value" validate:"required"`
+			SequenceNumber int    `json:"sequence_number" validate:"omitempty,gte=1"`
+		}
+		if p := bindJSON(c, &body); p != nil {
+			return sendProblem(c, p)
+		}
+		userID, userName := resolveActor(c, userSvc)
+		doc, err := svc.SupplyNotPerformed(c.Context(), middleware.GetOrgPK(c), c.Params("access_key"), body.IBSValue, body.CBSValue, defaultSeq(body.SequenceNumber), userID, userName)
 		if err != nil {
 			return sendProblem(c, err)
 		}

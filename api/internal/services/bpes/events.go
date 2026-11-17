@@ -88,6 +88,8 @@ func eventAllowed(variant, tpEvento string) bool {
 		return variant != VariantTA
 	case TpEventoExcessoBagagem:
 		return variant == VariantNormal
+	case TpEventoFornecimentoNaoRealizado:
+		return variant == VariantTA
 	}
 	return false
 }
@@ -153,6 +155,26 @@ func (s *BpeService) ExcessBaggage(ctx context.Context, orgPK, accessKey, quanti
 	}
 	return s.send(ctx, orgPK, accessKey, TpEventoExcessoBagagem, seq, "", userID, userName,
 		func(nProt string) map[string]any { return excessBaggageDet(nProt, quantity, money(parseDec(value))) })
+}
+
+// SupplyNotPerformed registra que o fornecimento pago antecipadamente não foi realizado (112140, só TA): valores de IBS e CBS do
+// serviço não fornecido, com duas casas (13v2).
+func (s *BpeService) SupplyNotPerformed(ctx context.Context, orgPK, accessKey, vIBS, vCBS string, seq int, userID, userName string) (map[string]types.AttributeValue, error) {
+	for _, v := range []string{vIBS, vCBS} {
+		if _, err := nonNegative(v); err != nil {
+			return nil, problem.BadRequest("valor de IBS ou CBS inválido")
+		}
+	}
+	return s.send(ctx, orgPK, accessKey, TpEventoFornecimentoNaoRealizado, seq, "", userID, userName,
+		func(nProt string) map[string]any {
+			return supplyNotPerformedDet(nProt, money(parseDec(vIBS)), money(parseDec(vCBS)))
+		})
+}
+
+func supplyNotPerformedDet(nProt, vIBS, vCBS string) map[string]any {
+	return map[string]any{"evFornecNaoRealizBPe": map[string]any{
+		"descEvento": "Fornecimento Não Realizado", "nProt": nProt, "vIBS": vIBS, "vCBS": vCBS,
+	}}
 }
 
 func cancelDet(nProt, justification string) map[string]any {

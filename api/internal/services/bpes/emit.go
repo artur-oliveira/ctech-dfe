@@ -63,6 +63,57 @@ func (s *BpeService) EmitTM(ctx context.Context, orgPK string, req BpeTMEmitBody
 	}, userID, userName)
 }
 
+// EmitTA emite o BP-e TA (transporte aéreo), com serviço de recepção e leiaute próprios (BPeRecepcaoTA, só SVRS).
+func (s *BpeService) EmitTA(ctx context.Context, orgPK string, req BpeTAEmitBody, userID, userName string) (map[string]types.AttributeValue, error) {
+	if err := validateTABody(req); err != nil {
+		return nil, err
+	}
+	return s.emit(ctx, orgPK, emission{
+		variant: VariantTA, spec: specBPeTA, sefazService: sefazServiceAutorizacaoTA, hasQR: true,
+		reasonFrom: req.ContingencyReason,
+		params:     func(p *buildParams) { p.ta = req; p.variant = VariantTA },
+		build:      BuildBPeTA,
+		record: func(pk, key, org string, orgItem map[string]types.AttributeValue, number, serie int, now time.Time, body map[string]any, uid, uname string) map[string]any {
+			return buildTARecord(pk, key, org, orgItem, number, serie, now, req, body, uid, uname)
+		},
+	}, userID, userName)
+}
+
+// buildTARecord is the DynamoDB row of a new BP-e TA (same index attributes as the other documents).
+func buildTARecord(
+	pk, accessKey, orgPK string, orgItem map[string]types.AttributeValue,
+	number, serie int, now time.Time, req BpeTAEmitBody, body map[string]any, userID, userName string,
+) map[string]any {
+	emitterDoc, _ := services.IssuerDocAV(orgItem, orgPK)
+	total := ""
+	if doc, ok := body["BPeTA"].(map[string]any); ok {
+		if inf, ok := doc["infBPe"].(map[string]any); ok {
+			if v, ok := inf["infValorBPe"].(map[string]any); ok {
+				total, _ = v["vBP"].(string)
+			}
+		}
+	}
+	passenger := ""
+	if req.Passage.Passenger != nil {
+		passenger = req.Passage.Passenger.Name
+	}
+	from, to := "", ""
+	if len(req.Trips) > 0 {
+		from, to = req.Trips[0].FromAirport, req.Trips[len(req.Trips)-1].ToAirport
+	}
+	return map[string]any{
+		"pk": pk, "sk": accessKey, "incoming": 0,
+		"year": now.Year(), "month": int(now.Month()), "day": now.Day(),
+		"status": StatusPending, "sefaz_status": nil, "sefaz_motive": nil,
+		"emit_cpf_cnpj": emitterDoc, "emit_name": strAttr(orgItem, "name"),
+		"number": number, "serie": serie, "variant": VariantTA, "modal": "aereo",
+		"passenger_name": passenger, "from_name": from, "to_name": to,
+		"boarding": req.Passage.Boarding, "total": total, "trips": len(req.Trips),
+		"dh_emi": now.Format(layoutDateTimeTZ), "xml_s3_key": nil,
+		"created_at": now.UTC().Format(time.RFC3339), "user_id": userID, "user_name": userName,
+	}
+}
+
 // emit reserva número e cota, monta o documento da variante e o enfileira pelo outbox (online) ou o assina agora e o guarda
 // para a retransmissão (contingência offline).
 func (s *BpeService) emit(ctx context.Context, orgPK string, em emission, userID, userName string) (map[string]types.AttributeValue, error) {

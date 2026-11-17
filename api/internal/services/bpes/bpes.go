@@ -35,6 +35,8 @@ const (
 	sefazServiceAutorizacao = "BPeRecepcao"
 	// BPeRecepcaoTM é o serviço de recepção do BP-e TM (só SVRS, GZip+Base64).
 	sefazServiceAutorizacaoTM = "BPeRecepcaoTM"
+	// BPeRecepcaoTA é o serviço de recepção do BP-e TA (só SVRS, GZip+Base64).
+	sefazServiceAutorizacaoTA = "BPeRecepcaoTA"
 	sefazServiceEvento        = "BPeRecepcaoEvento"
 
 	// DynamoDB / S3 identifiers.
@@ -44,10 +46,11 @@ const (
 
 	// Eventos do emitente nesta versão: cancelamento, não embarque, alteração de poltrona e excesso de bagagem (os de
 	// vinculação de pagamento, 110300 e 110301, e o 112140 do TA ficam para outras tarefas do plano).
-	TpEventoCancelamento      = "110111"
-	TpEventoNaoEmbarque       = "110115"
-	TpEventoAlteracaoPoltrona = "110116"
-	TpEventoExcessoBagagem    = "110117"
+	TpEventoCancelamento             = "110111"
+	TpEventoNaoEmbarque              = "110115"
+	TpEventoAlteracaoPoltrona        = "110116"
+	TpEventoFornecimentoNaoRealizado = "112140"
+	TpEventoExcessoBagagem           = "110117"
 
 	// ModalRodoviario, ModalAquaviario e ModalFerroviario são os valores de modal da API (ide/modal 1, 3 e 4).
 	ModalRodoviario  = "rodoviario"

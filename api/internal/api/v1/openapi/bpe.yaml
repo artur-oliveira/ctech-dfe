@@ -5,12 +5,12 @@ paths:
   /v1.0/bpes:
     post:
       tags: [ BP-e ]
-      summary: Emite um BP-e (comum ou TM)
+      summary: Emite um BP-e (comum, TM ou TA)
       description: |
         Bilhete de Passagem Eletrônico (modelo 63) comum (rodoviário, aquaviário ou ferroviário) ou TM (transporte
-        metropolitano, `tpBPe` 4, serviço `BPeRecepcaoTM`, credenciamento específico). O TA (transporte aéreo) tem
-        leiaute próprio e ainda não está disponível: `variant`
-        diferente de `normal` e `tm` devolve 400. Com `variant` `tm` o corpo é o `BpeTmEmitBody` (ver abaixo). A autorização é síncrona (`BPeRecepcao`, sem lote) e passa pelo outbox: a
+        metropolitano, `tpBPe` 4, serviço `BPeRecepcaoTM`, credenciamento específico) ou TA (transporte aéreo, modal 2,
+        só SVRS, credenciamento específico, só compra normal). Com `variant` `tm` o corpo é o `BpeTmEmitBody` e com `ta` o
+        `BpeTaEmitBody`; o TA usa IBS/CBS no lugar do ICMS e o servidor calcula `vTotDFe`. A autorização é síncrona (`BPeRecepcao`, sem lote) e passa pelo outbox: a
         resposta é 201 com o bilhete `pending` e o resultado chega por WebSocket e por webhook (`document_type` `bpe`).
 
         O servidor monta o documento: chave de acesso, `vBP` (soma dos componentes), `vPgto` (`vBP` menos o desconto),
@@ -34,7 +34,8 @@ paths:
               oneOf:
                 - $ref: '#/components/schemas/BpeEmitBody'
                 - $ref: '#/components/schemas/BpeTmEmitBody'
-              description: '`variant` escolhe o corpo: `normal` (padrão) ou `tm`.'
+                - $ref: '#/components/schemas/BpeTaEmitBody'
+              description: '`variant` escolhe o corpo: `normal` (padrão), `tm` ou `ta`.'
 
       responses:
         '201':
@@ -229,6 +230,38 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '422': { $ref: '#/components/responses/ValidationError' }
 
+  /v1.0/bpes/{access_key}/supply-not-performed:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/AccessKey'
+    post:
+      tags: [ BP-e ]
+      summary: Registra o fornecimento não realizado (evento 112140)
+      description: Só vale para o TA com pagamento antecipado. Informa o IBS e a CBS do serviço não fornecido.
+      operationId: supplyNotPerformedBpe
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ ibs_value, cbs_value ]
+              properties:
+                ibs_value: { type: string, description: Decimal não negativo. }
+                cbs_value: { type: string, description: Decimal não negativo. }
+                sequence_number: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Evento registrado e enfileirado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BpeDocument' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
   /v1.0/bpes/{access_key}/events:
     parameters:
       - $ref: '#/components/parameters/OrgHeader'
@@ -297,7 +330,7 @@ components:
       type: object
       required: [ modal, presence, origin, destination, passage, trips, components, payments, icms ]
       properties:
-        variant: { type: string, enum: [ normal, tm, ta ], description: 'Padrão `normal`; `tm` e `ta` ainda não estão disponíveis.' }
+        variant: { type: string, enum: [ normal, tm, ta ], description: 'Padrão `normal`; `tm` e `ta` têm corpos próprios.' }
         modal: { type: string, enum: [ rodoviario, aquaviario, ferroviario ] }
         presence: { type: string, enum: [ '1', '2', '3', '4', '5', '9' ], description: '`indPres`: 1 presencial, 2 internet, 3 teleatendimento, 4 entrega em domicílio, 5 presencial fora do estabelecimento, 9 outros.' }
         origin: { $ref: '#/components/schemas/BpePlace' }
@@ -413,6 +446,87 @@ components:
                       properties:
                         cst: { type: string, enum: [ '00', '40', '41', '51', '90', sn ] }
                         rate: { type: string, description: Obrigatória em 00 e 90. }
+        additional_info: { type: string, maxLength: 5000 }
+        authorized_xml:
+          type: array
+          maxItems: 10
+          items: { type: string }
+        contingency_reason: { type: string, minLength: 15, maxLength: 256 }
+
+    BpeTaEmitBody:
+      type: object
+      description: |
+        BP-e TA (aéreo, modal 2): viagem por voo, sem poltrona nem percurso, imposto IBS/CBS (sem ICMS). Só compra normal.
+        Com alíquotas em `tax`, o servidor calcula base (valor pago), IBS da UF e do município e CBS; `vTotDFe` é o valor pago.
+      required: [ variant, presence, origin, destination, passage, trips, components, payments, tax ]
+      properties:
+        variant: { type: string, enum: [ ta ] }
+        presence: { type: string, enum: [ '1', '2', '3', '4', '5', '9' ] }
+        origin: { $ref: '#/components/schemas/BpePlace' }
+        destination: { $ref: '#/components/schemas/BpePlace' }
+        buyer: { $ref: '#/components/schemas/BpeBuyer' }
+        passage:
+          type: object
+          required: [ boarding, validity ]
+          properties:
+            boarding: { type: string, format: date-time }
+            validity: { type: string, format: date-time }
+            passenger: { $ref: '#/components/schemas/BpePassage/properties/passenger' }
+        trips:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items:
+            type: object
+            required: [ flight_number, carrier, trip_type, from_airport, to_airport, service_type, accommodation, leg_type, departure ]
+            properties:
+              flight_number: { type: string, minLength: 1, maxLength: 20 }
+              carrier: { type: string, minLength: 2, maxLength: 3, description: '`SiglaCiaOperVoo`.' }
+              trip_type: { type: string, enum: [ '00', '01', '02', '03' ] }
+              from_airport: { type: string, minLength: 3, maxLength: 4 }
+              to_airport: { type: string, minLength: 3, maxLength: 4 }
+              service_type: { type: string, enum: [ '12', '13' ] }
+              accommodation: { type: string, enum: [ '6', '7' ] }
+              leg_type: { type: string, enum: [ '1', '2', '3' ] }
+              departure: { type: string, format: date-time }
+              connection: { type: string, format: date-time }
+        components:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items:
+            type: object
+            required: [ type, value ]
+            properties:
+              type: { type: string, enum: [ '01', '03', '06', '07', '08', '99' ], description: '`tpComp` do TA: 01 tarifa, 03 taxa de embarque, 06 SCT, 07 taxa de serviço, 08 taxa de conveniência, 99 outros.' }
+              value: { type: string }
+        discount: { type: string }
+        discount_type: { type: string, enum: [ '03', '09', '10', '11', '12', '13', '99' ] }
+        discount_desc: { type: string, minLength: 2, maxLength: 100 }
+        discount_code: { type: string, maxLength: 20 }
+        payments:
+          type: array
+          minItems: 1
+          maxItems: 10
+          items:
+            type: object
+            required: [ type, value ]
+            properties:
+              type: { type: string }
+              desc: { type: string, maxLength: 60 }
+              doc: { type: string, maxLength: 20 }
+              value: { type: string }
+        tax:
+          type: object
+          required: [ cst, class_trib ]
+          properties:
+            cst: { type: string, pattern: '^[0-9]{3}$' }
+            class_trib: { type: string, pattern: '^[0-9]{6}$' }
+            donation: { type: boolean }
+            ibs_uf_rate: { type: string, description: Alíquota em %. }
+            ibs_mun_rate: { type: string }
+            cbs_rate: { type: string }
+        iata_number: { type: string, minLength: 1, maxLength: 20 }
         additional_info: { type: string, maxLength: 5000 }
         authorized_xml:
           type: array
