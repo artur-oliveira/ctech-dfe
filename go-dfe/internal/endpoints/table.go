@@ -684,6 +684,59 @@ var nfcomUFAuth = mergeUFAuth(
 	},
 )
 
+// bpeURLs monta o mapa de serviços de uma UF a partir da base e do sufixo de cada serviço comum.
+func bpeURLs(base, suffix string) map[string]string {
+	out := map[string]string{}
+	for _, s := range []string{"BPeRecepcao", "BPeRecepcaoEvento", "BPeConsulta", "BPeStatusServico"} {
+		out[s] = base + s + suffix
+	}
+	return out
+}
+
+// bpeRegistry: autorizadores do BP-e v1.00 (portal SVRS, /BPE/Servicos, 2026-11-15): SVRS, MG, MS, MT, PR e SP. As URLs
+// de homologação de MG e MS na página têm entradas trocadas entre serviços; aqui valem as do padrão de cada UF. BPeRecepcaoTM
+// e BPeRecepcaoTA só existem na SVRS (ver bpeSVRSOnly).
+var bpeRegistry = registry{
+	"SVRS": ep2(
+		map[string]string{
+			"BPeRecepcao":       "https://bpe.svrs.rs.gov.br/ws/bpeRecepcao/bpeRecepcao.asmx",
+			"BPeRecepcaoEvento": "https://bpe.svrs.rs.gov.br/ws/bpeRecepcaoEvento/bpeRecepcaoEvento.asmx",
+			"BPeConsulta":       "https://bpe.svrs.rs.gov.br/ws/bpeConsulta/bpeConsulta.asmx",
+			"BPeStatusServico":  "https://bpe.svrs.rs.gov.br/ws/bpeStatusServico/bpeStatusServico.asmx",
+			"BPeRecepcaoTM":     "https://bpe.svrs.rs.gov.br/ws/bpeRecepcaoTM/bpeRecepcaoTM.asmx",
+			"BPeRecepcaoTA":     "https://bpe.svrs.rs.gov.br/WS/BPeRecepcaoTA/BPeRecepcaoTA.asmx",
+		},
+		map[string]string{
+			"BPeRecepcao":       "https://bpe-homologacao.svrs.rs.gov.br/ws/bpeRecepcao/bpeRecepcao.asmx",
+			"BPeRecepcaoEvento": "https://bpe-homologacao.svrs.rs.gov.br/ws/bpeRecepcaoEvento/bpeRecepcaoEvento.asmx",
+			"BPeConsulta":       "https://bpe-homologacao.svrs.rs.gov.br/ws/bpeConsulta/bpeConsulta.asmx",
+			"BPeStatusServico":  "https://bpe-homologacao.svrs.rs.gov.br/ws/bpeStatusServico/bpeStatusServico.asmx",
+			"BPeRecepcaoTM":     "https://bpe-homologacao.svrs.rs.gov.br/ws/bpeRecepcaoTM/bpeRecepcaoTM.asmx",
+			"BPeRecepcaoTA":     "https://bpe-homologacao.svrs.rs.gov.br/WS/BPeRecepcaoTA/BPeRecepcaoTA.asmx",
+		},
+	),
+	"MG": ep2(bpeURLs("https://bpe.fazenda.mg.gov.br/bpe/services/", ""), bpeURLs("https://hbpe.fazenda.mg.gov.br/bpe/services/", "")),
+	"MS": ep2(bpeURLs("https://bpe.fazenda.ms.gov.br/ws/", ""), bpeURLs("https://homologacao.bpe.ms.gov.br/ws/", "")),
+	"MT": ep2(bpeURLs("https://www.sefaz.mt.gov.br/bpe-ws/services/", ""), bpeURLs("https://homologacao.sefaz.mt.gov.br/bpe-ws/services/", "")),
+	"PR": ep2(bpeURLs("https://bpe.fazenda.pr.gov.br/bpe/", ""), bpeURLs("https://homologacao.bpe.fazenda.pr.gov.br/bpe/", "")),
+	"SP": ep2(bpeURLs("https://bpe.fazenda.sp.gov.br/BPeWeb/services/", ".asmx"), bpeURLs("https://homologacao.bpe.fazenda.sp.gov.br/BPeWeb/services/", ".asmx")),
+}
+
+// bpeUFAuth: MG, MS, MT, PR e SP autorizam o próprio emitente; as demais UFs vão para a SVRS (regra usual dos DF-e com
+// autorizadores de UF, a confirmar em homologação).
+var bpeUFAuth = mergeUFAuth(
+	map[string]string{"MG": "MG", "MS": "MS", "MT": "MT", "PR": "PR", "SP": "SP"},
+	"SVRS",
+	[]string{
+		"AC", "AL", "AM", "AP", "BA", "CE", "DF", "ES", "GO", "MA",
+		"PA", "PB", "PE", "PI", "RJ", "RN", "RO", "RR", "RS",
+		"SC", "SE", "TO", "EX",
+	},
+)
+
+// bpeSVRSOnly: serviços atendidos só pela SVRS, qualquer que seja a UF do emitente (TM e TA).
+var bpeSVRSOnly = map[string]bool{"BPeRecepcaoTM": true, "BPeRecepcaoTA": true}
+
 type docTypeTable struct {
 	reg    registry
 	ufAuth map[string]string
@@ -698,6 +751,7 @@ var docTypeRegistry = map[string]docTypeTable{
 	"cte":   {cteRegistry, cteUFAuth},
 	"mdfe":  {mdfeRegistry, mdfeUFAuth},
 	"nfcom": {nfcomRegistry, nfcomUFAuth},
+	"bpe":   {bpeRegistry, bpeUFAuth},
 }
 
 // Authorizer returns the SEFAZ authorizer for (docType, uf), mirroring
@@ -735,7 +789,9 @@ func Resolve(docType, uf, environment, service string) (string, error) {
 	}
 
 	authorizer := uf
-	if uf == AuthorizerSVCAN || uf == AuthorizerSVCRS || uf == AuthorizerSVCSP {
+	if docType == "bpe" && bpeSVRSOnly[service] {
+		authorizer = AuthorizerSVRS // TM e TA: só a SVRS, qualquer UF
+	} else if uf == AuthorizerSVCAN || uf == AuthorizerSVCRS || uf == AuthorizerSVCSP {
 		// SVC registries exist for NF-e and CT-e only.
 		if !HasSVC(docType, uf) {
 			return "", fmt.Errorf("endpoint not found: doc_type=%q has no contingency authorizer %q", docType, uf)

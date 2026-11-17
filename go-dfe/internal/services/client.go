@@ -37,6 +37,7 @@ var retryableHTTPStatus = map[int]bool{500: true, 502: true, 503: true, 504: tru
 var gzipEndpoints = map[string]bool{
 	"CTeRecepcaoSinc": true, "CTeRecepcaoOS": true, "CTeRecepcaoGTVe": true,
 	"CTeRecepcaoSimp": true, "MDFeRecepcaoSinc": true, "NFComRecepcao": true,
+	"BPeRecepcao": true, "BPeRecepcaoTM": true, "BPeRecepcaoTA": true,
 }
 
 // Client is a generic SEFAZ web service client for one (docType, uf,

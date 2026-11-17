@@ -115,6 +115,22 @@ var (
 		},
 	}
 
+	// BPeConfig: BP-e 1.00 (modelo 63) e suas variantes TM e TA. Assinatura sobre infBPe/infEvento.
+	BPeConfig = Config{
+		DocType:       "bpe",
+		SchemaVersion: "1.00",
+		WSDLServices:  bpeWSDLService,
+		ServicesRequiringSignature: map[string]bool{
+			"BPeRecepcao": true, "BPeRecepcaoTM": true, "BPeRecepcaoTA": true, "BPeRecepcaoEvento": true,
+		},
+		ServicesRequiringValidation: map[string]bool{
+			"BPeRecepcao": true, "BPeRecepcaoTM": true, "BPeRecepcaoTA": true, "BPeRecepcaoEvento": true,
+		},
+		SignIDXPath: map[string]string{
+			"BPeRecepcao": "infBPe", "BPeRecepcaoTM": "infBPe", "BPeRecepcaoTA": "infBPe", "BPeRecepcaoEvento": "infEvento",
+		},
+	}
+
 	MDFeConfig = Config{
 		DocType:       "mdfe",
 		SchemaVersion: "3.00",
@@ -149,6 +165,10 @@ var (
 		"CTeConsulta": "CTeConsultaV4", "CTeStatusServico": "CTeStatusServicoV4",
 		"CTeRecepcaoEvento": "CTeRecepcaoEventoV4", "CTeDistribuicaoDFe": "CTeDistribuicaoDFe",
 	}
+	bpeWSDLService = map[string]string{
+		"BPeRecepcao": "BPeRecepcao", "BPeRecepcaoTM": "BPeRecepcaoTM", "BPeRecepcaoTA": "BPeRecepcaoTA",
+		"BPeConsulta": "BPeConsulta", "BPeStatusServico": "BPeStatusServico", "BPeRecepcaoEvento": "BPeRecepcaoEvento",
+	}
 	nfcomWSDLService = map[string]string{
 		"NFComRecepcao": "NFComRecepcao", "NFComConsulta": "NFComConsulta",
 		"NFComStatusServico": "NFComStatusServico", "NFComRecepcaoEvento": "NFComRecepcaoEvento",
@@ -168,6 +188,7 @@ var configs = map[string]Config{
 	"cte":   CTeConfig,
 	"mdfe":  MDFeConfig,
 	"nfcom": NFComConfig,
+	"bpe":   BPeConfig,
 }
 
 // GetConfig returns the Config for docType, or an error if docType is unknown.
