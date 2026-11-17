@@ -316,6 +316,10 @@ function createAxiosInstance(): AxiosInstance {
       }
 
       const data = error.response ? await parseResponseErrToJson(error.response) : undefined;
+      if (error.response?.status === 403 && typeof window !== 'undefined' && !MOCK_ENABLED) {
+        const {INSUFFICIENT_SCOPE_DETAIL, reauthForMissingScopes} = await import('@/lib/auth/oauth');
+        if (data?.detail?.includes(INSUFFICIENT_SCOPE_DETAIL) && (await reauthForMissingScopes())) return undefined;
+      }
       const detail = data?.detail ?? data?.title ?? error.message ?? `HTTP ${error.response?.status}`;
       throw new ApiError(error.response?.status ?? 0, detail, data, error.response?.headers?.['retry-after'] as string | undefined);
     },

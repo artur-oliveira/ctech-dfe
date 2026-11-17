@@ -3,6 +3,7 @@
 import {useEffect, type ReactNode} from 'react';
 import {useRouter} from 'next/navigation';
 import {useAuth} from '@/lib/hooks/useAuth';
+import {ApiError} from '@/lib/api/client';
 import {useFiscalConfig} from '@/lib/hooks/useFiscalConfig';
 import type {DocVariant} from '@/lib/schemas/fiscal-configs';
 import {NoOrgBanner} from '@/components/ui/no-org-banner';
@@ -35,7 +36,7 @@ const DOC_LABELS: Record<DocVariant, string> = {
 export function RequireFiscalConfig({variant, children}: { variant: DocVariant; children: ReactNode }) {
   const {selectedOrg} = useAuth();
   const router = useRouter();
-  const {isPending, isMissing} = useFiscalConfig(variant, selectedOrg?.pk);
+  const {isPending, isMissing, error} = useFiscalConfig(variant, selectedOrg?.pk);
   const {notice, isPending: subscriptionPending} = useSubscriptionNotice();
 
   useEffect(() => {
@@ -44,6 +45,17 @@ export function RequireFiscalConfig({variant, children}: { variant: DocVariant; 
 
   if (!selectedOrg) return <NoOrgBanner/>;
   if (isPending || subscriptionPending) return <LoadingSkeleton/>;
+  if (error) {
+    // Sem isto o formulário abriria sem configuração e o erro (ex.: 403 de escopo) ficaria invisível.
+    const denied = error instanceof ApiError && error.status === 403;
+    return (
+      <div role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+        {denied
+          ? `Sem permissão para acessar a configuração de ${DOC_LABELS[variant]}. Saia e entre novamente; se persistir, peça acesso ao administrador da organização.`
+          : `Não foi possível carregar a configuração de ${DOC_LABELS[variant]}: ${error.message}`}
+      </div>
+    );
+  }
   if (isMissing) {
     return <ConfigRequiredBanner show variant={variant} docLabel={DOC_LABELS[variant]}/>;
   }
