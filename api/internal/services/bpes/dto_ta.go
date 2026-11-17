@@ -9,14 +9,14 @@ package bpes
 type BpeTAEmitBody struct {
 	Variant string `json:"variant" validate:"required,eq=ta"`
 	// Presence é indPres: 1 presencial, 2 internet, 3 teleatendimento, 4 entrega em domicílio, 5 presencial fora do estabelecimento, 9 outros.
-	Presence    string       `json:"presence" validate:"required,oneof=1 2 3 4 5 9"`
-	Origin      BpePlace     `json:"origin" validate:"required"`
-	Destination BpePlace     `json:"destination" validate:"required"`
-	Buyer       *BpeBuyer    `json:"buyer" validate:"omitempty"`
-	Passage     BpeTAPassage `json:"passage" validate:"required"`
-	Trips       []BpeTATrip  `json:"trips" validate:"required,min=1,max=20,dive"`
-	Components []BpeTAComponent `json:"components" validate:"required,min=1,max=20,dive"`
-	Discount   *string        `json:"discount" validate:"omitempty"`
+	Presence    string           `json:"presence" validate:"required,oneof=1 2 3 4 5 9"`
+	Origin      BpePlace         `json:"origin" validate:"required"`
+	Destination BpePlace         `json:"destination" validate:"required"`
+	Buyer       *BpeBuyer        `json:"buyer" validate:"omitempty"`
+	Passage     BpeTAPassage     `json:"passage" validate:"required"`
+	Trips       []BpeTATrip      `json:"trips" validate:"required,min=1,max=20,dive"`
+	Components  []BpeTAComponent `json:"components" validate:"required,min=1,max=20,dive"`
+	Discount    *string          `json:"discount" validate:"omitempty"`
 	// DiscountType é tpDesconto do TA: 03, 09, 10, 11, 12, 13 e 99.
 	DiscountType *string      `json:"discount_type" validate:"omitempty,oneof=03 09 10 11 12 13 99"`
 	DiscountDesc *string      `json:"discount_desc" validate:"omitempty,min=2,max=100"`
