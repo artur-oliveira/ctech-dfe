@@ -35,7 +35,7 @@ var refDFeAntPattern = regexp.MustCompile(`^[0-9]{6}[A-Z0-9]{12}[0-9]{26}$`)
 // BpeTATax é o grupo IBSCBS do TA. ClassTrib (6 dígitos) é escolhido na tabela de classificação tributária do TA. Os demais
 // grupos só valem quando a tabela os exige ou admite para a classificação escolhida.
 type BpeTATax struct {
-	ClassTrib string `json:"class_trib" validate:"required,len=6,numeric"`
+	ClassTrib string `json:"class_trib" validate:"omitempty,len=6,numeric"`
 	// Donation é indDoacao (valor 1): exigido, vedado ou opcional conforme a classificação.
 	Donation bool `json:"donation"`
 	// IBSUFRate, IBSMunRate e CBSRate só entram onde a lei do ano não fixa a alíquota (IBS depois de 2028, CBS depois de 2026).

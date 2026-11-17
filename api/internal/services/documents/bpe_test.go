@@ -154,3 +154,37 @@ func TestDABPEPaymentLabelPIX(t *testing.T) {
 		t.Errorf("forma = %v", got)
 	}
 }
+
+func TestDABPEAgencyAndBoardPass(t *testing.T) {
+	x := sampleBPeXML("1", "0")
+	x = strings.Replace(x, "<infPassagem>", `<agencia><xNome>AGENCIA TESTE</xNome><CNPJ>11222333000181</CNPJ><enderAgencia><xLgr>Rua A</xLgr><nro>1</nro><xBairro>Centro</xBairro><cMun>3550308</cMun><xMun>Sao Paulo</xMun><UF>SP</UF></enderAgencia></agencia><infPassagem>`, 1)
+	x = strings.Replace(x, "</qrCodBPe>", "</qrCodBPe><boardPassBPe>"+strings.Repeat("BOARDING-PASS-", 6)+"</boardPassBPe>", 1)
+	root, err := parseXML([]byte(x))
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := buildBPeContext(root, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ag, _ := data["agencia"].(map[string]any)
+	if ag["nome"] != "AGENCIA TESTE" || ag["doc"] != "11.222.333/0001-81" {
+		t.Errorf("agencia = %v", data["agencia"])
+	}
+	if !strings.HasPrefix(data["board_pass"].(string), dataURIPNGPrefix) {
+		t.Error("PDF417 ausente")
+	}
+	renderer, err := newFolioRenderer()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := renderer.Render(context.Background(), DocTypeBPe, []byte(x), StateActive, ""); err != nil {
+		t.Fatalf("render: %v", err)
+	}
+	// Sem os grupos opcionais a divisão não aparece.
+	root, _ = parseXML([]byte(sampleBPeXML("1", "0")))
+	data, _ = buildBPeContext(root, false)
+	if ag, _ := data["agencia"].(map[string]any); len(ag) != 0 || data["board_pass"] != "" {
+		t.Errorf("opcionais ausentes: %v %v", data["agencia"], data["board_pass"])
+	}
+}

@@ -12,6 +12,7 @@ import (
 
 	boombarcode "github.com/boombuler/barcode"
 	"github.com/boombuler/barcode/code128"
+	"github.com/boombuler/barcode/pdf417"
 	"github.com/boombuler/barcode/qr"
 )
 
@@ -37,6 +38,21 @@ func qrDataURI(value string) (string, error) {
 		return "", fmt.Errorf("encode QR Code: %w", err)
 	}
 	return imageDataURI(boombarcode.Scale(code, 360, 360))
+}
+
+// pdf417SecurityLevel is the error-correction level of the DABPE boarding pass barcode (division IX).
+const pdf417SecurityLevel = 4
+
+// pdf417DataURI renders the boarding pass content (BP-e boardPassBPe) as a PDF417 barcode.
+func pdf417DataURI(value string) (string, error) {
+	if value == "" {
+		return "", fmt.Errorf("PDF417 payload is empty")
+	}
+	code, err := pdf417.Encode(value, pdf417SecurityLevel)
+	if err != nil {
+		return "", fmt.Errorf("encode PDF417: %w", err)
+	}
+	return imageDataURI(boombarcode.Scale(code, 600, 180))
 }
 
 // qrQuietPct is the safe margin (quiet zone) per side, as a share of the total image: Manual DANFE NFC-e

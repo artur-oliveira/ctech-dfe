@@ -94,8 +94,16 @@ func buildBPeContext(root *xmlNode, canceled bool) (map[string]any, error) {
 		payments = append(payments, map[string]any{"forma": label, "valor": moneyBR(p.value("vPag"))})
 	}
 	discount := nonzero(value.value("vDesconto"))
+	boardPass := ""
+	if bp := root.firstDeep("infBPeSupl").value("boardPassBPe"); bp != "" {
+		if boardPass, err = pdf417DataURI(bp); err != nil {
+			return nil, err
+		}
+	}
 	return map[string]any{
-		"layout": "retrato",
+		"agencia":    buildBPeAgency(inf.child("agencia")),
+		"board_pass": boardPass,
+		"layout":     "retrato",
 		"emit": map[string]any{
 			"nome": emit.value("xNome"), "fantasia": emit.value("xFant"), "doc": maskCPFCNPJ(emit.value("CNPJ")), "ie": emit.value("IE"),
 			"endereco": address(ender), "mun": ender.value("xMun"), "uf": ender.value("UF"), "cep": maskCEP(ender.value("CEP")),
@@ -159,4 +167,16 @@ func paymentValues(inf *xmlNode) []string {
 		out = append(out, p.value("vPag"))
 	}
 	return out
+}
+
+// buildBPeAgency é a Divisão I (opcional): CNPJ, razão social e endereço sem o país. Nil quando o bilhete não tem agência.
+func buildBPeAgency(a *xmlNode) map[string]any {
+	if a == nil {
+		return nil
+	}
+	ender := a.child("enderAgencia")
+	return map[string]any{
+		"nome": a.value("xNome"), "doc": maskCPFCNPJ(a.value("CNPJ")),
+		"endereco": address(ender), "mun": ender.value("xMun"), "uf": ender.value("UF"), "cep": maskCEP(ender.value("CEP")),
+	}
 }

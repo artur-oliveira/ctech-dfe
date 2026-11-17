@@ -81,3 +81,18 @@ func TestConsultaSpecs_BPe(t *testing.T) {
 		t.Errorf("consultaSpec = %+v, want %+v", got, want)
 	}
 }
+
+// O substituto autorizado (tpBPe 3) marca o BP-e original como substituído; sem SubstitutesAccessKey nada muda.
+func TestProcess_BPeSubstituteMarksOriginalSubstituted(t *testing.T) {
+	msg := bpeMsg("BPeRecepcao")
+	msg.SubstitutesAccessKey = "35261112345678000190630010000000091012345678"
+	dynm := &mockDynamo{}
+	svc := newSvc(certS3(), &mockLambda{payload: invokeResp("100", "Autorizado o uso do BP-e", "135260000000001")}, dynm)
+	if err := svc.Process(context.Background(), msg); err != nil {
+		t.Fatal(err)
+	}
+	if len(dynm.updates) != 2 || dynm.updates[0].status != StatusAuthorized || dynm.updates[1].status != StatusSubstituted ||
+		dynm.updates[1].table != "dev_bpes" {
+		t.Fatalf("updates = %+v", dynm.updates)
+	}
+}
