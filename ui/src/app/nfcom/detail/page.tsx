@@ -31,7 +31,9 @@ function Field({label, children}: { label: string; children: React.ReactNode }) 
 
 function NfcomDetailContent() {
   const params = useSearchParams();
-  const key = params.get('key') ?? '';
+  // A chave vem da URL: só 44 caracteres alfanuméricos (CNPJ alfanumérico) entram nas chamadas da API.
+  const rawKey = params.get('key') ?? '';
+  const key = /^[0-9A-Z]{44}$/.test(rawKey) ? rawKey : '';
   const qc = useQueryClient();
   const [cancelOpen, setCancelOpen] = useState(false);
   const [justification, setJustification] = useState('');

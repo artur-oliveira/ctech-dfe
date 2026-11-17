@@ -1185,7 +1185,7 @@ class ApiClient {
   }
 
   async getNfcom(accessKey: string): Promise<NfcomDetailOut> {
-    return this.get(`/v1.0/nfcoms/${accessKey}`);
+    return this.get(`/v1.0/nfcoms/${encodeURIComponent(accessKey)}`);
   }
 
   async emitNfcom(data: NfcomEmit): Promise<NfcomDetailOut> {
@@ -1193,23 +1193,23 @@ class ApiClient {
   }
 
   async cancelNfcom(accessKey: string, justification: string, sequenceNumber = 1): Promise<NfcomDetailOut> {
-    return this.post(`/v1.0/nfcoms/${accessKey}/cancel`, {justification, sequence_number: sequenceNumber});
+    return this.post(`/v1.0/nfcoms/${encodeURIComponent(accessKey)}/cancel`, {justification, sequence_number: sequenceNumber});
   }
 
   async getNfcomEvents(accessKey: string): Promise<PaginatedResponse<NfeEventOut>> {
-    return this.get(`/v1.0/nfcoms/${accessKey}/events`, {params: {limit: 50}});
+    return this.get(`/v1.0/nfcoms/${encodeURIComponent(accessKey)}/events`, {params: {limit: 50}});
   }
 
   async downloadNfcomXml(accessKey: string): Promise<SignedFileDownload> {
-    return this.get(`/v1.0/nfcoms/${accessKey}/xml`);
+    return this.get(`/v1.0/nfcoms/${encodeURIComponent(accessKey)}/xml`);
   }
 
   async downloadNfcomEventXml(accessKey: string, eventSk: string): Promise<SignedFileDownload> {
-    return this.get(`/v1.0/nfcoms/${accessKey}/events/${encodeURIComponent(eventSk)}/xml`);
+    return this.get(`/v1.0/nfcoms/${encodeURIComponent(accessKey)}/events/${encodeURIComponent(eventSk)}/xml`);
   }
 
   async downloadNfcomDanfecom(accessKey: string): Promise<AuxiliaryDocumentDownload> {
-    return this.get(`/v1.0/nfcoms/${accessKey}/danfecom`, auxiliaryDocumentConfig());
+    return this.get(`/v1.0/nfcoms/${encodeURIComponent(accessKey)}/danfecom`, auxiliaryDocumentConfig());
   }
 
   async getMdfes(params?: {
