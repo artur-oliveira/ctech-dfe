@@ -65,7 +65,7 @@ func (s *BpeService) EmitTM(ctx context.Context, orgPK string, req BpeTMEmitBody
 
 // EmitTA emite o BP-e TA (transporte aéreo), com serviço de recepção e leiaute próprios (BPeRecepcaoTA, só SVRS).
 func (s *BpeService) EmitTA(ctx context.Context, orgPK string, req BpeTAEmitBody, userID, userName string) (map[string]types.AttributeValue, error) {
-	if err := validateTABody(req); err != nil {
+	if err := validateTABody(req, uftz.Now(taYearUF).Year()); err != nil {
 		return nil, err
 	}
 	return s.emit(ctx, orgPK, emission{

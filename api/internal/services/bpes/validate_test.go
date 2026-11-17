@@ -76,8 +76,8 @@ func TestValidateTABodyRejectsBadRates(t *testing.T) {
 	for _, rate := range []string{"abc", "12,5", "-5"} {
 		p := testTAParams(t)
 		r := rate
-		p.ta.Tax.IBSUFRate = &r
-		if err := validateTABody(p.ta); err == nil {
+		p.ta.Tax.CBSRate = &r
+		if err := validateTABody(p.ta, 2027); err == nil {
 			t.Errorf("alíquota %q deveria ser recusada", rate)
 		}
 	}

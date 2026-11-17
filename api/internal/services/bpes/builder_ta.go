@@ -3,8 +3,6 @@ package bpes
 import (
 	"strconv"
 
-	"github.com/shopspring/decimal"
-
 	"gopkg.aoctech.app/dfe/api/internal/services"
 )
 
@@ -48,6 +46,10 @@ func BuildBPeTA(p buildParams) map[string]any {
 		trips = append(trips, v)
 	}
 
+	imp, gov := buildTATax(r.Tax, t, p.now.Year())
+	if gov != nil {
+		ide["gCompraGov"] = gov
+	}
 	inf := map[string]any{
 		"@versao":     bpeVersao,
 		"@Id":         "BPe" + p.accessKey,
@@ -56,7 +58,7 @@ func BuildBPeTA(p buildParams) map[string]any {
 		"infPassagem": passage,
 		"infViagem":   trips,
 		"infValorBPe": shared.buildValue(t),
-		"imp":         buildTATax(r.Tax, t),
+		"imp":         imp,
 		"pag":         shared.buildPayments(),
 	}
 	if r.Buyer != nil {
@@ -74,30 +76,4 @@ func BuildBPeTA(p buildParams) map[string]any {
 	return services.PruneEmpty(map[string]any{
 		"BPeTA": map[string]any{"@xmlns": bpeXMLNS, "infBPe": inf, "infBPeSupl": map[string]any{"qrCodBPe": p.qrCode()}},
 	}).(map[string]any)
-}
-
-// buildTATax monta o imp do TA: IBSCBS e vTotDFe (obrigatórios). Base = valor pago. vTotDFe = valor pago (o IBS e a CBS
-// calculados aqui são informativos sobre a base; ajustar quando a regra de consolidação de 2027 for lida).
-func buildTATax(tax BpeTATax, t totals) map[string]any {
-	ibscbs := map[string]any{"CST": tax.CST, "cClassTrib": tax.ClassTrib}
-	if tax.Donation {
-		ibscbs["indDoacao"] = "1"
-	}
-	if tax.IBSUFRate != nil || tax.IBSMunRate != nil || tax.CBSRate != nil {
-		pct := func(rate *string) (decimal.Decimal, decimal.Decimal) {
-			r := parseOpt(rate)
-			return r, t.vPgto.Mul(r).Div(decimal.NewFromInt(100)).Round(moneyScale)
-		}
-		pUF, vUF := pct(tax.IBSUFRate)
-		pMun, vMun := pct(tax.IBSMunRate)
-		pCBS, vCBS := pct(tax.CBSRate)
-		ibscbs["gIBSCBS"] = map[string]any{
-			"vBC":     money(t.vPgto),
-			"gIBSUF":  map[string]any{"pIBSUF": rateStr(pUF), "vIBSUF": money(vUF)},
-			"gIBSMun": map[string]any{"pIBSMun": rateStr(pMun), "vIBSMun": money(vMun)},
-			"vIBS":    money(vUF.Add(vMun)),
-			"gCBS":    map[string]any{"pCBS": rateStr(pCBS), "vCBS": money(vCBS)},
-		}
-	}
-	return map[string]any{"IBSCBS": ibscbs, "vTotDFe": money(t.vPgto)}
 }

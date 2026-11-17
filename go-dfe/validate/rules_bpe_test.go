@@ -97,12 +97,13 @@ func TestBPeRules(t *testing.T) {
 	}
 }
 
-// TM e TA usam as mesmas regras: o catálogo vale para as três famílias.
+// TM e TA usam as mesmas regras do comum; o TA soma as de IBS/CBS (rules_bpe_ibscbs.go).
 func TestBPeRulesCoverVariants(t *testing.T) {
-	for _, fam := range []string{"bpetm", "bpeta"} {
-		if len(Rules(fam)) != len(Rules("bpe")) {
-			t.Errorf("%s: %d regras, bpe tem %d", fam, len(Rules(fam)), len(Rules("bpe")))
-		}
+	if len(Rules("bpetm")) != len(Rules("bpe")) {
+		t.Errorf("bpetm: %d regras, bpe tem %d", len(Rules("bpetm")), len(Rules("bpe")))
+	}
+	if len(Rules("bpeta")) != len(Rules("bpe"))+len(ibsRules()) {
+		t.Errorf("bpeta: %d regras, esperado %d", len(Rules("bpeta")), len(Rules("bpe"))+len(ibsRules()))
 	}
 }
 
