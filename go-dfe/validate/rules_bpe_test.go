@@ -58,8 +58,12 @@ func TestBPeRules(t *testing.T) {
 			i := ide(d)
 			i["tpEmis"], i["dhCont"], i["xJust"] = "2", "2026-11-05T11:00:00-03:00", "queda do link de dados"
 		}},
-		{"F09", func(d m) { inf(d)["@Id"] = "BPe" + tKey("35", "2611", tCNPJ2, "63", "001", "000000010", "1", "01234567") }},
-		{"F10", func(d m) { inf(d)["@Id"] = "BPe" + tKey("35", "2401", tCNPJ1, "63", "001", "000000010", "1", "01234567") }},
+		{"F09", func(d m) {
+			inf(d)["@Id"] = "BPe" + tKey("35", "2611", tCNPJ2, "63", "001", "000000010", "1", "01234567")
+		}},
+		{"F10", func(d m) {
+			inf(d)["@Id"] = "BPe" + tKey("35", "2401", tCNPJ1, "63", "001", "000000010", "1", "01234567")
+		}},
 		{"F11", func(d m) { k := tBPeKey(); inf(d)["@Id"] = "BPe" + k[:43] + string(rune('0'+(int(k[43]-'0')+1)%10)) }},
 		{"F13", func(d m) { ide(d)["UFIni"] = "MG" }},
 		{"F18", func(d m) { inf(d)["infPassagem"].(m)["infPassageiro"].(m)["CPF"] = "52998224726" }},
