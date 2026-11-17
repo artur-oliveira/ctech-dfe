@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- ESCRITO A MÃO a partir da NT 2025.002 v2.00, item 6.3 (evento 112140): o pacote oficial não traz este XSD. Substituir
+     pelo oficial quando o portal o publicar (conferir o nome do schema na NT: evFornecNaoRealizBPe_v9.99.xsd). -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns="http://www.portalfiscal.inf.br/bpe" targetNamespace="http://www.portalfiscal.inf.br/bpe" elementFormDefault="qualified" attributeFormDefault="unqualified">
+	<xs:include schemaLocation="eventoBPeTiposBasico_v1.00.xsd"/>
+	<xs:element name="evFornecNaoRealizBPe">
+		<xs:annotation>
+			<xs:documentation>Evento de fornecimento não realizado com pagamento antecipado, 112140</xs:documentation>
+		</xs:annotation>
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element name="descEvento">
+					<xs:simpleType>
+						<xs:restriction base="xs:string">
+							<xs:whiteSpace value="preserve"/>
+							<xs:enumeration value="Fornecimento Não Realizado"/>
+						</xs:restriction>
+					</xs:simpleType>
+				</xs:element>
+				<xs:element name="nProt" type="TProt"/>
+				<xs:element name="vIBS" type="TDec_1302"/>
+				<xs:element name="vCBS" type="TDec_1302"/>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+</xs:schema>

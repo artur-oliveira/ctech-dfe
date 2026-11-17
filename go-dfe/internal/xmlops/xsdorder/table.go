@@ -812,6 +812,17 @@ var servicosMdfe = map[string][]string{
 	},
 	"evCancNFCom": {"descEvento", "nProt", "xJust"},
 
+	// Eventos BP-e (eventoBPe_v1.00.xsd + ev*.xsd, NT 2026.005 e NT 2025.002 item 6.3)
+	"eventoBPe": {"infEvento", "Signature"},
+	"eventoBPe:infEvento": {
+		"cOrgao", "tpAmb", "CNPJ", "chBPe", "dhEvento", "tpEvento", "nSeqEvento", "detEvento",
+	},
+	"evCancBPe":            {"descEvento", "nProt", "xJust"},
+	"evNaoEmbBPe":          {"descEvento", "nProt", "xJust"},
+	"evAlteracaoPoltrona":  {"descEvento", "nProt", "poltrona"},
+	"evExcessoBagagem":     {"descEvento", "nProt", "qBagagem", "vTotBag", "IBSCBS", "vTotDFe"},
+	"evFornecNaoRealizBPe": {"descEvento", "nProt", "vIBS", "vCBS"},
+
 	// Inclusão de condutor MDF-e (evIncCondutorMDFe — 110114)
 	"evIncCondutorMDFe": {"descEvento", "condutor"},
 	"condutor":          {"xNome", "CPF"},
@@ -883,6 +894,9 @@ func buildTable() map[string][]string {
 		envimdfe,
 		servicosMdfe,
 		nfcomGenerated,
+		bpeGenerated,
+		bpetmGenerated,
+		bpetaGenerated,
 	} {
 		for k, v := range src {
 			t[k] = v
