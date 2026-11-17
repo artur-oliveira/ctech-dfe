@@ -16,6 +16,7 @@ var emissionServices = map[string]emissionSpec{
 	"CTeRecepcaoGTVe":  {"GTVeProc", "GTVe", "protCTe", "4.00"},
 	"CTeRecepcaoSimp":  {"cteSimpProc", "CTeSimp", "protCTe", "4.00"},
 	"MDFeRecepcaoSinc": {"mdfeProc", "MDFe", "protMDFe", "3.00"},
+	"NFComRecepcao":    {"nfcomProc", "NFCom", "protNFCom", "1.00"},
 
 	// Inutilização não é emissão, mas tem exatamente a mesma forma processada:
 	// documento assinado + resposta da SEFAZ sob uma raiz única. O elemento é
@@ -34,17 +35,19 @@ var emissionServices = map[string]emissionSpec{
 // with the obviously-intended 4 values instead of reproducing the crash —
 // matching an accidental typo helps no one — flagged here for awareness.
 var eventServices = map[string]eventSpec{
-	"RecepcaoEvento":     {"procEventoNFe", "1.00", "evento", "retEvento"},
-	"CTeRecepcaoEvento":  {"procEventoCTe", "4.00", "eventoCTe", "retEventoCTe"},
-	"MDFeRecepcaoEvento": {"procEventoMDFe", "3.00", "eventoMDFe", "retEventoMDFe"},
+	"RecepcaoEvento":      {"procEventoNFe", "1.00", "evento", "retEvento"},
+	"CTeRecepcaoEvento":   {"procEventoCTe", "4.00", "eventoCTe", "retEventoCTe"},
+	"MDFeRecepcaoEvento":  {"procEventoMDFe", "3.00", "eventoMDFe", "retEventoMDFe"},
+	"NFComRecepcaoEvento": {"procEventoNFCom", "1.00", "eventoNFCom", "retEventoNFCom"},
 }
 
 // docNamespaces mirrors processor.py's _NS.
 var docNamespaces = map[string]string{
-	"nfe":  "http://www.portalfiscal.inf.br/nfe",
-	"nfce": "http://www.portalfiscal.inf.br/nfe",
-	"cte":  "http://www.portalfiscal.inf.br/cte",
-	"mdfe": "http://www.portalfiscal.inf.br/mdfe",
+	"nfe":   "http://www.portalfiscal.inf.br/nfe",
+	"nfce":  "http://www.portalfiscal.inf.br/nfe",
+	"cte":   "http://www.portalfiscal.inf.br/cte",
+	"mdfe":  "http://www.portalfiscal.inf.br/mdfe",
+	"nfcom": "http://www.portalfiscal.inf.br/nfcom",
 }
 
 // BuildProcessedXML returns the processed XML string (nfeProc/cteProc/

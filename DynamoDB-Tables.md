@@ -58,6 +58,9 @@ PITR: enabled in production only.
 | 36 | `account_billing`           | `ORG_{id}` / `USER_{sub}` / `QUOTA_GUARD_…` / `USAGE_…` / `LEVEL_DIRTY_…` | — | `level-dirty-index` (sparse) |
 | 46 | `erasure_state`             | `SUB#{sub}` / `ORG#{id}`     | —                                        | —                                                |
 | 47 | `idempotency`               | `IDEM#{sub}#{org_pk}`        | `KEY#{Idempotency-Key}`                  | —                                                |
+| 51 | `organization_nfcom_configs` | `{org_pk}`                  | —                                        | `sweep-index`                                      |
+| 52 | `nfcoms`                    | `{env}#{org_pk}`             | `{access_key}`                           | `number-index-v2`, `dfe-index`, `contingency-index` |
+| 53 | `nfcom_events`              | `{access_key}`               | `{ulid}`                                 | `org-event-key-index`                              |
 | 50 | `webhooks`                  | `ORG_{organization_id}`      | `ENDPOINT#…` / `META#counts` / `DELIVERY#…` / `ATTEMPT#…` | `due-index` (sparse)          |
 
 ---
@@ -1190,3 +1193,11 @@ the index when delivered or closed. The `webhook-deliverer` Lambda Query reads a
 
 Cost: on-demand, PITR in prod, AWS-owned key. Deliveries and attempts expire after 90 days (`ttl`); endpoints and the counter do not.
 Erasure: `ScopeOrgAccount`, the whole `ORG_{organization_id}` partition goes with the account organization (`eraseOrganizationWebhooks`).
+
+## 51–53. `organization_nfcom_configs` / `nfcoms` / `nfcom_events`
+
+NFCom (modelo 62, spec `docs/specs/2026-11-15-nfcom-design.md`). Mesma forma das tabelas do MDF-e: a configuração fiscal por
+empresa (`sweep-index`, sem `auto-contingency-index`: a troca automática de contingência não existe para a NFCom na v1), o
+documento (`nfcoms`, chave de acesso de 44 posições como `sk`, `number-index-v2`, `dfe-index` e o `contingency-index` esparso
+da retransmissão offline) e os eventos (`nfcom_events`: cancelamento 110111 e vinculação de pagamento 110300 e 110301).
+Sem tabela de distribuição: a NFCom não tem serviço de distribuição. On-demand, PITR em prod, chave própria da AWS; sem TTL.

@@ -1538,3 +1538,13 @@ enviados só um certificado descartável e uma chave falsa, e a ANTT respondeu 4
 - **O mesmo resultado publicado duas vezes chega uma vez.** Duas mensagens da fila para o mesmo documento e status têm `SentTimestamp` e, portanto, id de evento diferentes; um marcador `DEDUPE#` por endpoint, gravado junto da entrega, impede a segunda.
 - Listar endpoints (a tela e a emissão) **não abre o segredo**: um segredo ilegível (chave rotacionada sem a geração antiga, linha corrompida) não pode derrubar a tela nem mandar todo resultado da organização para a DLQ. Só a entrega abre o segredo; um erro de leitura ali deixa a entrega como está e conta como falha do job, e só "endpoint apagado" encerra a entrega.
 
+
+## NFCom (modelo 62): o que ainda não foi provado
+
+- Nenhum teste contra autorizador real. Os nomes SOAP (`nfcomDadosMsg`, `nfcomResultMsg`, método `nfcomRecepcao` etc.), a
+  ausência de cabeçalho e o mapa UF emitente para autorizador (MG, MS e MT próprios; demais SVRS) não estão no portal nem
+  no MOC: vêm de relatos públicos. Confirmar no primeiro envio em homologação e corrigir só as constantes de `go-dfe`.
+- O MOC Anexo I que está vendorizado como fonte das regras é a v1.00a (01/2023); o XSD da NT 2026.005 vale mais. As regras de
+  IBS/CBS, Simples e as notas técnicas 2026.002, 2026.004 e 2026.005 não foram lidas: a v1 não preenche IBS/CBS (opcional no
+  XSD) e não há garantia de que o autorizador não o exija na vigência.
+- Antes de anunciar o documento (landing, home, `DFE_DOCUMENTS`), homologar e rever a cobrança (`quota_nfcom` no catálogo).

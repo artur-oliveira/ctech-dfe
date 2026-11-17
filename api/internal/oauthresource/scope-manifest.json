@@ -40,6 +40,24 @@
       "status": "active"
     },
     {
+      "name": "dfe:nfcoms:read",
+      "descriptions": {
+        "pt-BR": "Consultar NFCom, eventos e configuracoes.",
+        "en": "Read NFCom documents, events, and settings."
+      },
+      "visibility": "public",
+      "status": "active"
+    },
+    {
+      "name": "dfe:nfcoms:write",
+      "descriptions": {
+        "pt-BR": "Criar e alterar NFCom, eventos e configuracoes.",
+        "en": "Create and change NFCom documents, events, and settings."
+      },
+      "visibility": "public",
+      "status": "active"
+    },
+    {
       "name": "dfe:nfces:read",
       "descriptions": {
         "pt-BR": "Consultar NFC-e, eventos e configuracoes.",

@@ -50,6 +50,7 @@ const (
 	nsNFe     = "http://www.portalfiscal.inf.br/nfe"
 	nsCTe     = "http://www.portalfiscal.inf.br/cte"
 	nsMDFe    = "http://www.portalfiscal.inf.br/mdfe"
+	nsNFCom   = "http://www.portalfiscal.inf.br/nfcom"
 	nsXMLDSig = "http://www.w3.org/2000/09/xmldsig#"
 )
 

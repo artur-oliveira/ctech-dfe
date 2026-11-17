@@ -8,24 +8,30 @@ const (
 	DocTypeMDFe = "mdfe"
 	DocTypeNFSe = "nfse"
 	DocTypeCTe  = "cte"
+	// DocTypeNFCom is the NFCom (modelo 62); its auxiliary document is the DANFE-COM.
+	DocTypeNFCom = "nfcom"
 
-	modelNFe  = "55"
-	modelNFCe = "65"
-	modelMDFe = "58"
-	modelCTe  = "57"
+	modelNFe   = "55"
+	modelNFCe  = "65"
+	modelMDFe  = "58"
+	modelCTe   = "57"
+	modelNFCom = "62"
 
-	templateDANFe   = "danfe_retrato.html"
-	templateDANFCe  = "danfce.html"
-	templateDAMDFE  = "damdfe_retrato.html"
-	templateDANFSe  = "danfse_v2.html"
-	templateDACTE   = "dacte_retrato.html"
-	templateDACTEOS = "dacte_os_retrato.html"
+	templateDANFe    = "danfe_retrato.html"
+	templateDANFCe   = "danfce.html"
+	templateDAMDFE   = "damdfe_retrato.html"
+	templateDANFSe   = "danfse_v2.html"
+	templateDACTE    = "dacte_retrato.html"
+	templateDANFECOM = "danfecom.html"
+	templateDACTEOS  = "dacte_os_retrato.html"
 
 	// nfseConsultaURL is the national NFS-e lookup page the DANFSe QR code and
 	// footer must print (NT 008 v1.02); the access key is appended verbatim.
 	nfseConsultaURL = "https://www.nfse.gov.br/ConsultaPublica/?tpc=1&chave="
 	// mdfeConsultaURL is the national MDF-e lookup page the DAMDFE must print.
 	mdfeConsultaURL = "https://dfe-portal.svrs.rs.gov.br/MDFE/Consulta"
+	// nfcomConsultaURL is the national NFCom lookup page the DANFE-COM prints (MOC DANFE-COM 2.1.3).
+	nfcomConsultaURL = "https://dfe-portal.svrs.rs.gov.br/NFCOM/Consulta"
 	// defaultBoxBackground tints the DAMDFE field boxes until an emitente
 	// configures its own colour.
 	defaultBoxBackground = "#dbeaf5"
@@ -48,22 +54,24 @@ const (
 )
 
 var templateByDocType = map[string]string{
-	DocTypeNFe:  templateDANFe,
-	DocTypeNFCe: templateDANFCe,
-	DocTypeMDFe: templateDAMDFE,
-	DocTypeNFSe: templateDANFSe,
-	DocTypeCTe:  templateDACTE,
+	DocTypeNFe:   templateDANFe,
+	DocTypeNFCe:  templateDANFCe,
+	DocTypeMDFe:  templateDAMDFE,
+	DocTypeNFSe:  templateDANFSe,
+	DocTypeCTe:   templateDACTE,
+	DocTypeNFCom: templateDANFECOM,
 }
 
 // accessKeyLengthByDocType is the digit count of each document's access key.
 // NFS-e nacional uses 50 digits; the SEFAZ document types use 44. Validating
 // with a single hard-coded 44 would silently reject every DANFSe request.
 var accessKeyLengthByDocType = map[string]int{
-	DocTypeNFe:  44,
-	DocTypeNFCe: 44,
-	DocTypeMDFe: 44,
-	DocTypeNFSe: 50,
-	DocTypeCTe:  44,
+	DocTypeNFe:   44,
+	DocTypeNFCe:  44,
+	DocTypeMDFe:  44,
+	DocTypeNFSe:  50,
+	DocTypeCTe:   44,
+	DocTypeNFCom: 44,
 }
 
 // DocumentState is the closed set of fiscal states an auxiliary document can

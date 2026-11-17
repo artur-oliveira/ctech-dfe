@@ -14,11 +14,12 @@ import (
 // resourceID is a fixed constant per config type — these tables hold one item
 // per org (no sk), so there's no natural per-item identifier to use instead.
 const (
-	nfeConfigResourceID  = "nfe_config"
-	nfceConfigResourceID = "nfce_config"
-	cteConfigResourceID  = "cte_config"
-	mdfeConfigResourceID = "mdfe_config"
-	nfseConfigResourceID = "nfse_config"
+	nfeConfigResourceID   = "nfe_config"
+	nfceConfigResourceID  = "nfce_config"
+	cteConfigResourceID   = "cte_config"
+	mdfeConfigResourceID  = "mdfe_config"
+	nfcomConfigResourceID = "nfcom_config"
+	nfseConfigResourceID  = "nfse_config"
 )
 
 // fiscalConfigRepo é a parte de FiscalConfigRepository que o serviço usa.
@@ -179,6 +180,29 @@ func NewMdfeConfigService(repo *repositories.MdfeConfigRepository, auditRepo *re
 		resourceType: repositories.AuditResourceMdfeConfig, resourceID: mdfeConfigResourceID,
 		notFoundMsg: "mdfe config not found", emissionModel: ModelMDFe,
 	}}
+}
+
+// NfcomConfigService wraps NfcomConfigRepository.
+type NfcomConfigService struct{ fiscalConfigService }
+
+func NewNfcomConfigService(repo *repositories.NfcomConfigRepository, auditRepo *repositories.AuditLogRepository) *NfcomConfigService {
+	return &NfcomConfigService{fiscalConfigService{
+		repo: repo, auditRepo: auditRepo,
+		resourceType: repositories.AuditResourceNfcomConfig, resourceID: nfcomConfigResourceID,
+		notFoundMsg: "nfcom config not found", emissionModel: ModelNFCom,
+	}}
+}
+
+// CodeAutoContingencyUnsupported: the document has no automatic contingency switch.
+const CodeAutoContingencyUnsupported = "auto_contingency_unsupported"
+
+// SetEmission refuses the automatic switch: the NFCom has none in v1 (no SVC, no breaker, no probe), so the flag would
+// do nothing and mislead the owner.
+func (s *NfcomConfigService) SetEmission(ctx context.Context, orgPK string, u EmissionUpdate) (map[string]types.AttributeValue, error) {
+	if u.Auto {
+		return nil, problem.UnprocessableEntity("a contingência automática não existe para a NFCom").WithCode(CodeAutoContingencyUnsupported)
+	}
+	return s.fiscalConfigService.SetEmission(ctx, orgPK, u)
 }
 
 // NfseConfigService wraps NfseConfigRepository.

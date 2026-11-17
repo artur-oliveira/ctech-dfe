@@ -611,6 +611,79 @@ func mergeUFAuth(direct map[string]string, shared string, ufs []string) map[stri
 
 // docTypeTable pairs a doc type's registry with its UF->authorizer map,
 // mirroring the original Python client's _REGISTRY.
+// nfcomFrag: caminhos relativos da SVRS (base + /<Serviço>/<Serviço>.asmx).
+var nfcomSVRSFrag = asmxFragMap(map[string]string{
+	"NFComRecepcao":       "/NFComRecepcao",
+	"NFComConsulta":       "/NFComConsulta",
+	"NFComStatusServico":  "/NFComStatusServico",
+	"NFComRecepcaoEvento": "/NFComRecepcaoEvento",
+})
+
+// nfcomRegistry: autorizadores da NFCom v1.00 (portal SVRS, /NFCOM/Servicos, 2026-11-15): SVRS, MG, MS e MT.
+// Sem SVC. O QR Code não entra aqui (não é serviço SOAP).
+var nfcomRegistry = registry{
+	"SVRS": ep(
+		"https://nfcom.svrs.rs.gov.br/WS",
+		"https://nfcom-homologacao.svrs.rs.gov.br/WS",
+		nfcomSVRSFrag,
+	),
+	"MG": ep2(
+		map[string]string{
+			"NFComRecepcao":       "https://nfcom.fazenda.mg.gov.br/nfcom/services/NFComRecepcao",
+			"NFComConsulta":       "https://nfcom.fazenda.mg.gov.br/nfcom/services/NFComConsulta",
+			"NFComRecepcaoEvento": "https://nfcom.fazenda.mg.gov.br/nfcom/services/NFComRecepcaoEvento",
+			"NFComStatusServico":  "https://nfcom.fazenda.mg.gov.br/nfcom/services/NFComStatusServico",
+		},
+		map[string]string{
+			"NFComRecepcao":       "https://hnfcom.fazenda.mg.gov.br/nfcom/services/NFComRecepcao",
+			"NFComConsulta":       "https://hnfcom.fazenda.mg.gov.br/nfcom/services/NFComConsulta",
+			"NFComRecepcaoEvento": "https://hnfcom.fazenda.mg.gov.br/nfcom/services/NFComRecepcaoEvento",
+			"NFComStatusServico":  "https://hnfcom.fazenda.mg.gov.br/nfcom/services/NFComStatusServico",
+		},
+	),
+	"MS": ep2(
+		map[string]string{
+			"NFComRecepcao":       "https://nfcom.sefaz.ms.gov.br/ws/NFComRecepcao",
+			"NFComConsulta":       "https://nfcom.sefaz.ms.gov.br/ws/NFComConsulta",
+			"NFComRecepcaoEvento": "https://nfcom.sefaz.ms.gov.br/ws/NFComRecepcaoEvento",
+			"NFComStatusServico":  "https://nfcom.sefaz.ms.gov.br/ws/NFComStatusServico",
+		},
+		map[string]string{
+			"NFComRecepcao":       "https://hom.nfcom.sefaz.ms.gov.br/ws/NFComRecepcao",
+			"NFComConsulta":       "https://hom.nfcom.sefaz.ms.gov.br/ws/NFComConsulta",
+			"NFComRecepcaoEvento": "https://hom.nfcom.sefaz.ms.gov.br/ws/NFComRecepcaoEvento",
+			"NFComStatusServico":  "https://hom.nfcom.sefaz.ms.gov.br/ws/NFComStatusServico",
+		},
+	),
+	"MT": ep2(
+		map[string]string{
+			"NFComRecepcao":       "https://www.sefaz.mt.gov.br/nfcom/services/NFComRecepcao",
+			"NFComConsulta":       "https://www.sefaz.mt.gov.br/nfcom/services/NFComConsulta",
+			"NFComRecepcaoEvento": "https://www.sefaz.mt.gov.br/nfcom/services/NFComRecepcaoEvento",
+			"NFComStatusServico":  "https://www.sefaz.mt.gov.br/nfcom/services/NFComStatusServico",
+		},
+		map[string]string{
+			"NFComRecepcao":       "https://homologacao.sefaz.mt.gov.br/nfcom/services/NFComRecepcao",
+			"NFComConsulta":       "https://homologacao.sefaz.mt.gov.br/nfcom/services/NFComConsulta",
+			"NFComRecepcaoEvento": "https://homologacao.sefaz.mt.gov.br/nfcom/services/NFComRecepcaoEvento",
+			"NFComStatusServico":  "https://homologacao.sefaz.mt.gov.br/nfcom/services/NFComStatusServico",
+		},
+	),
+}
+
+// nfcomUFAuth: MG, MS e MT autorizam o próprio emitente; as demais UFs vão para a SVRS. A relação UF
+// emitente para autorizador não consta nas páginas do portal; esta é a regra usual dos DF-e com autorizadores
+// de UF, a confirmar no primeiro teste em homologação.
+var nfcomUFAuth = mergeUFAuth(
+	map[string]string{"MG": "MG", "MS": "MS", "MT": "MT"},
+	"SVRS",
+	[]string{
+		"AC", "AL", "AM", "AP", "BA", "CE", "DF", "ES", "GO", "MA",
+		"PA", "PB", "PE", "PI", "PR", "RJ", "RN", "RO", "RR", "RS",
+		"SC", "SE", "SP", "TO", "EX",
+	},
+)
+
 type docTypeTable struct {
 	reg    registry
 	ufAuth map[string]string
@@ -620,10 +693,11 @@ type docTypeTable struct {
 // constants.DocTypeNFE/DocTypeNFCE/DocTypeCTE/DocTypeMDFE ("nfe", "nfce",
 // "cte", "mdfe").
 var docTypeRegistry = map[string]docTypeTable{
-	"nfe":  {nfeRegistry, nfeUFAuth},
-	"nfce": {nfceRegistry, nfceUFAuth},
-	"cte":  {cteRegistry, cteUFAuth},
-	"mdfe": {mdfeRegistry, mdfeUFAuth},
+	"nfe":   {nfeRegistry, nfeUFAuth},
+	"nfce":  {nfceRegistry, nfceUFAuth},
+	"cte":   {cteRegistry, cteUFAuth},
+	"mdfe":  {mdfeRegistry, mdfeUFAuth},
+	"nfcom": {nfcomRegistry, nfcomUFAuth},
 }
 
 // Authorizer returns the SEFAZ authorizer for (docType, uf), mirroring

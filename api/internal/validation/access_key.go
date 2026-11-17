@@ -16,19 +16,22 @@ const (
 	AccessKeyModMDFe  = "58"
 	AccessKeyModCTeOS = "67"
 	AccessKeyModGTVe  = "64"
+	AccessKeyModNFCom = "62"
 )
 
 // accessKeyTpEmis holds, per model, the tpEmis codes (position 35) a key of
 // that model can carry. NF-e: every code except 9, which SEFAZ reserves for
 // NFC-e offline contingency. CT-e and CT-e OS (MOC CT-e, Leiaute, tpEmis): 1 normal,
 // 2 contingência offline, 3 NFF, 4 EPEC, 5 FS-DA, 7 SVC-RS, 8 SVC-SP. GTV-e (64): 1 normal,
-// 2 contingência offline (as opções SVC saíram pela NT 2025.001). MDF-e: 1 normal, 2 contingência, 3 NFF.
+// 2 contingência offline (as opções SVC saíram pela NT 2025.001). MDF-e: 1 normal, 2 contingência, 3 NFF. NFCom (MOC NFCom, chave): 1 normal, 2 contingência offline; a
+// posição 36 é o nSiteAutoriz (dígito 0 a 9), já coberto pela regra de só dígitos.
 var accessKeyTpEmis = map[string]string{
 	AccessKeyModNFe:   "1234567",
 	AccessKeyModCTe:   "1234578",
 	AccessKeyModCTeOS: "1234578",
 	AccessKeyModGTVe:  "12",
 	AccessKeyModMDFe:  "123",
+	AccessKeyModNFCom: "12",
 }
 
 // accessKeyUFCodes is the set of valid IBGE cUF codes, derived once from

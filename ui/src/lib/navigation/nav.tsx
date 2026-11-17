@@ -188,6 +188,15 @@ export const DOC_CONTEXTS: DocContext[] = [
     ],
   },
   {
+    key: 'nfcom',
+    href: '/nfcom',
+    label: 'NFCom',
+    icon: <CreditCardIcon/>,
+    keywords: ['telecom', 'internet', 'telefonia', 'fatura', 'comunicação', 'assinante', 'modelo 62', 'provedor'],
+    emit: {href: '/nfcom/emit', label: 'Emitir NFCom', icon: <CreditCardIcon/>, keywords: ['fatura', 'internet', 'telecom']},
+    items: [],
+  },
+  {
     key: 'nfse',
     href: '/nfse',
     label: 'NFS-e',

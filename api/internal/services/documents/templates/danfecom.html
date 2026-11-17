@@ -1,0 +1,107 @@
+<style>
+  @page { size: A4 portrait; margin: 10mm 8mm 14mm 8mm; }
+  body { font-family: Arial, "Helvetica Neue", Helvetica, sans-serif; font-size: 7.5pt; color: #000; margin: 0; }
+  .b { font-weight: bold; }
+  .right, .right div { text-align: right; }
+  .center, .center div { text-align: center; }
+  .muted { color: #555; }
+  .big { font-size: 10pt; }
+  table { width: 100%; border-collapse: collapse; }
+  td { vertical-align: top; word-wrap: break-word; }
+  .block { margin-bottom: 6pt; }
+  .section { font-size: 8.5pt; font-weight: bold; margin: 8pt 0 3pt 0; }
+  .boxes td { background: {{ ctx.brand.box_bg }}; padding: 2pt 4pt; border-right: 1.5pt solid #fff; }
+  .boxes .lbl { display: block; font-size: 5.5pt; color: #333; }
+  .boxes .val { display: block; font-weight: bold; }
+  .list td { padding: 1.5pt 3pt 1.5pt 0; border-bottom: 0.4pt dashed #999; }
+  .list .head td { font-weight: normal; color: #333; border-bottom: 0.6pt solid #000; }
+  .list .total td { font-weight: bold; border-top: 0.6pt solid #000; border-bottom: none; }
+  .qr-band { min-height: 25mm; }
+  .qr { width: 25mm; display: block; margin-left: auto; }
+  .barcode-band { min-height: 15mm; }
+  .barcode { width: 100%; display: block; }
+  .chave { letter-spacing: 0.2pt; }
+  .banner { font-weight: bold; text-align: center; margin: 4pt 0; font-size: 9pt; }
+  .foot-line { position: absolute; top: 286mm; left: 8mm; width: 194mm; font-size: 6pt; color: #555; font-style: italic; text-align: right; }
+  .watermark { position: fixed; top: 30%; left: 0; width: 100%; text-align: center; font-size: 18pt; color: #cfcfcf; font-weight: bold; }
+</style>
+{% if ctx.is_cancelada %}<div class="watermark">{{ ctx.text.cancelada }}</div>{% endif %}
+{% if ctx.is_homologacao %}<div class="watermark">{{ ctx.text.homologacao }}</div>{% endif %}
+
+<table class="block"><tr>
+  <td style="width:70%">
+    {% if ctx.brand.logo_b64 %}<div class="logo-band"><img class="logo" src="{{ ctx.brand.logo_b64 }}" alt="logo"></div>{% endif %}
+    <div class="b big">{{ ctx.emit.nome }}</div>
+    {% if ctx.emit.fantasia %}<div>{{ ctx.emit.fantasia }}</div>{% endif %}
+    <div>{{ ctx.emit.endereco }}</div>
+    <div>{{ ctx.emit.mun }} - {{ ctx.emit.uf }} &nbsp; CEP: {{ ctx.emit.cep }}</div>
+    <div><span class="b">CNPJ:</span> {{ ctx.emit.doc }} &nbsp; <span class="b">IE:</span> {{ ctx.emit.ie }}</div>
+  </td>
+  <td style="width:30%">
+    {% if ctx.qr_uri %}<div class="qr-band"><img class="qr" src="{{ ctx.qr_uri }}" alt="QR Code"></div>{% endif %}
+  </td>
+</tr></table>
+<div class="block"><span class="b big">{{ ctx.text.danfecom }}</span> <span class="muted"> - {{ ctx.text.danfecom_desc }}</span></div>
+
+<div class="section">Assinante</div>
+<table class="boxes block"><tr>
+  <td style="width:44%"><span class="lbl">{{ "Nome" }}</span><span class="val">{{ ctx.cliente.nome }}</span></td>
+  <td style="width:22%"><span class="lbl">{{ "CNPJ / CPF" }}</span><span class="val">{{ ctx.cliente.doc }}</span></td>
+  <td style="width:17%"><span class="lbl">{{ "Nº do cliente" }}</span><span class="val">{{ ctx.cliente.codigo }}</span></td>
+  <td style="width:17%"><span class="lbl">{{ "Telefone principal" }}</span><span class="val">{{ ctx.cliente.telefone }}</span></td>
+</tr></table>
+<div class="block">{{ ctx.cliente.endereco }}, {{ ctx.cliente.mun }} - {{ ctx.cliente.uf }} &nbsp; CEP: {{ ctx.cliente.cep }}</div>
+<table class="boxes block"><tr>
+  <td style="width:34%"><span class="lbl">{{ "Referência" }}</span><span class="val">{{ ctx.cliente.referencia }}</span></td>
+  <td style="width:33%"><span class="lbl">{{ "Vencimento" }}</span><span class="val">{{ ctx.cliente.vencimento }}</span></td>
+  <td style="width:33%"><span class="lbl">{{ "Total em Reais" }}</span><span class="val">{{ ctx.cliente.total }}</span></td>
+</tr></table>
+
+<div class="section">Identificação da NFCom</div>
+<table class="boxes block"><tr>
+  <td style="width:10%"><span class="lbl">{{ "Modelo" }}</span><span class="val">{{ "62" }}</span></td>
+  <td style="width:10%"><span class="lbl">{{ "Série" }}</span><span class="val">{{ ctx.ide.serie }}</span></td>
+  <td style="width:22%"><span class="lbl">{{ "Número" }}</span><span class="val">{{ ctx.ide.nNF }}</span></td>
+  <td style="width:22%"><span class="lbl">{{ "Data de emissão" }}</span><span class="val">{{ ctx.ide.dhEmi }}</span></td>
+  <td style="width:36%">
+    {% if ctx.protocolo %}
+    <span class="lbl">{{ ctx.text.protocolo }}</span><span class="val">{{ ctx.protocolo.nProt }} - {{ ctx.protocolo.dhRecbto }}</span>
+    {% elif ctx.is_contingencia %}
+    <span class="val">{{ ctx.text.contingencia }}</span><span class="val">{{ ctx.text.contingencia_2 }}</span>
+    {% endif %}
+  </td>
+</tr></table>
+<div class="block"><span class="b">{{ ctx.text.consulta }}</span> {{ ctx.consulta_url }}</div>
+<div class="block chave"><span class="b">Chave de acesso:</span> {{ ctx.chave_fmt }}</div>
+{% if ctx.chave_barcode %}<div class="barcode-band"><img class="barcode" src="{{ ctx.chave_barcode }}" alt="chave"></div>{% endif %}
+{% if ctx.is_contingencia %}<div class="banner">{{ ctx.text.contingencia }} - {{ ctx.text.contingencia_2 }}</div>{% endif %}
+
+<div class="section">Itens da fatura</div>
+<table class="list block">
+  <tr class="head"><td style="width:30%">Itens da fatura</td><td style="width:6%">Unid.</td><td style="width:8%" class="right">Quant.</td>
+    <td style="width:10%" class="right">Preço unit. R$</td><td style="width:10%" class="right">Valor R$</td><td style="width:10%" class="right">PIS/COFINS R$</td>
+    <td style="width:10%" class="right">Base ICMS</td><td style="width:6%" class="right">Alíq.</td><td style="width:10%" class="right">ICMS R$</td></tr>
+  {% for it in ctx.itens %}
+  <tr><td>{{ it.desc }}</td><td>{{ it.unid }}</td><td class="right">{{ it.qtd }}</td><td class="right">{{ it.unitario }}</td>
+    <td class="right">{{ it.valor }}</td><td class="right">{{ it.pis_cofins }}</td><td class="right">{{ it.bc_icms }}</td>
+    <td class="right">{{ it.aliq }}</td><td class="right">{{ it.icms }}</td></tr>
+  {% endfor %}
+  <tr class="total"><td>TOTAL</td><td></td><td></td><td></td><td class="right">{{ ctx.totais.vProd }}</td><td class="right">{{ ctx.totais.pis_cofins }}</td>
+    <td class="right">{{ ctx.totais.bc_icms }}</td><td></td><td class="right">{{ ctx.totais.icms }}</td></tr>
+</table>
+
+<div class="section">Tributos</div>
+<table class="list block">
+  <tr class="head"><td style="width:40%">Tributo</td><td style="width:30%" class="right">Valor R$</td></tr>
+  <tr><td>PIS</td><td class="right">{{ ctx.totais.pis }}</td></tr>
+  <tr><td>COFINS</td><td class="right">{{ ctx.totais.cofins }}</td></tr>
+  <tr><td>FUST</td><td class="right">{{ ctx.totais.fust }}</td></tr>
+  <tr><td>FUNTTEL</td><td class="right">{{ ctx.totais.funttel }}</td></tr>
+</table>
+
+{% if ctx.msg_fiscal or ctx.msg_contribuinte %}
+<div class="section">Informações complementares</div>
+{% if ctx.msg_fiscal %}<div>{{ ctx.msg_fiscal }}</div>{% endif %}
+{% if ctx.msg_contribuinte %}<div>{{ ctx.msg_contribuinte }}</div>{% endif %}
+{% endif %}
+<div class="foot-line">{{ ctx.text.gerado_por }} {{ ctx.site }} em {{ ctx.gerado_em }}</div>

@@ -11,6 +11,7 @@ import (
 	lambdaTypes "github.com/aws/aws-sdk-go-v2/service/lambda/types"
 
 	"gopkg.aoctech.app/dfe/worker/internal/config"
+	"gopkg.aoctech.app/dfe/worker/internal/contingency"
 )
 
 type fakeDB struct{ calls []*dynamodb.QueryInput }
@@ -42,7 +43,7 @@ func TestDispatchUsesSparseIndexAndInvokesAsync(t *testing.T) {
 	if err := dispatch(context.Background(), cfg, db, inv); err != nil {
 		t.Fatal(err)
 	}
-	if len(db.calls) != 4 {
+	if len(db.calls) != len(contingency.Tables) {
 		t.Fatalf("one Query per document table, got %d", len(db.calls))
 	}
 	for _, c := range db.calls {
@@ -61,7 +62,7 @@ func TestDispatchProbesUsesSparseIndexPerConfigTable(t *testing.T) {
 	db, inv := &probeDB{}, &fakeInv{}
 	cfg := &config.Config{TablePrefix: "dev", ContingencyFunctionName: "dev-contingency-retransmit-worker"}
 	dispatchProbes(context.Background(), cfg, db, inv)
-	if len(db.calls) != 4 {
+	if len(db.calls) != len(contingency.ConfigTables) {
 		t.Fatalf("one Query per configuration table, got %d", len(db.calls))
 	}
 	for _, c := range db.calls {

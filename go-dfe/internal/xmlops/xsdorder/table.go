@@ -19,6 +19,7 @@
 //	Eventos NF-e   — leiauteEvento_v1.00.xsd + e110110/111/112/140/111500-503/210200-240
 //	Eventos CT-e   — eventoCTe_v4.00.xsd + evCancCTe_v4.00.xsd etc.
 //	Eventos MDF-e  — eventoMDFe_v3.00.xsd + ev*.xsd (NT012025)
+//	Eventos NFCom  — eventoNFCom_v1.00.xsd + evCancNFCom (NT 2026.005)
 //	inutNFe        — leiauteInutNFe_v4.00.xsd
 //	ConsCad        — leiauteConsCad_v2.00.xsd
 //	consStatServ   — leiauteConsStatServ_v4.00.xsd
@@ -783,8 +784,12 @@ var servicosMdfe = map[string][]string{
 	"consStatServMDFe": {"tpAmb", "xServ"},
 
 	// Consulta MDF-e
-	"consSitMDFe":    {"tpAmb", "xServ", "chMDFe"},
-	"consNaoEncMDFe": {"tpAmb", "xServ", "CNPJ", "CPF"},
+	"consSitMDFe": {"tpAmb", "xServ", "chMDFe"},
+
+	// Consultas da NFCom (consSitNFCom e consStatServNFCom, NT 2026.005)
+	"consSitNFCom":      {"tpAmb", "xServ", "chNFCom"},
+	"consStatServNFCom": {"tpAmb", "xServ"},
+	"consNaoEncMDFe":    {"tpAmb", "xServ", "CNPJ", "CPF"},
 
 	// Eventos MDF-e
 	"eventoMDFe": {"infEvento", "Signature"},
@@ -799,6 +804,13 @@ var servicosMdfe = map[string][]string{
 
 	// Cancelamento MDF-e (evCancMDFe — 110111)
 	"evCancMDFe": {"descEvento", "nProt", "xJust"},
+
+	// Eventos NFCom (eventoNFCom_v1.00.xsd + evCancNFCom, NT 2026.005)
+	"eventoNFCom": {"infEvento", "Signature"},
+	"eventoNFCom:infEvento": {
+		"cOrgao", "tpAmb", "CNPJ", "chNFCom", "dhEvento", "tpEvento", "nSeqEvento", "detEvento",
+	},
+	"evCancNFCom": {"descEvento", "nProt", "xJust"},
 
 	// Inclusão de condutor MDF-e (evIncCondutorMDFe — 110114)
 	"evIncCondutorMDFe": {"descEvento", "condutor"},
@@ -870,6 +882,7 @@ func buildTable() map[string][]string {
 		servicosCte,
 		envimdfe,
 		servicosMdfe,
+		nfcomGenerated,
 	} {
 		for k, v := range src {
 			t[k] = v

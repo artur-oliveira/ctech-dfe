@@ -81,7 +81,8 @@ func TestXSDOrderMatchesEventSpecs(t *testing.T) {
 		"evento_cte_evApropriaCredPres": true, "evento_cte_evCancTribSN": true,
 		"evento_cte_evEPECCTe": true, "evento_cte_evGTV": true, "evento_cte_evRegMultimodal": true,
 		"evento_cte_evTributacaoSN": true,
-		"evento_nfe_112120":         true, "evento_nfe_112130": true, "evento_nfe_412120": true, "evento_nfe_412130": true,
+		"evento_nfcom_evCancTribSN": true, "evento_nfcom_evTributacaoSN": true,
+		"evento_nfe_112120": true, "evento_nfe_112130": true, "evento_nfe_412120": true, "evento_nfe_412130": true,
 	}
 	files, _ := filepath.Glob("specs/evento_*.json")
 	if len(files) == 0 {

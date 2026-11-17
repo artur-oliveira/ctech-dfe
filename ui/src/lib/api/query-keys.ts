@@ -9,6 +9,7 @@ export const queryKeys = {
   nfceConfig: (pk: string) => ['nfce-config', pk] as const,
   cteConfig: (pk: string) => ['cte-config', pk] as const,
   mdfeConfig: (pk: string) => ['mdfe-config', pk] as const,
+  nfcomConfig: (pk: string) => ['nfcom-config', pk] as const,
   nfseConfig: (pk: string) => ['nfse-config', pk] as const,
   certificates: (pk: string) => ['certificates', pk] as const,
   /** Keyed by tax id, not by pk: the answer is about the CNPJ root. */
@@ -103,6 +104,12 @@ export const queryKeys = {
     list: (orgPk: string | undefined, params?: object) => ['nfces', orgPk, params] as const,
     detail: (accessKey: string) => ['nfce', accessKey] as const,
     events: (accessKey: string) => ['nfce-events', accessKey] as const,
+  },
+  nfcoms: {
+    lists: (orgPk: string | undefined) => ['nfcoms', orgPk] as const,
+    list: (orgPk: string | undefined, params?: object) => ['nfcoms', orgPk, params] as const,
+    detail: (accessKey: string) => ['nfcom', accessKey] as const,
+    events: (accessKey: string) => ['nfcom-events', accessKey] as const,
   },
   mdfes: {
     lists: (orgPk: string | undefined) => ['mdfes', orgPk] as const,

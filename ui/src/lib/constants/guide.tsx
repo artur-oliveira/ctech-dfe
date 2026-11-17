@@ -7,6 +7,7 @@ import {
   NfceIcon,
   NfeIcon,
   NfseIcon,
+  CreditCardIcon,
   SettingsIcon,
   ShieldIcon,
   TruckIcon,
@@ -84,6 +85,17 @@ export const GUIDE_TOPICS: GuideTopic[] = [
     tags: ['Manifesto', 'Encerramento', 'Não encerrados', 'Carregamento posterior', 'CT-e a partir de NF-e', 'CIOT', 'ANTT', 'RNTRC', 'Piso mínimo de frete'],
     icon: <MdfeIcon width={20} height={20}/>,
     accent: '#f59e0b',
+  },
+  {
+    href: '/guide/nfcom',
+    label: 'NFCom',
+    title: 'Emitir NFCom',
+    time: '5 min',
+    description:
+      'Fatura de serviço de comunicação: cliente, assinante, itens e fatura, com tributos e totais calculados pelo servidor, DANFE-COM e cancelamento.',
+    tags: ['Telecom', 'Fatura', 'Assinante'],
+    icon: <CreditCardIcon width={20} height={20}/>,
+    accent: '#e11d48',
   },
   {
     href: '/guide/nfse',

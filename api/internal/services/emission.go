@@ -38,11 +38,14 @@ const (
 //   - NFC-e: offline (9) in every UF. No EPEC (the MOC does not accept the NFC-e in the EPEC event).
 //   - CT-e: offline (2); SVC-RS/SVC-SP by the issuer's UF (7/8). No EPEC (revoked).
 //   - MDF-e: offline (2). No SVC and no EPEC.
+//   - NFCom: offline (2). No SVC and no EPEC.
 var emissionOptions = map[string][]string{
 	ModelNFe:  {repositories.EmissionNormal, repositories.EmissionSVC, repositories.EmissionEPEC},
 	ModelNFCe: {repositories.EmissionNormal, repositories.EmissionOffline},
 	ModelCTe:  {repositories.EmissionNormal, repositories.EmissionOffline, repositories.EmissionSVC},
 	ModelMDFe: {repositories.EmissionNormal, repositories.EmissionOffline},
+	// NFCom: offline (2) only; the MOC has no SVC and no EPEC for it.
+	ModelNFCom: {repositories.EmissionNormal, repositories.EmissionOffline},
 }
 
 // EmissionOptions is the emission types valid for a model (nil if none).

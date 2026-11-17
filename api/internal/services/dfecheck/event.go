@@ -12,12 +12,14 @@ import (
 // Specs dos eventos (go-dfe/validate/specs/evento_*.json): o envelope de cada documento e, por evento, o
 // conteúdo de detEvento (NF-e, pelo tpEvento) ou o grupo evXxx dentro dele (CT-e e MDF-e, pelo nome do grupo).
 const (
-	specEventNFePrefix  = "evento_nfe_"
-	specEventNFeEnv     = "evento_nfe_envEvento"
-	specEventCTeEnv     = "evento_cte_eventoCTe"
-	specEventMDFeEnv    = "evento_mdfe_eventoMDFe"
-	specEventCTePrefix  = "evento_cte_"
-	specEventMDFePrefix = "evento_mdfe_"
+	specEventNFePrefix   = "evento_nfe_"
+	specEventNFeEnv      = "evento_nfe_envEvento"
+	specEventCTeEnv      = "evento_cte_eventoCTe"
+	specEventMDFeEnv     = "evento_mdfe_eventoMDFe"
+	specEventCTePrefix   = "evento_cte_"
+	specEventMDFePrefix  = "evento_mdfe_"
+	specEventNFComEnv    = "evento_nfcom_eventoNFCom"
+	specEventNFComPrefix = "evento_nfcom_"
 	// Caminhos preenchidos depois, pelo egress (assinatura do evento).
 	signaturePathNFeEvent = "evento/Signature"
 )
@@ -45,10 +47,13 @@ func EventFindings(doc string, body map[string]any) []validate.Violation {
 		det, _ := inf["detEvento"].(map[string]any)
 		tp, _ := inf["tpEvento"].(string)
 		found = append(found, CheckEvent(specEventNFePrefix+tp, det)...)
-	case "cte", "mdfe":
+	case "cte", "mdfe", "nfcom":
 		envSpec, prefix, rootKey := specEventCTeEnv, specEventCTePrefix, "eventoCTe"
-		if doc == "mdfe" {
+		switch doc {
+		case "mdfe":
 			envSpec, prefix, rootKey = specEventMDFeEnv, specEventMDFePrefix, "eventoMDFe"
+		case "nfcom":
+			envSpec, prefix, rootKey = specEventNFComEnv, specEventNFComPrefix, "eventoNFCom"
 		}
 		env, _ := body[rootKey].(map[string]any)
 		found = CheckEvent(envSpec, env)

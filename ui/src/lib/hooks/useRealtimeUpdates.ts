@@ -58,6 +58,7 @@ const DOC_QUERY_KEYS = {
   mdfes: queryKeys.mdfes,
   ctes: queryKeys.ctes,
   nfses: queryKeys.nfses,
+  nfcoms: queryKeys.nfcoms,
 } as const;
 
 // Inutilização queries are keyed by doc_type ('nfe'/'nfce'), not by the
@@ -74,6 +75,7 @@ const AUXILIARY_PDF: Record<string, (id: string) => Promise<{ url: string }>> = 
   nfses: (id) => apiClient.downloadDanfse(id),
   ctes: (id) => apiClient.downloadCteDacte(id),
   mdfes: (id) => apiClient.downloadMdfeDamdfe(id),
+  nfcoms: (id) => apiClient.downloadNfcomDanfecom(id),
 };
 
 async function openAuxiliaryPdf(tableName: string, id: string): Promise<void> {

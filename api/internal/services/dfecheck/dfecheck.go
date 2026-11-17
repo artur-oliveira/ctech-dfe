@@ -17,6 +17,8 @@ const (
 	SpecNFe  = "nfe"
 	SpecMDFe = "mdfe"
 	SpecCTe  = "cte"
+	// SpecNFCom é o esquema da NFCom (modelo 62, NT 2026.005); as regras do MOC vêm da família "nfcom".
+	SpecNFCom = "nfcom"
 )
 
 // Códigos dos 422 do Gate que a UI mapeia, os mesmos em todo documento: problem.code e errors[].code.
@@ -68,14 +70,16 @@ func Shadow(spec, docKind, accessKey string, doc map[string]any) (found []valida
 type Kind string
 
 const (
-	KindNFe       Kind = "nfe"
-	KindNFCe      Kind = "nfce"
-	KindCTe       Kind = "cte"
-	KindCTeOS     Kind = "cteos"
-	KindMDFe      Kind = "mdfe"
-	KindNFeEvent  Kind = "nfe_event"
-	KindCTeEvent  Kind = "cte_event"
-	KindMDFeEvent Kind = "mdfe_event"
+	KindNFe        Kind = "nfe"
+	KindNFCe       Kind = "nfce"
+	KindCTe        Kind = "cte"
+	KindCTeOS      Kind = "cteos"
+	KindMDFe       Kind = "mdfe"
+	KindNFCom      Kind = "nfcom"
+	KindNFeEvent   Kind = "nfe_event"
+	KindCTeEvent   Kind = "cte_event"
+	KindMDFeEvent  Kind = "mdfe_event"
+	KindNFComEvent Kind = "nfcom_event"
 )
 
 // schemaDefaults é a tabela de promoção: o modo de schema de cada tipo quando nenhuma variável de ambiente o
@@ -85,6 +89,7 @@ var schemaDefaults = map[Kind]validate.Mode{
 	KindNFe: validate.ModeShadow, KindNFCe: validate.ModeShadow, KindCTe: validate.ModeShadow,
 	KindCTeOS: validate.ModeShadow, KindMDFe: validate.ModeShadow,
 	KindNFeEvent: validate.ModeShadow, KindCTeEvent: validate.ModeShadow, KindMDFeEvent: validate.ModeShadow,
+	KindNFCom: validate.ModeShadow, KindNFComEvent: validate.ModeShadow,
 }
 
 // Variáveis de ambiente do interruptor: DFE_GATE_SCHEMA_<TIPO> (por exemplo DFE_GATE_SCHEMA_NFCE) vale para um
@@ -196,6 +201,22 @@ func GateMDFe(body map[string]any, block validate.Modes) []validate.Violation {
 		}
 	}
 	return found
+}
+
+// GateNFCom é o Gate do NFCom do corpo do builder: o documento (regras do MOC e schema). Não há modal.
+func GateNFCom(body map[string]any, block validate.Modes) []validate.Violation {
+	nfcom, ok := body["NFCom"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	return Gate(SpecNFCom, "nfcom", nfcom, block, SchemaMode(KindNFCom))
+}
+
+// ShadowNFCom valida o NFCom do corpo do builder.
+func ShadowNFCom(accessKey string, body map[string]any) {
+	if nfcom, ok := body["NFCom"].(map[string]any); ok {
+		Shadow(SpecNFCom, "nfcom", accessKey, nfcom)
+	}
 }
 
 // GateCTe é o Gate do CTe do corpo do builder: o documento e o conteúdo do modal rodoviário (infModal é xs:any).

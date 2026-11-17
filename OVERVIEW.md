@@ -2,7 +2,7 @@
 
 **SaaS platform for issuing and managing Electronic Tax Documents (DF-e) with direct SEFAZ communication.**
 
-Supports: NF-e · NFC-e · CT-e · MDF-e · NFS-e
+Supports: NF-e · NFC-e · CT-e · MDF-e · NFS-e · NFCom (sem homologação ainda)
 
 ---
 

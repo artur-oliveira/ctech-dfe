@@ -10,7 +10,10 @@
 // depending on the not-yet-written builder.
 package xsdorder
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 // indexOf mirrors the Python tests' `kids.index(x)` pattern.
 func indexOf(order []string, name string) int {
@@ -590,8 +593,8 @@ func TestTableKeyCount(t *testing.T) {
 	// RSAKeyValue, que o paridade com o XSD (validate/xsdorder_parity_test.go) apontou + 34 do CT-e 4.00
 	// (emissão rodoviária, mesma paridade, agora estrita para o CT-e) + 4 dos eventos do CT-e
 	// (evCCeCTe, infCorrecao, evPrestDesacordo, evCancPrestDesacordo) + 10 dos eventos da reforma tributária da NF-e
-	// + 5 dos eventos de entrega do CT-e (evCECTe, evCancCECTe, evIECTe, evCancIECTe, infEntrega) + (detEvento:gCredPresOper e filhos, gImobilizacao, gConsumoComb, gPerecimento, gItemNaoFornecido, gCredito, gPgto, gControleEstoque) + 3 dos eventos de vinculação de pagamento do CT-e (evVincPgto, evVincPgto:pgto, evCancVincPgto) + 17 dos modais do CT-e (aereo, aquav, ferrov, duto, multimodal e subgrupos).
-	const wantKeys = 346
+	// + 5 dos eventos de entrega do CT-e (evCECTe, evCancCECTe, evIECTe, evCancIECTe, infEntrega) + (detEvento:gCredPresOper e filhos, gImobilizacao, gConsumoComb, gPerecimento, gItemNaoFornecido, gCredito, gPgto, gControleEstoque) + 3 dos eventos de vinculação de pagamento do CT-e (evVincPgto, evVincPgto:pgto, evCancVincPgto) + 17 dos modais do CT-e (aereo, aquav, ferrov, duto, multimodal e subgrupos) + 3 dos eventos da NFCom (eventoNFCom, eventoNFCom:infEvento, evCancNFCom).
+	wantKeys := 351 + len(nfcomGenerated) // 351 à mão (inclui consSitNFCom e consStatServNFCom) + a tabela gerada da NFCom
 	if got := len(Table); got != wantKeys {
 		t.Errorf("Table has %d keys, want %d", got, wantKeys)
 	}
@@ -752,4 +755,29 @@ func TestOrdemXSDValorLiquidoNT2026008(t *testing.T) {
 
 	total := mustResolve(t, "infNFe", "total")
 	assertBefore(t, total, "vProdLiqTot", "ICMSTot")
+}
+
+// A tabela da NFCom é gerada do XSD e achada pelo caminho completo, sem colidir com as de NF-e, CT-e e MDF-e.
+func TestResolveNFComGenerated(t *testing.T) {
+	order, ok := Resolve("NFCom:infNFCom", "ide")
+	if !ok || len(order) < 5 || order[0] != "cUF" {
+		t.Fatalf("ide da NFCom: ok=%v order=%v", ok, order)
+	}
+	if o, ok := Resolve("NFCom", "NFCom"); ok && len(o) > 0 && o[0] == "cUF" {
+		t.Error("raiz não deve resolver como ide")
+	}
+}
+
+// A consulta de situação da NFCom (usada na reconciliação do 204) sai na ordem do XSD, não na alfabética.
+func TestResolveNFComQueries(t *testing.T) {
+	want := map[string][]string{
+		"consSitNFCom":      {"tpAmb", "xServ", "chNFCom"},
+		"consStatServNFCom": {"tpAmb", "xServ"},
+	}
+	for tag, order := range want {
+		got, ok := Resolve("", tag)
+		if !ok || fmt.Sprint(got) != fmt.Sprint(order) {
+			t.Errorf("%s: ok=%v order=%v, want %v", tag, ok, got, order)
+		}
+	}
 }

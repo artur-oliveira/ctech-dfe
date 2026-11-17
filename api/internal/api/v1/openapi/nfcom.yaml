@@ -1,0 +1,323 @@
+paths:
+
+  # ── NFCom ──────────────────────────────────────────────────────────────────
+
+  /v1.0/nfcoms:
+    post:
+      tags: [ NFCom ]
+      summary: Emite uma NFCom
+      description: |
+        Nota Fiscal Fatura de Serviço de Comunicação Eletrônica (modelo 62). A autorização é síncrona
+        (`NFComRecepcao`, sem lote) e passa pelo outbox: a resposta é 201 com a nota `pending` e o resultado chega
+        por WebSocket e por webhook (`document_type` `nfcom`).
+
+        O servidor monta o documento: chave de acesso (com `nSiteAutoriz` 0), `vProd` de cada item
+        (`quantity x unit_value - discount + other_charges`), a base, a alíquota e o valor do ICMS, do PIS e da
+        COFINS (base = valor do item) e os totais. Antes de reservar número e cota, o documento passa pelo portão do
+        MOC: regra determinística violada (campos de contingência, composição do Id, DV da chave, DV de CNPJ ou
+        CPF) ou schema fora do leiaute é 422 com `code` `fiscal_prevalidation`.
+
+        Na contingência offline (`PUT /nfcom-emission`), a nota é assinada no egress, o QR Code leva `sign` e o
+        documento fica pendente (`contingency_state=pending`) até o reenvio com a mesma chave.
+
+        Fora da v1: substituição, ajuste e cofaturamento, faturamento centralizado, IBS/CBS, FUST, FUNTTEL,
+        retenções e partilha do ICMS. A emissão é cobrada pelo medidor `nfcom`: plano sem `quota_nfcom` recebe 402.
+      operationId: emitNfcom
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NfcomEmitBody' }
+      responses:
+        '201':
+          description: NFCom registrada e enfileirada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NfcomDocument' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    get:
+      tags: [ NFCom ]
+      summary: Lista NFCom
+      operationId: listNfcoms
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/FilterNumber'
+        - $ref: '#/components/parameters/FilterYear'
+        - $ref: '#/components/parameters/FilterMonth'
+        - $ref: '#/components/parameters/FilterDay'
+      responses:
+        '200':
+          description: Página de NFCom
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/NfcomDocument' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /v1.0/nfcoms/{access_key}:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/AccessKey'
+    get:
+      tags: [ NFCom ]
+      summary: Lê uma NFCom
+      operationId: getNfcom
+      responses:
+        '200':
+          description: A NFCom
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NfcomDocument' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1.0/nfcoms/{access_key}/xml:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/AccessKey'
+    get:
+      tags: [ NFCom ]
+      summary: Baixa o XML autorizado
+      operationId: getNfcomXml
+      responses:
+        '200': { $ref: '#/components/responses/XmlDownload' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1.0/nfcoms/{access_key}/danfecom:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/AccessKey'
+    get:
+      tags: [ NFCom ]
+      summary: Baixa o DANFE-COM em PDF
+      description: |
+        Documento auxiliar da NFCom (MOC Anexo II), A4 retrato, de leiaute único: qualquer `format` devolve 400
+        `invalid-document-format`. Nota em contingência offline pendente imprime "EMITIDO EM CONTINGÊNCIA Pendente de
+        autorização" no lugar do protocolo.
+      operationId: getNfcomDanfecom
+      responses:
+        '200': { $ref: '#/components/responses/CachedPdfDownload' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /v1.0/nfcoms/{access_key}/cancel:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/AccessKey'
+    post:
+      tags: [ NFCom ]
+      summary: Cancela uma NFCom (evento 110111)
+      description: |
+        `justification` de 15 a 255 caracteres. O prazo é do autorizador: NFCom autorizada há mais de 120 horas
+        volta como rejeição 220 pelo evento, e a nota retorna a `authorized`. Só nota `authorized` aceita o evento.
+      operationId: cancelNfcom
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CancelEventBody' }
+      responses:
+        '200':
+          description: Evento registrado e enfileirado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NfcomDocument' }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/nfcoms/{access_key}/events:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/AccessKey'
+    get:
+      tags: [ NFCom ]
+      summary: Lista os eventos de uma NFCom
+      operationId: listNfcomEvents
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Página de eventos
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/DocumentEvent' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1.0/nfcoms/{access_key}/events/{event_sk}/xml:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - $ref: '#/components/parameters/AccessKey'
+      - $ref: '#/components/parameters/EventSk'
+    get:
+      tags: [ NFCom ]
+      summary: Baixa o XML de um evento
+      operationId: getNfcomEventXml
+      responses:
+        '200': { $ref: '#/components/responses/XmlDownload' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+components:
+  schemas:
+
+    NfcomDocument:
+      allOf:
+        - $ref: '#/components/schemas/FiscalDocument'
+        - type: object
+          properties:
+            customer_name: { type: string }
+            customer_doc: { type: string, description: CNPJ ou CPF do cliente, só dígitos (CNPJ alfanumérico aceito). }
+            subscriber_code: { type: string }
+            total: { type: string, description: 'Valor total da NFCom (`vNF`), duas casas.' }
+            items: { type: integer, description: Quantidade de itens. }
+
+    NfcomEmitBody:
+      type: object
+      required: [ customer, subscriber, items ]
+      properties:
+        customer: { $ref: '#/components/schemas/NfcomCustomer' }
+        subscriber: { $ref: '#/components/schemas/NfcomSubscriber' }
+        items:
+          type: array
+          minItems: 1
+          maxItems: 990
+          items: { $ref: '#/components/schemas/NfcomItem' }
+        invoice: { $ref: '#/components/schemas/NfcomInvoice' }
+        prepaid:
+          type: boolean
+          description: Serviço pré-pago (`indPrePago`); dispensa a fatura.
+        additional_info: { type: string, maxLength: 3000 }
+        authorized_xml:
+          type: array
+          maxItems: 10
+          items: { type: string, description: CNPJ ou CPF autorizado a baixar o XML. }
+        contingency_reason:
+          type: string
+          minLength: 15
+          maxLength: 256
+          description: Justificativa (`xJust`) na contingência offline; sem ela vale a registrada no `PUT /nfcom-emission`.
+
+    NfcomCustomer:
+      type: object
+      required: [ name, ie_indicator, address ]
+      description: Destinatário. Informe exatamente um entre `cnpj`, `cpf` e `other_id`.
+      properties:
+        name: { type: string, minLength: 2, maxLength: 60 }
+        cnpj: { type: string }
+        cpf: { type: string }
+        other_id: { type: string, maxLength: 20 }
+        ie_indicator: { type: string, enum: [ '1', '2', '9' ], description: '1 contribuinte, 2 isento, 9 não contribuinte.' }
+        ie: { type: string, maxLength: 14, description: 'Obrigatória no indicador 1; `ISENTO` no 2; proibida no 9.' }
+        municipal_registration: { type: string, maxLength: 15 }
+        address: { $ref: '#/components/schemas/NfcomAddress' }
+
+    NfcomAddress:
+      type: object
+      required: [ street, number, neighborhood, ibge_code, city, postal_code, uf ]
+      properties:
+        street: { type: string, maxLength: 60 }
+        number: { type: string, maxLength: 60 }
+        complement: { type: string, maxLength: 60 }
+        neighborhood: { type: string, maxLength: 60 }
+        ibge_code: { type: string, pattern: '^[0-9]{7}$' }
+        city: { type: string, maxLength: 60 }
+        postal_code: { type: string, pattern: '^[0-9]{8}$' }
+        uf: { $ref: '#/components/schemas/Uf' }
+        phone: { type: string }
+        email: { type: string, format: email }
+
+    NfcomSubscriber:
+      type: object
+      required: [ code, type, service_used ]
+      properties:
+        code: { type: string, minLength: 1, maxLength: 30 }
+        type:
+          type: string
+          enum: [ '1', '2', '3', '4', '5', '6', '7', '8', '99' ]
+          description: '`tpAssinante`: 1 comercial, 2 industrial, 3 residencial, 4 produtor rural, 5 órgão público estadual, 6 prestador de telecomunicação, 7 órgão público municipal, 8 órgão público federal, 99 outros.'
+        service_used:
+          type: string
+          enum: [ '1', '2', '3', '4', '5', '6', '7' ]
+          description: '`tpServUtil`: 1 telefonia, 2 dados, 3 TV por assinatura, 4 provimento de acesso à internet, 5 multimídia, 6 outros, 7 vários.'
+        contract_number: { type: string, maxLength: 20 }
+        contract_start: { type: string, format: date }
+        contract_end: { type: string, format: date }
+        primary_terminal: { type: string, maxLength: 12 }
+        primary_uf: { $ref: '#/components/schemas/Uf' }
+        primary_ibge_code: { type: string, pattern: '^[0-9]{7}$' }
+
+    NfcomItem:
+      type: object
+      required: [ code, description, class_code, unit, quantity, unit_value, icms ]
+      properties:
+        code: { type: string, maxLength: 60 }
+        description: { type: string, maxLength: 120 }
+        class_code: { type: string, pattern: '^[0-9]{7}$', description: '`cClass`, 7 dígitos (tabela do MOC, item 7.8).' }
+        cfop: { type: string, pattern: '^[0-9]{4}$', description: Obrigatório, salvo ICMS `sem_cst` (que o proíbe). }
+        unit: { type: string, enum: [ '1', '2', '3', '4' ], description: '`uMed`: 1 minuto, 2 MB, 3 GB, 4 UN.' }
+        quantity: { type: string, description: 'Decimal positivo; o XML leva de 2 a 4 casas.' }
+        unit_value: { type: string, description: 'Decimal não negativo; o XML leva de 2 a 8 casas.' }
+        discount: { type: string }
+        other_charges: { type: string }
+        icms:
+          type: object
+          required: [ cst ]
+          properties:
+            cst: { type: string, enum: [ '00', '40', '41', '51', '90', sn, sem_cst ], description: '`sn` é Simples Nacional (CST 90, indSN 1); `sem_cst` é o indSemCST.' }
+            rate: { type: string, description: Alíquota em %; obrigatória em 00 e 90. }
+        pis:
+          type: object
+          required: [ cst, rate ]
+          properties:
+            cst: { type: string, enum: [ '01', '02', '06', '07', '08', '09', '49' ] }
+            rate: { type: string }
+        cofins:
+          type: object
+          required: [ cst, rate ]
+          properties:
+            cst: { type: string, enum: [ '01', '02', '06', '07', '08', '09', '49' ] }
+            rate: { type: string }
+
+    NfcomInvoice:
+      type: object
+      required: [ competence, due_date, bar_code ]
+      properties:
+        competence: { type: string, pattern: '^[0-9]{6}$', description: AAAAMM. }
+        due_date: { type: string, format: date }
+        bar_code: { type: string, pattern: '^[0-9]{1,48}$' }

@@ -80,15 +80,18 @@ const (
 	ModelNFCe = "65"
 	ModelCTe  = "57"
 	ModelMDFe = "58"
+	// ModelNFCom is the NFCom (nota fiscal fatura de serviço de comunicação), modelo 62.
+	ModelNFCom = "62"
 )
 
 // go-dfe doc_type values (Request.doc_type).
 const (
-	DocTypeNFe  = "nfe"
-	DocTypeNFCe = "nfce"
-	DocTypeCTe  = "cte"
-	DocTypeMDFe = "mdfe"
-	DocTypeNfse = "nfse"
+	DocTypeNFe   = "nfe"
+	DocTypeNFCe  = "nfce"
+	DocTypeCTe   = "cte"
+	DocTypeMDFe  = "mdfe"
+	DocTypeNFCom = "nfcom"
+	DocTypeNfse  = "nfse"
 )
 
 // StatusCancelled is the final document status written by the worker after a

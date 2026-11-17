@@ -55,6 +55,10 @@ import type {
   MdfeListOut,
   MdfeSituationOut,
   MdfeUnclosedOut,
+  NFComConfigOut,
+  NfcomDetailOut,
+  NfcomEmit,
+  NfcomListOut,
   CiotCarrierResult,
   CiotCloseBody,
   CiotDeclareBody,
@@ -852,6 +856,14 @@ class ApiClient {
     return this.put(`/v1.0/organizations/${unformatCpfCnpj(pk)}/${doc}-emission`, data);
   }
 
+  async getNFComConfig(pk: string): Promise<NFComConfigOut> {
+    return this.get(`/v1.0/organizations/${unformatCpfCnpj(pk)}/nfcom-config`);
+  }
+
+  async upsertNFComConfig(pk: string, data: object): Promise<NFComConfigOut> {
+    return this.put(`/v1.0/organizations/${unformatCpfCnpj(pk)}/nfcom-config`, data);
+  }
+
   async getNfseConfig(pk: string): Promise<NfseConfigOut> {
     return this.get(`/v1.0/organizations/${unformatCpfCnpj(pk)}/nfse-config`);
   }
@@ -1160,6 +1172,46 @@ class ApiClient {
   }
 
   // MDF-es (modelo 58) — uses Dfe-Organization-Pk header
+  async getNfcoms(params?: {
+    limit?: number
+    cursor?: string
+    sort?: 'asc' | 'desc'
+    number?: number
+    year?: number
+    month?: number
+    day?: number
+  }): Promise<PaginatedResponse<NfcomListOut>> {
+    return this.get('/v1.0/nfcoms', {params});
+  }
+
+  async getNfcom(accessKey: string): Promise<NfcomDetailOut> {
+    return this.get(`/v1.0/nfcoms/${encodeURIComponent(accessKey)}`);
+  }
+
+  async emitNfcom(data: NfcomEmit): Promise<NfcomDetailOut> {
+    return this.post('/v1.0/nfcoms', data);
+  }
+
+  async cancelNfcom(accessKey: string, justification: string, sequenceNumber = 1): Promise<NfcomDetailOut> {
+    return this.post(`/v1.0/nfcoms/${encodeURIComponent(accessKey)}/cancel`, {justification, sequence_number: sequenceNumber});
+  }
+
+  async getNfcomEvents(accessKey: string): Promise<PaginatedResponse<NfeEventOut>> {
+    return this.get(`/v1.0/nfcoms/${encodeURIComponent(accessKey)}/events`, {params: {limit: 50}});
+  }
+
+  async downloadNfcomXml(accessKey: string): Promise<SignedFileDownload> {
+    return this.get(`/v1.0/nfcoms/${encodeURIComponent(accessKey)}/xml`);
+  }
+
+  async downloadNfcomEventXml(accessKey: string, eventSk: string): Promise<SignedFileDownload> {
+    return this.get(`/v1.0/nfcoms/${encodeURIComponent(accessKey)}/events/${encodeURIComponent(eventSk)}/xml`);
+  }
+
+  async downloadNfcomDanfecom(accessKey: string): Promise<AuxiliaryDocumentDownload> {
+    return this.get(`/v1.0/nfcoms/${encodeURIComponent(accessKey)}/danfecom`, auxiliaryDocumentConfig());
+  }
+
   async getMdfes(params?: {
     limit?: number
     cursor?: string

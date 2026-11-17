@@ -103,7 +103,7 @@ func TestCompaniesUsedCountsEnabledCompaniesOfTheOrganization(t *testing.T) {
 	ctx := context.Background()
 	var calls []usageCall
 	svc := chargingBilling(t, billingStub(t, &calls)).WithEnablement(services.NewFiscalConfigEnablement(
-		nfeConfigRepo, nfceConfigRepo, nil, nil, nil))
+		nfeConfigRepo, nfceConfigRepo, nil, nil, nil, nil))
 	org := "org-count-" + newCompanyPK(t)
 	enabled := seedCompany(t, org, "owner-count", "11222333000181", "Habilitada Ltda")
 	_ = seedCompany(t, org, "owner-count", "11222333000262", "Vinculada Ltda") // linked, never configured
@@ -277,7 +277,7 @@ func isStatus(err error, status int) bool {
 func companyQuotaBilling(t *testing.T, calls *[]usageCall) *services.BillingService {
 	t.Helper()
 	return chargingBilling(t, billingStub(t, calls)).WithEnablement(services.NewFiscalConfigEnablement(
-		nfeConfigRepo, nfceConfigRepo, nil, nil, nil))
+		nfeConfigRepo, nfceConfigRepo, nil, nil, nil, nil))
 }
 
 // Spec § 3 O5: the company quota applies when a company becomes enabled.
@@ -531,7 +531,7 @@ func TestChoosingAPlanReportsTheCompaniesLevel(t *testing.T) {
 	stub := &managementStub{}
 	svc := chargingBilling(t, stub.server(t)).
 		WithWorkspaceRoles(fakeRoles{roles: map[string]string{"usr-admin": services.AccountRoleAdmin}}).
-		WithEnablement(services.NewFiscalConfigEnablement(nfeConfigRepo, nfceConfigRepo, nil, nil, nil))
+		WithEnablement(services.NewFiscalConfigEnablement(nfeConfigRepo, nfceConfigRepo, nil, nil, nil, nil))
 	repo := repositories.NewAccountBillingRepository(db, cfg)
 	sink := &levelSinkStub{}
 	svc.WithLevelFlush(services.NewLevelReporter(repo, sink, svc).Flush)
@@ -738,7 +738,7 @@ func TestAnEnablementCommittedDuringTheCountDoesNotLetASecondIn(t *testing.T) {
 	seedOrgSnapshot(t, org, snap)
 	a := seedCompany(t, org, "owner-i", "11222333000181", "A Ltda")
 	b := seedCompany(t, org, "owner-i", "11222333000262", "B Ltda")
-	real := services.NewFiscalConfigEnablement(nfeConfigRepo, nfceConfigRepo, nil, nil, nil)
+	real := services.NewFiscalConfigEnablement(nfeConfigRepo, nfceConfigRepo, nil, nil, nil, nil)
 	nfe := services.NewNfeConfigService(nfeConfigRepo, auditRepo)
 	fields := func() map[string]types.AttributeValue {
 		return map[string]types.AttributeValue{

@@ -532,7 +532,7 @@ export class WorkerStack extends cdk.Stack {
     contingencyWorker.grantInvoke(contingencyRole)
     contingencyRole.addToPrincipalPolicy(new iam.PolicyStatement({
       actions: ['dynamodb:Query'],
-      resources: ['nfes', 'nfces', 'mdfes', 'ctes'].map(t =>
+      resources: ['nfes', 'nfces', 'mdfes', 'ctes', 'nfcoms'].map(t =>
         `arn:aws:dynamodb:${this.region}:${this.account}:table/${tablePrefix}_${t}/index/contingency-index`),
     }))
     // Health probe of the automatic contingency (spec 4.1): the same run lists the sparse auto-contingency-index

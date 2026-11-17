@@ -36,7 +36,7 @@ var retryableHTTPStatus = map[int]bool{500: true, 502: true, 503: true, 504: tru
 // must be gzip-compressed + base64-encoded rather than embedded as raw XML.
 var gzipEndpoints = map[string]bool{
 	"CTeRecepcaoSinc": true, "CTeRecepcaoOS": true, "CTeRecepcaoGTVe": true,
-	"CTeRecepcaoSimp": true, "MDFeRecepcaoSinc": true,
+	"CTeRecepcaoSimp": true, "MDFeRecepcaoSinc": true, "NFComRecepcao": true,
 }
 
 // Client is a generic SEFAZ web service client for one (docType, uf,

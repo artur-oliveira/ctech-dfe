@@ -36,6 +36,9 @@ import {
   inutilizationsFixture,
   numberGapsFixture,
   mdfeConfigFixture,
+  nfcomConfigFixture,
+  nfcomEventsFixture,
+  nfcomsFixture,
   mdfeDetailFixture,
   mdfeEventsFixture,
   mdfeFiscalPrevalidationFixture,
@@ -193,6 +196,7 @@ function mockCteDerive(body: unknown): RouteResult {
 
 const CONFIG_FIXTURES: Record<string, object> = {
   nfe: nfeConfigFixture, nfce: nfceConfigFixture, cte: cteConfigFixture, mdfe: mdfeConfigFixture,
+  nfcom: nfcomConfigFixture,
 };
 
 /** Forma de emissão gravada pelo `PUT /{doc}-emission`, por documento; vale até recarregar a página. */
@@ -266,9 +270,9 @@ function route(method: string, path: string, body: unknown, params?: Record<stri
 
   // Configs (path-based org in URL)
   {
-    const emission = /\/(nfe|nfce|cte|mdfe)-emission$/.exec(path);
+    const emission = /\/(nfe|nfce|cte|mdfe|nfcom)-emission$/.exec(path);
     if (m === 'put' && emission) return mockEmission(emission[1], body);
-    const cfg = /\/(nfe|nfce|cte|mdfe)-config$/.exec(path);
+    const cfg = /\/(nfe|nfce|cte|mdfe|nfcom)-config$/.exec(path);
     if (cfg) return {data: mockConfig(cfg[1])};
   }
   if (path.endsWith('/nfse-config')) return {data: nfseConfigFixture};
@@ -328,6 +332,17 @@ function route(method: string, path: string, body: unknown, params?: Record<stri
   if (m === 'post' && path === '/v1.0/nfces') {
     if (getMockState().emissionProblem === 'qr444') return {error: {status: 400, data: emissionProblemFixtures.qr444}};
     return {data: echo(body, 'nfce')};
+  }
+  if (key === 'get /v1.0/nfcoms') return {data: paginated(nfcomsFixture)};
+  if (m === 'post' && path === '/v1.0/nfcoms') return {data: {...nfcomsFixture[2], ...echo(body, 'nfcom')}, status: 201};
+  {
+    const nfcom = /^(get|post) \/v1\.0\/nfcoms\/([^/]+)(\/events|\/cancel)?$/.exec(key);
+    if (nfcom) {
+      const [, , sk, action] = nfcom;
+      if (action === '/events') return {data: paginated(nfcomEventsFixture)};
+      const doc = nfcomsFixture.find((n) => n.sk === sk) ?? nfcomsFixture[0];
+      return {data: action === '/cancel' ? {...doc, status: 'cancel_pending'} : doc};
+    }
   }
   if (key === 'get /v1.0/mdfes') return {data: paginated(mdfesFixture)};
   if (m === 'post' && path === '/v1.0/mdfes') {

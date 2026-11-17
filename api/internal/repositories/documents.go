@@ -86,6 +86,15 @@ func NewMdfeRepository(db *dynamodb.Client, cfg *config.Config) *MdfeRepository 
 	return &MdfeRepository{DocumentRepository: DocumentRepository{Base: NewBase(db, cfg, "mdfes"), db: db}}
 }
 
+// NfcomRepository — nfcoms table. Same key schema and GSIs as the other DFe tables.
+type NfcomRepository struct {
+	DocumentRepository
+}
+
+func NewNfcomRepository(db *dynamodb.Client, cfg *config.Config) *NfcomRepository {
+	return &NfcomRepository{DocumentRepository: DocumentRepository{Base: NewBase(db, cfg, "nfcoms"), db: db}}
+}
+
 // NFeListOpts mirrors list_nfes parameters in Python NfeRepository.
 type NFeListOpts struct {
 	Limit    int

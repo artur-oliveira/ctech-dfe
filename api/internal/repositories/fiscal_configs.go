@@ -66,6 +66,17 @@ func NewMdfeConfigRepository(db *dynamodb.Client, cfg *config.Config) *MdfeConfi
 	}
 }
 
+// NfcomConfigRepository — organization_nfcom_configs. No NSU cursor: the NFCom has no distribution service.
+type NfcomConfigRepository struct {
+	FiscalConfigRepository
+}
+
+func NewNfcomConfigRepository(db *dynamodb.Client, cfg *config.Config) *NfcomConfigRepository {
+	return &NfcomConfigRepository{
+		FiscalConfigRepository: newFiscalConfigBase(db, cfg, "organization_nfcom_configs", nil),
+	}
+}
+
 // NfseConfigRepository — organization_nfse_configs.
 // preserve: cursor NSU da distribuição ADN. Os contadores de numeração da
 // DPS/RPS (prod_current_number/hom_current_number) NÃO entram aqui: são
