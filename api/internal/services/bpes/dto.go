@@ -4,7 +4,7 @@ package bpes
 // API (inglês, snake_case); cada campo aponta para a tag do leiaute. Escolha fechada é `oneof` com os valores do XSD (a UI
 // mostra seletores). O servidor calcula o que não entra aqui: vBP (soma dos componentes), vPgto, vTroco, base e valor do ICMS e
 // a chave de acesso. O TM e o TA têm corpos próprios (dto_tm.go, dto_ta.go).
-// Fora desta versão: agência, substituição (`tpBPe` 3), ICMS 20 e partilha, e os eventos 110300 e 110301.
+// Fora desta versão: agência, substituição (`tpBPe` 3), ICMS 20 e partilha.
 
 // Variantes do BP-e. Nesta versão só a comum está disponível.
 const (

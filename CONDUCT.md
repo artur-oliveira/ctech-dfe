@@ -1563,6 +1563,9 @@ enviados só um certificado descartável e uma chave falsa, e a ANTT respondeu 4
 - Mapa UF do emitente para autorizador: SVRS por padrão, MG, MS, MT, PR e SP próprios; regra usual, a confirmar.
 - Código de `cStat` de evento duplicado para BP-e e NFCom não foi catalogado; o rótulo de `tPag` 06 e o PDF417 do DABPE
   (`boardPassBPe`), a Divisão I (agência) e o formato reduzido de 56 mm não foram feitos.
-- Fora da v1: substituição, agência, BP-e múltiplo e vinculado, evento 112130 (ajuste do TA), vinculação de pagamento, ICMS 20 e
+- Fora da v1: substituição, agência, BP-e múltiplo e vinculado, evento 112130 (ajuste do TA), ICMS 20 e
   partilha. O DABPE não existe para o TM.
 - Antes de anunciar o documento (landing, home, `DFE_DOCUMENTS`), homologar e rever a cobrança (`quota_bpe` no catálogo).
+- Vinculação de pagamento (110300 e 110301) da NFCom e do BP-e: quem pode vincular, prazos e a tabela de `tpMeioPgto` não constam de documento
+  do repositório. A api não restringe o autor nem a variante (TM incluso) e deixa o autorizador conferir; a UI reaproveita a tabela de meios
+  do NF-e. O 110301 só aceita um 110300 com status `success` e protocolo no formato do documento.

@@ -77,7 +77,7 @@ func (s *BpeService) resolveEventContext(ctx context.Context, orgPK, accessKey s
 
 // eventAllowed diz se o evento vale para a variante do BP-e (MOC I20a a I20c): o TM não aceita não embarque nem excesso
 // de bagagem; o TA não aceita alteração de poltrona nem excesso de bagagem; o BP-e comum aceita os quatro. O cancelamento
-// vale para todos.
+// e a vinculação de pagamento (110300 e 110301) valem para todos.
 func eventAllowed(variant, tpEvento string) bool {
 	switch tpEvento {
 	case TpEventoCancelamento:
@@ -90,6 +90,8 @@ func eventAllowed(variant, tpEvento string) bool {
 		return variant == VariantNormal
 	case TpEventoFornecimentoNaoRealizado:
 		return variant == VariantTA
+	case services.TpEventoVinculoPagamento, services.TpEventoCancVinculoPagamento:
+		return true // NT 2026.001: o autorizador confere quem pode vincular
 	}
 	return false
 }

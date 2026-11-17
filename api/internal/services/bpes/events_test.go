@@ -3,6 +3,7 @@ package bpes
 import (
 	"testing"
 
+	"gopkg.aoctech.app/dfe/api/internal/services"
 	"gopkg.aoctech.app/dfe/api/internal/services/dfecheck"
 )
 
@@ -19,6 +20,9 @@ func TestEventEnvelopesMatchEventSchemas(t *testing.T) {
 		{"não embarque", TpEventoNaoEmbarque, noShowDet(nProt, "Passageiro nao compareceu ao embarque")},
 		{"alteração de poltrona", TpEventoAlteracaoPoltrona, seatChangeDet(nProt, "15")},
 		{"excesso de bagagem", TpEventoExcessoBagagem, excessBaggageDet(nProt, "12 kg", "30.00")},
+		{"vinculação de pagamento", services.TpEventoVinculoPagamento, services.PaymentLinkDet(
+			services.PaymentLink{Number: 1, TransactionID: "TX-123456", PaymentMethod: "17", ReceiverCNPJ: "12345678000190", PSPBaseCNPJ: "12345678"}, nProt)},
+		{"cancelamento da vinculação", services.TpEventoCancVinculoPagamento, services.CancelPaymentLinkDet(nProt, "135260000000002")},
 	}
 	for _, c := range cases {
 		body := buildEventEnvelope(ec, p.accessKey, c.tpEvento, 1, c.det)
@@ -51,6 +55,9 @@ func TestEventEligibilityByVariant(t *testing.T) {
 		{VariantTA, TpEventoNaoEmbarque, true},
 		{VariantTA, TpEventoAlteracaoPoltrona, false},
 		{VariantTA, TpEventoExcessoBagagem, false},
+		{VariantNormal, services.TpEventoVinculoPagamento, true},
+		{VariantTM, services.TpEventoCancVinculoPagamento, true},
+		{VariantTA, services.TpEventoVinculoPagamento, true},
 	}
 	for _, c := range cases {
 		if got := eventAllowed(c.variant, c.tpEvento); got != c.want {

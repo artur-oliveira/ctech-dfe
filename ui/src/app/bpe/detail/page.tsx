@@ -17,6 +17,9 @@ import {DownloadPdfButton} from '@/components/dfe/DownloadPdfButton';
 import {CancelDfeModal, CANCEL_JUSTIFICATION_MIN_LENGTH} from '@/components/dfe/CancelDfeModal';
 import {TABLE_CELL, TABLE_ROW, TableShell} from '@/components/ui/table-shell';
 import {BPE_EVENT_LABELS, BPE_MODAL_LABELS, BPE_KEY_PATTERN} from '@/lib/constants/bpe';
+import dynamic from 'next/dynamic';
+import type {PaymentLinkKind} from '@/components/dfe/PaymentLinkModal';
+import {PAYMENT_LINK_EVENT_TYPE} from '@/lib/constants/payment-link';
 import {BpeEventModal, type BpeEventKind, type BpeEventValues} from '@/components/bpe/BpeEventModal';
 import {formatCurrency} from '@/lib/utils/helpers';
 import {formatDatetimeBR, triggerRemoteDownload} from '@/lib/utils/dfe';
@@ -29,6 +32,9 @@ const SEND: Record<BpeEventKind, (key: string, v: BpeEventValues) => Promise<unk
 };
 
 const VARIANT_LABEL: Record<string, string> = {normal: 'Comum', tm: 'TM', ta: 'TA'};
+
+// O modal puxa o seletor de pessoas e os campos de pagamento: só carrega quando o usuário abre a vinculação.
+const PaymentLinkModal = dynamic(() => import('@/components/dfe/PaymentLinkModal').then((m) => m.PaymentLinkModal), {ssr: false});
 
 function Field({label, children}: { label: string; children: React.ReactNode }) {
   return (
@@ -48,6 +54,7 @@ function BpeDetailContent() {
   const [cancelOpen, setCancelOpen] = useState(false);
   const [justification, setJustification] = useState('');
   const [eventKind, setEventKind] = useState<BpeEventKind | null>(null);
+  const [paymentKind, setPaymentKind] = useState<PaymentLinkKind | null>(null);
 
   const doc = useQuery({queryKey: queryKeys.bpes.detail(key), queryFn: () => apiClient.getBpe(key), enabled: !!key});
   const events = useQuery({queryKey: queryKeys.bpes.events(key), queryFn: () => apiClient.getBpeEvents(key), enabled: !!key});
@@ -70,6 +77,16 @@ function BpeDetailContent() {
       void qc.invalidateQueries({queryKey: queryKeys.bpes.events(key)});
     },
   });
+
+  const paymentLink = useMutation({
+    mutationFn: ({route, body}: { route: 'payment-link' | 'payment-link-cancel'; body: object }) => apiClient.bpePaymentLink(key, route, body),
+    onSuccess: () => {
+      setPaymentKind(null);
+      void qc.invalidateQueries({queryKey: queryKeys.bpes.detail(key)});
+      void qc.invalidateQueries({queryKey: queryKeys.bpes.events(key)});
+    },
+  });
+  const links = (events.data?.items ?? []).filter((e) => e.event_type === PAYMENT_LINK_EVENT_TYPE && e.status === 'success');
 
   const downloadXml = async (download: () => Promise<{ url: string }>) => {
     try {
@@ -115,6 +132,8 @@ function BpeDetailContent() {
                           <Button variant="outline" size="sm" onClick={() => setEventKind('supply-not-performed')}>Fornecimento não realizado</Button>
                         </>
                       )}
+                      <Button variant="outline" size="sm" onClick={() => setPaymentKind('link')}>Vincular pagamento</Button>
+                      {links.length > 0 && <Button variant="outline" size="sm" onClick={() => setPaymentKind('cancel')}>Cancelar vinculação</Button>}
                       <Button variant="outline" size="sm" className="text-danger" onClick={() => setCancelOpen(true)}>Cancelar</Button>
                     </>
                   )}
@@ -181,6 +200,16 @@ function BpeDetailContent() {
         error={registerEvent.error}
         onClose={() => { setEventKind(null); registerEvent.reset(); }}
         onConfirm={(kind, v) => registerEvent.mutate({kind, v})}
+      />
+      <PaymentLinkModal
+        kind={paymentKind}
+        docLabel="BP-e"
+        docNumber={nf?.number ?? ''}
+        links={links}
+        loading={paymentLink.isPending}
+        error={paymentLink.error}
+        onClose={() => { setPaymentKind(null); paymentLink.reset(); }}
+        onConfirm={(route, body) => paymentLink.mutate({route, body})}
       />
       <CancelDfeModal
         isOpen={cancelOpen}

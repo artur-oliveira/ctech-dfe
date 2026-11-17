@@ -40,8 +40,8 @@ const (
 	eventsTableKey = "nfcom"
 	s3PrefixNfcom  = "nfcom"
 
-	// TpEventoCancelamento is the only event the issuer sends in v1 (the payment-link events 110300 and 110301
-	// are out of scope until their MOC pages are read).
+	// TpEventoCancelamento is the cancellation event; the payment-link events 110300 and 110301 live in
+	// services/payment_link.go and nfcoms/payment_events.go.
 	TpEventoCancelamento = "110111"
 
 	minJustification = 15

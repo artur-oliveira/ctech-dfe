@@ -76,3 +76,11 @@ export const NFCOM_PIS_COFINS_CST: readonly NfcomOption[] = [
 export const NFCOM_ITEMS_MAX = 990;
 export const NFCOM_CANCEL_JUSTIFICATION_MIN = 15;
 export const NFCOM_CANCEL_JUSTIFICATION_MAX = 255;
+
+/** tpEvento que a NFCom registra, para a lista de eventos do detalhe. */
+export const NFCOM_EVENT_LABELS: Record<string, string> = {
+  emission: 'Emissão',
+  '110111': 'Cancelamento',
+  '110300': 'Vinculação de pagamento',
+  '110301': 'Cancelamento da vinculação',
+};
