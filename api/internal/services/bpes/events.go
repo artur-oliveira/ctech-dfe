@@ -239,7 +239,7 @@ func (s *BpeService) dispatchEvent(
 	if err := s.workerSvc.PublishWorkerEvent(ctx, services.WorkerMessage{
 		DocPK: ec.pk, AccessKey: accessKey, TableName: tableBpes, S3Prefix: s3PrefixBpe,
 		ExpectedFileName: fmt.Sprintf("%s_%s_%03d", accessKey, eventType, seq),
-		CNPJ:             ec.cnpj, UF: ec.emitUF, SefazEnvironment: ec.sefazEnv,
+		CNPJ:             ec.cnpj, UF: authorizerUF(ec.variant, ec.emitUF), SefazEnvironment: ec.sefazEnv,
 		CertS3Key: ec.certS3Key, CertPassword: ec.certPass,
 		DocType: s3PrefixBpe, SefazService: sefazServiceEvento, Body: body,
 		EventsTableName: aws.String(eventsTableKey + "_events"), EventType: aws.String(eventType),

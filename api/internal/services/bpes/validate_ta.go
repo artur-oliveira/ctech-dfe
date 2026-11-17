@@ -8,5 +8,13 @@ func validateTABody(b BpeTAEmitBody) error {
 	if len(b.Trips) == 0 {
 		return problem.BadRequest("informe ao menos um trecho de voo")
 	}
+	for _, r := range []*string{b.Tax.IBSUFRate, b.Tax.IBSMunRate, b.Tax.CBSRate} {
+		if r == nil {
+			continue
+		}
+		if _, err := nonNegative(*r); err != nil {
+			return problem.BadRequest("alíquota de IBS ou CBS inválida")
+		}
+	}
 	return validateEmitBody(b.common())
 }

@@ -1,4 +1,4 @@
-// Package bpes implements the BPe (modelo 62, nota fiscal fatura de serviço de comunicação) business logic:
+// Package bpes implements the BP-e (modelo 63, comum, TM e TA) business logic:
 // emission through the transactional outbox, offline contingency, cancellation and document/event retrieval.
 // XML signing and SEFAZ communication stay in go-dfe-egress (reached through the worker); this service handles the
 // DynamoDB records, the number reservation and the event publishing. Spec: docs/specs/2026-11-15-bpe-design.md.
@@ -44,8 +44,8 @@ const (
 	eventsTableKey = "bpe"
 	s3PrefixBpe    = "bpe"
 
-	// Eventos do emitente nesta versão: cancelamento, não embarque, alteração de poltrona e excesso de bagagem (os de
-	// vinculação de pagamento, 110300 e 110301, e o 112140 do TA ficam para outras tarefas do plano).
+	// Eventos do emitente nesta versão: cancelamento, não embarque, alteração de poltrona, excesso de bagagem e, só no TA,
+	// fornecimento não realizado (112140). Vinculação de pagamento (110300 e 110301) fica fora.
 	TpEventoCancelamento             = "110111"
 	TpEventoNaoEmbarque              = "110115"
 	TpEventoAlteracaoPoltrona        = "110116"
@@ -232,4 +232,13 @@ func envPrefixFromPK(pk string) string {
 		}
 	}
 	return pk
+}
+
+// authorizerUF é a UF que o egress usa para escolher o autorizador. TM e TA são autorizados só pela SVRS e o evento e a
+// consulta seguem o autorizador do documento, não a UF da chave; o comum usa a UF do emitente.
+func authorizerUF(variant, emitUF string) string {
+	if variant == VariantNormal || variant == "" {
+		return emitUF
+	}
+	return "SVRS" // endpoints.AuthorizerSVRS
 }

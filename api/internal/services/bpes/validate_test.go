@@ -3,6 +3,8 @@ package bpes
 import (
 	"strings"
 	"testing"
+
+	"github.com/go-playground/validator/v10"
 )
 
 func TestValidateEmitBody(t *testing.T) {
@@ -59,5 +61,33 @@ func TestResolveContingencyReason(t *testing.T) {
 	}
 	if _, err := resolveContingencyReason(strp("curta"), nil); err == nil {
 		t.Error("justificativa com menos de 15 caracteres")
+	}
+}
+
+func TestAuthorizerUFRoutesTMAndTAToSVRS(t *testing.T) {
+	for variant, want := range map[string]string{VariantNormal: "SP", "": "SP", VariantTM: "SVRS", VariantTA: "SVRS"} {
+		if got := authorizerUF(variant, "SP"); got != want {
+			t.Errorf("authorizerUF(%q) = %q, want %q", variant, got, want)
+		}
+	}
+}
+
+func TestValidateTABodyRejectsBadRates(t *testing.T) {
+	for _, rate := range []string{"abc", "12,5", "-5"} {
+		p := testTAParams(t)
+		r := rate
+		p.ta.Tax.IBSUFRate = &r
+		if err := validateTABody(p.ta); err == nil {
+			t.Errorf("alíquota %q deveria ser recusada", rate)
+		}
+	}
+}
+
+func TestTAComponentAcceptsServiceFee(t *testing.T) {
+	if err := validator.New().Struct(BpeTAComponent{Type: "07", Value: "1.00"}); err != nil {
+		t.Errorf("07 vale no TA: %v", err)
+	}
+	if err := validator.New().Struct(BpeTAComponent{Type: "02", Value: "1.00"}); err == nil {
+		t.Error("02 não existe no TA")
 	}
 }

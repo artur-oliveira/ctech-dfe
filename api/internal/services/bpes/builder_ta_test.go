@@ -20,7 +20,7 @@ func testTABody() BpeTAEmitBody {
 			FlightNumber: "1234", Carrier: "ABC", TripType: "00", FromAirport: "GRU", ToAirport: "SDU",
 			ServiceType: "12", Accommodation: "6", LegType: "1", Departure: "2026-11-20T10:00:00-03:00",
 		}},
-		Components:   []BpeComponent{{Type: "01", Value: "300.00"}, {Type: "03", Value: "50.00"}},
+		Components:   []BpeTAComponent{{Type: "01", Value: "300.00"}, {Type: "03", Value: "50.00"}},
 		Discount:     strp("50.00"),
 		DiscountType: strp("03"), DiscountDesc: strp("Promocao"),
 		Payments: []BpePayment{{Type: "06", Value: "300.00"}},

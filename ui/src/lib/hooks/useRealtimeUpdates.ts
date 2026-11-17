@@ -84,7 +84,10 @@ async function openAuxiliaryPdf(tableName: string, id: string): Promise<void> {
   try {
     triggerRemoteDownload((await AUXILIARY_PDF[tableName](id)).url);
   } catch (e) {
-    toast.error(printProblemMessage(e));
+    const message = printProblemMessage(e);
+    // O BP-e TM não tem DABPE (a mensagem de realtime não traz a variante): não é falha para o usuário.
+    if (tableName === 'bpes' && message.includes('não tem DABPE')) return;
+    toast.error(message);
   }
 }
 

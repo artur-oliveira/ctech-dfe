@@ -43,7 +43,10 @@ func validateTMBody(b BpeTMEmitBody) error {
 			if it.StartCounter != nil && it.EndCounter != nil {
 				s, e1 := strconv.ParseUint(*it.StartCounter, 10, 64)
 				f, e2 := strconv.ParseUint(*it.EndCounter, 10, 64)
-				if e1 == nil && e2 == nil && f < s {
+				if e1 != nil || e2 != nil {
+					return problem.BadRequest(at + ": contador fora do intervalo")
+				}
+				if f < s {
 					return problem.BadRequest(at + ": o contador final não pode ser menor que o inicial")
 				}
 			}

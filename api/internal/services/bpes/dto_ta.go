@@ -3,7 +3,7 @@ package bpes
 // Corpo da emissão do BP-e TA (transporte aéreo, modal 2; NT 2025.002 v2.00). Mesma ideia do bilhete comum, com a viagem
 // por voo (companhia, número, aeroportos) e sem poltrona, plataforma, prefixo nem percurso. O emitente precisa de
 // credenciamento específico para o TA. Nesta versão só a compra normal (`tpCompra` 0): BP-e múltiplo e vinculado a múltiplo,
-// substituição, agência, IBS/CBS, o evento de ajuste 112130 e a vinculação de pagamento ficam fora.
+// substituição, agência, o evento de ajuste 112130 e a vinculação de pagamento ficam fora.
 
 // BpeTAEmitBody é o corpo de POST /bpes com `variant` igual a `ta`.
 type BpeTAEmitBody struct {
@@ -15,8 +15,7 @@ type BpeTAEmitBody struct {
 	Buyer       *BpeBuyer    `json:"buyer" validate:"omitempty"`
 	Passage     BpeTAPassage `json:"passage" validate:"required"`
 	Trips       []BpeTATrip  `json:"trips" validate:"required,min=1,max=20,dive"`
-	// Components: tpComp do TA: 01 tarifa, 03 taxa de embarque, 06 SCT, 07 taxa de serviço, 08 taxa de conveniência, 99 outros.
-	Components []BpeComponent `json:"components" validate:"required,min=1,max=20,dive"`
+	Components []BpeTAComponent `json:"components" validate:"required,min=1,max=20,dive"`
 	Discount   *string        `json:"discount" validate:"omitempty"`
 	// DiscountType é tpDesconto do TA: 03, 09, 10, 11, 12, 13 e 99.
 	DiscountType *string      `json:"discount_type" validate:"omitempty,oneof=03 09 10 11 12 13 99"`
@@ -65,11 +64,15 @@ func (b BpeTAEmitBody) common() BpeEmitBody {
 	for _, t := range b.Trips {
 		trips = append(trips, BpeTrip{Departure: t.Departure, Connection: t.Connection, LegType: t.LegType})
 	}
+	comps := make([]BpeComponent, 0, len(b.Components))
+	for _, c := range b.Components {
+		comps = append(comps, BpeComponent{Type: c.Type, Value: c.Value})
+	}
 	return BpeEmitBody{
 		Presence: b.Presence, Origin: b.Origin, Destination: b.Destination, Buyer: b.Buyer,
 		Passage:    BpePassage{Boarding: b.Passage.Boarding, Validity: b.Passage.Validity, Passenger: b.Passage.Passenger},
 		Trips:      trips,
-		Components: b.Components, Discount: b.Discount, DiscountType: b.DiscountType, DiscountDesc: b.DiscountDesc,
+		Components: comps, Discount: b.Discount, DiscountType: b.DiscountType, DiscountDesc: b.DiscountDesc,
 		DiscountCode: b.DiscountCode, Payments: b.Payments, ICMS: BpeICMS{CST: "40"},
 		AdditionalInfo: b.AdditionalInfo, AuthorizedXML: b.AuthorizedXML, ContingencyReason: b.ContingencyReason,
 	}

@@ -3,8 +3,8 @@ package bpes
 // Corpo da emissão do BP-e comum (modelo 63; rodoviário, aquaviário e ferroviário). Os nomes seguem o JSON do restante da
 // API (inglês, snake_case); cada campo aponta para a tag do leiaute. Escolha fechada é `oneof` com os valores do XSD (a UI
 // mostra seletores). O servidor calcula o que não entra aqui: vBP (soma dos componentes), vPgto, vTroco, base e valor do ICMS e
-// a chave de acesso. O TM e o TA têm leiaute próprio e entram em outras tarefas do plano (docs/plans/2026-11-16-bpe.md).
-// Fora desta versão: agência, substituição (`tpBPe` 3), IBS/CBS, ICMS 20 e partilha, e os eventos 110300 e 110301.
+// a chave de acesso. O TM e o TA têm corpos próprios (dto_tm.go, dto_ta.go).
+// Fora desta versão: agência, substituição (`tpBPe` 3), ICMS 20 e partilha, e os eventos 110300 e 110301.
 
 // Variantes do BP-e. Nesta versão só a comum está disponível.
 const (
@@ -15,7 +15,7 @@ const (
 
 // BpeEmitBody é o corpo de POST /bpes.
 type BpeEmitBody struct {
-	// Variant: normal (padrão), tm ou ta. TM e TA ainda não estão disponíveis.
+	// Variant: normal (padrão), tm ou ta. tm e ta têm corpos próprios (BpeTMEmitBody, BpeTAEmitBody).
 	Variant string `json:"variant" validate:"omitempty,oneof=normal tm ta"`
 	// Modal: rodoviario, aquaviario ou ferroviario (ide/modal 1, 3, 4).
 	Modal string `json:"modal" validate:"required,oneof=rodoviario aquaviario ferroviario"`
@@ -122,6 +122,12 @@ type BpeCrossing struct {
 // BpeComponent é um componente do valor (Comp). tpComp: 01 tarifa, 02 pedágio, 03 taxa de embarque, 04 seguro, 05 TMR, 06 SCT, 99 outros.
 type BpeComponent struct {
 	Type  string `json:"type" validate:"required,oneof=01 02 03 04 05 06 99"`
+	Value string `json:"value" validate:"required"`
+}
+
+// BpeTAComponent é o componente do TA. tpComp do TA: 01 tarifa, 03 taxa de embarque, 06 SCT, 07 taxa de serviço, 08 taxa de conveniência, 99 outros.
+type BpeTAComponent struct {
+	Type  string `json:"type" validate:"required,oneof=01 03 06 07 08 99"`
 	Value string `json:"value" validate:"required"`
 }
 

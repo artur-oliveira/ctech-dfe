@@ -18,9 +18,9 @@ import (
 
 // emission descreve o que muda entre as variantes do BP-e; o resto do fluxo de emissão é o mesmo.
 type emission struct {
-	variant      string // normal ou tm
-	spec         string // família do esquema e das regras: bpe ou bpetm
-	sefazService string // BPeRecepcao ou BPeRecepcaoTM
+	variant      string // normal, tm ou ta
+	spec         string // família do esquema e das regras: bpe, bpetm ou bpeta
+	sefazService string // BPeRecepcao, BPeRecepcaoTM ou BPeRecepcaoTA
 	hasQR        bool   // o TM não tem QR Code, logo não assina o parâmetro sign na contingência
 	reasonFrom   *string
 	params       func(p *buildParams)
@@ -207,7 +207,7 @@ func (s *BpeService) emit(ctx context.Context, orgPK string, em emission, userID
 	}
 	workerMsg := services.WorkerMessage{
 		DocPK: pk, AccessKey: accessKey, TableName: tableBpes, S3Prefix: s3PrefixBpe, ExpectedFileName: accessKey,
-		CNPJ: emitterDoc, UF: emitUF, SefazEnvironment: sefazEnvFor(environment),
+		CNPJ: emitterDoc, UF: authorizerUF(em.variant, emitUF), SefazEnvironment: sefazEnvFor(environment),
 		CertS3Key: strAttr(cert, "s3_key"), CertPassword: strAttr(cert, "password"),
 		DocType: s3PrefixBpe, SefazService: em.sefazService, Body: bpeBody,
 		BillingOrganizationID: reservation.OrganizationID, BillingPeriod: reservation.Period,

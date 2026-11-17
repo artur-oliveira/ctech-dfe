@@ -1558,6 +1558,8 @@ enviados só um certificado descartável e uma chave falsa, e a ANTT respondeu 4
 - O TA calcula IBS e CBS com as alíquotas que o emitente informa e `vTotDFe` igual ao valor pago. As regras de validação de IBS/CBS
   (F76 a F111) não estão implementadas e as tabelas de CST e `cClassTrib` não foram obtidas: os campos são validados só por formato.
   Diferimento, redução, tributação regular, compra governamental, Simples Nacional e estorno de crédito do TA ficam fora.
+- A URL do QR Code é a da SVRS para todo emitente; MG, MS, MT, PR e SP publicam URLs próprias e podem rejeitar o comum com a URL da SVRS: confirmar na tabela de QR Code do portal e criar um mapa por autorizador e ambiente se for o caso.
+- Evento e consulta de TM e TA vão sempre à SVRS (UF `SVRS` na mensagem do worker), qualquer que seja a UF do emitente. A alteração de poltrona (110116) é aceita no TM por leitura do MOC I20a a I20c; confirmar.
 - Mapa UF do emitente para autorizador: SVRS por padrão, MG, MS, MT, PR e SP próprios; regra usual, a confirmar.
 - Código de `cStat` de evento duplicado para BP-e e NFCom não foi catalogado; o rótulo de `tPag` 06 e o PDF417 do DABPE
   (`boardPassBPe`), a Divisão I (agência) e o formato reduzido de 56 mm não foram feitos.

@@ -40,8 +40,8 @@ type BpeTMItem struct {
 	TripNumber   *int    `json:"trip_number" validate:"omitempty,gte=1,lte=990"`
 	OriginIBGE   string  `json:"origin_ibge_code" validate:"required,ibge"`
 	DestIBGE     *string `json:"dest_ibge_code" validate:"omitempty,ibge"`
-	StartCounter *string `json:"start_counter" validate:"omitempty,numeric,max=20"`
-	EndCounter   *string `json:"end_counter" validate:"omitempty,numeric,max=20"`
+	StartCounter *string `json:"start_counter" validate:"omitempty,number,max=20"`
+	EndCounter   *string `json:"end_counter" validate:"omitempty,number,max=20"`
 	// Passengers é qPass: inteiro de 1 a 6 dígitos.
 	Passengers string `json:"passengers" validate:"required"`
 	// Value é vBP: valor do item, decimal não negativo.

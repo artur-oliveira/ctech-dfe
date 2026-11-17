@@ -21,7 +21,7 @@ paths:
         Na contingência offline (`PUT /bpe-emission`), o bilhete é assinado no egress, o QR Code leva `sign` e o documento
         fica pendente (`contingency_state=pending`) até o reenvio com a mesma chave.
 
-        Fora desta versão: agência, substituição, IBS/CBS, ICMS 20 e partilha. A emissão é cobrada pelo medidor `bpe`:
+        Fora desta versão: agência, substituição, ICMS 20 e partilha (o TA usa IBS/CBS, sem regras F76 a F111). A emissão é cobrada pelo medidor `bpe`:
         plano sem `quota_bpe` recebe 402.
       operationId: emitBpe
       parameters:
