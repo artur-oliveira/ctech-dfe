@@ -364,7 +364,7 @@ func money(d decimal.Decimal) string { return d.StringFixed(moneyScale) }
 
 // rateStr formata uma alíquota em %: inteira ("12") ou com 2 a 4 casas ("0.65").
 func rateStr(d decimal.Decimal) string {
-	d = d.Round(4)
+	d = decimal.RequireFromString(d.Round(4).String()) // sem zeros à direita: 0.5400 vira 0.54
 	if d.IsInteger() {
 		return d.StringFixed(0)
 	}

@@ -46,7 +46,7 @@ export default function GuideBpe() {
                 </GuideTerm>
                 <GuideTerm term="TA">
                   Transporte aéreo: cada trecho é um voo (companhia, número, aeroportos de origem e destino), sem poltrona nem linha. O
-                  imposto é IBS e CBS no lugar do ICMS: CST de 3 dígitos, classificação tributária de 6 dígitos e as alíquotas.
+                  imposto é IBS e CBS no lugar do ICMS: a classificação tributária (tabela oficial, define o CST) e, quando o caso pede, doação, estorno de crédito, compra governamental e devolução. As alíquotas fixadas em lei o servidor aplica.
                 </GuideTerm>
                 <GuideTerm term="TM">
                   Transporte metropolitano: não há bilhete individual. É uma apuração por grupo de viagem (UF, placa, prefixo) com itens

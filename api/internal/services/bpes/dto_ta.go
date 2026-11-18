@@ -77,16 +77,3 @@ func (b BpeTAEmitBody) common() BpeEmitBody {
 		AdditionalInfo: b.AdditionalInfo, AuthorizedXML: b.AuthorizedXML, ContingencyReason: b.ContingencyReason,
 	}
 }
-
-// BpeTATax é o grupo IBSCBS do TA. CST (3 dígitos) e ClassTrib (6 dígitos) vêm da tabela de classificação tributária. Com as
-// alíquotas informadas, o servidor calcula base (valor pago), IBS da UF, IBS do município e CBS; sem elas, só CST e classificação
-// (situações sem tributo). Donation marca doação (indDoacao 1). Diferimento, redução, tributação regular, compra
-// governamental, Simples Nacional e estorno de crédito ficam fora desta versão.
-type BpeTATax struct {
-	CST        string  `json:"cst" validate:"required,len=3,numeric"`
-	ClassTrib  string  `json:"class_trib" validate:"required,len=6,numeric"`
-	Donation   bool    `json:"donation"`
-	IBSUFRate  *string `json:"ibs_uf_rate" validate:"omitempty"`
-	IBSMunRate *string `json:"ibs_mun_rate" validate:"omitempty"`
-	CBSRate    *string `json:"cbs_rate" validate:"omitempty"`
-}

@@ -1,5 +1,7 @@
 import {z} from 'zod';
-import {BPE_ICMS_WITH_RATE, BPE_PAYMENT_OTHER} from '@/lib/constants/bpe';
+import {
+  BPE_CBS_RATE_FROM_YEAR, BPE_IBS_RATE_FROM_YEAR, BPE_ICMS_WITH_RATE, BPE_PAYMENT_OTHER, BPE_TA_CLASSES, BPE_TA_NO_TAX_CST,
+} from '@/lib/constants/bpe';
 import {validateCNPJ, validateCPF} from '@/lib/utils/validators';
 import type {BpeBuyerIn, BpeIcmsIn, BpeNormalEmit, BpeTaEmit, BpeTripIn} from '@/lib/types/api';
 
@@ -99,12 +101,17 @@ export const bpeTicketSchema = z.object({
   payments: z.array(paymentSchema).min(1, 'Informe ao menos um pagamento').max(10),
   icms: z.object({cst: z.string(), rate: z.string()}),
   tax: z.object({
-    cst: z.string(),
     class_trib: z.string(),
     donation: z.boolean(),
     ibs_uf_rate: z.string(),
     ibs_mun_rate: z.string(),
     cbs_rate: z.string(),
+    devolution: z.object({ibs_uf: z.string(), ibs_mun: z.string(), cbs: z.string()}),
+    reversal: z.object({ibs: z.string(), cbs: z.string()}),
+    government: z.object({enabled: z.boolean(), entity: z.string(), reducer: z.string(), operation: z.string(), references: z.string()}),
+    simples: z.object({enabled: z.boolean(), ibs_rate: z.string(), cbs_rate: z.string()}),
+    total_taxes: z.string(),
+    fiscal_info: z.string().max(2000),
   }),
   iata_number: z.string().max(20),
   additional_info: z.string().max(5000),
@@ -145,11 +152,46 @@ export const bpeTicketSchema = z.object({
     if (!blank(b.postal_code) && b.postal_code.replace(/\D/g, '').length !== 8) at('postal_code', 'CEP com 8 dígitos');
   }
   if (ta) {
-    if (!/^\d{3}$/.test(f.tax.cst)) issue(['tax', 'cst'], 'CST com 3 dígitos');
-    if (!/^\d{6}$/.test(f.tax.class_trib)) issue(['tax', 'class_trib'], 'Classificação com 6 dígitos');
-    (['ibs_uf_rate', 'ibs_mun_rate', 'cbs_rate'] as const).forEach((k) => {
-      if (!optDecimal(f.tax[k])) issue(['tax', k], 'Alíquota inválida');
+    const t = f.tax;
+    const cls = BPE_TA_CLASSES.find((c) => c.value === t.class_trib);
+    if (!cls) issue(['tax', 'class_trib'], 'Selecione a classificação tributária');
+    if (cls?.donation === 1 && !t.donation) issue(['tax', 'donation'], 'Esta classificação exige o indicador de doação');
+    if (cls?.donation === 0 && t.donation) issue(['tax', 'donation'], 'Esta classificação não admite doação');
+    const year = new Date().getFullYear();
+    const taxed = cls !== undefined && cls.cst !== BPE_TA_NO_TAX_CST;
+    if (taxed && year >= BPE_CBS_RATE_FROM_YEAR && !decimal.test(t.cbs_rate)) issue(['tax', 'cbs_rate'], 'Informe a alíquota da CBS');
+    if (taxed && year >= BPE_IBS_RATE_FROM_YEAR) {
+      (['ibs_uf_rate', 'ibs_mun_rate'] as const).forEach((k) => {
+        if (!decimal.test(t[k])) issue(['tax', k], 'Informe a alíquota do IBS');
+      });
+    }
+    (['ibs_uf_rate', 'ibs_mun_rate', 'cbs_rate', 'total_taxes'] as const).forEach((k) => {
+      if (!optDecimal(t[k])) issue(['tax', k], 'Valor inválido');
     });
+    (['ibs_uf', 'ibs_mun', 'cbs'] as const).forEach((k) => {
+      if (!optDecimal(t.devolution[k])) issue(['tax', 'devolution', k], 'Valor inválido');
+    });
+    if (cls?.reversal) {
+      (['ibs', 'cbs'] as const).forEach((k) => {
+        if (!decimal.test(t.reversal[k])) issue(['tax', 'reversal', k], 'Informe o valor estornado');
+      });
+    }
+    if (t.government.enabled) {
+      const g = t.government;
+      if (blank(g.entity)) issue(['tax', 'government', 'entity'], 'Selecione o ente');
+      if (blank(g.operation)) issue(['tax', 'government', 'operation'], 'Selecione a operação');
+      if (!decimal.test(g.reducer)) issue(['tax', 'government', 'reducer'], 'Informe o redutor (0 se não houver)');
+      const keys = govRefs(g);
+      if (keys.some((k) => !/^[0-9]{6}[A-Z0-9]{12}[0-9]{26}$/.test(k))) issue(['tax', 'government', 'references'], 'Chave de acesso inválida');
+      if ((g.operation === '1' || g.operation === '4') && keys.length > 0) issue(['tax', 'government', 'references'], 'Esta operação não leva chave referenciada');
+      if (g.operation === '2' && keys.length !== 1) issue(['tax', 'government', 'references'], 'Informe uma chave referenciada');
+      if (g.operation === '3' && keys.length < 1) issue(['tax', 'government', 'references'], 'Informe ao menos uma chave referenciada');
+    }
+    if (t.simples.enabled) {
+      (['ibs_rate', 'cbs_rate'] as const).forEach((k) => {
+        if (!optDecimal(t.simples[k])) issue(['tax', 'simples', k], 'Alíquota inválida');
+      });
+    }
   } else {
     if (blank(f.icms.cst)) issue(['icms', 'cst'], 'Selecione o ICMS');
     if (BPE_ICMS_WITH_RATE.includes(f.icms.cst) && !decimal.test(f.icms.rate)) issue(['icms', 'rate'], 'Informe a alíquota do ICMS');
@@ -202,8 +244,45 @@ export function emptyBpeTicket(variant: 'normal' | 'ta' = 'normal'): BpeTicketFo
     discount: '', discount_type: '', discount_desc: '', discount_code: '',
     payments: [{type: '01', value: '', desc: ''}],
     icms: {cst: '40', rate: ''},
-    tax: {cst: '', class_trib: '', donation: false, ibs_uf_rate: '', ibs_mun_rate: '', cbs_rate: ''},
+    tax: {
+      class_trib: '', donation: false, ibs_uf_rate: '', ibs_mun_rate: '', cbs_rate: '',
+      devolution: {ibs_uf: '', ibs_mun: '', cbs: ''}, reversal: {ibs: '', cbs: ''},
+      government: {enabled: false, entity: '', reducer: '0', operation: '', references: ''},
+      simples: {enabled: false, ibs_rate: '', cbs_rate: ''}, total_taxes: '', fiscal_info: '',
+    },
     iata_number: '', additional_info: '',
+  };
+}
+
+/** Chaves de DFe anteriores, uma por linha ou separadas por espaço ou vírgula (campo livre, validado pela regex da chave). */
+export function govKeys(raw: string): string[] {
+  return raw.split(/[\s,;]+/).map((k) => k.trim().toUpperCase()).filter((k) => k !== '');
+}
+
+/** Só as operações 2 e 3 levam chave de DFe anterior; o campo some nas outras, e o texto que sobrar nele não segue. */
+function govRefs(g: BpeTicketForm['tax']['government']): string[] {
+  return g.operation === '2' || g.operation === '3' ? govKeys(g.references) : [];
+}
+
+export function toTaTax(t: BpeTicketForm['tax'], year = new Date().getFullYear()): BpeTaEmit['tax'] {
+  const cls = BPE_TA_CLASSES.find((c) => c.value === t.class_trib);
+  const taxed = cls !== undefined && cls.cst !== BPE_TA_NO_TAX_CST;
+  const dev = t.devolution;
+  const hasDev = taxed && (dev.ibs_uf !== '' || dev.ibs_mun !== '' || dev.cbs !== '');
+  return {
+    class_trib: t.class_trib,
+    donation: t.donation ? true : undefined,
+    ibs_uf_rate: taxed && year >= BPE_IBS_RATE_FROM_YEAR ? orUndefined(t.ibs_uf_rate) : undefined,
+    ibs_mun_rate: taxed && year >= BPE_IBS_RATE_FROM_YEAR ? orUndefined(t.ibs_mun_rate) : undefined,
+    cbs_rate: taxed && year >= BPE_CBS_RATE_FROM_YEAR ? orUndefined(t.cbs_rate) : undefined,
+    devolution: hasDev ? {ibs_uf: orUndefined(dev.ibs_uf), ibs_mun: orUndefined(dev.ibs_mun), cbs: orUndefined(dev.cbs)} : undefined,
+    credit_reversal: cls?.reversal ? {ibs: t.reversal.ibs, cbs: t.reversal.cbs} : undefined,
+    government: taxed && t.government.enabled
+      ? {entity: t.government.entity, reducer: t.government.reducer, operation: t.government.operation, references: govRefs(t.government)}
+      : undefined,
+    simples: t.simples.enabled ? {ibs_rate: orUndefined(t.simples.ibs_rate), cbs_rate: orUndefined(t.simples.cbs_rate)} : undefined,
+    total_taxes: orUndefined(t.total_taxes),
+    fiscal_info: orUndefined(t.fiscal_info),
   };
 }
 
@@ -270,10 +349,7 @@ export function toBpeTicketBody(f: BpeTicketForm): BpeNormalEmit | BpeTaEmit {
     return {
       ...base, variant: 'ta', trips,
       passage: {boarding, validity, passenger},
-      tax: {
-        cst: t.cst, class_trib: t.class_trib, donation: t.donation ? true : undefined,
-        ibs_uf_rate: orUndefined(t.ibs_uf_rate), ibs_mun_rate: orUndefined(t.ibs_mun_rate), cbs_rate: orUndefined(t.cbs_rate),
-      },
+      tax: toTaTax(t),
       iata_number: orUndefined(f.iata_number),
     };
   }

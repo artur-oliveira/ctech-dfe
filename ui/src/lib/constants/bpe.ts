@@ -204,3 +204,51 @@ export const BPE_JUSTIFICATION_MIN = 15;
 export const BPE_JUSTIFICATION_MAX = 255;
 /** Chave de acesso do BP-e: 44 caracteres alfanuméricos (CNPJ alfanumérico). */
 export const BPE_KEY_PATTERN = /^[0-9A-Z]{44}$/;
+
+/**
+ * Classificações tributárias (cClassTrib) que o BP-e TA aceita, da tabela do IT 2025.002 RT v1.71 (`indBPeTA`), espelho de
+ * `go-dfe/validate/tables/ibscbs.json`. `donation`: 0 veda indDoacao, 1 exige, 2 opcional; `reversal`: exige estorno de crédito;
+ * `reduced`: o CST traz redução de alíquota (o servidor calcula a alíquota efetiva).
+ */
+export interface BpeTaClass extends BpeOption {
+  cst: string
+  donation: 0 | 1 | 2
+  reversal: boolean
+  reduced: boolean
+}
+
+export const BPE_TA_CLASSES: readonly BpeTaClass[] = [
+  {value: '000001', cst: '000', donation: 2, reversal: false, reduced: false, label: '000001 · Tributação integral pelo IBS e CBS'},
+  {value: '200050', cst: '200', donation: 2, reversal: false, reduced: true, label: '200050 · Transporte aéreo regional (redução de 40%)'},
+  {value: '222001', cst: '222', donation: 2, reversal: false, reduced: false, label: '222001 · Transporte internacional com ida e volta vendidos em conjunto'},
+  {value: '410001', cst: '410', donation: 0, reversal: false, reduced: false, label: '410001 · Bonificação constante do documento'},
+  {value: '410003', cst: '410', donation: 1, reversal: false, reduced: false, label: '410003 · Doação ou amostra grátis'},
+  {value: '410004', cst: '410', donation: 0, reversal: false, reduced: false, label: '410004 · Exportação de serviço'},
+  {value: '410026', cst: '410', donation: 1, reversal: true, reduced: false, label: '410026 · Doação com anulação de crédito'},
+  {value: '410999', cst: '410', donation: 0, reversal: false, reduced: false, label: '410999 · Operação não onerosa sem previsão de tributação'},
+];
+
+/** CST que não tem o grupo gIBSCBS (imunidade e não incidência). */
+export const BPE_TA_NO_TAX_CST = '410';
+
+/** Primeiro ano em que CBS e IBS deixam de ter alíquota fixada em lei (LC 214/25): CBS em 2027, IBS em 2029. */
+export const BPE_CBS_RATE_FROM_YEAR = 2027;
+export const BPE_IBS_RATE_FROM_YEAR = 2029;
+
+/** tpEnteGov. */
+export const BPE_GOV_ENTITIES: readonly BpeOption[] = [
+  {value: '1', label: 'União'},
+  {value: '2', label: 'Estados'},
+  {value: '3', label: 'Distrito Federal'},
+  {value: '4', label: 'Municípios'},
+  {value: '5', label: 'Consórcio público'},
+  {value: '6', label: 'Comitê Gestor do IBS'},
+];
+
+/** tpOperGov. Com 2 vai uma chave de DFe anterior; com 3 uma ou mais; com 1 e 4 nenhuma. */
+export const BPE_GOV_OPERATIONS: readonly BpeOption[] = [
+  {value: '1', label: 'Fornecimento com pagamento posterior'},
+  {value: '2', label: 'Recebimento do pagamento com fornecimento já realizado'},
+  {value: '3', label: 'Fornecimento com pagamento já realizado'},
+  {value: '4', label: 'Recebimento do pagamento com fornecimento posterior'},
+];

@@ -2184,12 +2184,19 @@ export interface BpeTaEmit extends BpeTicketBase {
   passage: { boarding: string; validity: string; passenger?: { name: string; doc_type: string; doc_number: string } }
   trips: BpeTripIn[]
   tax: {
-    cst: string
+    /** cClassTrib da tabela do TA; o CST sai da própria linha da tabela. */
     class_trib: string
     donation?: boolean
+    /** Só onde a lei do ano não fixa a alíquota (CBS a partir de 2027, IBS a partir de 2029). */
     ibs_uf_rate?: string
     ibs_mun_rate?: string
     cbs_rate?: string
+    devolution?: { ibs_uf?: string; ibs_mun?: string; cbs?: string }
+    credit_reversal?: { ibs: string; cbs: string }
+    government?: { entity: string; reducer: string; operation: string; references: string[] }
+    simples?: { ibs_rate?: string; cbs_rate?: string }
+    total_taxes?: string
+    fiscal_info?: string
   }
   iata_number?: string
 }
