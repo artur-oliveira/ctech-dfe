@@ -994,8 +994,8 @@ anda 1 min na fila, para um receptor lento não ocupar o lote de todos. Ping e r
 ### Notificações no navegador (Web Push), `/v1.0/push`
 
 Spec: `docs/specs/2026-11-17-web-push.md`. Cada pessoa ativa as notificações por dispositivo e escolhe, **por empresa**, quais
-eventos quer; o DF-e avisa quando o resultado de um documento é terminal ou quando chega um documento por distribuição. Fase F3
-(backend): sem tela ainda (F4), e **inerte até o operador gravar as chaves** (ver `DEPLOYMENT.md`, "Web Push").
+eventos quer; o DF-e avisa quando o resultado de um documento é terminal ou quando chega um documento por distribuição. Fases F3
+(backend) e F4 (UI, abaixo); o backend é **inerte até o operador gravar as chaves** (ver `DEPLOYMENT.md`, "Web Push").
 
 | Método | Rota | Descrição |
 |--------|------|-----------|
@@ -1047,6 +1047,25 @@ papel da instância tem `Deny` explícito de `ssm:GetParameter` em `vapid-privat
 (`leaveOrganization`; a remoção de membro faz o mesmo por `MembershipService.OnRemoved`, melhor esforço, e o fan-out confere o vínculo de
 qualquer forma). Consultas de Logs Insights prontas: `fields @timestamp, event_id, push_host, status, outcome | filter @message like
 /push send/ | sort @timestamp desc` e `... | stats count() by outcome`.
+
+**UI (F4).** Pacote `@aoctech/push-client` (service worker sem cache e sem handler de `fetch`, cliente de inscrição e hook).
+- **Service worker e PWA.** `ui/public/sw.js` é cópia do pacote: os scripts `predev` e `prebuild` a refazem e `__tests__/lib/push.test.ts`
+  compara os bytes (e reprova `fetch` handler e `caches`). O `site.webmanifest` agora nomeia o app (`CTech DF-e`, `start_url` `/dashboard`,
+  `display` `standalone`) e traz o ícone `maskable` (`maskable-512x512.png`, gerado do `app.svg` sem cantos). É o que deixa o iPhone
+  receber push (só com o site na Tela de Início, iOS 16.4+). Sem cache, um deploy nunca serve bundle velho.
+- **Provider.** `lib/providers/PushProvider.tsx` (dentro do `AuthProvider`) registra o worker, chama `syncOnLoad` quando há sessão e empresa
+  (nunca pede permissão sozinho), guarda o `beforeinstallprompt` e roteia o clique da notificação (`ctech-push:navigate`). Link com
+  `?org=<company_pk>` troca a empresa **só se a pessoa for membro dela**; vale também na abertura a frio (`openWindow`), uma vez por login.
+- **Tela** `/notifications` ("Notificações", Configurações, todos os papéis, `noindex`): card de permissão por estado (`loading`,
+  `unsupported`, `needs-install` com o passo a passo do iPhone, `default`, `denied`, `subscribed` com teste e desativar, `error`),
+  caixas de marcar por evento da empresa selecionada (nunca texto livre) e "Meus dispositivos" com remover (o id do aparelho é
+  `sha256(endpoint)[:8]` em hex, calculado no cliente por `lib/push/device.ts`, o que também marca "Este dispositivo"). Instalação sem chave
+  responde `enabled: false` e a tela diz "indisponível".
+- **Logout** (`AuthContext.logout`): antes de revogar o token, `removeThisDevicePush` apaga a linha do servidor e a inscrição do navegador,
+  com teto de 2 s e sem nunca impedir a saída (evita que o próximo usuário do aparelho receba os avisos do anterior).
+- **Escopos.** `dfe:notifications:read|write` já estão em `DFE_USER_SCOPES`; o teste de contrato (`oauth-scopes.test.ts`) cobre a lista.
+- **Guia** `/guide/notifications`, com capturas `notifications.webp` e `notifications-ios.webp` (a segunda usa o agente de usuário do
+  iPhone via `userAgent` na entrada de `CAPTURES`, sem atalho no app).
 
 ### Bloqueio por assinatura e cotas
 

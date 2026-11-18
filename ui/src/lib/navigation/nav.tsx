@@ -1,5 +1,5 @@
 import type {ReactNode} from 'react';
-import {BookOpen, Webhook} from 'lucide-react';
+import {BookOpen, Bell, Webhook} from 'lucide-react';
 import {
   BriefcaseIcon,
   CalendarClockIcon,
@@ -292,6 +292,11 @@ export const NAV_GROUPS: NavGroup[] = [
       {
         href: '/webhooks', label: 'Webhooks', icon: <Webhook size={16}/>, roles: [ROLE_OWNER, ROLE_ADMIN],
         keywords: ['integração', 'api', 'aviso', 'notificação', 'callback', 'evento', 'assinatura', 'entrega'],
+      },
+      // Pessoal: qualquer papel liga os avisos do próprio dispositivo (a API exige só ser membro da empresa).
+      {
+        href: '/notifications', label: 'Notificações', icon: <Bell size={16}/>,
+        keywords: ['push', 'alerta', 'aviso', 'celular', 'notificação', 'avisos no navegador', 'dispositivo', 'instalar', 'pwa'],
       },
       {
         href: '/fiscal-config', label: 'Configuração Fiscal', icon: <SettingsIcon/>,

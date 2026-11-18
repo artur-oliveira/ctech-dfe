@@ -6,6 +6,7 @@ import type {MeResponse, UserOrganization} from '@/lib/types/api';
 import {STORAGE_KEY_USER, STORAGE_KEY_ORG} from '@/lib/constants/storage';
 import {currentReturnTo, decodeIdToken, doRefresh, endSessionRedirect, UnverifiedIdTokenClaims, revokeToken, startOAuthFlow} from '@/lib/auth/oauth';
 import {MOCK_ENABLED} from '@/lib/mock/env';
+import {removeThisDevicePush} from '@/lib/push/logout';
 import {mockDoRefresh} from '@/lib/mock/auth';
 
 interface AuthContextType {
@@ -103,6 +104,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(async (returnTo = '/'): Promise<void> => {
+    // The push device is removed while the token still exists (the DELETE needs it); bounded at 2 s and best effort, so
+    // a signed-out person on a shared device stops receiving the previous session's notifications.
+    await removeThisDevicePush();
     // Clear local session immediately; UI reflects logged-out state right away.
     apiClient.setToken(null);
     setUser(null);

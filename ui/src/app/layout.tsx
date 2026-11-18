@@ -3,6 +3,7 @@ import {IBM_Plex_Mono, IBM_Plex_Sans} from "next/font/google";
 import {AuthProvider} from "@/lib/context/AuthContext";
 import {QueryProvider} from "@/lib/providers/QueryProvider";
 import {RealtimeProvider} from "@/lib/providers/RealtimeProvider";
+import {PushProvider} from "@/lib/providers/PushProvider";
 import {Toaster} from "sonner";
 import {DensityScope} from "@aoctech/ui";
 import {MOCK_ENABLED, MockDevPanel} from "@/lib/mock";
@@ -88,7 +89,7 @@ export default function RootLayout({
     <body className="min-h-full bg-gray-50" data-density="compact">
     <QueryProvider>
       <AuthProvider>
-        <RealtimeProvider><DensityScope density="compact">{children}</DensityScope></RealtimeProvider>
+        <RealtimeProvider><PushProvider><DensityScope density="compact">{children}</DensityScope></PushProvider></RealtimeProvider>
         {MOCK_ENABLED && <MockDevPanel/>}
       </AuthProvider>
     </QueryProvider>

@@ -1,5 +1,5 @@
 import type {ReactNode} from 'react';
-import {Compass, Webhook} from 'lucide-react';
+import {Bell, Compass, Webhook} from 'lucide-react';
 import {
   BriefcaseIcon,
   CteIcon,
@@ -168,5 +168,15 @@ export const GUIDE_TOPICS: GuideTopic[] = [
       'Receba um aviso assinado no seu sistema quando um documento for autorizado, rejeitado ou falhar: cadastro, verificação da assinatura, tentativas e reenvio.',
     tags: ['Integração', 'Assinatura', 'Reenvio'],
     icon: <Webhook size={20}/>,
+  },
+  {
+    href: '/guide/notifications',
+    label: 'Notificações',
+    title: 'Notificações no navegador',
+    time: '4 min',
+    description:
+      'Receba um aviso no celular ou no computador quando um documento for autorizado, rejeitado ou quando chegar uma nota para a sua empresa: ativar, instalar no iPhone, escolher os avisos e remover dispositivos.',
+    tags: ['Avisos', 'Celular', 'Instalar'],
+    icon: <Bell size={20}/>,
   },
 ];

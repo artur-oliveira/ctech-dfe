@@ -189,6 +189,13 @@ export const queryKeys = {
     deliveries: (companyPk: string, endpointId: string) => ['webhooks', companyPk, endpointId, 'deliveries'] as const,
     delivery: (companyPk: string, endpointId: string, eventId: string) => ['webhooks', companyPk, endpointId, 'deliveries', eventId] as const,
   },
+  push: {
+    config: () => ['push', 'config'] as const,
+    /** Devices belong to the person, not to a company. */
+    devices: () => ['push', 'devices'] as const,
+    /** Preferences are chosen per company. */
+    preferences: (companyPk: string) => ['push', 'preferences', companyPk] as const,
+  },
   members: (orgPk: string | undefined) => ['members', orgPk] as const,
   invitations: (orgPk: string | undefined) => ['invitations', orgPk] as const,
   invitation: (token: string) => ['invitation', token] as const,
