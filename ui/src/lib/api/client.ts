@@ -1290,8 +1290,8 @@ class ApiClient {
     return this.get(`/v1.0/bpes/${encodeURIComponent(accessKey)}/events/${encodeURIComponent(eventSk)}/xml`);
   }
 
-  async downloadBpeDabpe(accessKey: string): Promise<AuxiliaryDocumentDownload> {
-    return this.get(`/v1.0/bpes/${encodeURIComponent(accessKey)}/dabpe`, auxiliaryDocumentConfig());
+  async downloadBpeDabpe(accessKey: string, format?: string): Promise<AuxiliaryDocumentDownload> {
+    return this.get(`/v1.0/bpes/${encodeURIComponent(accessKey)}/dabpe`, auxiliaryDocumentConfig(format));
   }
 
   async getMdfes(params?: {

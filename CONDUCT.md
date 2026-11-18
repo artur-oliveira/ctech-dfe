@@ -1552,17 +1552,31 @@ enviados só um certificado descartável e uma chave falsa, e a ANTT respondeu 4
 
 ## BP-e (modelo 63, TM e TA): o que ainda não foi provado
 
-- Nenhum teste contra autorizador real e sem credenciamento para TM e TA. Os nomes SOAP do serviço de recepção do comum e do TM
-  (`bpeRecepcao`, `bpeRecepcaoTM`) e o documento processado do TA (não há `procBPeTA` no pacote) vieram de leitura dos manuais, não de
-  resposta do autorizador; confirmar no primeiro envio em homologação e corrigir só as constantes de `go-dfe`.
+- Nenhum teste contra autorizador real e sem credenciamento para TM e TA. Lidos nos manuais do portal em 2026-11-17 (o WSDL em si
+  segue inacessível): os métodos `bpeRecepcao`, `bpeRecepcaoTM`, `bpeRecepcaoTA`, `bpeConsultaBP`, `bpeStatusServicoBP` e
+  `bpeRecepcaoEvento` estão no MOC Visão Geral 1.00b e nas NTs do TM e do TA; o TA usa o mesmo documento processado do BP-e comum
+  (`protBPe`, NT 2025.002); o corpo SOAP é `bpeDadosMsg` e o resultado `bpeResultMsg` no MOC (comum, TM, evento, consulta e status) e
+  `BPeDadosMsg` e `BPeResultMsg` na NT do TA, então o `BPeRecepcaoTA` envia com B maiúsculo (`constants.SOAPBodyElementOverride`) e a
+  resposta é lida sem distinguir caixa. Se o autorizador recusar o corpo, trocar só essa constante.
 - O TA calcula IBS e CBS com as alíquotas que o emitente informa e `vTotDFe` igual ao valor pago. As regras de validação de IBS/CBS
   (F76 a F111) não estão implementadas e as tabelas de CST e `cClassTrib` não foram obtidas: os campos são validados só por formato.
   Diferimento, redução, tributação regular, compra governamental, Simples Nacional e estorno de crédito do TA ficam fora.
-- A URL do QR Code é a da SVRS para todo emitente; MG, MS, MT, PR e SP publicam URLs próprias e podem rejeitar o comum com a URL da SVRS: confirmar na tabela de QR Code do portal e criar um mapa por autorizador e ambiente se for o caso.
-- Evento e consulta de TM e TA vão sempre à SVRS (UF `SVRS` na mensagem do worker), qualquer que seja a UF do emitente. A alteração de poltrona (110116) é aceita no TM por leitura do MOC I20a a I20c; confirmar.
+- A URL do QR Code vem da página de serviços do portal (2026-11-17): MG, MS, MT, PR, SP e PB têm página própria (`bpeQRCodeByUF`,
+  produção e homologação); as demais UFs e todo TA usam a da SVRS. A associação UF do emitente para página de QR Code é a do
+  autorizador (PB autoriza na SVRS e só publica o QR Code); falta confirmar em homologação que cada autorizador aceita só a sua página.
+- Evento e consulta de TM e TA vão sempre à SVRS (UF `SVRS` na mensagem do worker), qualquer que seja a UF do emitente. O MOC (regras
+  I20a a I20c) confirma: o TM aceita cancelamento e alteração de poltrona e recusa não embarque, substituição e excesso de bagagem
+  (703); o TA recusa excesso de bagagem e alteração de poltrona (708); fornecimento não realizado e ajuste do TA só no TA (709).
 - Mapa UF do emitente para autorizador: SVRS por padrão, MG, MS, MT, PR e SP próprios; regra usual, a confirmar.
-- Código de `cStat` de evento duplicado para BP-e e NFCom não foi catalogado; o rótulo de `tPag` 06 e o PDF417 do DABPE
-  (`boardPassBPe`), a Divisão I (agência) e o formato reduzido de 56 mm não foram feitos.
+- `cStat` de evento duplicado: BP-e usa 631 (duplicidade de evento) e 218 (já cancelado), lidos no MOC, e entram em
+  `isDuplicateEvent` e `rejectedEventDocStatus` do worker. Para a NFCom o Anexo I v1.00a vendorizado não traz regras de evento
+  (só 204 e 539 de documento): o código de duplicidade de evento da NFCom segue não verificado e o worker usa o 573 da NF-e; ler as
+  regras de evento da NFCom antes de homologar.
+- `tPag` 06 é PIX (NT 2025.002). DABPE: formato reduzido (bobina de 58 mm; o MOC pede no mínimo 56 mm) e "Via do Estabelecimento" na
+  contingência foram feitos; seguem de fora o PDF417 (`boardPassBPe`, opcional) e a Divisão I (agência, opcional).
+- NFCom: `vProd` do item passa a usar a quantidade e o valor unitário como impressos (4 e 8 casas) e a IE do isento sai em
+  maiúsculas. O `dhCont` é igual ao `dhEmi` na emissão offline; a regra do MOC (`rules_nfcom.go`, dhCont não posterior ao dhEmi)
+  vale, então não mudou.
 - Fora da v1: substituição, agência, BP-e múltiplo e vinculado, evento 112130 (ajuste do TA), ICMS 20 e
   partilha. O DABPE não existe para o TM.
 - Antes de anunciar o documento (landing, home, `DFE_DOCUMENTS`), homologar e rever a cobrança (`quota_bpe` no catálogo).

@@ -60,6 +60,9 @@ export default function GuideBpe() {
               <GuideBullets>
                 <li>Com desconto, informe o tipo e a descrição; o tipo Outros pede também o código do desconto.</li>
                 <li>Identifique o passageiro em viagem interestadual e sempre que houver desconto.</li>
+                <li>O comprador é opcional (agência ou quem pagou): marque a opção, escolha CPF, CNPJ ou identificador estrangeiro e informe o endereço. Só um documento vale.</li>
+                <li>Os municípios saem de uma lista do IBGE: escolha pelo nome e a UF é preenchida junto.</li>
+                <li>No bilhete impresso, o DABPE tem o formato A4 e o reduzido (bobina de 58 mm). Em contingência sai com duas vias, a segunda marcada &quot;Via do Estabelecimento&quot;.</li>
                 <li>Os horários seguem o fuso do seu navegador (no Brasil, -03:00).</li>
                 <li>Antes de reservar o número, o bilhete passa pelas regras do MOC; o que a SEFAZ rejeitaria com certeza volta como erro apontando o campo.</li>
               </GuideBullets>

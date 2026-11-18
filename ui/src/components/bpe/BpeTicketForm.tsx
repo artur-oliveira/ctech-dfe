@@ -13,10 +13,11 @@ import {Button, Textarea} from '@aoctech/ui';
 import {UF_OPTIONS} from '@/lib/schemas/entity';
 import {bpeTicketSchema, emptyBpeTicket, emptyBpeTrip, toBpeTicketBody, type BpeTicketForm} from '@/lib/schemas/bpe';
 import {
-  BPE_ACCOMMODATIONS, BPE_COMPONENT_TYPES, BPE_COMPONENTS_MAX, BPE_DISCOUNT_TYPES, BPE_DOC_TYPES, BPE_ICMS_OPTIONS, BPE_ICMS_WITH_RATE,
+  BPE_ACCOMMODATIONS, BPE_BUYER_DOC_KINDS, BPE_COMPONENT_TYPES, BPE_COMPONENTS_MAX, BPE_DISCOUNT_TYPES, BPE_DOC_TYPES, BPE_ICMS_OPTIONS, BPE_ICMS_WITH_RATE,
   BPE_LEG_TYPES, BPE_MODALS, BPE_PAYMENT_OTHER, BPE_PAYMENT_TYPES, BPE_PAYMENTS_MAX, BPE_PRESENCE, BPE_SERVICE_TYPES,
   BPE_TA_ACCOMMODATIONS, BPE_TA_COMPONENT_TYPES, BPE_TA_DISCOUNT_TYPES, BPE_TA_SERVICE_TYPES, BPE_TA_TRIP_TYPES, BPE_TRIP_TYPES, BPE_TRIPS_MAX,
 } from '@/lib/constants/bpe';
+import {MunicipalityField} from '@/components/ui/municipality-field';
 import {bpeFields, GRID, H2, SECTION, SUBCARD} from './fields';
 
 /** Total estimado (o servidor soma os componentes e abate o desconto). */
@@ -71,9 +72,9 @@ export function BpeTicketForm({variant}: { variant: 'normal' | 'ta' }) {
           </div>
           <div className={GRID}>
             {select('origin.uf', 'UF de início', UF_OPTIONS)}
-            {text('origin.ibge_code', 'Município de início (código IBGE)', {inputMode: 'numeric'})}
+            <MunicipalityField control={form.control} setValue={form.setValue} name="origin.ibge_code" label="Município de início" ufName="origin.uf"/>
             {select('destination.uf', 'UF de fim', UF_OPTIONS)}
-            {text('destination.ibge_code', 'Município de fim (código IBGE)', {inputMode: 'numeric'})}
+            <MunicipalityField control={form.control} setValue={form.setValue} name="destination.ibge_code" label="Município de fim" ufName="destination.uf"/>
           </div>
           <div className={GRID}>
             {!ta && text('passage.from_code', 'Código do local de origem')}
@@ -98,6 +99,32 @@ export function BpeTicketForm({variant}: { variant: 'normal' | 'ta' }) {
               {text('passage.passenger.name', 'Nome', {className: 'sm:col-span-2'})}
               {select('passage.passenger.doc_type', 'Documento', BPE_DOC_TYPES)}
               {text('passage.passenger.doc_number', 'Número do documento')}
+            </div>
+          )}
+        </section>
+
+        <section className={SECTION} aria-labelledby="bpe-comprador">
+          <h2 id="bpe-comprador" className={H2}>Comprador</h2>
+          <FormField control={form.control} name="buyer.enabled" render={({field}) => (
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input type="checkbox" checked={field.value} onChange={(e) => field.onChange(e.target.checked)}/>
+              Informar o comprador (opcional; agência ou quem pagou o bilhete)
+            </label>
+          )}/>
+          {values.buyer.enabled && (
+            <div className={GRID}>
+              {text('buyer.name', 'Nome ou razão social', {className: 'sm:col-span-2'})}
+              {select('buyer.doc_kind', 'Documento', BPE_BUYER_DOC_KINDS)}
+              {text('buyer.document', 'Número do documento')}
+              {text('buyer.ie', 'Inscrição estadual')}
+              {text('buyer.street', 'Logradouro', {className: 'sm:col-span-2'})}
+              {text('buyer.number', 'Número')}
+              {text('buyer.complement', 'Complemento')}
+              {text('buyer.neighborhood', 'Bairro')}
+              <MunicipalityField control={form.control} setValue={form.setValue} name="buyer.ibge_code" label="Município"
+                                 ufName="buyer.uf" cityName="buyer.city"/>
+              {select('buyer.uf', 'UF', UF_OPTIONS)}
+              {text('buyer.postal_code', 'CEP', {inputMode: 'numeric'})}
             </div>
           )}
         </section>

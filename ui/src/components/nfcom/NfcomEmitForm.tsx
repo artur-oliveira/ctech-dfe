@@ -13,6 +13,7 @@ import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui
 import {Input} from '@/components/ui/input';
 import {Button, Textarea} from '@aoctech/ui';
 import {OptionsSelect} from '@/components/ui/options-select';
+import {MunicipalityField} from '@/components/ui/municipality-field';
 import {HomologationBanner} from '@/components/ui/homologation-banner';
 import {useFiscalConfig} from '@/lib/hooks/useFiscalConfig';
 import {UF_OPTIONS} from '@/lib/schemas/entity';
@@ -114,8 +115,8 @@ export function NfcomEmitForm() {
             {text('customer.address.number', 'Número')}
             {text('customer.address.complement', 'Complemento')}
             {text('customer.address.neighborhood', 'Bairro')}
-            {text('customer.address.city', 'Município')}
-            {text('customer.address.ibge_code', 'Código IBGE do município', {inputMode: 'numeric'})}
+            <MunicipalityField control={form.control} setValue={form.setValue} name="customer.address.ibge_code" label="Município"
+                               ufName="customer.address.uf" cityName="customer.address.city"/>
             {select('customer.address.uf', 'UF', UF_OPTIONS)}
             {text('customer.address.postal_code', 'CEP', {inputMode: 'numeric'})}
             {text('customer.address.phone', 'Telefone', {inputMode: 'numeric'})}

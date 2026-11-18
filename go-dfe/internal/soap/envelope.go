@@ -59,6 +59,10 @@ func NewBuilder(docType, uf, service string) (*Builder, error) {
 		version = v
 	}
 
+	if body, ok := constants.SOAPBodyElementOverride[service]; ok {
+		elems.Body = body
+	}
+
 	wrapped := constants.SOAPWrappedBodyServices[service] || constants.IsSOAPWrappedBodyOverride(uf, service)
 
 	return &Builder{

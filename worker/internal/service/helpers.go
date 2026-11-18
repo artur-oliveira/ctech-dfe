@@ -73,7 +73,7 @@ const (
 	// DuplicatedEventError: NF-e/NFC-e, "Duplicidade de evento".
 	DuplicatedEventError = "573"
 	// MOC MDF-e (RegrasDeValidacao, RecepcaoEventoGeral): 631 duplicidade de evento;
-	// 218 MDF-e já cancelado; 609 MDF-e já encerrado. O CT-e usa os mesmos 631 e 218 (MOC CT-e,
+	// 218 MDF-e já cancelado; 609 MDF-e já encerrado. O BP-e usa 631 e 218 (MOC BP-e Visão Geral 1.00b, evento geral). O CT-e usa os mesmos 631 e 218 (MOC CT-e,
 	// RecepcaoEventoGeral N16 e RecepcaoEventosEspecificos O05).
 	mdfeDuplicatedEventError = "631"
 	alreadyCancelledStat     = "218"
@@ -83,7 +83,7 @@ const (
 // isDuplicateEvent reports whether cStat is the "duplicidade de evento" of the document type.
 // Cancellation and closing events handle it through rejectedEventDocStatus instead.
 func isDuplicateEvent(docType, cStat string) bool {
-	if docType == docTypeMDFe || docType == docTypeCTe {
+	if docType == docTypeMDFe || docType == docTypeCTe || docType == docTypeBPe {
 		return cStat == mdfeDuplicatedEventError
 	}
 	return cStat == DuplicatedEventError
@@ -100,7 +100,7 @@ func rejectedEventDocStatus(docType, cStat string, isClose bool) string {
 	}
 	switch {
 	case cStat == DuplicatedEventError,
-		cStat == mdfeDuplicatedEventError && (docType == docTypeMDFe || docType == docTypeCTe):
+		cStat == mdfeDuplicatedEventError && (docType == docTypeMDFe || docType == docTypeCTe || docType == docTypeBPe):
 		return requested
 	case cStat == alreadyCancelledStat:
 		return StatusCancelled

@@ -1,0 +1,61 @@
+<style>
+  /* Bobina de 58 mm (MOC DABPE 2.3.1 pede no mínimo 56 mm e 2 mm de margem lateral). */
+  @page { size: 58mm 0; margin: 2mm; }
+  body { font-family: "DejaVu Sans", Arial, sans-serif; font-size: 6pt; color: #000; margin: 0; padding: 0; }
+  .center, .center div { text-align: center; }
+  .right { text-align: right; }
+  .b { font-weight: bold; }
+  .small { font-size: 5pt; }
+  table { width: 100%; border-collapse: collapse; }
+  td { vertical-align: top; word-wrap: break-word; overflow-wrap: break-word; }
+  .block { margin-bottom: 3pt; }
+  .rule { border-top: 0.4pt dashed #000; margin: 3pt 0; }
+  .banner { font-weight: bold; text-align: center; margin: 3pt 0; }
+  .qr { width: 25mm; display: block; margin: 0 auto; }
+  .barcode { width: 100%; display: block; }
+</style>
+{% if ctx.is_cancelada %}<div class="banner">{{ ctx.text.cancelada }}</div>{% endif %}
+{% if ctx.is_homologacao %}<div class="banner">{{ ctx.text.homologacao }}</div>{% endif %}
+<div class="center block">
+  <div class="b">{{ ctx.emit.nome }}</div>
+  <div>CNPJ: {{ ctx.emit.doc }}</div>
+  <div>{{ ctx.emit.endereco }}, {{ ctx.emit.mun }} - {{ ctx.emit.uf }}</div>
+  <div class="b">{{ ctx.text.dabpe_desc }}</div>
+</div>
+{% if ctx.is_contingencia %}<div class="banner">{{ ctx.text.contingencia }}<br>{{ ctx.text.contingencia_2 }}</div>{% endif %}
+<div class="rule"></div>
+{% for v in ctx.viagens %}
+<div class="block">
+  {% if v.conexao %}<div class="b">{{ ctx.text.conexao }}</div>{% endif %}
+  {% if v.voo %}<div>Voo: {{ v.companhia }} {{ v.voo }} {{ v.aeroporto_origem }} - {{ v.aeroporto_destino }}</div>
+  {% else %}<div>Origem: {{ ctx.origem.nome }} - {{ ctx.origem.uf }}</div><div>Destino: {{ ctx.destino.nome }} - {{ ctx.destino.uf }}</div>{% endif %}
+  <div>Data: {{ v.data }} Horário: {{ v.hora }}</div>
+  {% if v.poltrona %}<div>Poltrona: {{ v.poltrona }}</div>{% endif %}
+  {% if v.plataforma %}<div>Plataforma: {{ v.plataforma }}</div>{% endif %}
+  {% if v.prefixo %}<div>Prefixo: {{ v.prefixo }}</div>{% endif %}
+  {% if v.linha %}<div>Linha: {{ v.linha }}</div>{% endif %}
+  <div>Tipo: {{ v.tipo }}</div>
+</div>
+{% endfor %}
+<div class="rule"></div>
+<table class="block">
+  {% for c in ctx.valores.componentes %}<tr><td>{{ c.nome }}</td><td class="right">{{ c.valor }}</td></tr>{% endfor %}
+  <tr class="b"><td>Valor total R$</td><td class="right">{{ ctx.valores.total }}</td></tr>
+  {% if ctx.valores.tem_desconto %}<tr><td>Desconto R$</td><td class="right">{{ ctx.valores.desconto }}</td></tr><tr><td>Valor a pagar R$</td><td class="right">{{ ctx.valores.a_pagar }}</td></tr>{% endif %}
+  {% for p in ctx.valores.pagamentos %}<tr><td>{{ p.forma }}</td><td class="right">{{ p.valor }}</td></tr>{% endfor %}
+  <tr class="b"><td>Valor pago R$</td><td class="right">{{ ctx.valores.pago }}</td></tr>
+  <tr><td>Troco R$</td><td class="right">{{ ctx.valores.troco }}</td></tr>
+</table>
+<div class="rule"></div>
+<div class="block b">{% if ctx.passageiro.identificado %}{{ ctx.passageiro.linha }}{% else %}{{ ctx.text.nao_identificado }}{% endif %}</div>
+{% if ctx.passageiro.desconto %}<div class="block b">{{ ctx.passageiro.desconto }}</div>{% endif %}
+<div class="block">BP-e nº {{ ctx.ide.nBP }} Série {{ ctx.ide.serie }}<br>Emissão: {{ ctx.ide.dhEmi }}{% if ctx.via_estabelecimento %} - {{ ctx.text.via_estabelecimento }}{% endif %}</div>
+{% if ctx.protocolo %}<div class="block">{{ ctx.text.protocolo }} {{ ctx.protocolo.nProt }} - {{ ctx.protocolo.dhRecbto }}</div>{% endif %}
+{% if ctx.is_contingencia %}<div class="banner">{{ ctx.text.contingencia }}<br>{{ ctx.text.contingencia_2 }}</div>{% endif %}
+<div class="block small">{{ ctx.text.consulta }} {{ ctx.consulta_url }}</div>
+<div class="block small">{{ ctx.chave_fmt }}</div>
+{% if ctx.chave_barcode %}<img class="barcode" src="{{ ctx.chave_barcode }}" alt="chave">{% endif %}
+{% if ctx.qr_uri %}<img class="qr" src="{{ ctx.qr_uri }}" alt="QR Code">{% endif %}
+{% if ctx.msg_fiscal %}<div class="block small">{{ ctx.msg_fiscal }}</div>{% endif %}
+{% if ctx.msg_contribuinte %}<div class="block small">{{ ctx.msg_contribuinte }}</div>{% endif %}
+<div class="small center">{{ ctx.text.gerado_por }} {{ ctx.site }}</div>

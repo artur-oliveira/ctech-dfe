@@ -8,7 +8,7 @@ import (
 	"gopkg.aoctech.app/dfe/api/internal/services/documents"
 )
 
-// GetDABPEURL valida o tenant e devolve o PDF do DABPE em cache. O DABPE tem leiaute único (qualquer format é 400) e não se
+// GetDABPEURL valida o tenant e devolve o PDF do DABPE em cache. O DABPE tem os formatos retrato (A4) e reduzido e não se
 // aplica ao TM, que é apuração por viagem e não tem bilhete individual.
 func (s *BpeService) GetDABPEURL(ctx context.Context, orgPK, accessKey, format string) (*documents.Download, error) {
 	if p := documents.ValidateFormat(documents.DocTypeBPe, format); p != nil {

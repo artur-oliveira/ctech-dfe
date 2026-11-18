@@ -142,9 +142,15 @@ var SOAPElements = map[string]SOAPElementNames{
 	// NFCom: o client nunca envia cabeçalho SOAP; nomes do corpo e do resultado conforme os relatos de homologação
 	// da SVRS (WSDL não acessível fora da rede autorizada). Confirmar no primeiro teste em homologação.
 	DocTypeNFCOM: {Header: "nfcomCabecMsg", Body: "nfcomDadosMsg", Result: "nfcomResultMsg"},
-	// BP-e: os nomes são os do MOC (NT 2025.002, 2.4: BPeDadosMsg e BPeResultMsg); o client não envia cabeçalho.
-	DocTypeBPE: {Header: "bpeCabecMsg", Body: "BPeDadosMsg", Result: "BPeResultMsg"},
+	// BP-e: nomes do MOC Visão Geral 1.00b (bpeDadosMsg e bpeResultMsg, comum, TM, evento, consulta e status); o TA usa
+	// BPeDadosMsg (ver SOAPBodyElementOverride). O client não envia cabeçalho.
+	DocTypeBPE: {Header: "bpeCabecMsg", Body: "bpeDadosMsg", Result: "bpeResultMsg"},
 }
+
+// SOAPBodyElementOverride: serviços cujo elemento de corpo difere do padrão do tipo de documento. A NT 2025.002 do BP-e TA
+// (2.4) escreve BPeDadosMsg e BPeResultMsg com B maiúsculo no BPeRecepcaoTA; o MOC escreve com b minúsculo nos demais.
+// A resposta é lida sem distinção de caixa (ver unwrapResponseNode).
+var SOAPBodyElementOverride = map[string]string{"BPeRecepcaoTA": "BPeDadosMsg"}
 
 // NFeWSDLService covers both nfe and nfce doc types (nfce reuses NFe's WSDL).
 var NFeWSDLService = map[string]string{

@@ -42,6 +42,13 @@ export const BPE_DOC_TYPES: readonly BpeOption[] = [
   {value: '5', label: 'Outros'},
 ];
 
+/** Documento do comprador: um entre CNPJ, CPF e identificador estrangeiro (a API exige exatamente um). */
+export const BPE_BUYER_DOC_KINDS: readonly BpeOption[] = [
+  {value: 'cpf', label: 'CPF'},
+  {value: 'cnpj', label: 'CNPJ'},
+  {value: 'foreign', label: 'Identificador estrangeiro'},
+];
+
 /** tpViagem do comum. */
 export const BPE_TRIP_TYPES: readonly BpeOption[] = [
   {value: '00', label: 'Convencional'},

@@ -116,3 +116,61 @@ func TestBpe_ListEventsChecksTenant(t *testing.T) {
 		t.Fatalf("outra organização: status %d, queria 404 (%v)", problemStatus(err), err)
 	}
 }
+
+func bpeVariantRow(pk, key, variant string) map[string]any {
+	row := bpeRow(pk, key, 1)
+	row["variant"] = variant
+	row["status"] = "authorized"
+	return row
+}
+
+// O DABPE só sai para a organização dona do bilhete (404 para outra), recusa formato desconhecido (400) e não existe para o TM.
+func TestBpe_DABPEChecksTenantFormatAndVariant(t *testing.T) {
+	ctx := context.Background()
+	orgA, orgB := "CNPJ_"+randomCNPJ(), "CNPJ_"+randomCNPJ()
+	keyTA, keyTM := strings.Repeat("0", 43)+"8", strings.Repeat("0", 43)+"9"
+	for key, variant := range map[string]string{keyTA: "ta", keyTM: "tm"} {
+		item, _ := repositories.EncodeItem(bpeVariantRow("hom#"+orgA, key, variant))
+		if err := bpeRepo.Create(ctx, item); err != nil {
+			t.Fatal(err)
+		}
+	}
+	events := repositories.NewDocumentEventRepository(db, cfg, "bpe")
+	svc := bpes.NewBpeService(nil, nil, bpeConfigRepo, bpeRepo, events, nil, nil, nil, nil, "", bpes.TechData{}, nil)
+	if _, err := svc.GetDABPEURL(ctx, orgB, keyTA, ""); problemStatus(err) != 404 {
+		t.Errorf("outra organização: status %d, queria 404 (%v)", problemStatus(err), err)
+	}
+	if _, err := svc.GetDABPEURL(ctx, orgA, keyTA, "a3"); problemStatus(err) != 400 {
+		t.Errorf("formato desconhecido: status %d, queria 400", problemStatus(err))
+	}
+	if _, err := svc.GetDABPEURL(ctx, orgA, keyTM, ""); problemStatus(err) != 400 {
+		t.Errorf("TM não tem DABPE: status %d, queria 400 (%v)", problemStatus(err), err)
+	}
+	// TA autorizado sem XML guardado: 404 "ainda não disponível", depois das checagens de tenant, formato e variante.
+	if _, err := svc.GetDABPEURL(ctx, orgA, keyTA, "reduzido"); problemStatus(err) != 404 {
+		t.Errorf("TA sem XML: status %d, queria 404 (%v)", problemStatus(err), err)
+	}
+}
+
+// O evento 112140 (fornecimento não realizado) de um TA fica na lista de eventos do dono e some para outra organização.
+func TestBpe_TASupplyNotPerformedEventIsTenantScoped(t *testing.T) {
+	ctx := context.Background()
+	orgA, orgB := "CNPJ_"+randomCNPJ(), "CNPJ_"+randomCNPJ()
+	key := strings.Repeat("0", 42) + "10"
+	item, _ := repositories.EncodeItem(bpeVariantRow("hom#"+orgA, key, "ta"))
+	if err := bpeRepo.Create(ctx, item); err != nil {
+		t.Fatal(err)
+	}
+	events := repositories.NewDocumentEventRepository(db, cfg, "bpe")
+	if _, err := events.CreateEvent(ctx, key, bpes.TpEventoFornecimentoNaoRealizado, 1, "pending", nil, nil, nil, testUserID, testUserName); err != nil {
+		t.Fatal(err)
+	}
+	svc := bpes.NewBpeService(nil, nil, bpeConfigRepo, bpeRepo, events, nil, nil, nil, nil, "", bpes.TechData{}, nil)
+	res, err := svc.ListBPeEvents(ctx, orgA, key, 50, nil)
+	if err != nil || len(res.Items) != 1 {
+		t.Fatalf("dono: %v %v", res, err)
+	}
+	if _, err := svc.ListBPeEvents(ctx, orgB, key, 50, nil); problemStatus(err) != 404 {
+		t.Fatalf("outra organização: status %d, queria 404", problemStatus(err))
+	}
+}

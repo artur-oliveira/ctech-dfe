@@ -102,6 +102,28 @@ func TestBuildNFComTotalsAndItem(t *testing.T) {
 	}
 }
 
+// vProd sai da quantidade como impressa (4 casas): 1,00005 vira 1,0001 no XML e 1,0001 x 99,50 = 99,51 (sem o arredondamento
+// seria 99,50, e a SEFAZ refazendo a conta sobre o documento divergiria).
+func TestBuildNFComVProdUsesPrintedQuantity(t *testing.T) {
+	p := testParams(t)
+	p.req.Items[0].Quantity, p.req.Items[0].UnitValue = "1.00005", "99.50"
+	p.req.Items[0].Discount, p.req.Items[0].OtherCharges = nil, nil
+	inf := BuildNFCom(p)["NFCom"].(map[string]any)["infNFCom"].(map[string]any)
+	prod := inf["det"].([]any)[0].(map[string]any)["prod"].(map[string]any)
+	if prod["qFaturada"] != "1.0001" || prod["vProd"] != "99.51" {
+		t.Errorf("qFaturada/vProd = %v/%v", prod["qFaturada"], prod["vProd"])
+	}
+}
+
+func TestBuildNFComIsentoIEIsUpperCase(t *testing.T) {
+	p := testParams(t)
+	p.req.Customer.IEIndicator, p.req.Customer.IE = "2", strp("isento")
+	inf := BuildNFCom(p)["NFCom"].(map[string]any)["infNFCom"].(map[string]any)
+	if ie := inf["dest"].(map[string]any)["IE"]; ie != "ISENTO" {
+		t.Errorf("IE = %v", ie)
+	}
+}
+
 func TestBuildNFComAccessKeyAndID(t *testing.T) {
 	p := testParams(t)
 	nfcom := BuildNFCom(p)["NFCom"].(map[string]any)
