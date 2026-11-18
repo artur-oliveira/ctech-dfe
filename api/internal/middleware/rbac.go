@@ -162,6 +162,19 @@ func (p *PermChecker) RequireMember() fiber.Handler {
 	return p.requireRoles(accessDenied, roleOwner, roleAdmin, repositories.RoleUser, repositories.RoleViewer)
 }
 
+// RequireScope is the scope half of `check` for routes that are not an RBAC permission (notifications are personal):
+// a scoped token must carry the OAuth scope that grants `permission` ("get.notifications", "update.notifications");
+// a token without any dfe:* scope passes, like everywhere else. Put it after RequireMember, which already refuses
+// scoped tokens that are not the first-party session.
+func RequireScope(permission string) fiber.Handler {
+	return func(c fiber.Ctx) error {
+		if scopes := GetScopes(c); tokenIsScoped(scopes) && !scopesGrant(scopes, permission) {
+			return c.Status(fiber.StatusForbidden).JSON(problem.Forbidden("escopo do token insuficiente para esta ação"))
+		}
+		return c.Next()
+	}
+}
+
 func (p *PermChecker) check(c fiber.Ctx, permission string) error {
 	orgPK, m, err := p.parseUserOrganizationRole(c)
 	if err != nil {

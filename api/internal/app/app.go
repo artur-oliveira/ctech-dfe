@@ -124,6 +124,8 @@ var Module = fx.Options(
 		newBillingService,
 		repositories.NewWebhookRepository,
 		newWebhookService,
+		repositories.NewPushRepository,
+		newPushService,
 		newCertificateService,
 		newProductService,
 		newServiceService,
@@ -170,6 +172,7 @@ var Module = fx.Options(
 	),
 	fx.Invoke(seedRoles),
 	fx.Invoke(registerRoutes),
+	fx.Invoke(wirePushMembers),
 	fx.Invoke(startResultsConsumer),
 	fx.Invoke(startErasureConsumer),
 	fx.Invoke(startLevelSweeper),
@@ -734,6 +737,7 @@ type Services struct {
 	AuditLogSvc     *services.AuditLogService
 	BillingSvc      *services.BillingService
 	WebhookSvc      *services.WebhookService
+	PushSvc         *services.PushService
 	LevelReporter   *services.LevelReporter
 	RoleRepo        *repositories.RoleRepository
 	Cache           cache.Backend
@@ -794,6 +798,7 @@ func registerRoutes(app *fiber.App, svcs Services) {
 		AuditLog:        svcs.AuditLogSvc,
 		Billing:         svcs.BillingSvc,
 		Webhooks:        svcs.WebhookSvc,
+		Push:            svcs.PushSvc,
 		Levels:          svcs.LevelReporter,
 		RoleRepo:        svcs.RoleRepo,
 		ErasureBlocked:  blockedOf(svcs.ErasureStore),
@@ -820,8 +825,19 @@ func startServer(lc fx.Lifecycle, app *fiber.App, cfg *config.Config) {
 	})
 }
 
-func newResultsConsumer(clients *awsclient.Clients, cfg *config.Config, reg ws.Registry, c cache.Backend, billing *services.BillingService, hooks *services.WebhookService) *consumer.ResultsConsumer {
-	return consumer.NewResultsConsumer(clients.SQS, cfg.ResultsQueueURL, reg, c, billing).WithWebhooks(hooks)
+func newResultsConsumer(clients *awsclient.Clients, cfg *config.Config, reg ws.Registry, c cache.Backend, billing *services.BillingService, hooks *services.WebhookService, push *services.PushService) *consumer.ResultsConsumer {
+	return consumer.NewResultsConsumer(clients.SQS, cfg.ResultsQueueURL, reg, c, billing).WithWebhooks(hooks).WithPush(push)
+}
+
+// newPushService wires Web Push. Without PUSH_VAPID_PUBLIC_KEY and PUSH_SENDER_FUNCTION_NAME the service is off
+// (the screen hides, nothing is sent); the API never holds the VAPID private key.
+func newPushService(repo *repositories.PushRepository, members *services.MembershipService, orgs *services.OrganizationService, clients *awsclient.Clients, cfg *config.Config) *services.PushService {
+	return services.NewPushService(repo, members, orgs, clients, cfg.PushSenderFunctionName, cfg.PushVapidPublicKey)
+}
+
+// wirePushMembers drops a removed member's notification choice for the company.
+func wirePushMembers(members *services.MembershipService, push *services.PushService) {
+	members.OnRemoved(push.ForgetMember)
 }
 
 // newLevelReporter delivers companies levels to billing. Billing off → a nil

@@ -64,6 +64,7 @@ export type TableName = (
   'nfse_distributions' |
   'worker_outbox' |
   'webhooks' |
+  'push' |
   'erasure_state' |
   'idempotency'
   )
@@ -1006,6 +1007,38 @@ export class DynamoDBStack extends cdk.Stack {
       maxWriteRequestUnits: 1000,
     });
     this.tables.set('webhooks', webhooksTable);
+
+    // Web Push (docs/specs/2026-11-17-web-push.md): os dispositivos de cada pessoa (pk USER#{sub}, sk SUB#...), a escolha
+    // de eventos por empresa (pk COMPANY#{pk}, sk USER#{sub}) e os marcadores de dedupe e de janela (EVENT#, THROTTLE#,
+    // com TTL em `ttl`; as inscrições também expiram, 60 dias sem sincronizar).
+    //
+    // `user-index` é esparso e KEYS_ONLY: só as linhas de preferência carregam `user_sub`. Atende a exclusão LGPD da
+    // pessoa e a remoção de membro sem Scan. Acesso: GetItem das preferências, Query USER#u begins_with SUB# (até 10
+    // linhas), Query COMPANY#c begins_with USER# no fan-out (paginado, 100 por leitura).
+    // Custo: on-demand com teto, chave própria da AWS; menos de US$ 1 por mês com 10 mil usuários (ver o spec).
+    const pushTable = new dynamodb.TableV2(this, `${tablePrefix}_push`, {
+      tableName: `${tablePrefix}_push`,
+      partitionKey: {name: 'pk', type: dynamodb.AttributeType.STRING},
+      sortKey: {name: 'sk', type: dynamodb.AttributeType.STRING},
+      billing: Billing.onDemand({
+        maxReadRequestUnits: 1000,
+        maxWriteRequestUnits: 1000,
+      }),
+      timeToLiveAttribute: 'ttl',
+      removalPolicy,
+      pointInTimeRecoverySpecification,
+      encryption: dynamodb.TableEncryptionV2.dynamoOwnedKey(),
+    });
+    pushTable.addGlobalSecondaryIndex({
+      indexName: 'user-index',
+      partitionKey: {name: 'user_sub', type: dynamodb.AttributeType.STRING},
+      sortKey: {name: 'pk', type: dynamodb.AttributeType.STRING},
+      projectionType: dynamodb.ProjectionType.KEYS_ONLY,
+      warmThroughput: undefined,
+      maxReadRequestUnits: 1000,
+      maxWriteRequestUnits: 1000,
+    });
+    this.tables.set('push', pushTable);
 
     // Account-deletion lock/tombstone state (SUB#{sub}, ORG#{id}), schema owned
     // by ctech-go-common erasure.Store. No PII; erased records have no TTL.

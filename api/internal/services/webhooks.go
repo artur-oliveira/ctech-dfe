@@ -2,8 +2,6 @@ package services
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -411,9 +409,8 @@ func (s *WebhookService) Emit(ctx context.Context, in WebhookResult) error {
 	if err != nil {
 		return err
 	}
-	sum := sha256.Sum256([]byte(in.CompanyPK + "|" + in.DocumentKey + "|" + in.Status))
 	_, err = s.repo.WriteDeliveries(ctx, organizationID, repositories.WebhookEvent{
-		ID: id, Type: eventType, CompanyPK: in.CompanyPK, Body: body, DedupeKey: hex.EncodeToString(sum[:16]),
+		ID: id, Type: eventType, CompanyPK: in.CompanyPK, Body: body, DedupeKey: ResultDedupeKey(in.CompanyPK, in.DocumentKey, in.Status),
 	}, endpoints, s.now())
 	return err
 }

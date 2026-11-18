@@ -574,6 +574,28 @@ func createTables(ctx context.Context, db *dynamodb.Client) error {
 			}},
 		},
 		{
+			// Web Push: devices (USER#), preferences and markers (COMPANY#); user-index is sparse (preference rows only).
+			TableName:   aws.String(tablePrefix + "_" + repositories.TablePush),
+			BillingMode: types.BillingModePayPerRequest,
+			KeySchema: []types.KeySchemaElement{
+				{AttributeName: aws.String("pk"), KeyType: types.KeyTypeHash},
+				{AttributeName: aws.String("sk"), KeyType: types.KeyTypeRange},
+			},
+			AttributeDefinitions: []types.AttributeDefinition{
+				{AttributeName: aws.String("pk"), AttributeType: types.ScalarAttributeTypeS},
+				{AttributeName: aws.String("sk"), AttributeType: types.ScalarAttributeTypeS},
+				{AttributeName: aws.String(repositories.AttrPushUserSub), AttributeType: types.ScalarAttributeTypeS},
+			},
+			GlobalSecondaryIndexes: []types.GlobalSecondaryIndex{{
+				IndexName: aws.String(repositories.IndexPushUser),
+				KeySchema: []types.KeySchemaElement{
+					{AttributeName: aws.String(repositories.AttrPushUserSub), KeyType: types.KeyTypeHash},
+					{AttributeName: aws.String("pk"), KeyType: types.KeyTypeRange},
+				},
+				Projection: &types.Projection{ProjectionType: types.ProjectionTypeKeysOnly},
+			}},
+		},
+		{
 			TableName:   aws.String(tablePrefix + "_organization_invitations"),
 			BillingMode: types.BillingModePayPerRequest,
 			KeySchema: []types.KeySchemaElement{
@@ -684,6 +706,7 @@ func dropTables(ctx context.Context, db *dynamodb.Client) {
 		tablePrefix + "_organization_invitations",
 		tablePrefix + "_account_billing",
 		tablePrefix + "_" + repositories.TableWebhooks,
+		tablePrefix + "_" + repositories.TablePush,
 	}
 	for _, t := range tables {
 		_, _ = db.DeleteTable(ctx, &dynamodb.DeleteTableInput{TableName: aws.String(t)})

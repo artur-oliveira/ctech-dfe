@@ -76,6 +76,24 @@
       "status": "active"
     },
     {
+      "name": "dfe:notifications:read",
+      "descriptions": {
+        "pt-BR": "Consultar as preferencias e os dispositivos de notificacao.",
+        "en": "Read notification preferences and devices."
+      },
+      "visibility": "public",
+      "status": "active"
+    },
+    {
+      "name": "dfe:notifications:write",
+      "descriptions": {
+        "pt-BR": "Ativar, desativar e configurar notificacoes no navegador.",
+        "en": "Turn on, turn off, and configure browser notifications."
+      },
+      "visibility": "public",
+      "status": "active"
+    },
+    {
       "name": "dfe:nfces:read",
       "descriptions": {
         "pt-BR": "Consultar NFC-e, eventos e configuracoes.",

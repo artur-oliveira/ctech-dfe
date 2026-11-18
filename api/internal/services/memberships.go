@@ -42,6 +42,7 @@ type MembershipService struct {
 	roleRepo  *repositories.RoleRepository
 	auditRepo *repositories.AuditLogRepository
 	cache     cache.Backend
+	onRemoved func(ctx context.Context, orgPK, userID string)
 }
 
 func NewMembershipService(repo *repositories.OrgUserRepository, auditRepo *repositories.AuditLogRepository, roleRepo *repositories.RoleRepository, c cache.Backend) *MembershipService {
@@ -254,7 +255,16 @@ func (s *MembershipService) Remove(ctx context.Context, orgPK, userID, deletedBy
 	s.tombstone(ctx, orgPK, userID)
 	cacheDelete(ctx, s.cache, userOrgsCacheKey(userID))
 	cacheDelete(ctx, s.cache, userMeCacheKey(userID))
+	if s.onRemoved != nil {
+		s.onRemoved(ctx, orgPK, userID)
+	}
 	return nil
+}
+
+// OnRemoved registers what happens after a membership is removed (best effort, never fails the removal): push
+// drops the person's notification choice for the company.
+func (s *MembershipService) OnRemoved(fn func(ctx context.Context, orgPK, userID string)) {
+	s.onRemoved = fn
 }
 
 // Invalidate clears the membership and user-orgs cache for one (org, user).

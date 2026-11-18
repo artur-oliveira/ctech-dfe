@@ -64,12 +64,27 @@ type ResultsConsumer struct {
 	cache     cache.Backend
 	billing   *services.BillingService
 	webhooks  WebhookEmitter
+	push      PushEmitter
 }
 
 // WebhookEmitter turns a terminal document result into webhook deliveries
 // (services.WebhookService). Nil leaves webhooks off.
 type WebhookEmitter interface {
 	Emit(ctx context.Context, r services.WebhookResult) error
+}
+
+// PushEmitter turns a terminal result or a received document into Web Push notifications
+// (services.PushService). Nil leaves push off.
+type PushEmitter interface {
+	EmitResult(ctx context.Context, r services.PushResult) error
+	EmitDistribution(ctx context.Context, companyPK, accessKey, docType string, sentAt time.Time) error
+}
+
+// WithPush wires the push emission. A push service that is built but off is as good as none: its methods return at
+// once.
+func (r *ResultsConsumer) WithPush(e PushEmitter) *ResultsConsumer {
+	r.push = e
+	return r
 }
 
 // WithWebhooks wires the webhook emission.
@@ -236,7 +251,53 @@ func (r *ResultsConsumer) dispatch(ctx context.Context, msg sqstypes.Message) er
 	if err := r.settleBilling(ctx, event, orgPK, accessKey); err != nil {
 		return err
 	}
-	return r.emitWebhook(ctx, msg, event, orgPK, accessKey)
+	if err := r.emitWebhook(ctx, msg, event, orgPK, accessKey); err != nil {
+		return err
+	}
+	return r.emitPush(ctx, msg, event, orgPK, accessKey)
+}
+
+// distributionTypePrefix starts the type of the worker's notification of a document that arrived through distribution.
+const distributionTypePrefix = "new_distribution_"
+
+// emitPush hands a terminal document result, or a received document, to the push service. It runs last, after
+// billing and webhooks, so a failure here repeats only idempotent work; push is best effort, so only a failed
+// hand-off (not an unwanted event) keeps the message on the queue.
+func (r *ResultsConsumer) emitPush(ctx context.Context, msg sqstypes.Message, event map[string]any, orgPK, accessKey string) error {
+	if r.push == nil {
+		return nil
+	}
+	sentAt := sentTimestamp(msg)
+	if typ, _ := event[resultKeyType].(string); strings.HasPrefix(typ, distributionTypePrefix) {
+		docType, _ := event["doc_type"].(string)
+		if docType == "" {
+			docType = strings.TrimPrefix(typ, distributionTypePrefix)
+		}
+		return r.logPushErr(ctx, orgPK, accessKey, r.push.EmitDistribution(ctx, orgPK, accessKey, docType, sentAt))
+	}
+	if kind, _ := event[resultKeyResultKind].(string); kind != resultKindDocument {
+		return nil
+	}
+	table, _ := event[resultKeyTableName].(string)
+	status, _ := event[resultKeyStatus].(string)
+	return r.logPushErr(ctx, orgPK, accessKey, r.push.EmitResult(ctx, services.PushResult{
+		CompanyPK: orgPK, DocumentKey: accessKey, Table: table, Status: status, SentAt: sentAt,
+	}))
+}
+
+func (r *ResultsConsumer) logPushErr(ctx context.Context, orgPK, key string, err error) error {
+	if err != nil {
+		slog.ErrorContext(ctx, "results consumer: push not handed off", "org", orgPK, "key", key, "err", err)
+	}
+	return err
+}
+
+// sentTimestamp is when the queue message was published; zero when it carries none.
+func sentTimestamp(msg sqstypes.Message) time.Time {
+	if ms, err := strconv.ParseInt(msg.Attributes[string(sqstypes.MessageSystemAttributeNameSentTimestamp)], 10, 64); err == nil {
+		return time.UnixMilli(ms)
+	}
+	return time.Time{}
 }
 
 // emitWebhook hands a terminal document result to the webhook service. It runs

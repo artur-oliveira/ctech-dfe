@@ -1,6 +1,8 @@
 package services
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"time"
 )
@@ -67,4 +69,11 @@ func BuildWebhookBody(eventID, eventType string, occurredAt time.Time, d Webhook
 		b.Data.Rejection = &webhookRejection{Code: d.RejectionCode, Message: d.RejectionMessage}
 	}
 	return json.Marshal(b)
+}
+
+// ResultDedupeKey names a document result (company, document and status) independently of the queue message that
+// reported it: two messages for one result carry two event ids but one key. Webhooks and push both dedupe by it.
+func ResultDedupeKey(companyPK, documentKey, status string) string {
+	sum := sha256.Sum256([]byte(companyPK + "|" + documentKey + "|" + status))
+	return hex.EncodeToString(sum[:16])
 }

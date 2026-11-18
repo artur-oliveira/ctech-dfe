@@ -19,6 +19,8 @@ export const DFE_USER_SCOPES = [
   'dfe:nfcoms:write',
   'dfe:bpes:read',
   'dfe:bpes:write',
+  'dfe:notifications:read',
+  'dfe:notifications:write',
   'dfe:organization_services:read',
   'dfe:organization_services:write',
   'dfe:organization_toll_providers:read',

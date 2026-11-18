@@ -1563,6 +1563,23 @@ enviados só um certificado descartável e uma chave falsa, e a ANTT respondeu 4
 - Escopos novos (`dfe:organization_nfcom_subscribers:*`, `dfe:organization_nfcom_plans:*`) mudam a lista de escopos do login: o
   cliente HTTP reautentica uma vez (`reauthForMissingScopes`) e a lista da UI é conferida contra o manifesto por teste.
 
+## Web Push: decisões e o que ainda não foi provado
+
+- Nenhum envio real foi feito: sem chaves VAPID gravadas e sem aparelho, só há testes unitários, de integração (DynamoDB Local) e o vetor
+  do RFC 8291 no go-common. **F0 (a matriz manual de navegadores e aparelhos, incluindo iPhone instalado) segue aberta**; ela responde os
+  riscos R3, R5 e R6 do spec. Nada de UI até lá (F4).
+- **Padrão de preferência por empresa.** O dispositivo é da pessoa, a escolha é por empresa. Ao ativar, só a empresa do header recebe o
+  padrão (`distribution.received`); nas outras a pessoa não tem linha e o `GET /push/preferences` devolve `[]` (a tela da F4 mostra os
+  padrões de `GET /push/config` como sugestão e grava ao escolher). Quem tem várias empresas liga uma de cada vez.
+- **Teto do fan-out:** 100 por página e 10 páginas, ou seja, até 1.000 pessoas com escolha numa empresa por evento. Acima disso o
+  excedente não recebe (melhor esforço); subir o teto é uma constante.
+- **Melhor esforço, sem replay.** Push não tem log de tentativas como o webhook: um envio que o serviço de push recusa por erro transitório
+  é descartado; a janela de agrupamento suprime os eventos seguintes (a lista e a tela mostram todos).
+- `endpoint` e `auth` não são selados com fieldcrypt (decisão registrada no spec): sem a chave privada VAPID o endpoint não aceita envio e a
+  tabela é cifrada em repouso. Revisitar se a auditoria LGPD pedir.
+- O papel da API tem `Deny` em `vapid-private-key*`; se um dia a API precisar enviar sem Lambda, essa decisão muda.
+- Nenhum teste da tela de preferências ou do `sw.js` no app: são da F4 e do pacote `@aoctech/push-client`.
+
 ## NFCom (modelo 62): o que ainda não foi provado
 
 - Nenhum teste contra autorizador real. Os nomes SOAP (`nfcomDadosMsg`, `nfcomResultMsg`, método `nfcomRecepcao` etc.), a

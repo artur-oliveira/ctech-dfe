@@ -13,7 +13,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sns v1.48.0
 	github.com/aws/aws-sdk-go-v2/service/ssm v1.83.0
 	github.com/oklog/ulid/v2 v2.1.2
-	gopkg.aoctech.app/api-commons v1.42.2
+	gopkg.aoctech.app/api-commons v1.43.0
 	gopkg.aoctech.app/dfe/go-dfe v0.0.0-20261118002157-570c8ad87c1e
 )
 

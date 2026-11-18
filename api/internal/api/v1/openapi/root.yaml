@@ -85,6 +85,8 @@ tags:
     description: Membros da organização e convites.
   - name: Webhooks
     description: Avisos assinados de resultado de documento para uma URL do cliente, com log de entregas e reenvio.
+  - name: Push
+    description: 'Notificações no navegador (Web Push): dispositivos da pessoa e eventos que ela quer por empresa.'
   - name: Invitations
     description: Aceite/recusa de convites pelo destinatário (endereçado por token).
   - name: Products

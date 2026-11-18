@@ -991,6 +991,63 @@ anda 1 min na fila, para um receptor lento não ocupar o lote de todos. Ping e r
 (`WebhookAPIAttemptTimeout`). O segredo é selado em repouso (`WEBHOOK_SECRET_KEY`, ver
 `DEPLOYMENT.md`); sem a chave, cadastrar responde 501 e nada é gravado.
 
+### Notificações no navegador (Web Push), `/v1.0/push`
+
+Spec: `docs/specs/2026-11-17-web-push.md`. Cada pessoa ativa as notificações por dispositivo e escolhe, **por empresa**, quais
+eventos quer; o DF-e avisa quando o resultado de um documento é terminal ou quando chega um documento por distribuição. Fase F3
+(backend): sem tela ainda (F4), e **inerte até o operador gravar as chaves** (ver `DEPLOYMENT.md`, "Web Push").
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| GET    | `/v1.0/push/config` | `{enabled, public_key, vapid_kid, event_types, defaults, max_subscriptions}`. `enabled: false` sem chave VAPID pública ou sem a Lambda; não exige o header da empresa |
+| PUT    | `/v1.0/push/subscriptions` | `{endpoint, keys: {p256dh, auth}}` (o `PushSubscription.toJSON()`). Idempotente pelo hash do endpoint; o 11º dispositivo substitui o visto há mais tempo. 400 inscrição inválida; 503 desativado |
+| GET    | `/v1.0/push/subscriptions` | Os dispositivos da pessoa (`id`, `device`, datas); nunca o endpoint |
+| DELETE | `/v1.0/push/subscriptions/{id}` | Remove um dispositivo (id de 16 hex); 404 se não existe |
+| GET    | `/v1.0/push/preferences` | Eventos que a pessoa quer da empresa do header (`[]` se nunca escolheu) |
+| PUT    | `/v1.0/push/preferences` | `{events[]}`; só tipos de `event_types`; vazio desliga tudo para a empresa; 503 desativado |
+| POST   | `/v1.0/push/test` | Notificação de teste em todos os dispositivos; 1 por minuto por pessoa (429); 202 |
+
+Todas, menos `config`, exigem **membro da empresa** (qualquer papel, inclusive viewer; `RequireMember`) e o header
+`Dfe-Organization-Pk`; um token com escopo precisa de `dfe:notifications:read` ou `dfe:notifications:write` (`middleware.RequireScope`,
+família `notifications` em `scopeFamilies`, sem recurso de RBAC). `RequireMember` já recusa token com escopo que não seja a sessão da
+própria UI: **chave de API não alcança estas rotas**, e as existentes não foram alteradas. O escopo novo só vai para o client OAuth da
+UI (publicado pelo scope-publisher; `DFE_USER_SCOPES` no `ui/src/lib/auth/oauth.ts`).
+
+**Eventos** (`services/push_events.go`): `distribution.received` (**ligado por padrão**), `document.authorized`, `document.rejected` e
+`document.failed` (desligados). O primeiro dispositivo de uma pessoa grava, para a empresa do header, só `distribution.received`
+(`SeedPreference`, nunca por cima de uma escolha). O texto é genérico e **nada fiscal viaja**: sem valor, emitente, destinatário, CNPJ,
+número ou motivo da SEFAZ. O título é "NF-e rejeitada · Nome da empresa" (`Organization.Name`, até 30 caracteres com reticências), o corpo
+é fixo e o link do clique (`navigate`, só caminho do próprio app, validado) leva a chave do documento dentro do payload cifrado de ponta
+a ponta (RFC 8291). Payload no formato do contrato v1 (`data.v` 1), conferido contra o arquivo dourado de go-common
+(`api/internal/services/testdata/push-notification-v1.json`, cópia byte a byte de `webpush/testdata/notification-v1.json`; mudou, é
+mudança de contrato).
+
+**Fluxo.** O `ResultsConsumer` chama `PushService.EmitResult` (resultado terminal de documento) e `EmitDistribution` (mensagem
+`new_distribution_*`), depois do billing e dos webhooks. `emit`: (1) quem pediu o evento (`Query COMPANY# begins_with USER#`, 100 por
+página, no máximo 10 páginas); (2) cada um ainda é membro (`MembershipService.Get`); (3) janela de agrupamento aberta
+(`THROTTLE#{tipo}`: 1 min para resultados, 15 min para distribuição; o primeiro evento da janela notifica, os seguintes não); (4) marcador
+`EVENT#{dedupe}` (24 h; o mesmo hash `ResultDedupeKey` dos webhooks); (5) `Invoke` assíncrono da Lambda `push-sender` com a notificação
+pronta e os destinatários. Falha no invoke apaga os dois marcadores e devolve erro, então a fila reentrega e a nova tentativa começa limpa.
+
+**Lambda `push-sender`** (`api/cmd/push-sender`, módulo `api` como o `webhook-deliverer`; 128 MB arm64, 30 s, concorrência reservada 5,
+retry assíncrono 2, evento de até 1 h): lê as chaves VAPID do SSM na primeira invocação (a pública precisa bater com a derivada da
+privada; `-previous` opcional durante a rotação), lê os dispositivos de cada destinatário e envia com go-common `webpush` (oito em
+paralelo). `Gone` (404, 410) e `Unauthorized` (401, 403, ou `kid` sem chave carregada) apagam o dispositivo; 413 alerta
+`push-payload-too-large`; chave recusada alerta `push-vapid-rejected`; só falha do próprio trabalho (tabela ilegível, delete que falha)
+devolve erro, alerta `push-sender-failed` e deixa a Lambda repetir. Um envio que falha no serviço de push (timeout, 5xx) é descartado
+(melhor esforço). Sem os parâmetros, registra um aviso e **retorna sem erro**. Log estruturado por envio: `event_id`, `sub_hash`,
+`push_host`, `status`, `outcome`, `duration_ms`; nunca o endpoint, as chaves nem o JWT.
+
+**Inerte sem chaves.** `PUSH_VAPID_PUBLIC_KEY` ou `PUSH_SENDER_FUNCTION_NAME` vazios (o `setup-ssm-env.sh` lê parâmetro ausente como
+vazio): `enabled: false`, escritas 503, `Emit` não faz nada nem falha, a Lambda nunca é invocada. A API **não lê** a chave privada (o
+papel da instância tem `Deny` explícito de `ssm:GetParameter` em `vapid-private-key*`, apesar do `/ctech-dfe/{env}/*` amplo).
+
+**Tabela** `{prefix}_push` (ver `DynamoDB-Tables.md`); erasure: a pessoa apaga `USER#{sub}` e as preferências pelo `user-index`
+(`erasePush`), a organização apaga as partições `COMPANY#` (`ScopePush`), e sair de uma empresa apaga a escolha dela
+(`leaveOrganization`; a remoção de membro faz o mesmo por `MembershipService.OnRemoved`, melhor esforço, e o fan-out confere o vínculo de
+qualquer forma). Consultas de Logs Insights prontas: `fields @timestamp, event_id, push_host, status, outcome | filter @message like
+/push send/ | sort @timestamp desc` e `... | stats count() by outcome`.
+
 ### Bloqueio por assinatura e cotas
 
 O gate é um middleware montado **uma vez** no grupo `/v1.0`, não uma checagem por rota. É

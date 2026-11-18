@@ -107,5 +107,7 @@ golang.org/x/tools v0.52.0 h1:ryxg4U63oaUYk7uOLTF37n43f4qgtGvqV4Ioit1BaEs=
 golang.org/x/tools v0.52.0/go.mod h1:ItcP5UNaVGG+Yc4eIYmaFLNJ4soEopkx5Y2d4lcEurs=
 gopkg.aoctech.app/api-commons v1.42.2 h1:WXRbZiSCFrH7Zv2w5HKG2Et6xJP0LIvKG5J3um7oJB8=
 gopkg.aoctech.app/api-commons v1.42.2/go.mod h1:iPhFf3/Diz/NgK7zdZGQ8Q6/waI/aGj9bOUxRoeA6VI=
+gopkg.aoctech.app/api-commons v1.43.0 h1:iIyVrETEHLz+2ooZ5EPwCEbnCxr8VTVBvoBwm8gylSM=
+gopkg.aoctech.app/api-commons v1.43.0/go.mod h1:iPhFf3/Diz/NgK7zdZGQ8Q6/waI/aGj9bOUxRoeA6VI=
 software.sslmate.com/src/go-pkcs12 v0.7.4 h1:OvJ7g/OB9RuVAOzahlFLns6HeIcP+SJotsDqmLfhd8w=
 software.sslmate.com/src/go-pkcs12 v0.7.4/go.mod h1:Qiz0EyvDRJjjxGyUQa2cCNZn/wMyzrRJ/qcDXOQazLI=

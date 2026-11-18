@@ -4,6 +4,7 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import * as ssm from 'aws-cdk-lib/aws-ssm';
 import {Construct} from 'constructs';
 import {Environment} from './types';
+import {pushParameterPath, pushSenderFunctionName} from './worker-definitions';
 
 interface IAMStackProps extends cdk.StackProps {
   environment: Environment;
@@ -255,6 +256,22 @@ export class IAMStack extends cdk.Stack {
     this.apiV2Role.addToPrincipalPolicy(new iam.PolicyStatement({
       actions: ['lambda:InvokeFunction'],
       resources: [`arn:aws:lambda:${this.region}:${this.account}:function:${props.distributionFunctionName}`],
+    }));
+
+    // Web Push: the API hands each notification to the push-sender Lambda as an async invoke (no queue in front of it).
+    this.apiV2Role.addToPrincipalPolicy(new iam.PolicyStatement({
+      actions: ['lambda:InvokeFunction'],
+      resources: [`arn:aws:lambda:${this.region}:${this.account}:function:${pushSenderFunctionName(props.environment)}`],
+    }));
+    // The API serves the VAPID public key and never holds a private one: the broad /ctech-dfe/{env}/* read above would
+    // otherwise cover them, so an explicit deny keeps a compromised instance from signing pushes in the app's name.
+    this.apiV2Role.addToPrincipalPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.DENY,
+      actions: ['ssm:GetParameter'],
+      resources: [
+        `arn:aws:ssm:*:*:parameter${pushParameterPath(props.environment, 'vapid-private-key')}`,
+        `arn:aws:ssm:*:*:parameter${pushParameterPath(props.environment, 'vapid-private-key-previous')}`,
+      ],
     }));
 
     // EC2 — update-realip.sh reads the AWS-managed CloudFront origin-facing
