@@ -7,6 +7,7 @@ import (
 	"errors"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -31,6 +32,9 @@ import (
 const (
 	TablePush     = "push"
 	IndexPushUser = "user-index"
+	// IndexPushEndpoint is sparse like IndexPushUser: only subscription rows carry `endpoint_id` (the hash in their sk), so
+	// the rows of one browser endpoint are found across people without a Scan (see PushRepository.OtherOwners).
+	IndexPushEndpoint = "endpoint-index"
 
 	// MaxPushSubscriptionsPerUser is the most devices one person may register; the next replaces the least recently seen.
 	MaxPushSubscriptionsPerUser = 10
@@ -50,6 +54,8 @@ const (
 
 	// AttrPushUserSub is the partition key of the user-index: who a preference row belongs to.
 	AttrPushUserSub = "user_sub"
+	// AttrPushEndpointID is the partition key of the endpoint-index: the endpoint hash of a subscription row.
+	AttrPushEndpointID = "endpoint_id"
 )
 
 // ErrPushSubscriptionNotFound reports a subscription that does not exist for this person.
@@ -137,8 +143,39 @@ func (r *PushRepository) subscriptionItem(sub string, s PushSubscription, now ti
 	}
 	item["pk"] = SAV(PushUserPK(sub))
 	item["sk"] = SAV(PushSubSK(s.ID))
+	item[AttrPushEndpointID] = SAV(s.ID)
 	item["ttl"] = pushTTL(now.Add(PushSubscriptionTTL))
 	return item, nil
+}
+
+// OtherOwners returns the people other than `sub` who hold a subscription for this endpoint. One browser endpoint
+// belongs to one person at a time: when someone signs in on a shared browser the previous person's row must go, or both
+// would be notified on the same screen. The endpoint-index is eventually consistent; the logout cleanup (the browser
+// subscription is cancelled first, so the push service answers 410 and the sender drops the row) is the primary
+// guard and this is the one that corrects a row the logout never reached.
+func (r *PushRepository) OtherOwners(ctx context.Context, endpoint, sub string) ([]string, error) {
+	id := PushSubscriptionID(endpoint)
+	mine := PushUserPK(sub)
+	var owners []string
+	var start map[string]types.AttributeValue
+	for {
+		res, err := r.base.Query(ctx, QueryOpts{
+			PK: id, PKField: AttrPushEndpointID, IndexName: IndexPushEndpoint, Limit: 25, ExclusiveStartKey: start,
+		})
+		if err != nil {
+			return nil, err
+		}
+		for _, it := range res.Items {
+			pk, ok := it["pk"].(*types.AttributeValueMemberS)
+			if ok && pk.Value != mine && strings.HasPrefix(pk.Value, pushUserPrefix) {
+				owners = append(owners, strings.TrimPrefix(pk.Value, pushUserPrefix))
+			}
+		}
+		if res.LastEvaluatedKey == nil {
+			return owners, nil
+		}
+		start = res.LastEvaluatedKey
+	}
 }
 
 // UpsertSubscription registers or renews a device and returns its id. A known endpoint only renews last_seen_at and the

@@ -16,6 +16,9 @@ import {
   webhookDeliveryDetailFixture,
   webhookEndpointsFixture,
   webhooksListFixture,
+  pushConfigFixture,
+  pushDevicesFixture,
+  pushPreferencesFixture,
   billingSubscriptionFixtures,
   certificatesFixture,
   cteConfigFixture,
@@ -547,6 +550,15 @@ function route(method: string, path: string, body: unknown, params?: Record<stri
   if (m === 'post' && /^\/v1\.0\/webhooks\/[^/]+\/(ping|enable|deliveries\/[^/]+\/replay)$/.test(path)) return {data: undefined, status: 204};
   if (/^get \/v1\.0\/webhooks\/[^/]+\/deliveries$/.test(key)) return {data: {data: webhookDeliveriesFixture, next_cursor: null}};
   if (/^get \/v1\.0\/webhooks\/[^/]+\/deliveries\/[^/]+$/.test(key)) return {data: webhookDeliveryDetailFixture};
+
+  // Web Push (the mock never creates a real browser subscription)
+  if (key === 'get /v1.0/push/config') return {data: pushConfigFixture};
+  if (key === 'get /v1.0/push/subscriptions') return {data: {data: pushDevicesFixture, max_subscriptions: pushConfigFixture.max_subscriptions}};
+  if (m === 'put' && path === '/v1.0/push/subscriptions') return {data: pushDevicesFixture[0]};
+  if (m === 'delete' && /^\/v1\.0\/push\/subscriptions\/[0-9a-f]{16}$/.test(path)) return {data: undefined, status: 204};
+  if (key === 'get /v1.0/push/preferences') return {data: pushPreferencesFixture};
+  if (m === 'put' && path === '/v1.0/push/preferences') return {data: {events: ((body ?? {}) as { events?: string[] }).events ?? []}};
+  if (m === 'post' && path === '/v1.0/push/test') return {data: undefined, status: 202};
 
   // Audit logs
   if (key === 'get /v1.0/audit-logs') return {data: paginated(auditLogsFixture)};

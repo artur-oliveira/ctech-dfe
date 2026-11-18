@@ -994,13 +994,13 @@ anda 1 min na fila, para um receptor lento não ocupar o lote de todos. Ping e r
 ### Notificações no navegador (Web Push), `/v1.0/push`
 
 Spec: `docs/specs/2026-11-17-web-push.md`. Cada pessoa ativa as notificações por dispositivo e escolhe, **por empresa**, quais
-eventos quer; o DF-e avisa quando o resultado de um documento é terminal ou quando chega um documento por distribuição. Fase F3
-(backend): sem tela ainda (F4), e **inerte até o operador gravar as chaves** (ver `DEPLOYMENT.md`, "Web Push").
+eventos quer; o DF-e avisa quando o resultado de um documento é terminal ou quando chega um documento por distribuição. Fases F3
+(backend) e F4 (UI, abaixo); o backend é **inerte até o operador gravar as chaves** (ver `DEPLOYMENT.md`, "Web Push").
 
 | Método | Rota | Descrição |
 |--------|------|-----------|
 | GET    | `/v1.0/push/config` | `{enabled, public_key, vapid_kid, event_types, defaults, max_subscriptions}`. `enabled: false` sem chave VAPID pública ou sem a Lambda; não exige o header da empresa |
-| PUT    | `/v1.0/push/subscriptions` | `{endpoint, keys: {p256dh, auth}}` (o `PushSubscription.toJSON()`). Idempotente pelo hash do endpoint; o 11º dispositivo substitui o visto há mais tempo. 400 inscrição inválida; 503 desativado |
+| PUT    | `/v1.0/push/subscriptions` | `{endpoint, keys: {p256dh, auth}}` (o `PushSubscription.toJSON()`). Idempotente pelo hash do endpoint; o 11º dispositivo substitui o visto há mais tempo. **O mesmo endpoint de outra pessoa é religado a quem chama** (a linha anterior é apagada). 400 inscrição inválida; 503 desativado |
 | GET    | `/v1.0/push/subscriptions` | Os dispositivos da pessoa (`id`, `device`, datas); nunca o endpoint |
 | DELETE | `/v1.0/push/subscriptions/{id}` | Remove um dispositivo (id de 16 hex); 404 se não existe |
 | GET    | `/v1.0/push/preferences` | Eventos que a pessoa quer da empresa do header (`[]` se nunca escolheu) |
@@ -1047,6 +1047,36 @@ papel da instância tem `Deny` explícito de `ssm:GetParameter` em `vapid-privat
 (`leaveOrganization`; a remoção de membro faz o mesmo por `MembershipService.OnRemoved`, melhor esforço, e o fan-out confere o vínculo de
 qualquer forma). Consultas de Logs Insights prontas: `fields @timestamp, event_id, push_host, status, outcome | filter @message like
 /push send/ | sort @timestamp desc` e `... | stats count() by outcome`.
+
+**UI (F4).** Pacote `@aoctech/push-client` (service worker sem cache e sem handler de `fetch`, cliente de inscrição e hook).
+- **Service worker e PWA.** `ui/public/sw.js` é cópia do pacote: os scripts `predev` e `prebuild` a refazem e `__tests__/lib/push.test.ts`
+  compara os bytes (e reprova `fetch` handler e `caches`). O `site.webmanifest` agora nomeia o app (`CTech DF-e`, `start_url` `/dashboard`,
+  `display` `standalone`) e traz o ícone `maskable` (`maskable-512x512.png`, gerado do `app.svg` sem cantos). É o que deixa o iPhone
+  receber push (só com o site na Tela de Início, iOS 16.4+). Sem cache, um deploy nunca serve bundle velho.
+- **Provider.** `lib/providers/PushProvider.tsx` (dentro do `AuthProvider`) registra o worker, chama `syncOnLoad` quando há sessão e empresa
+  (nunca pede permissão sozinho), guarda o `beforeinstallprompt` e roteia o clique da notificação (`ctech-push:navigate`). Link com
+  `?org=<company_pk>` troca a empresa **só se a pessoa for membro dela**; vale também na abertura a frio (`openWindow`), uma vez por login.
+- **Tela** `/notifications` ("Notificações", Configurações, todos os papéis, `noindex`): card de permissão por estado (`loading`,
+  `unsupported`, `needs-install` com o passo a passo do iPhone, `default`, `denied`, `subscribed` com teste e desativar, `error`),
+  caixas de marcar por evento da empresa selecionada (nunca texto livre) e "Meus dispositivos" com remover (o id do aparelho é
+  `sha256(endpoint)[:8]` em hex, calculado no cliente por `lib/push/device.ts`, o que também marca "Este dispositivo"). Instalação sem chave
+  responde `enabled: false` e a tela diz "indisponível".
+- **Um navegador, uma pessoa** (computador compartilhado; o logout não pode falhar aberto). `removeThisDevicePush` (`lib/push/logout.ts`)
+  roda, nesta ordem: (1) esquece o carimbo da última sincronização e de quem era (síncrono); (2) cancela a inscrição **do navegador**
+  (local e rápido: o serviço de push passa a responder 410 e o `push-sender` apaga a linha sozinho, mesmo que o resto falhe); (3) apaga a
+  linha no servidor com o token ainda válido, limitado a 2 s. Nunca lança, nunca impede a saída. Roda no `AuthContext.logout` (antes de
+  limpar o token) e também quando a sessão é dada como inexistente: o refresh da abertura responde "sem sessão" (falha transitória não
+  conta) e o 401 que não consegue renovar (`ApiClient`); sem token só vale a parte local, que é a que importa. Consequência aceita: sessão
+  expirada desfaz a inscrição do navegador, e a pessoa liga de novo na tela.
+- **Troca de pessoa no mesmo navegador.** O carimbo do `syncOnLoad` é por navegador; `PushProvider` guarda o `user_id` de quem sincronizou por
+  último (`ctech-dfe:push-user`) e, se quem entrou é outro, apaga o carimbo (o efeito roda antes da sincronização) para o cliente reenviar a
+  inscrição. No servidor, `PUT /push/subscriptions` **religa** o endpoint: `PushRepository.OtherOwners` acha, pelo `endpoint-index`, as linhas
+  do mesmo endpoint de outras pessoas e o `Subscribe` as apaga (liberando a vaga delas) antes de gravar a do usuário atual; se a consulta ou o
+  delete falhar, a inscrição é recusada em vez de deixar dois donos. Linhas gravadas antes do índice não têm `endpoint_id` e não são
+  achadas por ele (o 410 do serviço de push as limpa).
+- **Escopos.** `dfe:notifications:read|write` já estão em `DFE_USER_SCOPES`; o teste de contrato (`oauth-scopes.test.ts`) cobre a lista.
+- **Guia** `/guide/notifications`, com capturas `notifications.webp` e `notifications-ios.webp` (a segunda usa o agente de usuário do
+  iPhone via `userAgent` na entrada de `CAPTURES`, sem atalho no app).
 
 ### Bloqueio por assinatura e cotas
 

@@ -130,6 +130,7 @@ import type {
   BillingPlansResponse,
   PlanChoice,
 } from '@/lib/types/billing';
+import type {PushConfig, PushDevice, PushDeviceList, PushPreferences, PushSubscriptionBody} from '@/lib/types/push';
 import type {
   WebhookCreated,
   WebhookDeliveriesPage,
@@ -306,6 +307,10 @@ function createAxiosInstance(): AxiosInstance {
         // Refresh failed — start OAuth flow (imported lazily to avoid SSR issues).
         // Never use /callback as returnTo; that would loop back into the callback handler.
         if (typeof window !== 'undefined') {
+          // The session cannot be renewed: stop this browser from notifying the person who is gone (local part only, there is
+          // no token left). Dynamic import: `push/logout` imports this client.
+          const {removeThisDevicePush} = await import('@/lib/push/logout');
+          await removeThisDevicePush();
           const {startOAuthFlow, currentReturnTo} = await import('@/lib/auth/oauth');
           await startOAuthFlow(currentReturnTo());
         }
@@ -1629,6 +1634,35 @@ class ApiClient {
 
   async replayWebhookDelivery(id: string, eventId: string): Promise<void> {
     return this.post(`/v1.0/webhooks/${id}/deliveries/${eventId}/replay`, {});
+  }
+
+  // Web Push — config and devices are personal; preferences follow the Dfe-Organization-Pk header
+  async getPushConfig(): Promise<PushConfig> {
+    return this.get('/v1.0/push/config');
+  }
+
+  async listPushDevices(): Promise<PushDeviceList> {
+    return this.get('/v1.0/push/subscriptions');
+  }
+
+  async putPushSubscription(body: PushSubscriptionBody): Promise<PushDevice> {
+    return this.put('/v1.0/push/subscriptions', body);
+  }
+
+  async deletePushDevice(id: string): Promise<void> {
+    return this.del(`/v1.0/push/subscriptions/${encodeURIComponent(id)}`);
+  }
+
+  async getPushPreferences(): Promise<PushPreferences> {
+    return this.get('/v1.0/push/preferences');
+  }
+
+  async putPushPreferences(events: string[]): Promise<PushPreferences> {
+    return this.put('/v1.0/push/preferences', {events});
+  }
+
+  async sendPushTest(): Promise<void> {
+    return this.post('/v1.0/push/test', {});
   }
 
   // Audit log — org context auto-injected via Dfe-Organization-Pk header

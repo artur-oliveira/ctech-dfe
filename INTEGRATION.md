@@ -418,3 +418,8 @@ A session
 that predates a scope fix gets 403 `escopo do token insuficiente`; the API client then signs in again once per scope set
 (`reauthForMissingScopes`, guard in `sessionStorage`) so Account reissues the token, and a scope Account really denies surfaces as a
 plain 403 instead of a redirect loop.
+
+Web Push in the browser: the UI serves `/sw.js` from its own origin (the CSP's `default-src 'self'` already covers a same-origin worker;
+no `connect-src` change is needed, the push services are called by the browser, not by the page) and a manifest that names the app, so the
+site can be installed (required on iPhone). `subscribe()` must run inside a click handler; the page never prompts on its own. See
+`DOCS.md` ("Notificações no navegador") and `ui/CLAUDE.md`.

@@ -206,6 +206,50 @@ func TestPushService_DistributionIsOnByDefaultAndCarriesNoFiscalData(t *testing.
 	}
 }
 
+// One browser endpoint belongs to one person: a second person subscribing the same endpoint (a shared computer where
+// the first never logged out cleanly) takes it over, and the first stops being notified there.
+func TestPushService_SubscribeRebindsTheEndpointToTheCurrentPerson(t *testing.T) {
+	ctx := context.Background()
+	svc := newPushService(t, &recordingInvoker{})
+	a := "user-a-" + randomCNPJ()
+	b := "user-b-" + randomCNPJ()
+	company := seedPushCompany(t, ctx, a)
+	endpoint := "https://fcm.googleapis.com/fcm/send/" + strings.Repeat("b", 40)
+	key := ecdhP256(t)
+	in := services.PushSubscriptionInput{Endpoint: endpoint, P256dh: key.p256dh, Auth: key.auth, UserAgent: "Mozilla/5.0 (Windows NT 10.0) Chrome/130 Safari/537.36"}
+
+	if _, err := svc.Subscribe(ctx, company, a, in); err != nil {
+		t.Fatal(err)
+	}
+	if devices, err := svc.Devices(ctx, a); err != nil || len(devices) != 1 {
+		t.Fatalf("a devices after subscribing = %d (%v), want 1", len(devices), err)
+	}
+
+	if _, err := svc.Subscribe(ctx, company, b, in); err != nil {
+		t.Fatal(err)
+	}
+	if devices, _ := svc.Devices(ctx, a); len(devices) != 0 {
+		t.Errorf("the previous person still holds the endpoint: %d device(s)", len(devices))
+	}
+	if devices, _ := svc.Devices(ctx, b); len(devices) != 1 {
+		t.Errorf("the current person devices = %d, want 1", len(devices))
+	}
+	// A renewal by the current owner is not a takeover: it keeps its single row.
+	if _, err := svc.Subscribe(ctx, company, b, in); err != nil {
+		t.Fatal(err)
+	}
+	if devices, _ := svc.Devices(ctx, b); len(devices) != 1 {
+		t.Errorf("renewal changed the device count: %d", len(devices))
+	}
+	// The slot the previous person held was freed: they can subscribe the same endpoint back and take it again.
+	if _, err := svc.Subscribe(ctx, company, a, in); err != nil {
+		t.Fatal(err)
+	}
+	if devices, _ := svc.Devices(ctx, b); len(devices) != 0 {
+		t.Errorf("signing back in must move the endpoint again: b still has %d", len(devices))
+	}
+}
+
 // The test notification is limited to one a minute per person.
 func TestPushService_TestNotificationIsRateLimited(t *testing.T) {
 	ctx := context.Background()

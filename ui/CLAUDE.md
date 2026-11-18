@@ -50,7 +50,8 @@ ui/
 │   │   ├── auth/oauth.ts       # OAuth PKCE flow (via @aoctech/auth-client)
 │   │   ├── context/            # AuthContext
 │   │   ├── hooks/              # React hooks (useRealtimeUpdates, etc.)
-│   │   ├── providers/          # QueryProvider, RealtimeProvider (@aoctech/ws-client)
+│   │   ├── providers/          # QueryProvider, RealtimeProvider (@aoctech/ws-client), PushProvider (@aoctech/push-client)
+│   │   ├── push/               # Web Push: device id, API callbacks, logout cleanup, link `?org=` parsing
 │   │   └── schemas/            # Zod schemas (mirror backend)
 │   └── __tests__/ test/
 ```
@@ -334,6 +335,11 @@ The brand scale is the `--brand-*` custom properties in `src/app/globals.css` (p
 - `ORG_HEADER` is injected by the Axios interceptor on every request — never pass it manually.
 - Multiple org membership: stored org is re-validated against `GET /auth/me` on mount.
 - WebSocket reconnects after silent refresh — handled by `useRealtimeUpdates` / `RealtimeProvider` (`@aoctech/ws-client`).
+- **Web Push / PWA.** `public/sw.js` is a copy of `@aoctech/push-client`'s worker (`predev`/`prebuild` recopy it; `__tests__/lib/push.test.ts`
+  compares the bytes). It has no `fetch` handler and no cache on purpose: never add one, a cached shell is how a PWA serves a stale bundle.
+  `PushProvider` registers it, runs `syncOnLoad` (never prompts) and routes clicks; the permission prompt only ever comes from a click on
+  `/notifications`. `AuthContext.logout` removes this device's subscription before revoking the token (bounded, best effort). A `userAgent`
+  key in a `CAPTURES` entry emulates a browser for the guide (iPhone Safari for the install steps).
 - UI validation intentionally duplicates backend validation for UX — this is by design.
 
 ---

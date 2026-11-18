@@ -1956,3 +1956,22 @@ export const webhookDeliveryDetailFixture = {
     {number: 3, at: '2026-11-14T12:42:30Z', status_code: 502, duration_ms: 3050, error: 'endpoint answered 502', response: '<html>Bad Gateway</html>'},
   ],
 };
+
+// ── Notificações (Web Push) ────────────────────────────────────────────────
+
+/** Chave pública de mentira (65 bytes, ponto não comprimido); só o formato importa, o mock não cria inscrição real. */
+export const pushConfigFixture = {
+  enabled: true,
+  public_key: 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFLXYp5Nksh8U',
+  vapid_kid: 'mockkid1',
+  event_types: ['distribution.received', 'document.authorized', 'document.rejected', 'document.failed'],
+  defaults: ['distribution.received'],
+  max_subscriptions: 10,
+};
+
+export const pushDevicesFixture = [
+  {id: '0a1b2c3d4e5f6a7b', device: 'Chrome no Android', created_at: '2026-11-10T12:00:00Z', last_seen_at: '2026-11-17T09:30:00Z'},
+  {id: '1b2c3d4e5f6a7b8c', device: 'Edge no Windows', created_at: '2026-11-12T15:20:00Z', last_seen_at: '2026-11-16T18:05:00Z'},
+];
+
+export const pushPreferencesFixture = {events: ['distribution.received', 'document.rejected']};

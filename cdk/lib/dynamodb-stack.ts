@@ -1038,6 +1038,18 @@ export class DynamoDBStack extends cdk.Stack {
       maxReadRequestUnits: 1000,
       maxWriteRequestUnits: 1000,
     });
+    // `endpoint-index` é esparso e KEYS_ONLY como o anterior: só as linhas de inscrição carregam `endpoint_id` (o hash do
+    // endpoint, o mesmo do sk). Uma inscrição de navegador pertence a uma pessoa por vez; ao inscrever, a API acha por aqui
+    // as linhas do mesmo endpoint de outras pessoas (computador compartilhado) e as apaga, sem Scan.
+    pushTable.addGlobalSecondaryIndex({
+      indexName: 'endpoint-index',
+      partitionKey: {name: 'endpoint_id', type: dynamodb.AttributeType.STRING},
+      sortKey: {name: 'pk', type: dynamodb.AttributeType.STRING},
+      projectionType: dynamodb.ProjectionType.KEYS_ONLY,
+      warmThroughput: undefined,
+      maxReadRequestUnits: 1000,
+      maxWriteRequestUnits: 1000,
+    });
     this.tables.set('push', pushTable);
 
     // Account-deletion lock/tombstone state (SUB#{sub}, ORG#{id}), schema owned

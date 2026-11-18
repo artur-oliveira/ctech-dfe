@@ -28,6 +28,8 @@ const DEVTOOLS_PORT = 9224;
 
 const DESKTOP = {width: 1280, height: 800, deviceScaleFactor: 1, mobile: false};
 const MOBILE = {width: 390, height: 844, deviceScaleFactor: 2, mobile: true};
+// Safari do iPhone fora da Tela de Início: é o que faz o app mostrar o passo a passo de instalação das notificações.
+const IPHONE_UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1';
 
 const NFE_KEY = nfesFixture[0].sk;
 const NFCE_KEY = nfcesFixture[0].sk;
@@ -421,6 +423,10 @@ const CAPTURES = [
     steps: [{waitText: 'erp.exemplo.com.br'}, {click: 'Entregas'}, {waitText: 'Reenviar'}],
   },
 
+  // ── Notificações ─────────────────────────────────────────────────────────
+  {slug: 'notifications', route: '/notifications', waitText: 'Ativar neste dispositivo'},
+  {slug: 'notifications-ios', route: '/notifications', viewport: MOBILE, userAgent: IPHONE_UA, waitText: 'Adicionar à Tela de Início'},
+
   // ── Estados ──────────────────────────────────────────────────────────────
   {
     slug: 'nfe-rejection',
@@ -632,10 +638,13 @@ try {
   const {sessionId} = await browser.send('Target.attachToTarget', {targetId, flatten: true});
   const send = (method, params = {}) => browser.send(method, params, sessionId);
   await send('Page.enable');
+  // Guardado antes de qualquer troca: uma captura com `userAgent` não pode vazar o agente para as seguintes.
+  const defaultUserAgent = await evaluate(send, 'navigator.userAgent');
 
   for (const capture of captures) {
     const output = resolve(OUTPUT_DIR, `${capture.slug}.webp`);
     try {
+      await send('Emulation.setUserAgentOverride', {userAgent: capture.userAgent ?? defaultUserAgent});
       await send('Emulation.setDeviceMetricsOverride', capture.viewport ?? DESKTOP);
       await send('Page.navigate', {url: `${ORIGIN}/dashboard`});
       await delay(600);
