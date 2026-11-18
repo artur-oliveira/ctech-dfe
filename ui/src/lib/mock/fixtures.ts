@@ -1323,6 +1323,28 @@ export const serviceLocationsFixture = [
   },
 ];
 
+export const bpeLinesFixture = [
+  {
+    pk: `${ORG_PK}#bpe-line#1`, sk: 'BPELINE_1', name: 'SP x RJ executivo', variant: 'normal', modal: 'rodoviario',
+    origin: {uf: 'SP', ibge_code: '3550308', city: 'São Paulo'}, destination: {uf: 'RJ', ibge_code: '3304557', city: 'Rio de Janeiro'},
+    route_code: 'L100', route_name: 'São Paulo x Rio de Janeiro', trip_type: '00', service_type: '6', accommodation: '1', prefix: '1234',
+    icms: {cst: '00', rate: '12'},
+    created_at: '2026-02-01T09:00:00Z', updated_at: '2026-04-20T09:00:00Z',
+  },
+  {
+    pk: `${ORG_PK}#bpe-line#2`, sk: 'BPELINE_2', name: 'SP x RJ', variant: 'ta',
+    origin: {uf: 'SP', ibge_code: '3550308', city: 'São Paulo'}, destination: {uf: 'RJ', ibge_code: '3304557', city: 'Rio de Janeiro'},
+    carrier: 'LA', flight_number: 'LA3000', from_airport: 'GRU', to_airport: 'GIG', trip_type: '00', service_type: '12', accommodation: '6',
+    tax: {class_trib: '000001'},
+    created_at: '2026-02-02T09:00:00Z', updated_at: '2026-04-20T09:00:00Z',
+  },
+  {
+    pk: `${ORG_PK}#bpe-line#3`, sk: 'BPELINE_3', name: 'Metrô Linha 1', variant: 'tm', modal: 'ferroviario', cfop: '5353', origin_uf: 'SP', prefix: 'L1',
+    legs: [{origin_ibge_code: '3550308', icms: {cst: '40'}}], passenger_types: ['Inteira', 'Meia'],
+    created_at: '2026-03-02T09:00:00Z', updated_at: '2026-04-20T09:00:00Z',
+  },
+];
+
 export const nfcomSubscribersFixture = [
   {
     pk: `${ORG_PK}#nfcom-subscriber#1`, sk: 'NFCOMSUB_1', name: 'Cliente Exemplo LTDA', person_id: 'CNPJ_33000167000101',

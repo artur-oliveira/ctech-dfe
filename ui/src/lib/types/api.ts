@@ -2114,59 +2114,16 @@ export interface BpeListOut extends ContingencyDocFields {
 
 export type BpeDetailOut = BpeListOut
 
-export interface BpePlaceIn {
+/** Município de início ou de fim da linha, escolhido na tabela do IBGE (a UI grava o código, a UF e o nome). */
+export interface BpeLinePlaceIn {
   uf: string
   ibge_code: string
+  city: string
 }
 
 export interface BpeIcmsIn {
   cst: string
-  rate?: string
-}
-
-export interface BpeTripIn {
-  route_code?: string
-  route_name?: string
-  flight_number?: string
-  carrier?: string
-  from_airport?: string
-  to_airport?: string
-  trip_type: string
-  service_type: string
-  accommodation: string
-  leg_type: string
-  departure: string
-  connection?: string
-  prefix?: string
-  seat?: string
-  platform?: string
-}
-
-export interface BpeAddressIn {
-  street: string
-  number: string
-  neighborhood: string
-  ibge_code: string
-  city: string
-  uf: string
-  postal_code?: string
-  complement?: string
-}
-
-/** Comprador opcional (grupo comp): um entre cnpj, cpf e foreign_id. */
-export interface BpeBuyerIn {
-  name: string
-  cnpj?: string
-  cpf?: string
-  foreign_id?: string
-  ie?: string
-  address: BpeAddressIn
-}
-
-export interface BpeAgencyIn {
-  name: string
-  cnpj: string
-  address: BpeAddressIn
+  rate?: string | null
 }
 
 export interface BpeSubstitutionIn {
@@ -2174,12 +2131,80 @@ export interface BpeSubstitutionIn {
   type: string
 }
 
-interface BpeTicketBase {
+/** IBS/CBS do TA, fixo na linha. */
+export interface BpeTaTaxIn {
+  /** cClassTrib da tabela do TA; o CST sai da própria linha da tabela. */
+  class_trib: string
+  donation?: boolean
+  /** Só onde a lei do ano não fixa a alíquota (CBS a partir de 2027, IBS a partir de 2029). */
+  ibs_uf_rate?: string
+  ibs_mun_rate?: string
+  cbs_rate?: string
+  devolution?: { ibs_uf?: string; ibs_mun?: string; cbs?: string }
+  credit_reversal?: { ibs: string; cbs: string }
+  government?: { entity: string; reducer: string; operation: string; references: string[] }
+  simples?: { ibs_rate?: string; cbs_rate?: string }
+  total_taxes?: string
+  fiscal_info?: string
+}
+
+/** Cadastro de linha do BP-e (`/bpe-lines`): o que não muda de uma venda para outra, por variante. */
+export interface BpeLineCreate extends Record<string, unknown> {
+  name: string
+  variant: 'normal' | 'ta' | 'tm'
+  modal?: string | null
+  origin?: BpeLinePlaceIn | null
+  destination?: BpeLinePlaceIn | null
+  route_code?: string | null
+  route_name?: string | null
+  prefix?: string | null
+  trip_type?: string | null
+  service_type?: string | null
+  accommodation?: string | null
+  icms?: BpeIcmsIn | null
+  carrier?: string | null
+  flight_number?: string | null
+  from_airport?: string | null
+  to_airport?: string | null
+  tax?: BpeTaTaxIn | null
+  cfop?: string | null
+  plate?: string | null
+  origin_uf?: string | null
+  dest_uf?: string | null
+  legs?: { origin_ibge_code: string; dest_ibge_code?: string | null; icms: BpeIcmsIn }[] | null
+  passenger_types?: string[] | null
+}
+
+export interface BpeLineItemOut extends BpeLineCreate {
+  pk: string
+  sk: string
+  created_at?: string
+  updated_at?: string
+}
+
+export interface BpeTripIn {
+  line_id: string
+  leg_type: string
+  departure: string
+  connection?: string
+  seat?: string
+  platform?: string
+}
+
+/** Venda do bilhete comum ou do TA: linhas por id, pessoas por id e o que varia. */
+export interface BpeTicketEmit {
+  variant: 'normal' | 'ta'
   presence: string
-  origin: BpePlaceIn
-  destination: BpePlaceIn
-  buyer?: BpeBuyerIn
-  agency?: BpeAgencyIn
+  trips: BpeTripIn[]
+  boarding: string
+  validity: string
+  passenger?: { name: string; doc_type: string; doc_number: string }
+  passenger_person_id?: string
+  buyer_person_id?: string
+  agency_person_id?: string
+  purchase_type?: string
+  multiple_key?: string
+  iata_number?: string
   substitution?: BpeSubstitutionIn
   components?: { type: string; value: string }[]
   discount?: string
@@ -2187,76 +2212,33 @@ interface BpeTicketBase {
   discount_desc?: string
   discount_code?: string
   payments?: { type: string; value: string; desc?: string }[]
+  board_pass?: string
   additional_info?: string
   contingency_reason?: string
 }
 
-export interface BpeNormalEmit extends BpeTicketBase {
-  variant: 'normal'
-  modal: string
-  passage: {
-    from_code: string
-    from_name: string
-    to_code: string
-    to_name: string
-    boarding: string
-    validity: string
-    passenger?: { name: string; doc_type: string; doc_number: string }
-  }
-  trips: BpeTripIn[]
-  icms: BpeIcmsIn
-  board_pass?: string
-}
-
-export interface BpeTaEmit extends BpeTicketBase {
-  variant: 'ta'
-  purchase_type?: string
-  multiple_key?: string
-  passage: { boarding: string; validity: string; passenger?: { name: string; doc_type: string; doc_number: string } }
-  trips: BpeTripIn[]
-  tax?: {
-    /** cClassTrib da tabela do TA; o CST sai da própria linha da tabela. */
-    class_trib: string
-    donation?: boolean
-    /** Só onde a lei do ano não fixa a alíquota (CBS a partir de 2027, IBS a partir de 2029). */
-    ibs_uf_rate?: string
-    ibs_mun_rate?: string
-    cbs_rate?: string
-    devolution?: { ibs_uf?: string; ibs_mun?: string; cbs?: string }
-    credit_reversal?: { ibs: string; cbs: string }
-    government?: { entity: string; reducer: string; operation: string; references: string[] }
-    simples?: { ibs_rate?: string; cbs_rate?: string }
-    total_taxes?: string
-    fiscal_info?: string
-  }
-  iata_number?: string
-}
-
 export interface BpeTmEmit {
   variant: 'tm'
-  modal: string
-  cfop: string
   competence: string
   supply_indicator?: boolean
   groups: {
-    origin_uf: string
-    dest_uf?: string
-    plate?: string
-    prefix?: string
+    line_id: string
+    counter_id?: number
     items: {
-      origin_ibge_code: string
-      dest_ibge_code?: string
+      leg: number
+      trip_number?: number
+      start_counter?: string
+      end_counter?: string
       passengers: string
       value: string
       components: { name: string; quantity: number }[]
-      icms: BpeIcmsIn
     }[]
   }[]
   additional_info?: string
   contingency_reason?: string
 }
 
-export type BpeEmit = BpeNormalEmit | BpeTaEmit | BpeTmEmit
+export type BpeEmit = BpeTicketEmit | BpeTmEmit
 
 export interface MdfeUnloadingOut extends MdfeMunIn {
   access_keys: string[]

@@ -101,4 +101,50 @@ func TestBpe_ResolveTMFromLine(t *testing.T) {
 	}
 }
 
+// Pessoa de outra organização nunca entra no bilhete: o cadastro é lido pela partição da organização que emite.
+func TestBpe_PersonOfOtherOrganizationIsNotResolved(t *testing.T) {
+	ctx := context.Background()
+	orgA, orgB := "CNPJ_"+randomCNPJ(), "CNPJ_"+randomCNPJ()
+	lineRepo := repositories.NewBpeLineRepository(db, cfg)
+	svc := bpes.NewBpeService(nil, nil, bpeConfigRepo, bpeRepo, nil, personRepo, lineRepo, nil, nil, nil, nil, "", bpes.TechData{}, nil)
+	line := map[string]any{
+		"name": "SP x RJ", "variant": "normal", "modal": "rodoviario",
+		"origin":      map[string]any{"uf": "SP", "ibge_code": "3550308", "city": "Sao Paulo"},
+		"destination": map[string]any{"uf": "RJ", "ibge_code": "3304557", "city": "Rio de Janeiro"},
+		"route_code":  "L100", "route_name": "SAO PAULO X RIO", "trip_type": "00", "service_type": "6", "accommodation": "1",
+		"icms": map[string]any{"cst": "40"},
+	}
+	lineB := lineSK(t, lineRepo, orgB, line)
+	if _, err := personSvc.Create(ctx, orgA, "33000167000101", map[string]any{
+		"name": "Empresa da A",
+		"addresses": []any{map[string]any{
+			"street": "Rua B", "number": "20", "neighborhood": "Bairro", "city_ibge_code": "3550308",
+			"city": "Sao Paulo", "postal_code": "01002000", "state_federation": "SP",
+		}},
+	}, testUserID, testUserName); err != nil {
+		t.Fatal(err)
+	}
+	other := "CNPJ_33000167000101" // existe só na organização A
+	req := bpes.BpeTicketRequest{
+		Presence: "1", Boarding: "2026-11-20T08:00:00-03:00", Validity: "2026-12-20T08:00:00-03:00",
+		Trips:         []bpes.BpeTripRequest{{LineID: lineB, LegType: "1", Departure: "2026-11-20T08:00:00-03:00"}},
+		Passenger:     &bpes.BpePassenger{Name: "Maria Souza", DocType: "1", DocNumber: "1"},
+		BuyerPersonID: &other,
+		Components:    []bpes.BpeComponent{{Type: "01", Value: "10.00"}},
+		Payments:      []bpes.BpePayment{{Type: "01", Value: "10.00"}},
+	}
+	if _, _, _, err := svc.ResolveTicket(ctx, orgB, req); problemStatus(err) != 404 {
+		t.Fatalf("comprador de outra organização: status %d, queria 404 (%v)", problemStatus(err), err)
+	}
+	req.BuyerPersonID, req.AgencyPersonID = nil, &other
+	if _, _, _, err := svc.ResolveTicket(ctx, orgB, req); problemStatus(err) != 404 {
+		t.Fatalf("agência de outra organização: status %d, queria 404 (%v)", problemStatus(err), err)
+	}
+	cpf := "CPF_52998224725"
+	req.AgencyPersonID, req.Passenger, req.PassengerPersonID = nil, nil, &cpf
+	if _, _, _, err := svc.ResolveTicket(ctx, orgB, req); problemStatus(err) != 404 {
+		t.Fatalf("passageiro inexistente na organização: status %d, queria 404 (%v)", problemStatus(err), err)
+	}
+}
+
 func strp(s string) *string { return &s }

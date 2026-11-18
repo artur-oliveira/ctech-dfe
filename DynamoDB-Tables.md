@@ -66,6 +66,7 @@ PITR: enabled in production only.
 | 56 | `bpe_events`                | `{access_key}`               | `{ulid}`                                 | `org-event-key-index`                              |
 | 57 | `organization_nfcom_subscribers` | `{org_pk}`           | `NFCOMSUB_{uuid}`                        | `name-index`                                       |
 | 58 | `organization_nfcom_plans`  | `{org_pk}`                   | `NFCOMPLAN_{uuid}`                       | `name-index`                                       |
+| 59 | `organization_bpe_lines`    | `{org_pk}`                   | `BPELINE_{uuid}`                         | `name-index`                                       |
 | 50 | `webhooks`                  | `ORG_{organization_id}`      | `ENDPOINT#…` / `META#counts` / `DELIVERY#…` / `ATTEMPT#…` | `due-index` (sparse)          |
 
 ---
@@ -1206,6 +1207,13 @@ empresa (`sweep-index`, sem `auto-contingency-index`: a troca automática de con
 documento (`nfcoms`, chave de acesso de 44 posições como `sk`, `number-index-v2`, `dfe-index` e o `contingency-index` esparso
 da retransmissão offline) e os eventos (`nfcom_events`: cancelamento 110111 e vinculação de pagamento 110300 e 110301).
 Sem tabela de distribuição: a NFCom não tem serviço de distribuição. On-demand, PITR em prod, chave própria da AWS; sem TTL.
+
+## 59. `organization_bpe_lines`
+
+Linhas do BP-e (cadastro da emissão, mesma forma dos demais cadastros: `pk = {org_pk}`, `sk = BPELINE_{uuid}`, `name-index`). Uma
+linha serve a uma variante (`variant` `normal`, `ta` ou `tm`) e guarda o que não muda entre vendas: percurso, serviço, acomodação,
+prefixo e ICMS (comum); voo e IBS/CBS (TA); modal, CFOP, UF, placa, trechos e tipos de passageiro (TM). A venda referencia a linha
+por id. Erasure: `ScopeOrgPartition`. On-demand, PITR em prod; sem TTL.
 
 ## 57–58. `organization_nfcom_subscribers` / `organization_nfcom_plans`
 

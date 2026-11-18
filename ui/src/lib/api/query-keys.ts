@@ -72,6 +72,10 @@ export const queryKeys = {
     list: (orgPk: string | undefined) => ['nfcom-subscribers', orgPk] as const,
     detail: (id: string) => ['nfcom-subscriber', id] as const,
   },
+  bpeLines: {
+    list: (orgPk: string | undefined) => ['bpe-lines', orgPk] as const,
+    detail: (id: string) => ['bpe-line', id] as const,
+  },
   nfcomPlans: {
     list: (orgPk: string | undefined) => ['nfcom-plans', orgPk] as const,
     detail: (id: string) => ['nfcom-plan', id] as const,

@@ -9,6 +9,8 @@ import type {
   ProductLotItemOut,
   ReferenceDocumentCreate,
   ReferenceDocumentItemOut,
+  BpeLineCreate,
+  BpeLineItemOut,
   NfcomPlanCreate,
   NfcomPlanItemOut,
   NfcomSubscriberCreate,
@@ -735,6 +737,28 @@ class ApiClient {
 
   async deleteServiceLocation(id: string): Promise<void> {
     return this.del(`/v1.0/service-locations/${id}`);
+  }
+
+  // BP-e: linhas (cadastro da emissão)
+
+  async getBpeLines(params?: { limit?: number; cursor?: string; name?: string }): Promise<PaginatedResponse<BpeLineItemOut>> {
+    return this.get('/v1.0/bpe-lines', {params});
+  }
+
+  async getBpeLine(id: string): Promise<BpeLineItemOut> {
+    return this.get(`/v1.0/bpe-lines/${encodeURIComponent(id)}`);
+  }
+
+  async createBpeLine(data: BpeLineCreate): Promise<BpeLineItemOut> {
+    return this.post('/v1.0/bpe-lines', data);
+  }
+
+  async updateBpeLine(id: string, data: BpeLineCreate): Promise<BpeLineItemOut> {
+    return this.put(`/v1.0/bpe-lines/${encodeURIComponent(id)}`, data);
+  }
+
+  async deleteBpeLine(id: string): Promise<void> {
+    return this.del(`/v1.0/bpe-lines/${encodeURIComponent(id)}`);
   }
 
   // NFCom: assinantes e planos (cadastros da emissão)

@@ -78,6 +78,22 @@ func TestNfcom_ResolveBodyFromRegistries(t *testing.T) {
 		t.Errorf("itens = %+v", body.Items)
 	}
 
+	// Assinante da organização B que aponta uma pessoa que só existe na A: a pessoa não resolve (isolamento por tenant).
+	subB, err := subRepo.Create(ctx, otherOrg, marshal(t, map[string]any{
+		"name": "Assinante B", "person_id": "CNPJ_33000167000101", "code": "B-1", "type": "1", "service_used": "4",
+	}))
+	if err != nil {
+		t.Fatalf("assinante B: %v", err)
+	}
+	reqB := nfcoms.NfcomEmitRequest{
+		SubscriberID: subB["sk"].(*types.AttributeValueMemberS).Value,
+		Items:        []nfcoms.NfcomItemRequest{{PlanID: planID, Quantity: "1"}},
+		Prepaid:      true,
+	}
+	if _, err := svc.Resolve(ctx, otherOrg, reqB); problemStatus(err) != 400 {
+		t.Errorf("pessoa de outra organização: status %d, queria 400 (%v)", problemStatus(err), err)
+	}
+
 	// Cadastro de outra organização não resolve (isolamento por tenant), nem plano inexistente.
 	if _, err := svc.Resolve(ctx, otherOrg, req); problemStatus(err) != 404 {
 		t.Errorf("outra organização: status %d, queria 404 (%v)", problemStatus(err), err)

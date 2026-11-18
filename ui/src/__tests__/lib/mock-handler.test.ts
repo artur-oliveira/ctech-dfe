@@ -21,6 +21,9 @@ async function get(url: string) {
   return response.data as Record<string, unknown>;
 }
 
+// Cada rota do mock tem latência simulada (250 ms); com mais de vinte cadastros o laço passa dos 5 s padrão.
+const MOCK_REGISTRIES_TIMEOUT_MS = 30_000;
+
 describe('mock handler: impressos', () => {
   const KEY = '3'.repeat(34) + '1' + '3'.repeat(9);
   const EPEC_KEY = '3'.repeat(34) + '4' + '3'.repeat(9);
@@ -79,7 +82,7 @@ describe('mock handler', () => {
       if (!Array.isArray(data.items) || data.items.length === 0) empty.push(href);
     }
     expect(empty).toEqual([]);
-  });
+  }, MOCK_REGISTRIES_TIMEOUT_MS);
 
   it('distingue a rota de eventos da rota de detalhe', async () => {
     const key = nfeDetailFixture.sk;

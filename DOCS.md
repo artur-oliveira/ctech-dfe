@@ -885,6 +885,26 @@ unitários e de integração local. Não anunciar na landing até homologar.
   `/supply-not-performed` (112140, só TA), `/payment-link` (110300) e `/payment-link-cancel` (110301), `GET /events` (confere o tenant) e `/events/{event_sk}/xml`. Configuração:
   `GET|PUT /organizations/{org_pk}/bpe-config` e `PUT /bpe-emission` (`normal` ou `offline`; troca automática recusada com 422).
   Escopos `dfe:bpes:read` e `dfe:bpes:write`.
+- **Corpo da emissão: linhas e pessoas por id, só o que varia.** `POST /bpes` recebe `BpeTicketRequest` (`variant` `normal`, o padrão,
+  ou `ta`) ou `BpeTMRequest` (`variant` `tm`); o servidor resolve os cadastros (`request.go`, `ResolveTicket` e `ResolveTM`) e
+  monta os corpos completos de baixo (`BpeEmitBody`, `BpeTAEmitBody`, `BpeTMEmitBody`), validados por `validation.Struct` antes
+  de seguir o fluxo. Bilhete: `trips` (cada um com `line_id`, `leg_type`, `departure`, `connection`, e no comum `seat`,
+  `platform` e `crossing`), `boarding`, `validity`, passageiro avulso (`passenger`: nome, tipo e número do documento; é o
+  caminho principal) ou `passenger_person_id` (pessoa física; o CPF vai como documento tipo 5 com a descrição `CPF`),
+  `buyer_person_id` e `agency_person_id` (pessoas do cadastro com endereço completo; a agência é pessoa jurídica), componentes,
+  desconto, pagamentos, `substitution`, `board_pass` e `iata_number`. Origem, destino, locais, modal, código e nome do
+  percurso, serviço, acomodação, prefixo, ICMS (comum) e IBS/CBS (TA) vêm da linha; o primeiro trecho dá a origem e o último o
+  destino, e as linhas de um bilhete devem ser da mesma variante e, no comum, do mesmo modal. TM: `groups` (`line_id`,
+  `counter_id`, `items` com `leg` (posição do trecho na linha), contadores, passageiros, valor e componentes cujo nome é um dos
+  tipos de passageiro da linha); modal e CFOP vêm da linha e devem ser iguais em todos os grupos. Texto livre
+  (`additional_info`, nome e documento do passageiro, descrição do desconto) passa por `services.CleanText` e pelo validador
+  `fiscaltext`; códigos pelo `refcode`.
+- **Cadastro de linhas** (`organization_bpe_lines`, CRUD comum, escopo `dfe:organization_bpe_lines:*`): `/bpe-lines` guarda o que
+  não muda entre vendas, por variante. Comum: modal, município de início e de fim (UF, código IBGE e nome, escolhidos na tabela do
+  IBGE), código e nome do percurso, tipo de viagem, serviço, acomodação, prefixo e ICMS. TA: companhia, número do voo, aeroportos,
+  serviço, acomodação, tipo de viagem e `tax` (IBS/CBS). TM: modal, CFOP, UF de início e de fim, placa, prefixo, `legs` (cada
+  trecho com o ICMS) e `passenger_types`. `BpeLine.Validate` recusa a linha com as regras que a emissão aplicaria (campos que a
+  variante exige, domínios por variante, alíquota do ICMS 00 e 90).
 - **Emissão** (`services/bpes/`): três DTOs (`BpeEmitBody`, `BpeTMEmitBody`, `BpeTAEmitBody`) sobre um fluxo único (`emission`).
   O servidor monta o documento: chave de 44 posições, `vBP` = soma dos componentes, `vPgto` = `vBP` menos desconto, `vTroco`,
   ICMS com base `vPgto` (comum). TM: total = soma dos itens, base do ICMS = valor do item, sem QR Code, `idEqpCont` e `nViagem`
@@ -918,7 +938,7 @@ unitários e de integração local. Não anunciar na landing até homologar.
 - **QR Code:** página própria por UF do emitente no comum (MG, MS, MT, PR, SP e PB, `bpeQRCodeByUF`), SVRS nas demais e no TA.
 - **SOAP:** corpo `bpeDadosMsg` e resultado `bpeResultMsg` (MOC); só o `BPeRecepcaoTA` envia `BPeDadosMsg` (NT 2025.002).
   Evento e consulta de TM e TA vão sempre à SVRS.
-- **UI:** `/bpe`, `/bpe/emit`, `/bpe/detail`, aba BP-e em `/fiscal-config`, guia `/guide/bpe`.
+- **UI:** `/bpe`, `/bpe/emit` (linhas por seleção, passageiro avulso, comprador e agência do cadastro), `/bpe-lines`, `/bpe/detail`, aba BP-e em `/fiscal-config`, guia `/guide/bpe`.
 
 ### Webhooks de saída — `/v1.0/webhooks`
 

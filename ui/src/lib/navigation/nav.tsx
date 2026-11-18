@@ -212,7 +212,12 @@ export const DOC_CONTEXTS: DocContext[] = [
     icon: <TruckIcon/>,
     keywords: ['bilhete', 'passagem', 'passageiro', 'ônibus', 'rodoviário', 'aéreo', 'metropolitano', 'transporte de passageiros', 'modelo 63', 'viagem'],
     emit: {href: '/bpe/emit', label: 'Emitir BP-e', icon: <TruckIcon/>, keywords: ['bilhete', 'passagem', 'passageiro']},
-    items: [],
+    items: [
+      {
+        href: '/bpe-lines', label: 'Linhas', icon: <RouteIcon/>,
+        keywords: ['linha', 'percurso', 'voo', 'trecho', 'rota', 'companhia', 'aeroporto', 'icms', 'ibs', 'cbs', 'metropolitano', 'bpe'],
+      },
+    ],
   },
   {
     key: 'nfse',

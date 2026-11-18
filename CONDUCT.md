@@ -1539,6 +1539,19 @@ enviados só um certificado descartável e uma chave falsa, e a ANTT respondeu 4
 - Listar endpoints (a tela e a emissão) **não abre o segredo**: um segredo ilegível (chave rotacionada sem a geração antiga, linha corrompida) não pode derrubar a tela nem mandar todo resultado da organização para a DLQ. Só a entrega abre o segredo; um erro de leitura ali deixa a entrega como está e conta como falha do job, e só "endpoint apagado" encerra a entrega.
 
 
+## Emissão por cadastros: pessoa por id e permissão
+
+- A emissão resolve cadastros por id (NFCom: assinante e plano; BP-e: linha, comprador, agência e passageiro) e as pessoas
+  (`person_id`, `buyer_person_id`, `agency_person_id`, `passenger_person_id`) só pelo escopo do próprio documento
+  (`create.nfcoms`, `create.bpes`), sem exigir `get.organization_persons`. É o mesmo precedente de NF-e, CT-e, MDF-e e NFS-e,
+  que carregam o destinatário, o tomador e o prestador no serviço sem checar a permissão de pessoas: o dado da pessoa só entra
+  no documento emitido, e quem emite já o forneceria no corpo. Nada da pessoa volta na resposta além do que o documento mostra.
+- O isolamento de tenant não depende da permissão: o repositório de pessoas e os de cadastro são chaveados pela organização
+  (`pk`), então id de outra organização não resolve (404 ou 400). `api/tests/integration/nfcom_registries_test.go` e
+  `bpe_registries_test.go` provam o caso (comprador, agência, passageiro e assinante apontando pessoa de outra organização).
+- Se um dia a permissão de pessoas passar a limitar quem pode faturar, a checagem entra no handler (`perm.Require` extra), uma
+  vez, para todas as emissões; não no serviço de cada documento.
+
 ## NFCom: emissão por cadastros
 
 - A API de emissão mudou de corpo completo para ids (`subscriber_id`, `plan_id`); não havia cliente externo. O `NfcomEmitBody`
@@ -1560,6 +1573,16 @@ enviados só um certificado descartável e uma chave falsa, e a ANTT respondeu 4
   XSD) e não há garantia de que o autorizador não o exija na vigência.
 - Antes de anunciar o documento (landing, home, `DFE_DOCUMENTS`), homologar e rever a cobrança (`quota_nfcom` no catálogo).
 
+
+## BP-e: emissão por cadastros
+
+- A API de emissão mudou de corpo completo para ids (`line_id`, `*_person_id`); não havia cliente externo. Os corpos completos
+  (`BpeEmitBody`, `BpeTAEmitBody`, `BpeTMEmitBody`) seguem como formato interno: builder, validação e portão fiscal não mudaram.
+- O ICMS (comum) e o IBS/CBS (TA) do bilhete saem da **primeira** linha; as linhas de um bilhete com trechos em conexão devem ter o
+  mesmo modal, mas o ICMS não é conferido entre elas. Se isso virar problema, a regra de consistência entra em `ResolveTicket`.
+- Passageiro cadastrado só vale para pessoa física, e o CPF vai como documento "outros" (tpDoc 5): não há tipo de documento CPF no
+  leiaute do passageiro. O avulso é o caminho principal.
+- Comprador e agência exigem endereço completo no cadastro de pessoas; sem município ou UF a emissão devolve 400 com o motivo.
 
 ## BP-e (modelo 63, TM e TA): o que ainda não foi provado
 
