@@ -262,6 +262,30 @@ func RegisterReferenceDocuments(router fiber.Router, svc *services.ReferenceDocu
 	})
 }
 
+// RegisterNfcomSubscribers mounts /nfcom-subscribers under a tenant-scoped group.
+func RegisterNfcomSubscribers(router fiber.Router, svc *services.NfcomSubscriberService, userSvc *services.UserService,
+	authMw fiber.Handler, perm *middleware.PermChecker) {
+	mountOrgEntity(router, authMw, perm, userSvc, svc, orgEntityRoutes{
+		path:       "/nfcom-subscribers",
+		param:      "nfcom_subscriber_id",
+		resource:   "organization_nfcom_subscribers",
+		bindCreate: bindValidatedCreate[NfcomSubscriberBody],
+		bindUpdate: bindValidatedUpdate[NfcomSubscriberBody],
+	})
+}
+
+// RegisterNfcomPlans mounts /nfcom-plans under a tenant-scoped group.
+func RegisterNfcomPlans(router fiber.Router, svc *services.NfcomPlanService, userSvc *services.UserService,
+	authMw fiber.Handler, perm *middleware.PermChecker) {
+	mountOrgEntity(router, authMw, perm, userSvc, svc, orgEntityRoutes{
+		path:       "/nfcom-plans",
+		param:      "nfcom_plan_id",
+		resource:   "organization_nfcom_plans",
+		bindCreate: bindValidatedCreate[NfcomPlanBody],
+		bindUpdate: bindValidatedUpdate[NfcomPlanBody],
+	})
+}
+
 // RegisterOperations mounts /operations under a tenant-scoped group.
 func RegisterOperations(router fiber.Router, svc *services.OperationService, userSvc *services.UserService,
 	authMw fiber.Handler, perm *middleware.PermChecker) {

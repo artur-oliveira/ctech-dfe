@@ -94,7 +94,7 @@ Every core function must be covered by an integration test in addition to unit t
 | `OVERVIEW.md`        | System architecture + data flow    |
 | `DOCS.md`            | Complete technical reference       |
 | `CONDUCT.md`         | Engineering guidelines             |
-| `DynamoDB-Tables.md` | Schema for all tables (57 in CDK)  |
+| `DynamoDB-Tables.md` | Schema for all tables (59 in CDK)  |
 | `DEPLOYMENT.md`      | Infrastructure deployment guide    |
 | `INTEGRATION.md`     | Frontend-backend integration guide |
 | `THEME.md`           | Color palette and design system    |

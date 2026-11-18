@@ -371,5 +371,26 @@ const (
 	CacheScopeProductLots       = "product_lots"
 	CacheScopeFuelPumps         = "fuel_pumps"
 	CacheScopeServiceLocations  = "service_locations"
+	CacheScopeNfcomSubscribers  = "nfcom_subscribers"
+	CacheScopeNfcomPlans        = "nfcom_plans"
 	CacheScopeReferenceDocs     = "reference_documents"
 )
+
+// NfcomSubscriberService e NfcomPlanService: cadastros da emissão de NFCom (CRUD comum).
+type NfcomSubscriberService struct{ OrgEntityService }
+
+func NewNfcomSubscriberService(repo *repositories.NfcomSubscriberRepository, auditRepo *repositories.AuditLogRepository, c cache.Backend) *NfcomSubscriberService {
+	return &NfcomSubscriberService{newOrgEntityService(
+		&repo.OrgEntityRepository, auditRepo, c,
+		CacheScopeNfcomSubscribers, repositories.AuditResourceNfcomSubscriber, "assinante não encontrado",
+	)}
+}
+
+type NfcomPlanService struct{ OrgEntityService }
+
+func NewNfcomPlanService(repo *repositories.NfcomPlanRepository, auditRepo *repositories.AuditLogRepository, c cache.Backend) *NfcomPlanService {
+	return &NfcomPlanService{newOrgEntityService(
+		&repo.OrgEntityRepository, auditRepo, c,
+		CacheScopeNfcomPlans, repositories.AuditResourceNfcomPlan, "plano não encontrado",
+	)}
+}

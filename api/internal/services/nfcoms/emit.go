@@ -16,9 +16,18 @@ import (
 	"gopkg.aoctech.app/dfe/go-dfe/uftz"
 )
 
-// Emit validates the request, reserves the next number and the quota, builds the NFCom and either queues it through
-// the transactional outbox (online) or signs it now and keeps it for the retransmission (offline contingency).
-func (s *NfcomService) Emit(ctx context.Context, orgPK string, req NfcomEmitBody, userID, userName string) (map[string]types.AttributeValue, error) {
+// Emit resolves the registries the request points to (subscriber, person, plans) and issues the NFCom.
+func (s *NfcomService) Emit(ctx context.Context, orgPK string, req NfcomEmitRequest, userID, userName string) (map[string]types.AttributeValue, error) {
+	body, err := s.Resolve(ctx, orgPK, req)
+	if err != nil {
+		return nil, err
+	}
+	return s.emitBody(ctx, orgPK, body, userID, userName)
+}
+
+// emitBody validates the resolved body, reserves the next number and the quota, builds the NFCom and either queues it
+// through the transactional outbox (online) or signs it now and keeps it for the retransmission (offline contingency).
+func (s *NfcomService) emitBody(ctx context.Context, orgPK string, req NfcomEmitBody, userID, userName string) (map[string]types.AttributeValue, error) {
 	if err := validateEmitBody(req); err != nil {
 		return nil, err
 	}

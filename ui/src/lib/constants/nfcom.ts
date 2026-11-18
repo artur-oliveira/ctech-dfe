@@ -77,6 +77,34 @@ export const NFCOM_ITEMS_MAX = 990;
 export const NFCOM_CANCEL_JUSTIFICATION_MIN = 15;
 export const NFCOM_CANCEL_JUSTIFICATION_MAX = 255;
 
+/** CFOP da NFCom (MOC Visão Geral, item 7.6): lista fechada, então a UI mostra seletor e nunca texto livre. */
+export const NFCOM_CFOP_OPTIONS: readonly NfcomOption[] = [
+  {value: '5301', label: '5.301 - Serviço da mesma natureza (dentro da UF)'},
+  {value: '5302', label: '5.302 - Estabelecimento industrial (dentro da UF)'},
+  {value: '5303', label: '5.303 - Estabelecimento comercial (dentro da UF)'},
+  {value: '5304', label: '5.304 - Prestador de serviço de transporte (dentro da UF)'},
+  {value: '5305', label: '5.305 - Geradora ou distribuidora de energia elétrica (dentro da UF)'},
+  {value: '5306', label: '5.306 - Produtor rural (dentro da UF)'},
+  {value: '5307', label: '5.307 - Não contribuinte (dentro da UF)'},
+  {value: '6301', label: '6.301 - Serviço da mesma natureza (fora da UF)'},
+  {value: '6302', label: '6.302 - Estabelecimento industrial (fora da UF)'},
+  {value: '6303', label: '6.303 - Estabelecimento comercial (fora da UF)'},
+  {value: '6304', label: '6.304 - Prestador de serviço de transporte (fora da UF)'},
+  {value: '6305', label: '6.305 - Geradora ou distribuidora de energia elétrica (fora da UF)'},
+  {value: '6306', label: '6.306 - Produtor rural (fora da UF)'},
+  {value: '6307', label: '6.307 - Não contribuinte (fora da UF)'},
+  {value: '7301', label: '7.301 - Serviço da mesma natureza (exterior)'},
+];
+
+/** Competências oferecidas na fatura: do mês corrente para trás, 12 meses (AAAAMM). */
+export function nfcomCompetenceOptions(now = new Date(), months = 12): NfcomOption[] {
+  const monthNames = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+  return Array.from({length: months}, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    return {value: `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}`, label: `${monthNames[d.getMonth()]} de ${d.getFullYear()}`};
+  });
+}
+
 /** tpEvento que a NFCom registra, para a lista de eventos do detalhe. */
 export const NFCOM_EVENT_LABELS: Record<string, string> = {
   emission: 'Emissão',

@@ -7,6 +7,7 @@ import (
 
 	"gopkg.aoctech.app/api-commons/problem"
 	"gopkg.aoctech.app/dfe/api/internal/services"
+	nfcomsvc "gopkg.aoctech.app/dfe/api/internal/services/nfcoms"
 	"gopkg.aoctech.app/dfe/api/internal/validation"
 )
 
@@ -1655,4 +1656,65 @@ func validateIbsCbsGroup(sl validator.StructLevel) {
 			sl.ReportError(v, jsonNames[i], structNames[i], "required_with_group", "ibs_cbs")
 		}
 	}
+}
+
+// NfcomSubscriberBody é o cadastro do assinante da NFCom: a pessoa (tomador, com endereço e IE) mais o que não muda de
+// uma fatura para outra. Escolhas fechadas viram oneof (a UI mostra seletores); textos livres são curtos e validados.
+type NfcomSubscriberBody struct {
+	Name     string `json:"name" validate:"required,min=2,max=60,fiscaltext"`
+	PersonID string `json:"person_id" validate:"required,refcode"`
+	Code     string `json:"code" validate:"required,refcode,max=30"`
+	// Type é tpAssinante e ServiceUsed é tpServUtil (ver nfcoms.NfcomSubscriber).
+	Type            string  `json:"type" validate:"required,oneof=1 2 3 4 5 6 7 8 99"`
+	ServiceUsed     string  `json:"service_used" validate:"required,oneof=1 2 3 4 5 6 7"`
+	ContractNumber  *string `json:"contract_number" validate:"omitempty,refcode,max=20"`
+	ContractStart   *string `json:"contract_start" validate:"omitempty,datetime=2006-01-02"`
+	ContractEnd     *string `json:"contract_end" validate:"omitempty,datetime=2006-01-02"`
+	PrimaryTerminal *string `json:"primary_terminal" validate:"omitempty,number,min=1,max=12"`
+	PrimaryUF       *string `json:"primary_uf" validate:"omitempty,uf"`
+	PrimaryIBGECode *string `json:"primary_ibge_code" validate:"omitempty,ibge"`
+}
+
+// Validate cobre o que as tags não expressam: o fim do contrato não precede o início, e o terminal principal traz a UF
+// e o município juntos.
+func (b NfcomSubscriberBody) Validate() error {
+	if b.ContractStart != nil && b.ContractEnd != nil && *b.ContractEnd < *b.ContractStart {
+		return problem.BadRequest("o fim do contrato não pode ser anterior ao início")
+	}
+	if (b.PrimaryUF == nil) != (b.PrimaryIBGECode == nil) {
+		return problem.BadRequest("informe a UF e o município do terminal principal juntos")
+	}
+	return nil
+}
+
+// NfcomPlanBody é o cadastro do plano ou serviço da NFCom: classificação, unidade, valor padrão e tributação do item.
+// Na fatura só entram quantidade, valor (se o plano não fixa), desconto e outras despesas.
+type NfcomPlanBody struct {
+	Name        string `json:"name" validate:"required,min=2,max=60,fiscaltext"`
+	Code        string `json:"code" validate:"required,refcode,max=60"`
+	Description string `json:"description" validate:"required,min=1,max=120,fiscaltext"`
+	// ClassCode é o cClass (7 dígitos, tabela do MOC 7.8); Unit é uMed (1 minuto, 2 MB, 3 GB, 4 UN).
+	ClassCode string  `json:"class_code" validate:"required,len=7,number"`
+	Unit      string  `json:"unit" validate:"required,oneof=1 2 3 4"`
+	UnitValue *string `json:"unit_value" validate:"omitempty,money"`
+	// CFOP é obrigatório, salvo quando o ICMS é "sem CST".
+	CFOP   *string               `json:"cfop" validate:"omitempty,cfop"`
+	ICMS   nfcomsvc.NfcomICMS    `json:"icms" validate:"required"`
+	PIS    *nfcomsvc.NfcomPIS    `json:"pis" validate:"omitempty"`
+	COFINS *nfcomsvc.NfcomCOFINS `json:"cofins" validate:"omitempty"`
+}
+
+// Validate aplica ao plano as regras de item da emissão (CFOP x ICMS, alíquotas).
+func (b NfcomPlanBody) Validate() error {
+	return nfcomsvc.ValidatePlan(nfcomsvc.NfcomItem{
+		Code: b.Code, Description: b.Description, ClassCode: b.ClassCode, CFOP: b.CFOP, Unit: b.Unit,
+		UnitValue: strOr(b.UnitValue, "0"), ICMS: b.ICMS, PIS: b.PIS, COFINS: b.COFINS,
+	})
+}
+
+func strOr(p *string, def string) string {
+	if p == nil {
+		return def
+	}
+	return *p
 }

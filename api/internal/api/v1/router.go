@@ -42,6 +42,8 @@ type Services struct {
 	ProductLot      *services.ProductLotService
 	ServiceLocation *services.ServiceLocationService
 	ReferenceDoc    *services.ReferenceDocumentService
+	NfcomSubscriber *services.NfcomSubscriberService
+	NfcomPlan       *services.NfcomPlanService
 	FuelPump        *services.FuelPumpService
 	VehicleSet      *services.VehicleSetService
 	Person          *services.PersonService
@@ -149,6 +151,8 @@ func Register(app *fiber.App, cacheBackend cache.Backend, cfg *config.Config, ws
 	RegisterProductLots(v1, svcs.ProductLot, svcs.User, authMw, perm)
 	RegisterServiceLocations(v1, svcs.ServiceLocation, svcs.User, authMw, perm)
 	RegisterReferenceDocuments(v1, svcs.ReferenceDoc, svcs.User, authMw, perm)
+	RegisterNfcomSubscribers(v1, svcs.NfcomSubscriber, svcs.User, authMw, perm)
+	RegisterNfcomPlans(v1, svcs.NfcomPlan, svcs.User, authMw, perm)
 	RegisterFuelPumps(v1, svcs.FuelPump, svcs.User, authMw, perm)
 	RegisterVehicleSets(v1, svcs.VehicleSet, svcs.User, authMw, perm)
 	RegisterPersons(v1, svcs.Person, svcs.User, authMw, perm)

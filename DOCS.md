@@ -825,6 +825,20 @@ certificado e autorizador de teste, só há testes unitários e de integração 
   `GET /events` (confere o tenant: a tabela de eventos é chaveada só pela chave) e `/events/{event_sk}/xml`.
   Configuração: `GET|PUT /organizations/{org_pk}/nfcom-config` (corpo comum `FiscalConfigBody`) e
   `PUT /nfcom-emission` (`normal` ou `offline`; a troca automática é recusada com 422 `auto_contingency_unsupported`).
+- **Corpo da emissão: só ids e o que varia.** `POST /nfcoms` recebe `NfcomEmitRequest`: `subscriber_id`, `items`
+  (`plan_id`, `quantity`, e `unit_value` só quando o plano não tem valor padrão, mais `discount` e `other_charges`), `invoice`,
+  `prepaid`, `additional_info`, `authorized_xml` e `contingency_reason`. O servidor resolve os cadastros (`request.go`,
+  `Resolve`): assinante, a pessoa dele (nome, documento, endereço nacional completo, IE do estado do endereço: dígitos =
+  contribuinte, `ISENTO` = isento, sem IE = não contribuinte) e cada plano (classificação, unidade, valor padrão, CFOP, ICMS,
+  PIS e COFINS), e monta o `NfcomEmitBody` completo, que segue o fluxo de sempre. Cadastro de outra organização ou plano
+  inexistente é 404; pessoa sem endereço completo é 400 com texto claro. Texto livre (`additional_info`, justificativa)
+  passa por `services.CleanText` (controles fora, espaços juntos, pontas aparadas) e pelo validador `fiscaltext` (só até
+  U+00FF, sem `<` nem `>`, sem espaço nas pontas); códigos de referência pelo `refcode`.
+- **Cadastros da NFCom** (`organization_nfcom_subscribers` e `organization_nfcom_plans`, CRUD comum de cadastro, escopos
+  próprios `dfe:organization_nfcom_subscribers:*` e `dfe:organization_nfcom_plans:*`): `/nfcom-subscribers` (nome, `person_id`,
+  código, tipo `tpAssinante`, serviço `tpServUtil`, contrato, terminal principal e município dele) e `/nfcom-plans` (nome,
+  código, descrição, `cClass` de 7 dígitos, unidade, valor padrão opcional, CFOP da lista fechada do MOC, ICMS, PIS e COFINS).
+  O plano é recusado com as regras de item da emissão (`ValidatePlan`: CFOP x ICMS, alíquotas), então um plano salvo emite.
 - **Emissão** (`services/nfcoms/`): `NfcomEmitBody` tipado (seletores por `oneof`), validação em `validate.go`, montagem em
   `builder.go` (chave de 44 posições com `nSiteAutoriz` 0, `vProd` do item = `quantidade x valor - desconto + outras
   despesas`, ICMS/PIS/COFINS com base = valor do item, totais) e portão `prevalidate.go`. Numeração por
@@ -845,7 +859,7 @@ certificado e autorizador de teste, só há testes unitários e de integração 
   `NFComConsulta`. Tabelas: `organization_nfcom_configs`, `nfcoms`, `nfcom_events` (ver `DynamoDB-Tables.md`).
 - **Webhooks e erasure:** `document_type` `nfcom`; as três tabelas entram no catálogo de erasure.
 - **DANFE-COM:** `services/documents/nfcom.go` e `templates/danfecom.html` (A4 retrato, MOC Anexo II).
-- **UI:** `/nfcom`, `/nfcom/emit`, `/nfcom/detail`, aba NFCom em `/fiscal-config`, guia `/guide/nfcom`.
+- **UI:** `/nfcom`, `/nfcom/emit` (assinante e planos por seleção, competência e vencimento sugeridos), `/nfcom/detail`, cadastros `/nfcom-subscribers` e `/nfcom-plans`, aba NFCom em `/fiscal-config`, guia `/guide/nfcom`.
 
 ### Vinculação de pagamento da NFCom e do BP-e (110300 e 110301)
 

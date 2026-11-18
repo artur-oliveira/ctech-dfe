@@ -1539,6 +1539,17 @@ enviados só um certificado descartável e uma chave falsa, e a ANTT respondeu 4
 - Listar endpoints (a tela e a emissão) **não abre o segredo**: um segredo ilegível (chave rotacionada sem a geração antiga, linha corrompida) não pode derrubar a tela nem mandar todo resultado da organização para a DLQ. Só a entrega abre o segredo; um erro de leitura ali deixa a entrega como está e conta como falha do job, e só "endpoint apagado" encerra a entrega.
 
 
+## NFCom: emissão por cadastros
+
+- A API de emissão mudou de corpo completo para ids (`subscriber_id`, `plan_id`); não havia cliente externo. O `NfcomEmitBody`
+  completo continua sendo o formato interno (builder, validação e portão fiscal não mudaram).
+- A tabela de classificação `cClass` não está disponível no repositório (o MOC remete ao portal, e o informe técnico 2025.001 só
+  traz as inclusões): o plano valida 7 dígitos numéricos, não a existência do código. A SEFAZ rejeita código inexistente (G83).
+  Quando a tabela for obtida, vendorizar e trocar o campo por seletor.
+- Pessoa de assinante só vale com endereço nacional completo; a NFCom não aceita endereço no exterior nesta versão.
+- Escopos novos (`dfe:organization_nfcom_subscribers:*`, `dfe:organization_nfcom_plans:*`) mudam a lista de escopos do login: o
+  cliente HTTP reautentica uma vez (`reauthForMissingScopes`) e a lista da UI é conferida contra o manifesto por teste.
+
 ## NFCom (modelo 62): o que ainda não foi provado
 
 - Nenhum teste contra autorizador real. Os nomes SOAP (`nfcomDadosMsg`, `nfcomResultMsg`, método `nfcomRecepcao` etc.), a

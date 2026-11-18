@@ -44,6 +44,8 @@ const (
 	AuditResourceProductLot      = "PRODUCT_LOT"
 	AuditResourceFuelPump        = "FUEL_PUMP"
 	AuditResourceServiceLocation = "SERVICE_LOCATION"
+	AuditResourceNfcomSubscriber = "NFCOM_SUBSCRIBER"
+	AuditResourceNfcomPlan       = "NFCOM_PLAN"
 	AuditResourceReferenceDoc    = "REFERENCE_DOCUMENT"
 	AuditResourceVehicleSet      = "VEHICLE_SET"
 	AuditResourceMember          = "MEMBER"

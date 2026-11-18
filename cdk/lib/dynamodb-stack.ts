@@ -39,6 +39,8 @@ export type TableName = (
   'vehicle_sets' |
   'service_locations' |
   'reference_documents' |
+  'nfcom_subscribers' |
+  'nfcom_plans' |
   'nfes' |
   'nfces' |
   'ctes' |
@@ -733,6 +735,11 @@ export class DynamoDBStack extends cdk.Stack {
       this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'service_locations'));
     this.tables.set('reference_documents', getOrgEntityTable(
       this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'reference_documents'));
+    // Cadastros da emissão de NFCom (assinantes e planos): o que recorre entre faturas.
+    this.tables.set('nfcom_subscribers', getOrgEntityTable(
+      this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'nfcom_subscribers'));
+    this.tables.set('nfcom_plans', getOrgEntityTable(
+      this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'nfcom_plans'));
 
     // ============== CONFIGURATION TABLES ==============
 

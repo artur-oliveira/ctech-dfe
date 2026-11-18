@@ -220,6 +220,42 @@
       "status": "active"
     },
     {
+      "name": "dfe:organization_nfcom_plans:read",
+      "descriptions": {
+        "pt-BR": "Consultar planos e servicos da NFCom da organizacao.",
+        "en": "Read organization NFCom plans."
+      },
+      "visibility": "public",
+      "status": "active"
+    },
+    {
+      "name": "dfe:organization_nfcom_plans:write",
+      "descriptions": {
+        "pt-BR": "Criar e alterar planos e servicos da NFCom da organizacao.",
+        "en": "Create and change organization NFCom plans."
+      },
+      "visibility": "public",
+      "status": "active"
+    },
+    {
+      "name": "dfe:organization_nfcom_subscribers:read",
+      "descriptions": {
+        "pt-BR": "Consultar assinantes da NFCom da organizacao.",
+        "en": "Read organization NFCom subscribers."
+      },
+      "visibility": "public",
+      "status": "active"
+    },
+    {
+      "name": "dfe:organization_nfcom_subscribers:write",
+      "descriptions": {
+        "pt-BR": "Criar e alterar assinantes da NFCom da organizacao.",
+        "en": "Create and change organization NFCom subscribers."
+      },
+      "visibility": "public",
+      "status": "active"
+    },
+    {
       "name": "dfe:organization_operations:read",
       "descriptions": {
         "pt-BR": "Consultar operações da organizacao.",

@@ -1323,6 +1323,34 @@ export const serviceLocationsFixture = [
   },
 ];
 
+export const nfcomSubscribersFixture = [
+  {
+    pk: `${ORG_PK}#nfcom-subscriber#1`, sk: 'NFCOMSUB_1', name: 'Cliente Exemplo LTDA', person_id: 'CNPJ_33000167000101',
+    code: 'ASS-001', type: '1', service_used: '4', contract_number: 'CT-2026-01', contract_start: '2026-01-10',
+    primary_terminal: '1130000000', primary_uf: 'PI', primary_ibge_code: '2211001',
+    created_at: '2026-02-01T09:00:00Z', updated_at: '2026-04-20T09:00:00Z',
+  },
+  {
+    pk: `${ORG_PK}#nfcom-subscriber#2`, sk: 'NFCOMSUB_2', name: 'Provedor Parceiro ME', person_id: 'CNPJ_11222333000181',
+    code: 'ASS-002', type: '6', service_used: '2',
+    created_at: '2026-03-02T09:00:00Z', updated_at: '2026-04-20T09:00:00Z',
+  },
+];
+
+export const nfcomPlansFixture = [
+  {
+    pk: `${ORG_PK}#nfcom-plan#1`, sk: 'NFCOMPLAN_1', name: 'Internet 100 Mbps', code: 'PLANO100', description: 'Internet 100 Mbps',
+    class_code: '0100301', unit: '4', unit_value: '99.90', cfop: '5307',
+    icms: {cst: '00', rate: '18'}, pis: {cst: '01', rate: '0.65'}, cofins: {cst: '01', rate: '3'},
+    created_at: '2026-02-01T09:00:00Z', updated_at: '2026-04-20T09:00:00Z',
+  },
+  {
+    pk: `${ORG_PK}#nfcom-plan#2`, sk: 'NFCOMPLAN_2', name: 'Franquia de dados', code: 'DADOS-GB', description: 'Franquia de dados excedente',
+    class_code: '0100401', unit: '3', cfop: '5307', icms: {cst: '00', rate: '18'},
+    created_at: '2026-03-02T09:00:00Z', updated_at: '2026-04-20T09:00:00Z',
+  },
+];
+
 export const referenceDocumentsFixture = [
   {
     pk: `${ORG_PK}#reference-document#1`,

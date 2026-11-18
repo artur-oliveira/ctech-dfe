@@ -9,6 +9,10 @@ import type {
   ProductLotItemOut,
   ReferenceDocumentCreate,
   ReferenceDocumentItemOut,
+  NfcomPlanCreate,
+  NfcomPlanItemOut,
+  NfcomSubscriberCreate,
+  NfcomSubscriberItemOut,
   ServiceLocationCreate,
   ServiceLocationItemOut,
   FuelPumpCreate,
@@ -731,6 +735,48 @@ class ApiClient {
 
   async deleteServiceLocation(id: string): Promise<void> {
     return this.del(`/v1.0/service-locations/${id}`);
+  }
+
+  // NFCom: assinantes e planos (cadastros da emissão)
+
+  async getNfcomSubscribers(params?: { limit?: number; cursor?: string; name?: string }): Promise<PaginatedResponse<NfcomSubscriberItemOut>> {
+    return this.get('/v1.0/nfcom-subscribers', {params});
+  }
+
+  async getNfcomSubscriber(id: string): Promise<NfcomSubscriberItemOut> {
+    return this.get(`/v1.0/nfcom-subscribers/${encodeURIComponent(id)}`);
+  }
+
+  async createNfcomSubscriber(data: NfcomSubscriberCreate): Promise<NfcomSubscriberItemOut> {
+    return this.post('/v1.0/nfcom-subscribers', data);
+  }
+
+  async updateNfcomSubscriber(id: string, data: NfcomSubscriberCreate): Promise<NfcomSubscriberItemOut> {
+    return this.put(`/v1.0/nfcom-subscribers/${encodeURIComponent(id)}`, data);
+  }
+
+  async deleteNfcomSubscriber(id: string): Promise<void> {
+    return this.del(`/v1.0/nfcom-subscribers/${encodeURIComponent(id)}`);
+  }
+
+  async getNfcomPlans(params?: { limit?: number; cursor?: string; name?: string }): Promise<PaginatedResponse<NfcomPlanItemOut>> {
+    return this.get('/v1.0/nfcom-plans', {params});
+  }
+
+  async getNfcomPlan(id: string): Promise<NfcomPlanItemOut> {
+    return this.get(`/v1.0/nfcom-plans/${encodeURIComponent(id)}`);
+  }
+
+  async createNfcomPlan(data: NfcomPlanCreate): Promise<NfcomPlanItemOut> {
+    return this.post('/v1.0/nfcom-plans', data);
+  }
+
+  async updateNfcomPlan(id: string, data: NfcomPlanCreate): Promise<NfcomPlanItemOut> {
+    return this.put(`/v1.0/nfcom-plans/${encodeURIComponent(id)}`, data);
+  }
+
+  async deleteNfcomPlan(id: string): Promise<void> {
+    return this.del(`/v1.0/nfcom-plans/${encodeURIComponent(id)}`);
   }
 
   // Reference documents (dedução/redução e reembolso/repasse — NFS-e)

@@ -1046,6 +1046,204 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
 
+  # ── NFCom: assinantes e planos ─────────────────────────────────────────────────────────
+
+  /v1.0/nfcom-subscribers:
+    get:
+      tags: [ NfcomSubscribers ]
+      summary: Lista assinantes da NFCom
+      operationId: listNfcomSubscribers
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/RegistryName'
+      responses:
+        '200':
+          description: Página de assinantes da NFCom
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/NfcomSubscriberItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [ NfcomSubscribers ]
+      summary: Cria um assinante da NFCom
+      operationId: createNfcomSubscriber
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NfcomSubscriberBody' }
+      responses:
+        '201':
+          description: Criado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NfcomSubscriberItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/nfcom-subscribers/{nfcom_subscriber_id}:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - name: nfcom_subscriber_id
+        in: path
+        required: true
+        description: Identificador (SK da linha).
+        schema: { type: string }
+    get:
+      tags: [ NfcomSubscribers ]
+      summary: Detalha um assinante da NFCom
+      operationId: getNfcomSubscriber
+      responses:
+        '200':
+          description: Encontrado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NfcomSubscriberItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [ NfcomSubscribers ]
+      summary: Atualiza um assinante da NFCom
+      operationId: updateNfcomSubscriber
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NfcomSubscriberBody' }
+      responses:
+        '200':
+          description: Atualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NfcomSubscriberItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [ NfcomSubscribers ]
+      summary: Remove um assinante da NFCom
+      operationId: deleteNfcomSubscriber
+      responses:
+        '204':
+          description: Removido
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1.0/nfcom-plans:
+    get:
+      tags: [ NfcomPlans ]
+      summary: Lista planos da NFCom
+      operationId: listNfcomPlans
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/RegistryName'
+      responses:
+        '200':
+          description: Página de planos da NFCom
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/NfcomPlanItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [ NfcomPlans ]
+      summary: Cria um plano da NFCom
+      operationId: createNfcomPlan
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NfcomPlanBody' }
+      responses:
+        '201':
+          description: Criado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NfcomPlanItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /v1.0/nfcom-plans/{nfcom_plan_id}:
+    parameters:
+      - $ref: '#/components/parameters/OrgHeader'
+      - name: nfcom_plan_id
+        in: path
+        required: true
+        description: Identificador (SK da linha).
+        schema: { type: string }
+    get:
+      tags: [ NfcomPlans ]
+      summary: Detalha um plano da NFCom
+      operationId: getNfcomPlan
+      responses:
+        '200':
+          description: Encontrado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NfcomPlanItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [ NfcomPlans ]
+      summary: Atualiza um plano da NFCom
+      operationId: updateNfcomPlan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/NfcomPlanBody' }
+      responses:
+        '200':
+          description: Atualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/NfcomPlanItem' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [ NfcomPlans ]
+      summary: Remove um plano da NFCom
+      operationId: deleteNfcomPlan
+      responses:
+        '204':
+          description: Removido
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
   # ── Documentos referenciados ─────────────────────────────────────────────────────────
 
   /v1.0/reference-documents:
@@ -1448,6 +1646,87 @@ components:
       properties:
         pk: { type: string }
         sk: { type: string, description: Identificador do local. }
+        name: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    NfcomSubscriberBody:
+      type: object
+      description: |
+        Assinante da NFCom: a pessoa do cadastro (tomador, com endereço e IE) mais o que não muda entre faturas.
+        A fatura aponta o assinante por id e o servidor monta cliente e assinante do documento.
+      required: [ name, person_id, code, type, service_used ]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 60, description: Nome de busca do cadastro. }
+        person_id: { type: string, pattern: '^[A-Za-z0-9._/-]{1,60}$', description: 'Chave da pessoa (`CNPJ_`, `CPF_` ou `IDEST_`).' }
+        code: { type: string, pattern: '^[A-Za-z0-9._/-]{1,30}$', description: 'Código do assinante (`iCodAssinante`).' }
+        type:
+          type: string
+          enum: [ '1', '2', '3', '4', '5', '6', '7', '8', '99' ]
+          description: '`tpAssinante`: 1 comercial, 2 industrial, 3 residencial, 4 produtor rural, 5 órgão público estadual, 6 prestador de telecomunicação, 7 órgão público municipal, 8 órgão público federal, 99 outros.'
+        service_used:
+          type: string
+          enum: [ '1', '2', '3', '4', '5', '6', '7' ]
+          description: '`tpServUtil`: 1 telefonia, 2 dados, 3 TV por assinatura, 4 provimento de acesso à internet, 5 multimídia, 6 outros, 7 vários.'
+        contract_number: { type: [ string, 'null' ], pattern: '^[A-Za-z0-9._/-]{1,20}$' }
+        contract_start: { type: [ string, 'null' ], format: date }
+        contract_end: { type: [ string, 'null' ], format: date, description: Não anterior ao início. }
+        primary_terminal: { type: [ string, 'null' ], pattern: '^[0-9]{1,12}$' }
+        primary_uf: { type: [ string, 'null' ], description: 'Vem junto com `primary_ibge_code`.' }
+        primary_ibge_code: { type: [ string, 'null' ], pattern: '^[0-9]{7}$' }
+
+    NfcomSubscriberItem:
+      type: object
+      description: Assinante persistido.
+      additionalProperties: true
+      properties:
+        pk: { type: string }
+        sk: { type: string, description: Identificador do assinante. }
+        name: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    NfcomPlanBody:
+      type: object
+      description: |
+        Plano ou serviço da NFCom: classificação, unidade, valor padrão e tributação do item. A fatura aponta o plano por
+        id e informa só quantidade, valor (quando o plano não fixa), desconto e outras despesas. O plano é recusado com as
+        mesmas regras de item da emissão (CFOP x ICMS, alíquotas).
+      required: [ name, code, description, class_code, unit, icms ]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 60 }
+        code: { type: string, pattern: '^[A-Za-z0-9._/-]{1,60}$' }
+        description: { type: string, minLength: 1, maxLength: 120 }
+        class_code: { type: string, pattern: '^[0-9]{7}$', description: '`cClass`, 7 dígitos (tabela do MOC, item 7.8).' }
+        unit: { type: string, enum: [ '1', '2', '3', '4' ], description: '`uMed`: 1 minuto, 2 MB, 3 GB, 4 UN.' }
+        unit_value: { type: [ string, 'null' ], description: Valor padrão; sem ele a fatura informa o valor. }
+        cfop: { type: [ string, 'null' ], pattern: '^[0-9]{4}$', description: 'Obrigatório, salvo ICMS `sem_cst` (que o proíbe).' }
+        icms:
+          type: object
+          required: [ cst ]
+          properties:
+            cst: { type: string, enum: [ '00', '40', '41', '51', '90', sn, sem_cst ] }
+            rate: { type: [ string, 'null' ], description: Alíquota em %; obrigatória em 00 e 90. }
+        pis:
+          type: [ object, 'null' ]
+          required: [ cst, rate ]
+          properties:
+            cst: { type: string, enum: [ '01', '02', '06', '07', '08', '09', '49' ] }
+            rate: { type: string }
+        cofins:
+          type: [ object, 'null' ]
+          required: [ cst, rate ]
+          properties:
+            cst: { type: string, enum: [ '01', '02', '06', '07', '08', '09', '49' ] }
+            rate: { type: string }
+
+    NfcomPlanItem:
+      type: object
+      description: Plano persistido.
+      additionalProperties: true
+      properties:
+        pk: { type: string }
+        sk: { type: string, description: Identificador do plano. }
         name: { type: string }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }

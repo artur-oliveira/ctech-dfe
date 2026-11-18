@@ -401,7 +401,7 @@ and fiscal config. Certificate access is a dedicated scope (it grants the PFX + 
 
 The grantable list is owned here in
 `api/internal/oauthresource/scope-manifest.json`. Its contract test compares all
-22 entries with `middleware/scopeFamilies`, so a new RBAC family cannot silently
+every entry with `middleware/scopeFamilies`, so a new RBAC family cannot silently
 drift from OAuth discovery. The deploy publishes the manifest to CTech Account
 after CDK and before the API with a DFe-bound confidential publisher; Account
 validates and revisions it, then serves it through `GET /v1.0/scopes`.

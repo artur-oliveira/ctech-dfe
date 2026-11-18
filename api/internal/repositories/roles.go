@@ -83,6 +83,7 @@ var resources = []string{
 	"organization_insurance_policies", "organization_product_lots",
 	"organization_fuel_pumps",
 	"organization_service_locations", "organization_reference_documents",
+	"organization_nfcom_subscribers", "organization_nfcom_plans",
 	"organization_nfe_configs", "organization_nfce_configs",
 	"organization_cte_configs", "organization_mdfe_configs",
 	"organization_nfse_configs", "organization_nfcom_configs", "organization_bpe_configs",
