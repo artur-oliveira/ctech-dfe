@@ -373,6 +373,7 @@ const (
 	CacheScopeServiceLocations  = "service_locations"
 	CacheScopeNfcomSubscribers  = "nfcom_subscribers"
 	CacheScopeNfcomPlans        = "nfcom_plans"
+	CacheScopeBpeLines          = "bpe_lines"
 	CacheScopeReferenceDocs     = "reference_documents"
 )
 
@@ -392,5 +393,15 @@ func NewNfcomPlanService(repo *repositories.NfcomPlanRepository, auditRepo *repo
 	return &NfcomPlanService{newOrgEntityService(
 		&repo.OrgEntityRepository, auditRepo, c,
 		CacheScopeNfcomPlans, repositories.AuditResourceNfcomPlan, "plano não encontrado",
+	)}
+}
+
+// BpeLineService: o cadastro de linhas do BP-e (CRUD comum).
+type BpeLineService struct{ OrgEntityService }
+
+func NewBpeLineService(repo *repositories.BpeLineRepository, auditRepo *repositories.AuditLogRepository, c cache.Backend) *BpeLineService {
+	return &BpeLineService{newOrgEntityService(
+		&repo.OrgEntityRepository, auditRepo, c,
+		CacheScopeBpeLines, repositories.AuditResourceBpeLine, "linha não encontrada",
 	)}
 }

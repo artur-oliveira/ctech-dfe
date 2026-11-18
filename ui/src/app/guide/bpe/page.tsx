@@ -7,7 +7,7 @@ export default function GuideBpe() {
     <GuidePage
       currentHref="/guide/bpe"
       title="Emitir BP-e"
-      description="O bilhete de passagem eletrônico (modelo 63) para transporte rodoviário, aquaviário, ferroviário, metropolitano (TM) e aéreo (TA). Você informa a viagem, os valores e o pagamento; o sistema calcula totais, troco e tributos."
+      description="O bilhete de passagem eletrônico (modelo 63) para transporte rodoviário, aquaviário, ferroviário, metropolitano (TM) e aéreo (TA). Você cadastra as linhas uma vez; na venda só escolhe a linha e informa data, poltrona, valores e pagamento, e o sistema calcula totais, troco e tributos."
       sections={[
         {
           id: 'config',
@@ -30,46 +30,77 @@ export default function GuideBpe() {
           ),
         },
         {
+          id: 'lines',
+          title: 'Cadastre as linhas uma vez',
+          summary: 'Percurso, voo ou grupo de viagem ficam num cadastro; a venda só escolhe a linha.',
+          image: {
+            src: '/guide/bpe-lines.webp',
+            alt: 'Lista de linhas do BP-e, com nome, tipo de bilhete (comum, TA ou TM) e o percurso, o voo ou o veículo',
+          },
+          body: (
+            <>
+              <p>
+                Em <b>BP-e &gt; Linhas</b> você cadastra o que não muda de uma venda para outra. Cada linha serve a um tipo de bilhete,
+                que não muda depois de salvo:
+              </p>
+              <GuideTerms>
+                <GuideTerm term="Comum">
+                  Modal, município de início e de fim (escolhidos na lista do IBGE), código e nome do percurso, tipo de viagem, serviço,
+                  acomodação, prefixo e o ICMS (com a alíquota nas situações 00 e 90).
+                </GuideTerm>
+                <GuideTerm term="TA">
+                  O voo: companhia, número, aeroportos de origem e destino, serviço, acomodação e o imposto IBS e CBS (classificação
+                  tributária da tabela oficial; doação, estorno, compra governamental, devolução e Simples quando o caso pede).
+                </GuideTerm>
+                <GuideTerm term="TM">
+                  O grupo de viagem: modal, CFOP, UF de início e de fim, placa, prefixo, os trechos (cada um com o ICMS) e os tipos de
+                  passageiro (inteira, meia...), de até 15 caracteres.
+                </GuideTerm>
+              </GuideTerms>
+              <GuideBullets>
+                <li>Código da linha e prefixo aceitam só letras, números, ponto, barra, hífen e sublinhado; nomes e percurso, texto comum sem &lt; nem &gt;.</li>
+                <li>A linha é recusada com as mesmas regras da emissão, então uma linha salva emite.</li>
+              </GuideBullets>
+            </>
+          ),
+        },
+        {
           id: 'emit',
-          title: 'Escolha o tipo e preencha',
-          summary: 'Comum, TA ou TM: cada tipo tem seu formulário. Tudo que é escolha fechada é um seletor.',
+          title: 'A venda: escolher a linha e informar o que varia',
+          summary: 'Comum, TA ou TM. Nada de percurso, imposto ou endereço digitado.',
           image: {
             src: '/guide/bpe-emit.webp',
-            alt: 'Emissão de BP-e com o seletor do tipo de bilhete e o bloco da viagem: modal, presença, origem, destino, embarque e validade',
+            alt: 'Emissão de BP-e com o seletor do tipo de bilhete, a escolha da linha com data de partida e poltrona e o bloco do embarque',
           },
           body: (
             <>
               <GuideTerms>
-                <GuideTerm term="Comum">
-                  Modal (rodoviário, aquaviário ou ferroviário), viagem com origem e destino, passageiro, trechos, componentes do valor,
-                  pagamento e ICMS. Em viagem em conexão, cada trecho é uma linha e o trecho de conexão pede a data da conexão.
+                <GuideTerm term="Comum e TA">
+                  Um trecho (ou voo) por linha do cadastro, com a partida, o tipo de trecho e, no comum, a poltrona e a plataforma. O
+                  embarque e a validade já vêm sugeridos a partir da primeira partida. Depois, o passageiro, os componentes do valor,
+                  o desconto e o pagamento.
                 </GuideTerm>
-                <GuideTerm term="TA">
-                  Transporte aéreo: cada trecho é um voo (companhia, número, aeroportos de origem e destino), sem poltrona nem linha. O
-                  imposto é IBS e CBS no lugar do ICMS: a classificação tributária (tabela oficial, define o CST) e, quando o caso pede, doação, estorno de crédito, compra governamental e devolução. As alíquotas fixadas em lei o servidor aplica.
-                  O tipo de compra pode ser normal (passageiro identificado), BP-e múltiplo (fretamento: sem passageiro e com comprador) ou
-                  vinculado a um múltiplo (só o passageiro e a chave do múltiplo; sem valores, imposto nem pagamento).
+                <GuideTerm term="Passageiro">
+                  O caminho principal é o <b>passageiro avulso</b>: nome e documento (tipo em lista) direto na venda. Se preferir,
+                  escolha uma pessoa física do cadastro (o CPF vai como documento). O TA exige identificar o passageiro.
+                </GuideTerm>
+                <GuideTerm term="Comprador e agência">
+                  Opcionais e escolhidos no cadastro de pessoas, com o endereço completo; a agência é pessoa jurídica. O comprador é
+                  obrigatório no BP-e múltiplo.
                 </GuideTerm>
                 <GuideTerm term="TM">
-                  Transporte metropolitano: não há bilhete individual. É uma apuração por grupo de viagem (UF, placa, prefixo) com itens
-                  por trecho e componentes de tarifa; o total sai da soma dos itens.
+                  Não há bilhete individual: a apuração é por grupo de viagem. Cada grupo escolhe a linha do TM; cada item escolhe o
+                  trecho da linha e informa os contadores, o total de passageiros, o valor e a quantidade por tipo de passageiro.
                 </GuideTerm>
               </GuideTerms>
               <p>
-                O servidor calcula o valor total (soma dos componentes), o valor a pagar (total menos desconto), o troco (o que os
-                pagamentos passam do valor a pagar) e o ICMS. O total na barra inferior é só uma estimativa.
+                O servidor calcula o valor total (soma dos componentes), o valor a pagar (total menos desconto), o troco e o imposto da
+                linha. O total na barra inferior é só uma estimativa.
               </p>
               <GuideBullets>
+                <li>Sem linha cadastrada para o tipo escolhido, a tela avisa e leva ao cadastro; a emissão fica bloqueada.</li>
                 <li>Com desconto, informe o tipo e a descrição; o tipo Outros pede também o código do desconto.</li>
-                <li>Identifique o passageiro em viagem interestadual e sempre que houver desconto.</li>
-                <li>O comprador é opcional (agência ou quem pagou): marque a opção, escolha CPF, CNPJ ou identificador estrangeiro e informe o endereço. Só um documento vale.</li>
-                <li>Os municípios saem de uma lista do IBGE: escolha pelo nome e a UF é preenchida junto.</li>
-                <li>No bilhete impresso, o DABPE tem o formato A4 e o reduzido (bobina de 58 mm). Em contingência sai com duas vias, a segunda marcada &quot;Via do Estabelecimento&quot;.</li>
-                <li>Os horários seguem o fuso do seu navegador (no Brasil, -03:00).</li>
-                <li>
-                  <b>Comprador</b> e <b>agência</b> são opcionais (o comprador é obrigatório no BP-e múltiplo). A agência sai na Divisão
-                  I do DABPE.
-                </li>
+                <li>No TA, o tipo de compra pode ser normal (passageiro identificado), BP-e múltiplo (fretamento: sem passageiro e com comprador) ou vinculado a um múltiplo (só o passageiro e a chave do múltiplo; sem valores, imposto nem pagamento).</li>
                 <li>
                   <b>Substituição</b>: marque que o bilhete substitui outro e informe a chave e o tipo (remarcação, transferência e,
                   no TA, também erro de tarifa, de tributação, decisão judicial, erro cadastral e outros). O original precisa estar
@@ -77,6 +108,8 @@ export default function GuideBpe() {
                   o substituto, o original passa a <b>Substituído</b>.
                 </li>
                 <li>No bilhete comum, o conteúdo do código de embarque (PDF417) é opcional e sai na Divisão IX do DABPE.</li>
+                <li>No bilhete impresso, o DABPE tem o formato A4 e o reduzido (bobina de 58 mm). Em contingência sai com duas vias, a segunda marcada &quot;Via do Estabelecimento&quot;.</li>
+                <li>Os horários seguem o fuso do seu navegador (no Brasil, -03:00). Texto livre (informações adicionais, nome do passageiro) é normalizado e não aceita &lt; nem &gt;.</li>
                 <li>Antes de reservar o número, o bilhete passa pelas regras do MOC; o que a SEFAZ rejeitaria com certeza volta como erro apontando o campo.</li>
               </GuideBullets>
             </>

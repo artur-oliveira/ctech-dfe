@@ -59,6 +59,10 @@ const (
 	// TableNfcomPlans guarda os planos e serviços da NFCom: classificação, unidade, valor padrão e tributação do item.
 	TableNfcomPlans = "organization_nfcom_plans"
 
+	// TableBpeLines guarda as linhas do BP-e (percurso, voo ou grupo de viagem do TM): o que não muda de uma venda para outra.
+	TableBpeLines = "organization_bpe_lines"
+
+	SKPrefixBpeLine         = "BPELINE_"
 	SKPrefixNfcomSubscriber = "NFCOMSUB_"
 	SKPrefixNfcomPlan       = "NFCOMPLAN_"
 	SKPrefixTaxProfile      = "TAXPROFILE_"
@@ -353,4 +357,11 @@ type NfcomPlanRepository struct{ OrgEntityRepository }
 
 func NewNfcomPlanRepository(db *dynamodb.Client, cfg *config.Config) *NfcomPlanRepository {
 	return &NfcomPlanRepository{newOrgEntityRepository(db, cfg, TableNfcomPlans, SKPrefixNfcomPlan)}
+}
+
+// BpeLineRepository: o cadastro de linhas do BP-e.
+type BpeLineRepository struct{ OrgEntityRepository }
+
+func NewBpeLineRepository(db *dynamodb.Client, cfg *config.Config) *BpeLineRepository {
+	return &BpeLineRepository{newOrgEntityRepository(db, cfg, TableBpeLines, SKPrefixBpeLine)}
 }

@@ -46,6 +46,7 @@ const (
 	AuditResourceServiceLocation = "SERVICE_LOCATION"
 	AuditResourceNfcomSubscriber = "NFCOM_SUBSCRIBER"
 	AuditResourceNfcomPlan       = "NFCOM_PLAN"
+	AuditResourceBpeLine         = "BPE_LINE"
 	AuditResourceReferenceDoc    = "REFERENCE_DOCUMENT"
 	AuditResourceVehicleSet      = "VEHICLE_SET"
 	AuditResourceMember          = "MEMBER"

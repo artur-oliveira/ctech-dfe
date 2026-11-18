@@ -107,7 +107,7 @@ func TestBpe_ListEventsChecksTenant(t *testing.T) {
 	if _, err := events.CreateEvent(ctx, key, "110111", 1, "pending", nil, nil, nil, testUserID, testUserName); err != nil {
 		t.Fatal(err)
 	}
-	svc := bpes.NewBpeService(nil, nil, bpeConfigRepo, bpeRepo, events, nil, nil, nil, nil, "", bpes.TechData{}, nil)
+	svc := bpes.NewBpeService(nil, nil, bpeConfigRepo, bpeRepo, events, nil, nil, nil, nil, nil, nil, "", bpes.TechData{}, nil)
 	res, err := svc.ListBPeEvents(ctx, orgA, key, 50, nil)
 	if err != nil || len(res.Items) != 1 {
 		t.Fatalf("dono: %v %v", res, err)
@@ -136,7 +136,7 @@ func TestBpe_DABPEChecksTenantFormatAndVariant(t *testing.T) {
 		}
 	}
 	events := repositories.NewDocumentEventRepository(db, cfg, "bpe")
-	svc := bpes.NewBpeService(nil, nil, bpeConfigRepo, bpeRepo, events, nil, nil, nil, nil, "", bpes.TechData{}, nil)
+	svc := bpes.NewBpeService(nil, nil, bpeConfigRepo, bpeRepo, events, nil, nil, nil, nil, nil, nil, "", bpes.TechData{}, nil)
 	if _, err := svc.GetDABPEURL(ctx, orgB, keyTA, ""); problemStatus(err) != 404 {
 		t.Errorf("outra organização: status %d, queria 404 (%v)", problemStatus(err), err)
 	}
@@ -165,7 +165,7 @@ func TestBpe_TASupplyNotPerformedEventIsTenantScoped(t *testing.T) {
 	if _, err := events.CreateEvent(ctx, key, bpes.TpEventoFornecimentoNaoRealizado, 1, "pending", nil, nil, nil, testUserID, testUserName); err != nil {
 		t.Fatal(err)
 	}
-	svc := bpes.NewBpeService(nil, nil, bpeConfigRepo, bpeRepo, events, nil, nil, nil, nil, "", bpes.TechData{}, nil)
+	svc := bpes.NewBpeService(nil, nil, bpeConfigRepo, bpeRepo, events, nil, nil, nil, nil, nil, nil, "", bpes.TechData{}, nil)
 	res, err := svc.ListBPeEvents(ctx, orgA, key, 50, nil)
 	if err != nil || len(res.Items) != 1 {
 		t.Fatalf("dono: %v %v", res, err)

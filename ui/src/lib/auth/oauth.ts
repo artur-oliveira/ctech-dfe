@@ -45,6 +45,8 @@ export const DFE_USER_SCOPES = [
   'dfe:organization_nfcom_subscribers:write',
   'dfe:organization_nfcom_plans:read',
   'dfe:organization_nfcom_plans:write',
+  'dfe:organization_bpe_lines:read',
+  'dfe:organization_bpe_lines:write',
   'dfe:organization_vehicles:read',
   'dfe:organization_vehicles:write',
   'dfe:organization_operations:read',

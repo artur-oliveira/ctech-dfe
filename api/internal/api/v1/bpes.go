@@ -23,19 +23,13 @@ func RegisterBPes(router fiber.Router, svc *bpesvc.BpeService, userSvc *services
 		var err error
 		switch emitVariant(c.Body()) {
 		case bpesvc.VariantTM:
-			var body bpesvc.BpeTMEmitBody
+			var body bpesvc.BpeTMRequest
 			if p := bindJSON(c, &body); p != nil {
 				return sendProblem(c, p)
 			}
 			doc, err = svc.EmitTM(c.Context(), middleware.GetOrgPK(c), body, userID, userName)
-		case bpesvc.VariantTA:
-			var body bpesvc.BpeTAEmitBody
-			if p := bindJSON(c, &body); p != nil {
-				return sendProblem(c, p)
-			}
-			doc, err = svc.EmitTA(c.Context(), middleware.GetOrgPK(c), body, userID, userName)
 		default:
-			var body bpesvc.BpeEmitBody
+			var body bpesvc.BpeTicketRequest
 			if p := bindJSON(c, &body); p != nil {
 				return sendProblem(c, p)
 			}

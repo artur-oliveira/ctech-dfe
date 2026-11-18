@@ -19,7 +19,7 @@ function BpeEmitContent() {
           </div>
           <h1 className="text-2xl font-semibold text-gray-900">Emitir BP-e</h1>
           <p className="text-gray-500 text-sm mt-0.5">
-            Escolha o tipo de bilhete e preencha a viagem, os valores e o pagamento. O servidor calcula totais, troco e tributos.
+            Escolha o tipo de bilhete, a linha e informe data, poltrona, valores e pagamento. O percurso e o imposto vêm do cadastro de linhas; o servidor calcula totais, troco e tributos.
           </p>
         </div>
         <RequireFiscalConfig variant="bpe">

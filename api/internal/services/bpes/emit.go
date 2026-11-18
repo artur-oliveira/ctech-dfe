@@ -31,8 +31,29 @@ type emission struct {
 	record       func(pk, accessKey, orgPK string, orgItem map[string]types.AttributeValue, number, serie int, now time.Time, body map[string]any, userID, userName string) map[string]any
 }
 
+// Emit resolve a linha e as pessoas que o pedido aponta (ResolveTicket) e emite o bilhete comum ou o TA.
+func (s *BpeService) Emit(ctx context.Context, orgPK string, req BpeTicketRequest, userID, userName string) (map[string]types.AttributeValue, error) {
+	variant, normal, ta, err := s.ResolveTicket(ctx, orgPK, req)
+	if err != nil {
+		return nil, err
+	}
+	if variant == VariantTA {
+		return s.emitTA(ctx, orgPK, ta, userID, userName)
+	}
+	return s.emitNormal(ctx, orgPK, normal, userID, userName)
+}
+
+// EmitTM resolve as linhas do TM (ResolveTM) e emite o bilhete metropolitano.
+func (s *BpeService) EmitTM(ctx context.Context, orgPK string, req BpeTMRequest, userID, userName string) (map[string]types.AttributeValue, error) {
+	body, err := s.ResolveTM(ctx, orgPK, req)
+	if err != nil {
+		return nil, err
+	}
+	return s.emitTM(ctx, orgPK, body, userID, userName)
+}
+
 // Emit emite o BP-e comum (modelos rodoviário, aquaviário e ferroviário). A variante TM tem corpo próprio: EmitTM.
-func (s *BpeService) Emit(ctx context.Context, orgPK string, req BpeEmitBody, userID, userName string) (map[string]types.AttributeValue, error) {
+func (s *BpeService) emitNormal(ctx context.Context, orgPK string, req BpeEmitBody, userID, userName string) (map[string]types.AttributeValue, error) {
 	if req.Variant != "" && req.Variant != VariantNormal {
 		return nil, problem.BadRequest("a variante " + req.Variant + " do BP-e ainda não está disponível para emissão por este corpo")
 	}
@@ -54,7 +75,7 @@ func (s *BpeService) Emit(ctx context.Context, orgPK string, req BpeEmitBody, us
 }
 
 // EmitTM emite o BP-e TM (transporte metropolitano), com serviço de recepção e leiaute próprios.
-func (s *BpeService) EmitTM(ctx context.Context, orgPK string, req BpeTMEmitBody, userID, userName string) (map[string]types.AttributeValue, error) {
+func (s *BpeService) emitTM(ctx context.Context, orgPK string, req BpeTMEmitBody, userID, userName string) (map[string]types.AttributeValue, error) {
 	if err := validateTMBody(req); err != nil {
 		return nil, err
 	}
@@ -70,7 +91,7 @@ func (s *BpeService) EmitTM(ctx context.Context, orgPK string, req BpeTMEmitBody
 }
 
 // EmitTA emite o BP-e TA (transporte aéreo), com serviço de recepção e leiaute próprios (BPeRecepcaoTA, só SVRS).
-func (s *BpeService) EmitTA(ctx context.Context, orgPK string, req BpeTAEmitBody, userID, userName string) (map[string]types.AttributeValue, error) {
+func (s *BpeService) emitTA(ctx context.Context, orgPK string, req BpeTAEmitBody, userID, userName string) (map[string]types.AttributeValue, error) {
 	if err := validateTABody(req, uftz.Now(taYearUF).Year()); err != nil {
 		return nil, err
 	}

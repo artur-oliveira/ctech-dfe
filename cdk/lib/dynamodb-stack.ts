@@ -41,6 +41,7 @@ export type TableName = (
   'reference_documents' |
   'nfcom_subscribers' |
   'nfcom_plans' |
+  'bpe_lines' |
   'nfes' |
   'nfces' |
   'ctes' |
@@ -740,6 +741,8 @@ export class DynamoDBStack extends cdk.Stack {
       this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'nfcom_subscribers'));
     this.tables.set('nfcom_plans', getOrgEntityTable(
       this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'nfcom_plans'));
+    this.tables.set('bpe_lines', getOrgEntityTable(
+      this, removalPolicy, pointInTimeRecoverySpecification, tablePrefix, 'bpe_lines'));
 
     // ============== CONFIGURATION TABLES ==============
 

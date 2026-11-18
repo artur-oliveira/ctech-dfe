@@ -1,6 +1,7 @@
 'use client';
 
-import {useState} from 'react';
+import {useEffect, useState} from 'react';
+import Link from 'next/link';
 import {useFieldArray, useForm, useWatch} from 'react-hook-form';
 import {zodResolver} from '@hookform/resolvers/zod';
 import {useRouter} from 'next/navigation';
@@ -10,17 +11,30 @@ import {EmitError} from '@/components/ui/emit-error';
 import {emitFailure, type EmitFailure} from '@/lib/billing/notice';
 import {Form, FormField, FormItem, FormLabel, FormMessage} from '@/components/ui/form';
 import {Button, Textarea} from '@aoctech/ui';
-import {UF_OPTIONS} from '@/lib/schemas/entity';
-import {bpeTicketSchema, emptyBpeTicket, emptyBpeTrip, toBpeTicketBody, type BpeTicketForm} from '@/lib/schemas/bpe';
+import {Combobox} from '@/components/ui/combobox';
+import {LengthHint} from '@/components/ui/length-hint';
+import {OptionsSelect} from '@/components/ui/options-select';
+import {bpeTicketSchema, emptyBpeTicket, emptyBpeTrip, PASSENGER_MODES, toBpeTicketBody, type BpeTicketForm} from '@/lib/schemas/bpe';
 import {
-  BPE_ACCOMMODATIONS, BPE_BUYER_DOC_KINDS, BPE_COMPONENT_TYPES, BPE_COMPONENTS_MAX, BPE_DISCOUNT_TYPES, BPE_DOC_TYPES, BPE_ICMS_OPTIONS, BPE_ICMS_WITH_RATE,
-  BPE_LEG_TYPES, BPE_MODALS, BPE_PAYMENT_OTHER, BPE_PAYMENT_TYPES, BPE_PAYMENTS_MAX, BPE_PRESENCE, BPE_SERVICE_TYPES,
-  BPE_CBS_RATE_FROM_YEAR, BPE_GOV_ENTITIES, BPE_GOV_OPERATIONS, BPE_IBS_RATE_FROM_YEAR, BPE_TA_CLASSES, BPE_TA_NO_TAX_CST,
-  BPE_TA_ACCOMMODATIONS, BPE_TA_COMPONENT_TYPES, BPE_TA_DISCOUNT_TYPES, BPE_TA_SERVICE_TYPES, BPE_TA_TRIP_TYPES, BPE_TRIP_TYPES, BPE_TRIPS_MAX,
+  BPE_COMPONENT_TYPES, BPE_COMPONENTS_MAX, BPE_DISCOUNT_TYPES, BPE_DOC_TYPES, BPE_LEG_TYPES, BPE_PAYMENT_OTHER, BPE_PAYMENT_TYPES,
+  BPE_PAYMENTS_MAX, BPE_PRESENCE, BPE_TA_COMPONENT_TYPES, BPE_TA_DISCOUNT_TYPES, BPE_TRIPS_MAX,
 } from '@/lib/constants/bpe';
-import {MunicipalityField} from '@/components/ui/municipality-field';
 import {bpeFields, GRID, H2, SECTION, SUBCARD} from './fields';
 import {BpeExtraSections, BpePurchaseSection} from './BpeExtraSections';
+import {PersonIdField} from './PersonIdField';
+import {useBpeLines} from './useBpeLines';
+
+const ADDITIONAL_INFO_MAX = 5000;
+const VALIDITY_DAYS = 30;
+const pad = (n: number) => String(n).padStart(2, '0');
+
+/** `datetime-local` de `local` mais `days` dias (o validade sugerido do bilhete). */
+function plusDays(local: string, days: number): string {
+  const d = new Date(local);
+  if (Number.isNaN(d.getTime())) return '';
+  d.setDate(d.getDate() + days);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
 /** Total estimado (o servidor soma os componentes e abate o desconto). */
 function estimate(f: BpeTicketForm): number {
@@ -33,6 +47,7 @@ export function BpeTicketForm({variant}: { variant: 'normal' | 'ta' }) {
   const [submitError, setSubmitError] = useState<EmitFailure | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const ta = variant === 'ta';
+  const {options: lineOptions, isPending: linesPending} = useBpeLines(variant);
 
   const form = useForm<BpeTicketForm>({resolver: zodResolver(bpeTicketSchema), defaultValues: emptyBpeTicket(variant)});
   const trips = useFieldArray({control: form.control, name: 'trips'});
@@ -40,6 +55,14 @@ export function BpeTicketForm({variant}: { variant: 'normal' | 'ta' }) {
   const payments = useFieldArray({control: form.control, name: 'payments'});
   const values = useWatch({control: form.control}) as BpeTicketForm;
   const {text, select} = bpeFields(form.control);
+
+  // Embarque e validade nascem da partida do primeiro trecho (a pessoa ajusta se for diferente).
+  const firstDeparture = values.trips[0]?.departure ?? '';
+  useEffect(() => {
+    if (!firstDeparture) return;
+    if (!form.getValues('boarding')) form.setValue('boarding', firstDeparture);
+    if (!form.getValues('validity')) form.setValue('validity', plusDays(firstDeparture, VALIDITY_DAYS));
+  }, [firstDeparture, form]);
 
   const onInvalid = () => {
     setSubmitError({message: 'Revise os campos destacados antes de emitir o BP-e.'});
@@ -63,92 +86,25 @@ export function BpeTicketForm({variant}: { variant: 'normal' | 'ta' }) {
   const linked = ta && values.purchase_type === 'linked';
   const multiple = ta && values.purchase_type === 'multiple';
   const hasDiscount = Number(values.discount) > 0;
-  const year = new Date().getFullYear();
-  const taClass = BPE_TA_CLASSES.find((c) => c.value === values.tax.class_trib);
-  const taTaxed = taClass !== undefined && taClass.cst !== BPE_TA_NO_TAX_CST;
   const total = estimate(values);
+  const noLines = !linesPending && lineOptions.length === 0;
+  const passengerModes = PASSENGER_MODES.filter((m) => !(ta && !multiple && m.value === 'none') && !(multiple && m.value !== 'none'));
 
   return (
     <Form {...form}>
       <form onSubmit={submit} noValidate className="space-y-6 pb-24">
-        <section className={SECTION} aria-labelledby="bpe-viagem">
-          <h2 id="bpe-viagem" className={H2}>Viagem</h2>
-          <div className={GRID}>
-            {!ta && select('modal', 'Modal', BPE_MODALS)}
-            {select('presence', 'Presença do comprador', BPE_PRESENCE, 'sm:col-span-2')}
+        {noLines && (
+          <div role="status" className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            Cadastre antes <Link href="/bpe-lines/new" className="font-semibold underline">uma linha {ta ? 'de voo' : 'do bilhete comum'}</Link>:
+            a venda só escolhe a linha e informa data, poltrona e valores.
           </div>
-          <div className={GRID}>
-            {select('origin.uf', 'UF de início', UF_OPTIONS)}
-            <MunicipalityField control={form.control} setValue={form.setValue} name="origin.ibge_code" label="Município de início" ufName="origin.uf"/>
-            {select('destination.uf', 'UF de fim', UF_OPTIONS)}
-            <MunicipalityField control={form.control} setValue={form.setValue} name="destination.ibge_code" label="Município de fim" ufName="destination.uf"/>
-          </div>
-          <div className={GRID}>
-            {!ta && text('passage.from_code', 'Código do local de origem')}
-            {!ta && text('passage.from_name', 'Local de origem', {className: 'sm:col-span-1'})}
-            {!ta && text('passage.to_code', 'Código do local de destino')}
-            {!ta && text('passage.to_name', 'Local de destino')}
-            {text('passage.boarding', 'Embarque', {type: 'datetime-local'})}
-            {text('passage.validity', 'Validade do bilhete', {type: 'datetime-local'})}
-          </div>
-        </section>
-
-        {ta && <BpePurchaseSection control={form.control} purchase={values.purchase_type}/>}
-
-        {!multiple && <section className={SECTION} aria-labelledby="bpe-passageiro">
-          <h2 id="bpe-passageiro" className={H2}>Passageiro</h2>
-          {ta ? (
-            <p className="text-xs text-gray-500">O TA exige a identificação do passageiro.</p>
-          ) : (
-            <FormField control={form.control} name="passage.identified" render={({field}) => (
-              <label className="flex items-center gap-2 text-sm text-gray-700">
-                <input type="checkbox" checked={field.value} onChange={(e) => field.onChange(e.target.checked)}/>
-                Identificar o passageiro (obrigatório em viagem interestadual e com desconto)
-              </label>
-            )}/>
-          )}
-          {values.passage.identified && (
-            <div className={GRID}>
-              {text('passage.passenger.name', 'Nome', {className: 'sm:col-span-2'})}
-              {select('passage.passenger.doc_type', 'Documento', BPE_DOC_TYPES)}
-              {text('passage.passenger.doc_number', 'Número do documento')}
-            </div>
-          )}
-        </section>}
-
-        <BpeExtraSections control={form.control} values={values} ta={ta}/>
-
-        <section className={SECTION} aria-labelledby="bpe-comprador">
-          <h2 id="bpe-comprador" className={H2}>Comprador</h2>
-          <FormField control={form.control} name="buyer.enabled" render={({field}) => (
-            <label className="flex items-center gap-2 text-sm text-gray-700">
-              <input type="checkbox" checked={field.value} onChange={(e) => field.onChange(e.target.checked)}/>
-              {multiple ? 'Informar o comprador (obrigatório no BP-e múltiplo)' : 'Informar o comprador (opcional; quem pagou o bilhete)'}
-            </label>
-          )}/>
-          {values.buyer.enabled && (
-            <div className={GRID}>
-              {text('buyer.name', 'Nome ou razão social', {className: 'sm:col-span-2'})}
-              {select('buyer.doc_kind', 'Documento', BPE_BUYER_DOC_KINDS)}
-              {text('buyer.document', 'Número do documento')}
-              {text('buyer.ie', 'Inscrição estadual')}
-              {text('buyer.street', 'Logradouro', {className: 'sm:col-span-2'})}
-              {text('buyer.number', 'Número')}
-              {text('buyer.complement', 'Complemento')}
-              {text('buyer.neighborhood', 'Bairro')}
-              <MunicipalityField control={form.control} setValue={form.setValue} name="buyer.ibge_code" label="Município"
-                                 ufName="buyer.uf" cityName="buyer.city"/>
-              {select('buyer.uf', 'UF', UF_OPTIONS)}
-              {text('buyer.postal_code', 'CEP', {inputMode: 'numeric'})}
-            </div>
-          )}
-        </section>
+        )}
 
         <section className={SECTION} aria-labelledby="bpe-trechos">
           <div className="flex items-center justify-between gap-3">
             <h2 id="bpe-trechos" className={H2}>{ta ? 'Voos' : 'Trechos'}</h2>
             <Button type="button" variant="outline" size="sm" disabled={trips.fields.length >= BPE_TRIPS_MAX}
-                    onClick={() => trips.append(emptyBpeTrip(variant))}>{ta ? '+ Adicionar voo' : '+ Adicionar trecho'}</Button>
+                    onClick={() => trips.append(emptyBpeTrip())}>{ta ? '+ Adicionar voo' : '+ Adicionar trecho'}</Button>
           </div>
           {trips.fields.map((f, i) => (
             <div key={f.id} className={SUBCARD}>
@@ -157,33 +113,66 @@ export function BpeTicketForm({variant}: { variant: 'normal' | 'ta' }) {
                 {trips.fields.length > 1 && <Button type="button" variant="ghost" size="sm" className="text-danger" onClick={() => trips.remove(i)}>Remover</Button>}
               </div>
               <div className={GRID}>
-                {ta ? (
-                  <>
-                    {text(`trips.${i}.flight_number`, 'Número do voo')}
-                    {text(`trips.${i}.carrier`, 'Companhia (sigla)', {maxLength: 3})}
-                    {text(`trips.${i}.from_airport`, 'Aeroporto de origem', {maxLength: 4})}
-                    {text(`trips.${i}.to_airport`, 'Aeroporto de destino', {maxLength: 4})}
-                  </>
-                ) : (
-                  <>
-                    {text(`trips.${i}.route_code`, 'Código da linha')}
-                    {text(`trips.${i}.route_name`, 'Linha (percurso)', {className: 'sm:col-span-2'})}
-                    {text(`trips.${i}.prefix`, 'Prefixo')}
-                  </>
-                )}
-                {select(`trips.${i}.trip_type`, 'Tipo de viagem', ta ? BPE_TA_TRIP_TYPES : BPE_TRIP_TYPES)}
-                {select(`trips.${i}.service_type`, 'Serviço', ta ? BPE_TA_SERVICE_TYPES : BPE_SERVICE_TYPES)}
-                {select(`trips.${i}.accommodation`, 'Acomodação', ta ? BPE_TA_ACCOMMODATIONS : BPE_ACCOMMODATIONS)}
+                <FormField control={form.control} name={`trips.${i}.line_id`} render={({field}) => (
+                  <FormItem className="sm:col-span-2">
+                    <FormLabel>Linha *</FormLabel>
+                    <Combobox id={field.name} value={field.value} onValueChange={field.onChange} options={lineOptions}
+                              placeholder={linesPending ? 'Carregando…' : 'Selecione a linha…'} searchPlaceholder="Digite o nome da linha…"/>
+                    <FormMessage/>
+                  </FormItem>
+                )}/>
                 {select(`trips.${i}.leg_type`, 'Tipo de trecho', BPE_LEG_TYPES)}
-                {text(`trips.${i}.departure`, 'Partida', {type: 'datetime-local'})}
-                {values.trips[i]?.leg_type === '3' && text(`trips.${i}.connection`, 'Conexão', {type: 'datetime-local'})}
+                {text(`trips.${i}.departure`, 'Partida *', {type: 'datetime-local'})}
+                {values.trips[i]?.leg_type === '3' && text(`trips.${i}.connection`, 'Conexão *', {type: 'datetime-local'})}
                 {!ta && text(`trips.${i}.seat`, 'Poltrona', {inputMode: 'numeric', maxLength: 3})}
-                {!ta && text(`trips.${i}.platform`, 'Plataforma')}
+                {!ta && text(`trips.${i}.platform`, 'Plataforma', {maxLength: 20})}
               </div>
             </div>
           ))}
           {form.formState.errors.trips?.message && <p className="text-sm text-danger">{form.formState.errors.trips.message}</p>}
         </section>
+
+        <section className={SECTION} aria-labelledby="bpe-viagem">
+          <h2 id="bpe-viagem" className={H2}>Embarque</h2>
+          <div className={GRID}>
+            {select('presence', 'Presença do comprador', BPE_PRESENCE, 'sm:col-span-2')}
+            {text('boarding', 'Embarque *', {type: 'datetime-local'})}
+            {text('validity', 'Validade do bilhete *', {type: 'datetime-local'})}
+          </div>
+        </section>
+
+        {ta && <BpePurchaseSection control={form.control} purchase={values.purchase_type}/>}
+
+        <section className={SECTION} aria-labelledby="bpe-passageiro">
+          <h2 id="bpe-passageiro" className={H2}>Passageiro</h2>
+          {multiple ? (
+            <p className="text-xs text-gray-500">O BP-e múltiplo não identifica passageiro.</p>
+          ) : (
+            <>
+              <FormField control={form.control} name="passenger.mode" render={({field}) => (
+                <FormItem className="max-w-md">
+                  <FormLabel>Identificação</FormLabel>
+                  <OptionsSelect id={field.name} value={field.value} onValueChange={field.onChange} options={[...passengerModes]}/>
+                  <FormMessage/>
+                </FormItem>
+              )}/>
+              {values.passenger.mode === 'avulso' && (
+                <div className={GRID}>
+                  {text('passenger.name', 'Nome *', {className: 'sm:col-span-2', maxLength: 60})}
+                  {select('passenger.doc_type', 'Documento *', BPE_DOC_TYPES)}
+                  {text('passenger.doc_number', 'Número do documento *', {maxLength: 20})}
+                </div>
+              )}
+              {values.passenger.mode === 'person' && (
+                <PersonIdField control={form.control} setValue={form.setValue} name="passenger.person_id" label="Pessoa *" className="max-w-xl"
+                               hint="Pessoa física; o CPF vai como documento do passageiro."/>
+              )}
+              {values.passenger.mode === 'none' && <p className="text-xs text-gray-500">Obrigatório em viagem interestadual e com desconto.</p>}
+            </>
+          )}
+        </section>
+
+        <BpeExtraSections control={form.control} setValue={form.setValue} values={values} ta={ta}/>
 
         {!linked && <section className={SECTION} aria-labelledby="bpe-valores">
           <div className="flex items-center justify-between gap-3">
@@ -201,8 +190,8 @@ export function BpeTicketForm({variant}: { variant: 'normal' | 'ta' }) {
           <div className={GRID}>
             {text('discount', 'Desconto (R$)', {inputMode: 'decimal'})}
             {hasDiscount && select('discount_type', 'Tipo do desconto', ta ? BPE_TA_DISCOUNT_TYPES : BPE_DISCOUNT_TYPES, 'sm:col-span-2')}
-            {hasDiscount && text('discount_desc', 'Descrição do desconto')}
-            {hasDiscount && values.discount_type === '99' && text('discount_code', 'Código do desconto')}
+            {hasDiscount && text('discount_desc', 'Descrição do desconto', {maxLength: 100})}
+            {hasDiscount && values.discount_type === '99' && text('discount_code', 'Código do desconto', {maxLength: 20})}
           </div>
         </section>}
 
@@ -216,92 +205,21 @@ export function BpeTicketForm({variant}: { variant: 'normal' | 'ta' }) {
             <div key={f.id} className={`${GRID} items-end`}>
               {select(`payments.${i}.type`, 'Forma', BPE_PAYMENT_TYPES, 'sm:col-span-2')}
               {text(`payments.${i}.value`, 'Valor (R$)', {inputMode: 'decimal'})}
-              {values.payments[i]?.type === BPE_PAYMENT_OTHER && text(`payments.${i}.desc`, 'Descrição')}
+              {values.payments[i]?.type === BPE_PAYMENT_OTHER && text(`payments.${i}.desc`, 'Descrição', {maxLength: 60})}
               {payments.fields.length > 1 && <Button type="button" variant="ghost" size="sm" className="text-danger justify-self-start" onClick={() => payments.remove(i)}>Remover</Button>}
             </div>
           ))}
           {form.formState.errors.payments?.message && <p className="text-sm text-danger">{form.formState.errors.payments.message}</p>}
         </section>}
 
-        <section className={SECTION} aria-labelledby="bpe-imposto">
-          <h2 id="bpe-imposto" className={H2}>{linked ? 'Informações adicionais' : ta ? 'Imposto (IBS e CBS)' : 'Imposto (ICMS)'}</h2>
-          {linked ? null : ta ? (
-            <>
-              <div className={GRID}>
-                {select('tax.class_trib', 'Classificação tributária', BPE_TA_CLASSES, 'sm:col-span-2 lg:col-span-3')}
-                {text('iata_number', 'Número do bilhete na IATA')}
-                {taTaxed && year >= BPE_IBS_RATE_FROM_YEAR && text('tax.ibs_uf_rate', 'Alíquota do IBS da UF (%)', {inputMode: 'decimal'})}
-                {taTaxed && year >= BPE_IBS_RATE_FROM_YEAR && text('tax.ibs_mun_rate', 'Alíquota do IBS do município (%)', {inputMode: 'decimal'})}
-                {taTaxed && year >= BPE_CBS_RATE_FROM_YEAR && text('tax.cbs_rate', 'Alíquota da CBS (%)', {inputMode: 'decimal'})}
-                {text('tax.total_taxes', 'Total aproximado de tributos (R$)', {inputMode: 'decimal'})}
-              </div>
-              {taClass && taClass.donation !== 0 && (
-                <FormField control={form.control} name="tax.donation" render={({field}) => (
-                  <label className="flex items-center gap-2 text-sm text-gray-700">
-                    <input type="checkbox" checked={field.value} onChange={(e) => field.onChange(e.target.checked)}/>
-                    Operação de doação{taClass.donation === 1 ? ' (obrigatório nesta classificação)' : ''}
-                  </label>
-                )}/>
-              )}
-              {taClass?.reversal && (
-                <div className={GRID}>
-                  {text('tax.reversal.ibs', 'IBS estornado (R$)', {inputMode: 'decimal'})}
-                  {text('tax.reversal.cbs', 'CBS estornada (R$)', {inputMode: 'decimal'})}
-                </div>
-              )}
-              {taTaxed && (
-                <>
-                  <FormField control={form.control} name="tax.government.enabled" render={({field}) => (
-                    <label className="flex items-center gap-2 text-sm text-gray-700">
-                      <input type="checkbox" checked={field.value} onChange={(e) => field.onChange(e.target.checked)}/>
-                      Compra governamental
-                    </label>
-                  )}/>
-                  {values.tax.government.enabled && (
-                    <div className={SUBCARD}>
-                      <div className={GRID}>
-                        {select('tax.government.entity', 'Ente comprador', BPE_GOV_ENTITIES)}
-                        {select('tax.government.operation', 'Tipo da operação', BPE_GOV_OPERATIONS, 'sm:col-span-2')}
-                        {text('tax.government.reducer', 'Redutor da compra governamental (%)', {inputMode: 'decimal'})}
-                      </div>
-                      {['2', '3'].includes(values.tax.government.operation) && text('tax.government.references', 'Chave de acesso do DFe anterior (uma por linha ou separadas por espaço)')}
-                    </div>
-                  )}
-                  <div className={GRID}>
-                    {text('tax.devolution.ibs_uf', 'Devolução de IBS da UF (R$)', {inputMode: 'decimal'})}
-                    {text('tax.devolution.ibs_mun', 'Devolução de IBS do município (R$)', {inputMode: 'decimal'})}
-                    {text('tax.devolution.cbs', 'Devolução de CBS (R$)', {inputMode: 'decimal'})}
-                  </div>
-                </>
-              )}
-              <FormField control={form.control} name="tax.simples.enabled" render={({field}) => (
-                <label className="flex items-center gap-2 text-sm text-gray-700">
-                  <input type="checkbox" checked={field.value} onChange={(e) => field.onChange(e.target.checked)}/>
-                  Emitente optante do Simples Nacional (grupo de composição do IBS e da CBS)
-                </label>
-              )}/>
-              {values.tax.simples.enabled && (
-                <div className={GRID}>
-                  {text('tax.simples.ibs_rate', 'Alíquota efetiva do IBS (%)', {inputMode: 'decimal'})}
-                  {text('tax.simples.cbs_rate', 'Alíquota efetiva da CBS (%)', {inputMode: 'decimal'})}
-                </div>
-              )}
-              {text('tax.fiscal_info', 'Informações adicionais de interesse do Fisco')}
-              <p className="text-xs text-gray-500">
-                A classificação vem da tabela oficial e define o CST. As alíquotas de IBS e CBS fixadas em lei (2026 a 2028 para o IBS e 2026 para a CBS)
-                são aplicadas pelo servidor, sobre o total pago, junto com a redução da classe, o redutor e o valor total do documento.
-              </p>
-            </>
-          ) : (
-            <div className={GRID}>
-              {select('icms.cst', 'Situação do ICMS', BPE_ICMS_OPTIONS, 'sm:col-span-2')}
-              {BPE_ICMS_WITH_RATE.includes(values.icms.cst) && text('icms.rate', 'Alíquota do ICMS (%)', {inputMode: 'decimal'})}
-            </div>
-          )}
+        <section className={SECTION} aria-labelledby="bpe-adicional">
+          <h2 id="bpe-adicional" className={H2}>Informações adicionais</h2>
+          {ta && !linked && text('iata_number', 'Número do bilhete na IATA', {maxLength: 20})}
           <FormField control={form.control} name="additional_info" render={({field}) => (
             <FormItem>
-              <FormLabel>Informações adicionais</FormLabel>
-              <Textarea {...field} id={field.name} rows={3} maxLength={5000}/>
+              <FormLabel>Texto livre</FormLabel>
+              <Textarea {...field} id={field.name} rows={3} maxLength={ADDITIONAL_INFO_MAX}/>
+              <LengthHint value={field.value} max={ADDITIONAL_INFO_MAX}/>
               <FormMessage/>
             </FormItem>
           )}/>
@@ -313,7 +231,7 @@ export function BpeTicketForm({variant}: { variant: 'normal' | 'ta' }) {
           <p className="text-sm text-gray-600">Total estimado R$ {total.toFixed(2).replace('.', ',')}</p>
           <div className="flex gap-2">
             <Button type="button" variant="outline" onClick={() => router.push('/bpe')}>Cancelar</Button>
-            <Button type="submit" variant="brand" disabled={isSubmitting}>{isSubmitting ? 'Enviando…' : 'Emitir BP-e'}</Button>
+            <Button type="submit" variant="brand" disabled={isSubmitting || noLines}>{isSubmitting ? 'Enviando…' : 'Emitir BP-e'}</Button>
           </div>
         </div>
       </form>

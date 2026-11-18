@@ -83,6 +83,7 @@ var Module = fx.Options(
 		repositories.NewReferenceDocumentRepository,
 		repositories.NewNfcomSubscriberRepository,
 		repositories.NewNfcomPlanRepository,
+		repositories.NewBpeLineRepository,
 		repositories.NewFuelPumpRepository,
 		repositories.NewVehicleSetRepository,
 		repositories.NewPersonRepository,
@@ -139,6 +140,7 @@ var Module = fx.Options(
 		newReferenceDocumentService,
 		newNfcomSubscriberService,
 		newNfcomPlanService,
+		newBpeLineService,
 		newFuelPumpService,
 		newVehicleSetService,
 		newPersonService,
@@ -366,6 +368,10 @@ func newNfcomSubscriberService(repo *repositories.NfcomSubscriberRepository, aud
 	return services.NewNfcomSubscriberService(repo, auditRepo, c)
 }
 
+func newBpeLineService(repo *repositories.BpeLineRepository, auditRepo *repositories.AuditLogRepository, c cache.Backend) *services.BpeLineService {
+	return services.NewBpeLineService(repo, auditRepo, c)
+}
+
 func newNfcomPlanService(repo *repositories.NfcomPlanRepository, auditRepo *repositories.AuditLogRepository, c cache.Backend) *services.NfcomPlanService {
 	return services.NewNfcomPlanService(repo, auditRepo, c)
 }
@@ -590,6 +596,8 @@ func newBPeService(
 	certRepo *repositories.CertificateRepository,
 	configRepo *repositories.BpeConfigRepository,
 	bpeRepo *repositories.BpeRepository,
+	personRepo *repositories.PersonRepository,
+	lineRepo *repositories.BpeLineRepository,
 	clients *awsclient.Clients,
 	workerSvc *services.WorkerService,
 	db *dynamodb.Client,
@@ -600,7 +608,7 @@ func newBPeService(
 ) *bpesvc.BpeService {
 	eventRepo := repositories.NewDocumentEventRepository(db, cfg, "bpe")
 	return bpesvc.NewBpeService(
-		orgRepo, certRepo, configRepo, bpeRepo, eventRepo,
+		orgRepo, certRepo, configRepo, bpeRepo, eventRepo, personRepo, lineRepo,
 		clients, workerSvc, billingSvc, documentSvc, cfg.S3BucketDocuments,
 		bpesvc.TechData{
 			CNPJ:    cfg.TechnicalCNPJ,
@@ -698,6 +706,7 @@ type Services struct {
 	RefDocSvc       *services.ReferenceDocumentService
 	NfcomSubSvc     *services.NfcomSubscriberService
 	NfcomPlanSvc    *services.NfcomPlanService
+	BpeLineSvc      *services.BpeLineService
 	FuelPumpSvc     *services.FuelPumpService
 	VehSetSvc       *services.VehicleSetService
 	PersonSvc       *services.PersonService
@@ -757,6 +766,7 @@ func registerRoutes(app *fiber.App, svcs Services) {
 		ReferenceDoc:    svcs.RefDocSvc,
 		NfcomSubscriber: svcs.NfcomSubSvc,
 		NfcomPlan:       svcs.NfcomPlanSvc,
+		BpeLine:         svcs.BpeLineSvc,
 		FuelPump:        svcs.FuelPumpSvc,
 		VehicleSet:      svcs.VehSetSvc,
 		Person:          svcs.PersonSvc,

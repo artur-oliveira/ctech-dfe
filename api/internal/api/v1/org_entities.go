@@ -2,6 +2,7 @@ package v1
 
 import (
 	"context"
+	bpesvc "gopkg.aoctech.app/dfe/api/internal/services/bpes"
 
 	"gopkg.aoctech.app/api-commons/problem"
 	"gopkg.aoctech.app/dfe/api/internal/middleware"
@@ -283,6 +284,18 @@ func RegisterNfcomPlans(router fiber.Router, svc *services.NfcomPlanService, use
 		resource:   "organization_nfcom_plans",
 		bindCreate: bindValidatedCreate[NfcomPlanBody],
 		bindUpdate: bindValidatedUpdate[NfcomPlanBody],
+	})
+}
+
+// RegisterBpeLines mounts /bpe-lines under a tenant-scoped group.
+func RegisterBpeLines(router fiber.Router, svc *services.BpeLineService, userSvc *services.UserService,
+	authMw fiber.Handler, perm *middleware.PermChecker) {
+	mountOrgEntity(router, authMw, perm, userSvc, svc, orgEntityRoutes{
+		path:       "/bpe-lines",
+		param:      "bpe_line_id",
+		resource:   "organization_bpe_lines",
+		bindCreate: bindValidatedCreate[bpesvc.BpeLine],
+		bindUpdate: bindValidatedUpdate[bpesvc.BpeLine],
 	})
 }
 

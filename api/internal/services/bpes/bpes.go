@@ -68,11 +68,14 @@ type dfeCaller = services.EgressCaller
 
 // BpeService manages the BPe lifecycle.
 type BpeService struct {
-	orgRepo     *repositories.OrganizationRepository
-	certRepo    *repositories.CertificateRepository
-	configRepo  *repositories.BpeConfigRepository
-	bpeRepo     *repositories.BpeRepository
-	eventRepo   *repositories.DocumentEventRepository
+	orgRepo    *repositories.OrganizationRepository
+	certRepo   *repositories.CertificateRepository
+	configRepo *repositories.BpeConfigRepository
+	bpeRepo    *repositories.BpeRepository
+	eventRepo  *repositories.DocumentEventRepository
+	// Cadastros que a emissão resolve: a linha de cada trecho e as pessoas (comprador, agência, passageiro).
+	personRepo  *repositories.PersonRepository
+	lineRepo    *repositories.BpeLineRepository
 	clients     *awsclient.Clients
 	workerSvc   *services.WorkerService
 	billingSvc  *services.BillingService
@@ -88,6 +91,8 @@ func NewBpeService(
 	configRepo *repositories.BpeConfigRepository,
 	bpeRepo *repositories.BpeRepository,
 	eventRepo *repositories.DocumentEventRepository,
+	personRepo *repositories.PersonRepository,
+	lineRepo *repositories.BpeLineRepository,
 	clients *awsclient.Clients,
 	workerSvc *services.WorkerService,
 	billingSvc *services.BillingService,
@@ -102,6 +107,7 @@ func NewBpeService(
 	}
 	return &BpeService{
 		orgRepo: orgRepo, certRepo: certRepo, configRepo: configRepo, bpeRepo: bpeRepo, eventRepo: eventRepo,
+		personRepo: personRepo, lineRepo: lineRepo,
 		clients: clients, workerSvc: workerSvc, billingSvc: billingSvc, documentSvc: documentSvc,
 		bucketDocs: bucketDocs, tech: tech, egress: egress,
 	}

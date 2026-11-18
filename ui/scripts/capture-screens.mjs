@@ -350,6 +350,7 @@ const CAPTURES = [
   },
   {slug: 'bpe-list', route: '/bpe', waitText: 'São Paulo para Rio de Janeiro'},
   {slug: 'bpe-emit', route: '/bpe/emit', waitText: 'Tipo de bilhete'},
+  {slug: 'bpe-lines', route: '/bpe-lines', waitText: 'SP x RJ'},
   {slug: 'bpe-detail', route: `/bpe/detail?key=${BPE_KEY}`, waitText: 'Maria Souza'},
   {
     slug: 'bpe-payment-link',
