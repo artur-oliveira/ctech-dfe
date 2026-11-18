@@ -40,7 +40,13 @@ func run(out interface{ Write([]byte) (int, error) }, env string, rotate bool) e
 		return err
 	}
 	prefix := fmt.Sprintf(paramPrefix, env)
-	w := func(format string, a ...any) { fmt.Fprintf(out, format, a...) }
+	// The first write error is kept and returned: a broken pipe must not look like a printed key pair.
+	var werr error
+	w := func(format string, a ...any) {
+		if werr == nil {
+			_, werr = fmt.Fprintf(out, format, a...)
+		}
+	}
 	w("# VAPID key pair %s for %s. Review, then run the commands below. Nothing has been written.\n", key.KID, env)
 	w("# The private key is printed once and not kept anywhere else: store it or discard this output.\n\n")
 	if rotate {
@@ -52,5 +58,5 @@ func run(out interface{ Write([]byte) (int, error) }, env string, rotate bool) e
 	w("aws ssm put-parameter --type SecureString --overwrite --name %svapid-private-key --value '%s'\n", prefix, strings.TrimSpace(pem))
 	w("aws ssm put-parameter --type String --overwrite --name %svapid-public-key --value '%s'\n", prefix, key.PublicBase64URL())
 	w("\n# The API reads the public key at start (restart it); the sender reads all of them on its next cold start.\n")
-	return nil
+	return werr
 }

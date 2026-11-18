@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"strings"
 	"testing"
 )
@@ -44,6 +45,17 @@ func TestRunRefusesABadEnvironment(t *testing.T) {
 		if err := run(&bytes.Buffer{}, env, false); err == nil {
 			t.Errorf("env %q must be refused (it is interpolated into a shell command)", env)
 		}
+	}
+}
+
+type brokenPipe struct{}
+
+func (brokenPipe) Write([]byte) (int, error) { return 0, errors.New("broken pipe") }
+
+// A write that fails must not look like a printed key pair: the operator would believe the commands were shown.
+func TestRunReturnsTheWriteError(t *testing.T) {
+	if err := run(brokenPipe{}, "dev", false); err == nil {
+		t.Error("a failing writer must fail the run")
 	}
 }
 
