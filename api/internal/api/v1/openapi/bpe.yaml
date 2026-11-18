@@ -9,8 +9,8 @@ paths:
       description: |
         Bilhete de Passagem Eletrônico (modelo 63) comum (rodoviário, aquaviário ou ferroviário) ou TM (transporte
         metropolitano, `tpBPe` 4, serviço `BPeRecepcaoTM`, credenciamento específico) ou TA (transporte aéreo, modal 2,
-        só SVRS, credenciamento específico, só compra normal). Com `variant` `tm` o corpo é o `BpeTmEmitBody` e com `ta` o
-        `BpeTaEmitBody`; o TA usa IBS/CBS no lugar do ICMS e o servidor calcula `vTotDFe`. A autorização é síncrona (`BPeRecepcao`, sem lote) e passa pelo outbox: a
+        só SVRS, credenciamento específico, só compra normal). Comum e TA usam o `BpeEmitBody` e o TM o `BpeTmEmitBody`: a venda
+        aponta as linhas do cadastro (`/bpe-lines`) por id e informa só o que varia; o TA usa IBS/CBS no lugar do ICMS e o servidor calcula `vTotDFe`. A autorização é síncrona (`BPeRecepcao`, sem lote) e passa pelo outbox: a
         resposta é 201 com o bilhete `pending` e o resultado chega por WebSocket e por webhook (`document_type` `bpe`).
 
         O servidor monta o documento: chave de acesso, `vBP` (soma dos componentes), `vPgto` (`vBP` menos o desconto),
@@ -40,8 +40,7 @@ paths:
               oneOf:
                 - $ref: '#/components/schemas/BpeEmitBody'
                 - $ref: '#/components/schemas/BpeTmEmitBody'
-                - $ref: '#/components/schemas/BpeTaEmitBody'
-              description: '`variant` escolhe o corpo: `normal` (padrão), `tm` ou `ta`.'
+              description: '`variant` escolhe o corpo: `normal` (padrão) e `ta` usam `BpeEmitBody`; `tm` usa `BpeTmEmitBody`.'
 
       responses:
         '201':
@@ -429,20 +428,31 @@ components:
 
     BpeEmitBody:
       type: object
-      required: [ modal, presence, origin, destination, passage, trips, components, payments, icms ]
+      description: |
+        Venda do bilhete comum (`variant` `normal`, o padrão) ou do TA (`variant` `ta`). A linha de cada trecho vem do
+        cadastro (`/bpe-lines`): percurso, serviço, acomodação, prefixo, locais e imposto (ICMS no comum, IBS/CBS no TA). A
+        venda informa data e hora, poltrona, valores, pagamento e o passageiro. O passageiro avulso (nome e documento direto)
+        é o caminho principal; `passenger_person_id` usa uma pessoa física do cadastro (o CPF vai como documento). Comprador e
+        agência são pessoas do cadastro (`buyer_person_id`, `agency_person_id`; a agência é pessoa jurídica).
+      required: [ presence, trips, boarding, validity ]
       properties:
-        variant: { type: string, enum: [ normal, tm, ta ], description: 'Padrão `normal`; `tm` e `ta` têm corpos próprios.' }
-        modal: { type: string, enum: [ rodoviario, aquaviario, ferroviario ] }
+        variant: { type: string, enum: [ normal, ta ], description: 'Padrão `normal`; as linhas de todos os trechos devem ser dessa variante.' }
         presence: { type: string, enum: [ '1', '2', '3', '4', '5', '9' ], description: '`indPres`: 1 presencial, 2 internet, 3 teleatendimento, 4 entrega em domicílio, 5 presencial fora do estabelecimento, 9 outros.' }
-        origin: { $ref: '#/components/schemas/BpePlace' }
-        destination: { $ref: '#/components/schemas/BpePlace' }
-        buyer: { $ref: '#/components/schemas/BpeBuyer' }
-        passage: { $ref: '#/components/schemas/BpePassage' }
         trips:
           type: array
           minItems: 1
           maxItems: 20
-          items: { $ref: '#/components/schemas/BpeTrip' }
+          items: { $ref: '#/components/schemas/BpeTripRequest' }
+        boarding: { type: string, format: date-time, description: Embarque (`dhEmb`), com fuso. }
+        validity: { type: string, format: date-time, description: Validade (`dhValidade`), não anterior ao embarque. }
+        passenger: { $ref: '#/components/schemas/BpePassenger' }
+        passenger_person_id: { type: string, pattern: '^[A-Za-z0-9._/-]{1,60}$', description: 'Pessoa física do cadastro (`CPF_...`) como passageiro; exclui `passenger`.' }
+        buyer_person_id: { type: string, pattern: '^[A-Za-z0-9._/-]{1,60}$', description: Comprador (pessoa do cadastro com endereço completo). }
+        agency_person_id: { type: string, pattern: '^[A-Za-z0-9._/-]{1,60}$', description: Agência (pessoa jurídica do cadastro com endereço completo). }
+        purchase_type: { type: string, enum: [ normal, multiple, linked ], description: 'Só no TA: compra normal, BP-e múltiplo (fretamento, sem passageiro e com comprador) ou vinculado a um múltiplo (`multiple_key`, sem valores, imposto nem pagamento).' }
+        multiple_key: { type: string, minLength: 44, maxLength: 44 }
+        iata_number: { type: string, pattern: '^[A-Za-z0-9._/-]{1,20}$', description: Só no TA; número do bilhete na IATA. }
+        substitution: { $ref: '#/components/schemas/BpeSubstitution' }
         components:
           type: array
           minItems: 1
@@ -451,12 +461,12 @@ components:
             type: object
             required: [ type, value ]
             properties:
-              type: { type: string, enum: [ '01', '02', '03', '04', '05', '06', '99' ], description: '`tpComp`: 01 tarifa, 02 pedágio, 03 taxa de embarque, 04 seguro, 05 TMR, 06 SCT, 99 outros.' }
-              value: { type: string }
+              type: { type: string, enum: [ '01', '02', '03', '04', '05', '06', '07', '08', '99' ], description: '`tpComp`; no comum 01 a 06 e 99, no TA 01, 03, 06, 07, 08 e 99.' }
+              value: { type: string, description: Decimal não negativo. }
         discount: { type: string, description: Decimal não negativo; com desconto maior que zero o tipo e a descrição são obrigatórios. }
-        discount_type: { type: string, enum: [ '01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13', '99' ] }
+        discount_type: { type: string, enum: [ '01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13', '99' ], description: 'No TA valem 03, 09 a 13 e 99.' }
         discount_desc: { type: string, minLength: 2, maxLength: 100 }
-        discount_code: { type: string, maxLength: 20 }
+        discount_code: { type: string, pattern: '^[A-Za-z0-9._/-]{1,20}$' }
         payments:
           type: array
           minItems: 1
@@ -477,16 +487,91 @@ components:
                   cnpj: { type: string }
                   brand: { type: string, enum: [ '01', '02', '03', '04', '05', '06', '99' ] }
                   authorization: { type: string, maxLength: 20 }
-        icms:
+        board_pass: { type: string, minLength: 50, maxLength: 1000, description: Só no comum; conteúdo do PDF417 do DABPE. }
+        additional_info: { type: string, maxLength: 5000, description: 'Texto livre; espaços normalizados, sem `<` nem `>`, só caracteres até U+00FF.' }
+        authorized_xml:
+          type: array
+          maxItems: 10
+          items: { type: string }
+        contingency_reason: { type: string, minLength: 15, maxLength: 256 }
+
+    BpeTripRequest:
+      type: object
+      required: [ line_id, leg_type, departure ]
+      properties:
+        line_id: { type: string, pattern: '^[A-Za-z0-9._/-]{1,60}$', description: Id da linha (`/bpe-lines`). }
+        leg_type: { type: string, enum: [ '1', '2', '3' ], description: '`tpTrecho`: 1 normal, 2 inicial, 3 conexão.' }
+        departure: { type: string, format: date-time }
+        connection: { type: string, format: date-time, description: Só no trecho de conexão (3), e obrigatória nele. }
+        seat: { type: string, pattern: '^[0-9]{1,3}$', description: Só no comum. }
+        platform: { type: string, pattern: '^[A-Za-z0-9._/-]{1,20}$', description: Só no comum. }
+        crossing:
           type: object
-          required: [ cst ]
+          required: [ vehicle_type, vehicle_status ]
           properties:
-            cst: { type: string, enum: [ '00', '40', '41', '51', '90', sn ], description: '`sn` é Simples Nacional (CST 90, indSN 1).' }
-            rate: { type: string, description: Alíquota em %; obrigatória em 00 e 90. }
+            vehicle_type: { type: string, minLength: 2, maxLength: 2 }
+            vehicle_status: { type: string, enum: [ '1', '2', '3' ] }
+
+    BpePassenger:
+      type: object
+      required: [ name, doc_type, doc_number ]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 60 }
+        cpf: { type: string }
+        doc_type: { type: string, enum: [ '1', '2', '3', '4', '5' ], description: '`tpDoc`: 1 RG, 2 título de eleitor, 3 passaporte, 4 CNH, 5 outros.' }
+        doc_number: { type: string, maxLength: 20 }
+        doc_desc: { type: string, maxLength: 100 }
+        birth: { type: string, format: date }
+        phone: { type: string }
+        email: { type: string, format: email }
+
+    BpeTmEmitBody:
+      type: object
+      description: |
+        BP-e TM (`variant` `tm`): apuração por grupo de viagem. Cada grupo aponta uma linha do TM (`/bpe-lines`, com placa,
+        prefixo, trechos e ICMS de cada trecho); cada item aponta o trecho da linha (`leg`) e informa contadores, passageiros,
+        valor e a quantidade por tipo de passageiro (os tipos vêm da linha). Todas as linhas devem ter o mesmo modal e o mesmo
+        CFOP. O `total` sai da soma dos itens; o TM não tem QR Code.
+      required: [ variant, competence, groups ]
+      properties:
+        variant: { type: string, enum: [ tm ] }
+        competence: { type: string, format: date }
+        supply_indicator: { type: boolean, description: '`indFornecimento` (valor 1).' }
+        groups:
+          type: array
+          minItems: 1
+          maxItems: 99
+          items:
+            type: object
+            required: [ line_id, items ]
+            properties:
+              line_id: { type: string, pattern: '^[A-Za-z0-9._/-]{1,60}$' }
+              counter_id: { type: integer, minimum: 1, maximum: 990 }
+              items:
+                type: array
+                minItems: 1
+                maxItems: 990
+                items:
+                  type: object
+                  required: [ leg, passengers, value, components ]
+                  properties:
+                    leg: { type: integer, minimum: 1, maximum: 990, description: Posição do trecho no cadastro da linha (1, 2, ...). }
+                    trip_number: { type: integer, minimum: 1, maximum: 990 }
+                    start_counter: { type: string, pattern: '^[0-9]{1,20}$' }
+                    end_counter: { type: string, pattern: '^[0-9]{1,20}$' }
+                    passengers: { type: string, pattern: '^[0-9]{1,6}$' }
+                    value: { type: string, description: Decimal não negativo. }
+                    components:
+                      type: array
+                      minItems: 1
+                      maxItems: 20
+                      items:
+                        type: object
+                        required: [ name, quantity ]
+                        properties:
+                          name: { type: string, minLength: 1, maxLength: 15, description: Tipo de passageiro da linha. }
+                          quantity: { type: integer, minimum: 0, maximum: 99999 }
         additional_info: { type: string, maxLength: 5000 }
-        substitution: { $ref: '#/components/schemas/BpeSubstitution' }
-        agency: { $ref: '#/components/schemas/BpeAgency' }
-        board_pass: { type: string, minLength: 50, maxLength: 1000, description: Conteúdo do PDF417 do DABPE (`boardPassBPe`). }
         authorized_xml:
           type: array
           maxItems: 10
@@ -501,293 +586,149 @@ components:
         original_key: { type: string, minLength: 44, maxLength: 44, description: Chave do BP-e substituído. }
         type: { type: string, enum: [ '1', '2', '3', '4', '5', '6', '7', '9' ], description: '`tpSub`: 1 remarcação, 2 transferência, 3 transferência e remarcação, 4 erro de tarifa, 5 erro de tributação, 6 decisão judicial, 7 erro cadastral, 9 outros.' }
 
-    BpeAgency:
-      type: object
-      required: [ name, cnpj, address ]
-      description: Agência ou ponto de venda que não pertence ao emitente (grupo `agencia`).
-      properties:
-        name: { type: string, minLength: 2, maxLength: 60 }
-        cnpj: { type: string }
-        address: { $ref: '#/components/schemas/BpeBuyer/properties/address' }
-
-    BpeTmEmitBody:
+    BpeTaTax:
       type: object
       description: |
-        BP-e TM: apuração por grupo de viagem (linha, veículo, UF) com itens por trecho. Não tem passageiro, viagem
-        nem pagamento; o `total` sai da soma dos itens (`vBP`, `qPass` e o ICMS, com base igual ao valor do item).
-        O TM não tem QR Code. `counter_id` (`idEqpCont`) e `trip_number` (`nViagem`) vazios usam a posição.
-      required: [ variant, modal, cfop, competence, groups ]
+        IBS e CBS do TA (omitido só no vinculado a múltiplo). `class_trib` é um cClassTrib da tabela do IT 2025.002 RT v1.71 com `indBPeTA` (oito classificações:
+        000001, 200050, 222001, 410001, 410003, 410004, 410026 e 410999); o CST sai da linha da tabela e os grupos exigidos ou
+        vedados saem dos indicadores do CST e da classificação. As alíquotas de 2026 a 2028 (IBS) e de 2026 (CBS) são as da
+        lei e o servidor as aplica; informá-las onde a lei já as fixa é 400, e omiti-las onde ainda não existem também.
+        Base de cálculo = valor pago. `vTotDFe` = valor do bilhete (2026) ou valor do bilhete + IBS + CBS (2027 em diante).
+      required: [ class_trib ]
       properties:
-        variant: { type: string, enum: [ tm ] }
-        modal: { type: string, enum: [ rodoviario, aquaviario, ferroviario ] }
-        cfop: { type: string, pattern: '^[123567][0-9]([0-9][1-9]|[1-9][0-9])$' }
-        competence: { type: string, format: date }
-        supply_indicator: { type: boolean, description: '`indFornecimento` (valor 1).' }
-        groups:
-          type: array
-          minItems: 1
-          maxItems: 99
-          items:
-            type: object
-            required: [ origin_uf, items ]
-            properties:
-              counter_id: { type: integer, minimum: 1, maximum: 990 }
-              origin_uf: { $ref: '#/components/schemas/Uf' }
-              dest_uf: { type: string, description: UF ou EX. }
-              plate: { type: string }
-              prefix: { type: string, maxLength: 20 }
-              items:
-                type: array
-                minItems: 1
-                maxItems: 990
-                items:
-                  type: object
-                  required: [ origin_ibge_code, passengers, value, components, icms ]
-                  properties:
-                    trip_number: { type: integer, minimum: 1, maximum: 990 }
-                    origin_ibge_code: { type: string, pattern: '^[0-9]{7}$' }
-                    dest_ibge_code: { type: string, pattern: '^[0-9]{7}$' }
-                    start_counter: { type: string, pattern: '^[0-9]{1,20}$' }
-                    end_counter: { type: string, pattern: '^[0-9]{1,20}$' }
-                    passengers: { type: string, pattern: '^[0-9]{1,6}$' }
-                    value: { type: string, description: Decimal não negativo. }
-                    components:
-                      type: array
-                      minItems: 1
-                      maxItems: 20
-                      items:
-                        type: object
-                        required: [ name, quantity ]
-                        properties:
-                          name: { type: string, minLength: 1, maxLength: 15 }
-                          quantity: { type: integer, minimum: 0, maximum: 99999 }
-                    icms:
-                      type: object
-                      required: [ cst ]
-                      properties:
-                        cst: { type: string, enum: [ '00', '40', '41', '51', '90', sn ] }
-                        rate: { type: string, description: Obrigatória em 00 e 90. }
-        additional_info: { type: string, maxLength: 5000 }
-        authorized_xml:
-          type: array
-          maxItems: 10
-          items: { type: string }
-        contingency_reason: { type: string, minLength: 15, maxLength: 256 }
-
-    BpeTaEmitBody:
-      type: object
-      description: |
-        BP-e TA (aéreo, modal 2): viagem por voo, sem poltrona nem percurso, imposto IBS/CBS (sem ICMS). Compra normal, múltiplo ou vinculado (`purchase_type`); `components`, `payments` e `tax` são obrigatórios menos no vinculado.
-        Com alíquotas em `tax`, o servidor calcula base (valor pago), IBS da UF e do município e CBS; `vTotDFe` é o valor pago.
-      required: [ variant, presence, origin, destination, passage, trips ]
-      properties:
-        variant: { type: string, enum: [ ta ] }
-        presence: { type: string, enum: [ '1', '2', '3', '4', '5', '9' ] }
-        origin: { $ref: '#/components/schemas/BpePlace' }
-        destination: { $ref: '#/components/schemas/BpePlace' }
-        buyer: { $ref: '#/components/schemas/BpeBuyer' }
-        passage:
+        class_trib: { type: string, pattern: '^[0-9]{6}$' }
+        donation: { type: boolean, description: '`indDoacao`: a classificação exige, veda ou admite.' }
+        ibs_uf_rate: { type: string, description: 'Alíquota em %, só a partir de 2029.' }
+        ibs_mun_rate: { type: string, description: 'Alíquota em %, só a partir de 2029.' }
+        cbs_rate: { type: string, description: 'Alíquota em %, só a partir de 2027.' }
+        deferral:
           type: object
-          required: [ boarding, validity ]
+          description: Percentuais de diferimento (`pDif`); só com CST que exige diferimento (nenhuma classificação do TA na tabela v1.71).
           properties:
-            boarding: { type: string, format: date-time }
-            validity: { type: string, format: date-time }
-            passenger: { $ref: '#/components/schemas/BpePassage/properties/passenger' }
-        trips:
-          type: array
-          minItems: 1
-          maxItems: 20
-          items:
-            type: object
-            required: [ flight_number, carrier, trip_type, from_airport, to_airport, service_type, accommodation, leg_type, departure ]
-            properties:
-              flight_number: { type: string, minLength: 1, maxLength: 20 }
-              carrier: { type: string, minLength: 2, maxLength: 3, description: '`SiglaCiaOperVoo`.' }
-              trip_type: { type: string, enum: [ '00', '01', '02', '03' ] }
-              from_airport: { type: string, minLength: 3, maxLength: 4 }
-              to_airport: { type: string, minLength: 3, maxLength: 4 }
-              service_type: { type: string, enum: [ '12', '13' ] }
-              accommodation: { type: string, enum: [ '6', '7' ] }
-              leg_type: { type: string, enum: [ '1', '2', '3' ] }
-              departure: { type: string, format: date-time }
-              connection: { type: string, format: date-time }
-        components:
-          type: array
-          minItems: 1
-          maxItems: 20
-          items:
-            type: object
-            required: [ type, value ]
-            properties:
-              type: { type: string, enum: [ '01', '03', '06', '07', '08', '99' ], description: '`tpComp` do TA: 01 tarifa, 03 taxa de embarque, 06 SCT, 07 taxa de serviço, 08 taxa de conveniência, 99 outros.' }
-              value: { type: string }
-        discount: { type: string }
-        discount_type: { type: string, enum: [ '03', '09', '10', '11', '12', '13', '99' ] }
-        discount_desc: { type: string, minLength: 2, maxLength: 100 }
-        discount_code: { type: string, maxLength: 20 }
-        payments:
-          type: array
-          minItems: 1
-          maxItems: 10
-          items:
-            type: object
-            required: [ type, value ]
-            properties:
-              type: { type: string }
-              desc: { type: string, maxLength: 60 }
-              doc: { type: string, maxLength: 20 }
-              value: { type: string }
-        tax:
+            ibs_uf: { type: string }
+            ibs_mun: { type: string }
+            cbs: { type: string }
+        devolution:
           type: object
-          description: |
-            IBS e CBS do TA (omitido só no vinculado a múltiplo). `class_trib` é um cClassTrib da tabela do IT 2025.002 RT v1.71 com `indBPeTA` (oito classificações:
-            000001, 200050, 222001, 410001, 410003, 410004, 410026 e 410999); o CST sai da linha da tabela e os grupos exigidos ou
-            vedados saem dos indicadores do CST e da classificação. As alíquotas de 2026 a 2028 (IBS) e de 2026 (CBS) são as da
-            lei e o servidor as aplica; informá-las onde a lei já as fixa é 400, e omiti-las onde ainda não existem também.
-            Base de cálculo = valor pago. `vTotDFe` = valor do bilhete (2026) ou valor do bilhete + IBS + CBS (2027 em diante).
-          required: [ class_trib ]
+          description: Valores devolvidos (`vDevTrib`), abatidos do tributo.
           properties:
+            ibs_uf: { type: string }
+            ibs_mun: { type: string }
+            cbs: { type: string }
+        regular:
+          type: object
+          description: Tributação regular (`gTribRegular`); só nas classificações que a exigem (nenhuma do TA na tabela v1.71).
+          required: [ cst, class_trib, ibs_uf_rate, ibs_mun_rate, cbs_rate ]
+          properties:
+            cst: { type: string, pattern: '^[0-9]{3}$' }
             class_trib: { type: string, pattern: '^[0-9]{6}$' }
-            donation: { type: boolean, description: '`indDoacao`: a classificação exige, veda ou admite.' }
-            ibs_uf_rate: { type: string, description: 'Alíquota em %, só a partir de 2029.' }
-            ibs_mun_rate: { type: string, description: 'Alíquota em %, só a partir de 2029.' }
-            cbs_rate: { type: string, description: 'Alíquota em %, só a partir de 2027.' }
-            deferral:
-              type: object
-              description: Percentuais de diferimento (`pDif`); só com CST que exige diferimento (nenhuma classificação do TA na tabela v1.71).
-              properties:
-                ibs_uf: { type: string }
-                ibs_mun: { type: string }
-                cbs: { type: string }
-            devolution:
-              type: object
-              description: Valores devolvidos (`vDevTrib`), abatidos do tributo.
-              properties:
-                ibs_uf: { type: string }
-                ibs_mun: { type: string }
-                cbs: { type: string }
-            regular:
-              type: object
-              description: Tributação regular (`gTribRegular`); só nas classificações que a exigem (nenhuma do TA na tabela v1.71).
-              required: [ cst, class_trib, ibs_uf_rate, ibs_mun_rate, cbs_rate ]
-              properties:
-                cst: { type: string, pattern: '^[0-9]{3}$' }
-                class_trib: { type: string, pattern: '^[0-9]{6}$' }
-                ibs_uf_rate: { type: string }
-                ibs_mun_rate: { type: string }
-                cbs_rate: { type: string }
-            government:
-              type: object
-              description: Compra governamental (`ide/gCompraGov` e `gTribCompraGov`).
-              required: [ entity, reducer, operation ]
-              properties:
-                entity: { type: string, enum: [ '1', '2', '3', '4', '5', '6' ], description: '`tpEnteGov`: 1 União, 2 Estados, 3 Distrito Federal, 4 Municípios, 5 consórcio público, 6 Comitê Gestor do IBS.' }
-                reducer: { type: string, description: 'Redutor `pRedutor`, em %.' }
-                operation: { type: string, enum: [ '1', '2', '3', '4' ], description: '`tpOperGov`; com 2 vai uma chave referenciada, com 3 uma ou mais, com 1 e 4 nenhuma.' }
-                references:
-                  type: array
-                  maxItems: 99
-                  items: { type: string, pattern: '^[0-9]{6}[A-Z0-9]{12}[0-9]{26}$' }
-            credit_reversal:
-              type: object
-              description: Estorno de crédito (`gEstornoCred`), exigido por classificações como a 410026 e vedado nas demais.
-              required: [ ibs, cbs ]
-              properties:
-                ibs: { type: string }
-                cbs: { type: string }
-            simples:
-              type: object
-              description: Composição do IBS e da CBS do optante do Simples Nacional (`gTribSN`), alíquotas efetivas sobre o valor pago.
-              properties:
-                ibs_rate: { type: string }
-                cbs_rate: { type: string }
-            total_taxes: { type: string, description: '`vTotTrib`.' }
-            fiscal_info: { type: string, minLength: 1, maxLength: 2000, description: '`infAdFisco`.' }
-        purchase_type: { type: string, enum: [ normal, multiple, linked ], description: '`tpCompra`: normal (padrão), multiple (BP-e múltiplo) ou linked (vinculado a múltiplo).' }
-        multiple_key: { type: string, minLength: 44, maxLength: 44, description: Só no `linked`; chave do BP-e múltiplo. }
-        substitution: { $ref: '#/components/schemas/BpeSubstitution' }
-        agency: { $ref: '#/components/schemas/BpeAgency' }
-        iata_number: { type: string, minLength: 1, maxLength: 20 }
-        additional_info: { type: string, maxLength: 5000 }
-        authorized_xml:
-          type: array
-          maxItems: 10
-          items: { type: string }
-        contingency_reason: { type: string, minLength: 15, maxLength: 256 }
+            ibs_uf_rate: { type: string }
+            ibs_mun_rate: { type: string }
+            cbs_rate: { type: string }
+        government:
+          type: object
+          description: Compra governamental (`ide/gCompraGov` e `gTribCompraGov`).
+          required: [ entity, reducer, operation ]
+          properties:
+            entity: { type: string, enum: [ '1', '2', '3', '4', '5', '6' ], description: '`tpEnteGov`: 1 União, 2 Estados, 3 Distrito Federal, 4 Municípios, 5 consórcio público, 6 Comitê Gestor do IBS.' }
+            reducer: { type: string, description: 'Redutor `pRedutor`, em %.' }
+            operation: { type: string, enum: [ '1', '2', '3', '4' ], description: '`tpOperGov`; com 2 vai uma chave referenciada, com 3 uma ou mais, com 1 e 4 nenhuma.' }
+            references:
+              type: array
+              maxItems: 99
+              items: { type: string, pattern: '^[0-9]{6}[A-Z0-9]{12}[0-9]{26}$' }
+        credit_reversal:
+          type: object
+          description: Estorno de crédito (`gEstornoCred`), exigido por classificações como a 410026 e vedado nas demais.
+          required: [ ibs, cbs ]
+          properties:
+            ibs: { type: string }
+            cbs: { type: string }
+        simples:
+          type: object
+          description: Composição do IBS e da CBS do optante do Simples Nacional (`gTribSN`), alíquotas efetivas sobre o valor pago.
+          properties:
+            ibs_rate: { type: string }
+            cbs_rate: { type: string }
+        total_taxes: { type: string, description: '`vTotTrib`.' }
+        fiscal_info: { type: string, minLength: 1, maxLength: 2000, description: '`infAdFisco`.' }
+    purchase_type: { type: string, enum: [ normal, multiple, linked ], description: '`tpCompra`: normal (padrão), multiple (BP-e múltiplo) ou linked (vinculado a múltiplo).' }
+    multiple_key: { type: string, minLength: 44, maxLength: 44, description: Só no `linked`; chave do BP-e múltiplo. }
+    substitution: { $ref: '#/components/schemas/BpeSubstitution' }
+    agency: { $ref: '#/components/schemas/BpeAgency' }
 
-    BpePlace:
+    BpeLineBody:
       type: object
-      required: [ uf, ibge_code ]
-      properties:
-        uf: { $ref: '#/components/schemas/Uf' }
-        ibge_code: { type: string, pattern: '^[0-9]{7}$' }
-
-    BpeBuyer:
-      type: object
-      required: [ name, address ]
-      description: Comprador. Informe exatamente um entre `cnpj`, `cpf` e `foreign_id`.
+      description: |
+        Linha do BP-e: o que não muda de uma venda para outra. Uma linha serve a uma variante: no comum é o percurso (origem,
+        destino, código e nome da linha, serviço, acomodação, prefixo e ICMS); no TA é o voo (companhia, número, aeroportos,
+        serviço, acomodação e IBS/CBS); no TM é o grupo de viagem (placa, prefixo, trechos com o ICMS de cada um e os tipos de
+        passageiro). Os municípios vêm da tabela do IBGE. A linha é recusada com as regras que a emissão aplicaria.
+      required: [ name, variant ]
       properties:
         name: { type: string, minLength: 2, maxLength: 60 }
-        cnpj: { type: string }
-        cpf: { type: string }
-        foreign_id: { type: string }
-        ie: { type: string, maxLength: 14 }
-        address:
-          type: object
-          required: [ street, number, neighborhood, ibge_code, city, uf ]
+        variant: { type: string, enum: [ normal, ta, tm ] }
+        modal: { type: [ string, 'null' ], enum: [ rodoviario, aquaviario, ferroviario, null ], description: Comum e TM. }
+        origin: { $ref: '#/components/schemas/BpeLinePlace' }
+        destination: { $ref: '#/components/schemas/BpeLinePlace' }
+        route_code: { type: [ string, 'null' ], pattern: '^[A-Za-z0-9._/-]{1,20}$' }
+        route_name: { type: [ string, 'null' ], minLength: 2, maxLength: 100 }
+        prefix: { type: [ string, 'null' ], pattern: '^[A-Za-z0-9._/-]{1,20}$' }
+        trip_type: { type: [ string, 'null' ], enum: [ '00', '01', '02', '03', null ], description: 'Comum: 00 e 01; TA: 00 a 03.' }
+        service_type: { type: [ string, 'null' ], description: 'Comum: 1 a 11; TA: 12 e 13.' }
+        accommodation: { type: [ string, 'null' ], description: 'Comum: 1 a 5; TA: 6 e 7.' }
+        icms:
+          type: [ object, 'null' ]
+          required: [ cst ]
           properties:
-            street: { type: string }
-            number: { type: string }
-            complement: { type: string }
-            neighborhood: { type: string }
-            ibge_code: { type: string, pattern: '^[0-9]{7}$' }
-            city: { type: string }
-            postal_code: { type: string, pattern: '^[0-9]{8}$' }
-            uf: { type: string, description: UF ou EX. }
-            phone: { type: string }
-            email: { type: string, format: email }
+            cst: { type: string, enum: [ '00', '40', '41', '51', '90', sn ] }
+            rate: { type: [ string, 'null' ], description: Obrigatória em 00 e 90. }
+        carrier: { type: [ string, 'null' ], pattern: '^[A-Z0-9]{2,3}$' }
+        flight_number: { type: [ string, 'null' ], pattern: '^[A-Za-z0-9._/-]{1,20}$' }
+        from_airport: { type: [ string, 'null' ], pattern: '^[A-Z0-9]{3,4}$' }
+        to_airport: { type: [ string, 'null' ], pattern: '^[A-Z0-9]{3,4}$' }
+        tax: { $ref: '#/components/schemas/BpeTaTax' }
+        cfop: { type: [ string, 'null' ], pattern: '^[123567][0-9]([0-9][1-9]|[1-9][0-9])$', description: Só no TM. }
+        plate: { type: [ string, 'null' ] }
+        origin_uf: { type: [ string, 'null' ], description: Só no TM. }
+        dest_uf: { type: [ string, 'null' ], description: 'Só no TM; UF ou EX.' }
+        legs:
+          type: [ array, 'null' ]
+          maxItems: 990
+          items:
+            type: object
+            required: [ origin_ibge_code, icms ]
+            properties:
+              origin_ibge_code: { type: string, pattern: '^[0-9]{7}$' }
+              dest_ibge_code: { type: [ string, 'null' ], pattern: '^[0-9]{7}$' }
+              icms:
+                type: object
+                required: [ cst ]
+                properties:
+                  cst: { type: string, enum: [ '00', '40', '41', '51', '90', sn ] }
+                  rate: { type: [ string, 'null' ] }
+        passenger_types:
+          type: [ array, 'null' ]
+          maxItems: 20
+          items: { type: string, minLength: 1, maxLength: 15 }
+          description: Só no TM; tipos de passageiro (nome do componente de tarifa).
 
-    BpePassage:
-      type: object
-      required: [ from_code, from_name, to_code, to_name, boarding, validity ]
+    BpeLinePlace:
+      type: [ object, 'null' ]
+      required: [ uf, ibge_code, city ]
       properties:
-        from_code: { type: string, maxLength: 7 }
-        from_name: { type: string, minLength: 2, maxLength: 60 }
-        to_code: { type: string, maxLength: 7 }
-        to_name: { type: string, minLength: 2, maxLength: 60 }
-        boarding: { type: string, format: date-time, description: Embarque (`dhEmb`), com fuso. }
-        validity: { type: string, format: date-time, description: Validade (`dhValidade`), não anterior ao embarque. }
-        passenger:
-          type: object
-          required: [ name, doc_type, doc_number ]
-          properties:
-            name: { type: string, minLength: 2, maxLength: 60 }
-            cpf: { type: string }
-            doc_type: { type: string, enum: [ '1', '2', '3', '4', '5' ], description: '`tpDoc`: 1 RG, 2 título de eleitor, 3 passaporte, 4 CNH, 5 outros.' }
-            doc_number: { type: string, maxLength: 20 }
-            doc_desc: { type: string, maxLength: 100 }
-            birth: { type: string, format: date }
-            phone: { type: string }
-            email: { type: string, format: email }
+        uf: { type: string }
+        ibge_code: { type: string, pattern: '^[0-9]{7}$' }
+        city: { type: string, minLength: 2, maxLength: 60 }
 
-    BpeTrip:
+    BpeLineItem:
       type: object
-      required: [ route_code, route_name, trip_type, service_type, accommodation, leg_type, departure ]
+      description: Linha persistida.
+      additionalProperties: true
       properties:
-        route_code: { type: string, maxLength: 20 }
-        route_name: { type: string, minLength: 2, maxLength: 100 }
-        trip_type: { type: string, enum: [ '00', '01' ], description: '`tpViagem`: 00 convencional, 01 fretamento.' }
-        service_type: { type: string, enum: [ '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11' ], description: '`tpServ`.' }
-        accommodation: { type: string, enum: [ '1', '2', '3', '4', '5' ], description: '`tpAcomodacao`: 1 assento, 2 rede, 3 cabine, 4 outros, 5 ferroviário.' }
-        leg_type: { type: string, enum: [ '1', '2', '3' ], description: '`tpTrecho`: 1 normal, 2 inicial, 3 conexão.' }
-        departure: { type: string, format: date-time }
-        connection: { type: string, format: date-time, description: Só no trecho de conexão (3), e obrigatória nele. }
-        prefix: { type: string, maxLength: 20 }
-        seat: { type: string, maxLength: 3 }
-        platform: { type: string, maxLength: 20 }
-        crossing:
-          type: object
-          required: [ vehicle_type, vehicle_status ]
-          properties:
-            vehicle_type: { type: string, minLength: 2, maxLength: 2 }
-            vehicle_status: { type: string, enum: [ '1', '2', '3' ] }
+        pk: { type: string }
+        sk: { type: string, description: Identificador da linha. }
+        name: { type: string }
+        variant: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }

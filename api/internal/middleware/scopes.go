@@ -49,6 +49,7 @@ var scopeFamilies = map[string][]string{
 	"organization_service_locations":   {"organization_service_locations"},
 	"organization_nfcom_subscribers":   {"organization_nfcom_subscribers"},
 	"organization_nfcom_plans":         {"organization_nfcom_plans"},
+	"organization_bpe_lines":           {"organization_bpe_lines"},
 	"organization_reference_documents": {"organization_reference_documents"},
 	"organization_tax_profiles":        {"organization_tax_profiles"},
 	"organization_operations":          {"organization_operations"},

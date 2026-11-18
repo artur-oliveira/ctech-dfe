@@ -220,6 +220,24 @@
       "status": "active"
     },
     {
+      "name": "dfe:organization_bpe_lines:read",
+      "descriptions": {
+        "pt-BR": "Consultar linhas do BP-e da organizacao.",
+        "en": "Read organization BP-e lines."
+      },
+      "visibility": "public",
+      "status": "active"
+    },
+    {
+      "name": "dfe:organization_bpe_lines:write",
+      "descriptions": {
+        "pt-BR": "Criar e alterar linhas do BP-e da organizacao.",
+        "en": "Create and change organization BP-e lines."
+      },
+      "visibility": "public",
+      "status": "active"
+    },
+    {
       "name": "dfe:organization_nfcom_plans:read",
       "descriptions": {
         "pt-BR": "Consultar planos e servicos da NFCom da organizacao.",
