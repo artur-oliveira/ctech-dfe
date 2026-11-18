@@ -6,7 +6,8 @@ import (
 	"gopkg.aoctech.app/dfe/api/internal/services"
 )
 
-const tpCompraNormal = "0" // ide/tpCompra: compra normal; múltiplo (1) e vinculado (2) ficam fora desta versão
+// ide/tpCompra do TA: normal, BP-e múltiplo (fretamento) e vinculado a BP-e múltiplo.
+var tpCompraCodes = map[string]string{"": "0", PurchaseNormal: "0", PurchaseMultiple: "1", PurchaseLinked: "2"}
 
 // BuildBPeTA monta o corpo da autorização do BP-e TA (raiz BPeTA). Os grupos de comprador, valor, imposto e pagamento são os
 // do bilhete comum (mesma estrutura no XSD); mudam a identificação, a passagem e a viagem.
@@ -21,7 +22,7 @@ func BuildBPeTA(p buildParams) map[string]any {
 		"cUF": p.accessKey[0:2], "tpAmb": strconv.Itoa(p.environment), "mod": services.ModelBPe,
 		"serie": strconv.Itoa(p.serie), "nBP": strconv.Itoa(p.number), "cBP": p.accessKey[35:43], "cDV": p.accessKey[43:],
 		"modal": "2", "dhEmi": p.now.Format(layoutDateTimeTZ), "tpEmis": p.tpEmis,
-		"verProc": strOrDefault(p.tech.Version, "ctech-dfe"), "tpBPe": tpBPeNormal, "tpCompra": tpCompraNormal,
+		"verProc": strOrDefault(p.tech.Version, "ctech-dfe"), "tpBPe": tpBPeOf(r.Substitution), "tpCompra": tpCompraCodes[r.PurchaseType],
 		"indPres": r.Presence, "UFIni": r.Origin.UF, "cMunIni": r.Origin.IBGECode,
 		"UFFim": r.Destination.UF, "cMunFim": r.Destination.IBGECode,
 	}
@@ -46,9 +47,13 @@ func BuildBPeTA(p buildParams) map[string]any {
 		trips = append(trips, v)
 	}
 
-	imp, gov := buildTATax(r.Tax, t, p.now.Year())
-	if gov != nil {
-		ide["gCompraGov"] = gov
+	var imp map[string]any
+	if r.PurchaseType != PurchaseLinked {
+		var gov map[string]any
+		imp, gov = buildTATax(r.Tax, t, p.now.Year())
+		if gov != nil {
+			ide["gCompraGov"] = gov
+		}
 	}
 	inf := map[string]any{
 		"@versao":     bpeVersao,
@@ -57,12 +62,27 @@ func BuildBPeTA(p buildParams) map[string]any {
 		"emit":        buildEmit(p.org, orgPerson, p.orgPK),
 		"infPassagem": passage,
 		"infViagem":   trips,
-		"infValorBPe": shared.buildValue(t),
-		"imp":         imp,
-		"pag":         shared.buildPayments(),
+	}
+	if r.PurchaseType == PurchaseLinked {
+		// Vinculado a BP-e múltiplo: a choice do leiaute troca valores, imposto e pagamento pela chave do múltiplo.
+		key := ""
+		if r.MultipleKey != nil {
+			key = *r.MultipleKey
+		}
+		inf["infBPeVinculado"] = map[string]any{"chBPeMultiplo": key}
+	} else {
+		inf["infValorBPe"] = shared.buildValue(t)
+		inf["imp"] = imp
+		inf["pag"] = shared.buildPayments()
 	}
 	if r.Buyer != nil {
 		inf["comp"] = shared.buildBuyer(*r.Buyer)
+	}
+	if r.Agency != nil {
+		inf["agencia"] = buildAgency(r.Agency)
+	}
+	if r.Substitution != nil {
+		inf["infBPeSub"] = buildSubstitution(r.Substitution)
 	}
 	if aut := services.AutXMLNodes(r.AuthorizedXML); aut != nil {
 		inf["autXML"] = aut

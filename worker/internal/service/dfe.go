@@ -109,7 +109,9 @@ type WorkerMessage struct {
 	SefazService     string         `json:"sefaz_service"`
 	Body             map[string]any `json:"body"`
 	// Contingency routes an NF-e call to the SVC ("SVC-AN"/"SVC-RS"); empty is normal.
-	Contingency           string `json:"contingency,omitempty"`
+	Contingency string `json:"contingency,omitempty"`
+	// SubstitutesAccessKey is the BP-e this document replaces (tpBPe 3): once authorized, that one becomes substituted.
+	SubstitutesAccessKey  string `json:"substitutes_access_key,omitempty"`
 	BillingUserID         string `json:"billing_user_id,omitempty"`
 	BillingOrganizationID string `json:"billing_organization_id,omitempty"`
 	BillingPeriod         string `json:"billing_period,omitempty"`
@@ -481,6 +483,7 @@ func (s *DfeService) handleSefazResponse(ctx context.Context, msg WorkerMessage,
 			}, true); err != nil {
 				return err
 			}
+			s.markSubstituted(ctx, msg)
 		} else if isEPEC {
 			if err := s.armEPEC(ctx, msg); err != nil {
 				return err
@@ -840,4 +843,15 @@ func (s *DfeService) updateClaimedEvent(ctx context.Context, msg WorkerMessage, 
 	}
 	slog.Info("updated event status", "table", table, "event_sk", *msg.EventSK, "status", status)
 	return nil
+}
+
+// markSubstituted marca o BP-e substituído como substituted quando o substituto é autorizado (tpBPe 3). Uma falha aqui não
+// desfaz a autorização: o substituto já vale na SEFAZ, que é quem rejeita novo evento no original; o log registra para correção.
+func (s *DfeService) markSubstituted(ctx context.Context, msg WorkerMessage) {
+	if msg.SubstitutesAccessKey == "" {
+		return
+	}
+	if err := s.updateStatus(ctx, msg.DocPK, msg.SubstitutesAccessKey, msg.TableName, StatusSubstituted, updateAttrs{}, false); err != nil {
+		slog.Error("mark substituted", "access_key", msg.SubstitutesAccessKey, "substitute", msg.AccessKey, "error", err)
+	}
 }

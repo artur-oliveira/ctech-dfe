@@ -1578,12 +1578,20 @@ enviados só um certificado descartável e uma chave falsa, e a ANTT respondeu 4
   (só 204 e 539 de documento): o código de duplicidade de evento da NFCom segue não verificado e o worker usa o 573 da NF-e; ler as
   regras de evento da NFCom antes de homologar.
 - `tPag` 06 é PIX (NT 2025.002). DABPE: formato reduzido (bobina de 58 mm; o MOC pede no mínimo 56 mm) e "Via do Estabelecimento" na
-  contingência foram feitos; seguem de fora o PDF417 (`boardPassBPe`, opcional) e a Divisão I (agência, opcional).
+  contingência foram feitos; o PDF417 (`boardPassBPe`) e a Divisão I (agência) entram com a substituição, a agência e o múltiplo (abaixo).
 - NFCom: `vProd` do item passa a usar a quantidade e o valor unitário como impressos (4 e 8 casas) e a IE do isento sai em
   maiúsculas. O `dhCont` é igual ao `dhEmi` na emissão offline; a regra do MOC (`rules_nfcom.go`, dhCont não posterior ao dhEmi)
   vale, então não mudou.
-- Fora da v1: substituição, agência, BP-e múltiplo e vinculado, evento 112130 (ajuste do TA), ICMS 20 e
-  partilha. O DABPE não existe para o TM.
+- Substituição (`tpBPe` 3), agência, BP-e múltiplo e vinculado do TA e o PDF417 (`boardPassBPe`, só no comum) entram pela API e
+  pela UI. A substituição prova localmente o que o original da organização permite (existe, autorizado, mesma variante, mesmos
+  UF, município e comprador, não embarque quando o embarque passou) e deixa à SEFAZ o que depende da base dela (duplicidade e
+  estado). O original só vira `substituted` quando o worker vê o substituto autorizado (`SubstitutesAccessKey` na mensagem); se
+  essa gravação falhar, o log registra e o original segue `authorized` até alguém corrigir (a SEFAZ continua barrando o evento).
+  Linhas gravadas antes desta mudança não guardam UF, município e comprador: nelas a comparação fica com a SEFAZ. As regras
+  F55 a F62 do vinculado (existência e situação do múltiplo) também ficam com a SEFAZ. Nada disto correu contra autorizador.
+- O evento 112130 (ajuste do TA) segue fora: a NT 2025.002 v2.00 o marca "pendente de especificação" (`evAjusteBPeTA_v9.99.xsd`,
+  campos "a definir"), sem XSD no pacote; implementar quando a SEFAZ publicar o leiaute.
+- Fora da v1: ICMS 20 e partilha. O DABPE não existe para o TM.
 - Antes de anunciar o documento (landing, home, `DFE_DOCUMENTS`), homologar e rever a cobrança (`quota_bpe` no catálogo).
 - Vinculação de pagamento (110300 e 110301) da NFCom e do BP-e: quem pode vincular, prazos e a tabela de `tpMeioPgto` não constam de documento
   do repositório. A api não restringe o autor nem a variante (TM incluso) e deixa o autorizador conferir; a UI reaproveita a tabela de meios

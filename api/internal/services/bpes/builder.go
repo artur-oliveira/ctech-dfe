@@ -23,7 +23,8 @@ const (
 	tpEmisNormal  = services.TpEmisNormal // forma de emissão: normal
 	tpEmisOffline = "2"                   // contingência offline
 
-	tpBPeNormal = "0" // BP-e normal; substituição (3) fica fora desta versão
+	tpBPeNormal       = "0" // BP-e normal
+	tpBPeSubstituicao = "3" // BP-e substituto: leva o infBPeSub
 
 	layoutDateTimeTZ = "2006-01-02T15:04:05-07:00"
 
@@ -125,6 +126,12 @@ func BuildBPe(p buildParams) map[string]any {
 	if p.req.Buyer != nil {
 		inf["comp"] = p.buildBuyer(*p.req.Buyer)
 	}
+	if p.req.Agency != nil {
+		inf["agencia"] = buildAgency(p.req.Agency)
+	}
+	if p.req.Substitution != nil {
+		inf["infBPeSub"] = buildSubstitution(p.req.Substitution)
+	}
 	if aut := services.AutXMLNodes(p.req.AuthorizedXML); aut != nil {
 		inf["autXML"] = aut
 	}
@@ -134,11 +141,13 @@ func BuildBPe(p buildParams) map[string]any {
 	if rt := p.respTec(); rt != nil {
 		inf["infRespTec"] = rt
 	}
+	supl := map[string]any{"qrCodBPe": p.qrCode()}
+	setIfPtr(supl, "boardPassBPe", p.req.BoardPass)
 	return services.PruneEmpty(map[string]any{
 		"BPe": map[string]any{
 			"@xmlns":     bpeXMLNS,
 			"infBPe":     inf,
-			"infBPeSupl": map[string]any{"qrCodBPe": p.qrCode()},
+			"infBPeSupl": supl,
 		},
 	}).(map[string]any)
 }
@@ -188,7 +197,7 @@ func (p buildParams) buildIde() map[string]any {
 		"cUF": p.accessKey[0:2], "tpAmb": strconv.Itoa(p.environment), "mod": services.ModelBPe,
 		"serie": strconv.Itoa(p.serie), "nBP": strconv.Itoa(p.number), "cBP": p.accessKey[35:43], "cDV": p.accessKey[43:],
 		"modal": modalCodes[r.Modal], "dhEmi": p.now.Format(layoutDateTimeTZ), "tpEmis": p.tpEmis,
-		"verProc": strOrDefault(p.tech.Version, "ctech-dfe"), "tpBPe": tpBPeNormal, "indPres": r.Presence,
+		"verProc": strOrDefault(p.tech.Version, "ctech-dfe"), "tpBPe": tpBPeOf(r.Substitution), "indPres": r.Presence,
 		"UFIni": r.Origin.UF, "cMunIni": r.Origin.IBGECode, "UFFim": r.Destination.UF, "cMunFim": r.Destination.IBGECode,
 	}
 	if p.tpEmis == tpEmisOffline {
@@ -232,8 +241,16 @@ func buildEmit(org map[string]types.AttributeValue, orgPerson map[string]any, or
 	return emit
 }
 
-func (p buildParams) buildBuyer(b BpeBuyer) map[string]any {
-	a := b.Address
+// tpBPeOf é o ide/tpBPe: 3 quando o bilhete substitui outro, 0 no normal.
+func tpBPeOf(s *BpeSubstitution) string {
+	if s != nil {
+		return tpBPeSubstituicao
+	}
+	return tpBPeNormal
+}
+
+// buildAddress monta o endereço (enderComp, enderAgencia) a partir do DTO.
+func buildAddress(a BpeAddress) map[string]any {
 	ender := map[string]any{
 		"xLgr": a.Street, "nro": a.Number, "xBairro": a.Neighborhood, "cMun": a.IBGECode, "xMun": a.City, "UF": a.UF,
 	}
@@ -241,6 +258,20 @@ func (p buildParams) buildBuyer(b BpeBuyer) map[string]any {
 	setIfPtr(ender, "CEP", a.PostalCode)
 	setIfPtr(ender, "fone", a.Phone)
 	setIfPtr(ender, "email", a.Email)
+	return ender
+}
+
+// buildAgency é o grupo agencia, e buildSubstitution o infBPeSub; ambos entram no infBPe quando informados.
+func buildAgency(a *BpeAgency) map[string]any {
+	return map[string]any{"xNome": a.Name, "CNPJ": docAlnum(a.CNPJ), "enderAgencia": buildAddress(a.Address)}
+}
+
+func buildSubstitution(s *BpeSubstitution) map[string]any {
+	return map[string]any{"chBPe": s.OriginalKey, "tpSub": s.Type}
+}
+
+func (p buildParams) buildBuyer(b BpeBuyer) map[string]any {
+	ender := buildAddress(b.Address)
 	comp := map[string]any{"xNome": b.Name, "enderComp": ender}
 	switch {
 	case b.CNPJ != nil && *b.CNPJ != "":

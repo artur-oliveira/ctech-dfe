@@ -18,6 +18,7 @@ const (
 	StatusRejected        = "rejected"
 	StatusFailed          = "failed"
 	StatusCancelled       = "cancelled"
+	StatusSubstituted     = "substituted"
 	StatusClosed          = "closed"
 
 	EventStatusSuccess = "success"

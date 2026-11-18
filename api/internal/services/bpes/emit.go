@@ -23,6 +23,9 @@ type emission struct {
 	sefazService string // BPeRecepcao, BPeRecepcaoTM ou BPeRecepcaoTA
 	hasQR        bool   // o TM não tem QR Code, logo não assina o parâmetro sign na contingência
 	reasonFrom   *string
+	// substitution é o infBPeSub do substituto (nil no bilhete normal) e facts o que ele repete do original.
+	substitution *BpeSubstitution
+	facts        docFacts
 	params       func(p *buildParams)
 	build        func(p buildParams) map[string]any
 	record       func(pk, accessKey, orgPK string, orgItem map[string]types.AttributeValue, number, serie int, now time.Time, body map[string]any, userID, userName string) map[string]any
@@ -36,11 +39,14 @@ func (s *BpeService) Emit(ctx context.Context, orgPK string, req BpeEmitBody, us
 	if err := validateEmitBody(req); err != nil {
 		return nil, err
 	}
+	if err := validateCommonSubstitution(req.Substitution); err != nil {
+		return nil, err
+	}
 	return s.emit(ctx, orgPK, emission{
 		variant: VariantNormal, spec: specBPe, sefazService: sefazServiceAutorizacao, hasQR: true,
-		reasonFrom: req.ContingencyReason,
-		params:     func(p *buildParams) { p.req = req },
-		build:      BuildBPe,
+		reasonFrom: req.ContingencyReason, substitution: req.Substitution, facts: factsOf(req.Origin, req.Destination, req.Buyer),
+		params: func(p *buildParams) { p.req = req },
+		build:  BuildBPe,
 		record: func(pk, key, org string, orgItem map[string]types.AttributeValue, number, serie int, now time.Time, body map[string]any, uid, uname string) map[string]any {
 			return buildRecord(pk, key, org, orgItem, number, serie, now, req, body, uid, uname)
 		},
@@ -70,9 +76,9 @@ func (s *BpeService) EmitTA(ctx context.Context, orgPK string, req BpeTAEmitBody
 	}
 	return s.emit(ctx, orgPK, emission{
 		variant: VariantTA, spec: specBPeTA, sefazService: sefazServiceAutorizacaoTA, hasQR: true,
-		reasonFrom: req.ContingencyReason,
-		params:     func(p *buildParams) { p.ta = req; p.variant = VariantTA },
-		build:      BuildBPeTA,
+		reasonFrom: req.ContingencyReason, substitution: req.Substitution, facts: factsOf(req.Origin, req.Destination, req.Buyer),
+		params: func(p *buildParams) { p.ta = req; p.variant = VariantTA },
+		build:  BuildBPeTA,
 		record: func(pk, key, org string, orgItem map[string]types.AttributeValue, number, serie int, now time.Time, body map[string]any, uid, uname string) map[string]any {
 			return buildTARecord(pk, key, org, orgItem, number, serie, now, req, body, uid, uname)
 		},
@@ -107,7 +113,7 @@ func buildTARecord(
 		"status": StatusPending, "sefaz_status": nil, "sefaz_motive": nil,
 		"emit_cpf_cnpj": emitterDoc, "emit_name": strAttr(orgItem, "name"),
 		"number": number, "serie": serie, "variant": VariantTA, "modal": "aereo",
-		"passenger_name": passenger, "from_name": from, "to_name": to,
+		"passenger_name": passenger, "from_name": from, "to_name": to, "purchase_type": purchaseOf(req.PurchaseType),
 		"boarding": req.Passage.Boarding, "total": total, "trips": len(req.Trips),
 		"dh_emi": now.Format(layoutDateTimeTZ), "xml_s3_key": nil,
 		"created_at": now.UTC().Format(time.RFC3339), "user_id": userID, "user_name": userName,
@@ -169,6 +175,11 @@ func (s *BpeService) emit(ctx context.Context, orgPK string, em emission, userID
 	}
 
 	now := uftz.Now(emitUF) // dhEmi e AAMM da chave são horário local da UF do emitente
+	if em.substitution != nil {
+		if err := s.checkSubstitution(ctx, orgPK, em.variant, em.substitution, em.facts, now); err != nil {
+			return nil, err
+		}
+	}
 	accessKey := GenerateAccessKey(emitUF, emitterDoc, serie, currentNumber+1, now, tpEmis)
 	if accessKey == "" {
 		return nil, problem.BadRequest("UF do emitente inválida: " + emitUF)
@@ -196,6 +207,16 @@ func (s *BpeService) emit(ctx context.Context, orgPK string, em emission, userID
 
 	pk := fmt.Sprintf("%s#%s", envPrefix, orgPK)
 	record := em.record(pk, accessKey, orgPK, orgItem, currentNumber+1, serie, now, bpeBody, userID, userName)
+	if em.variant != VariantTM {
+		for k, v := range em.facts.attrs() {
+			record[k] = v
+		}
+	}
+	substitutes := ""
+	if em.substitution != nil {
+		substitutes = em.substitution.OriginalKey
+		record["replaces_access_key"] = substitutes
+	}
 	encoded, err := repositories.EncodeItem(record)
 	if err != nil {
 		return nil, problem.InternalServer("failed to encode BP-e record")
@@ -209,7 +230,7 @@ func (s *BpeService) emit(ctx context.Context, orgPK string, em emission, userID
 		DocPK: pk, AccessKey: accessKey, TableName: tableBpes, S3Prefix: s3PrefixBpe, ExpectedFileName: accessKey,
 		CNPJ: emitterDoc, UF: authorizerUF(em.variant, emitUF), SefazEnvironment: sefazEnvFor(environment),
 		CertS3Key: strAttr(cert, "s3_key"), CertPassword: strAttr(cert, "password"),
-		DocType: s3PrefixBpe, SefazService: em.sefazService, Body: bpeBody,
+		DocType: s3PrefixBpe, SefazService: em.sefazService, Body: bpeBody, SubstitutesAccessKey: substitutes,
 		BillingOrganizationID: reservation.OrganizationID, BillingPeriod: reservation.Period,
 		BillingSubscriptionID: reservation.SubscriptionID, BillingPriceID: reservation.PriceID,
 		BillingMeter: reservation.Meter, BillingExempt: reservation.Exempt,
@@ -307,4 +328,12 @@ func buildRecord(
 		"dh_emi": now.Format(layoutDateTimeTZ), "xml_s3_key": nil,
 		"created_at": now.UTC().Format(time.RFC3339), "user_id": userID, "user_name": userName,
 	}
+}
+
+// purchaseOf devolve o tipo de compra do TA, com normal como padrão.
+func purchaseOf(p string) string {
+	if p == "" {
+		return PurchaseNormal
+	}
+	return p
 }

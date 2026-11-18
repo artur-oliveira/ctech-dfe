@@ -18,7 +18,7 @@ function ta(): BpeTicketForm {
   const f = emptyBpeTicket('ta');
   f.origin = {uf: 'SP', ibge_code: '3550308'};
   f.destination = {uf: 'RJ', ibge_code: '3304557'};
-  f.passage = {...f.passage, boarding: '2026-11-10T08:00', validity: '2026-11-20T08:00'};
+  f.passage = {...f.passage, boarding: '2026-11-10T08:00', validity: '2026-11-20T08:00', passenger: {name: 'Maria Passageira', doc_type: '1', doc_number: '123456789'}};
   f.trips = [{...f.trips[0], flight_number: '1234', carrier: 'LA', from_airport: 'GRU', to_airport: 'SDU', departure: '2026-11-10T08:00'}];
   f.components = [{type: '01', value: '300.00'}];
   f.payments = [{type: '06', value: '300.00', desc: ''}];
@@ -140,6 +140,80 @@ describe('comprador opcional', () => {
   });
 });
 
+const KEY = '35261112345678000190630010000000101012345671';
+const address = {street: 'Rua A', number: '10', neighborhood: 'Centro', ibge_code: '3550308', city: 'Sao Paulo', uf: 'SP', postal_code: ''};
+const buyerOn = (): BpeTicketForm['buyer'] => ({
+  enabled: true, name: 'Comprador', doc_kind: 'cnpj', document: '11222333000181', ie: '', street: 'Rua A', number: '10',
+  complement: '', neighborhood: 'Centro', ibge_code: '3550308', city: 'Sao Paulo', postal_code: '', uf: 'SP',
+});
+
+describe('substituição, agência e tipos de compra', () => {
+  it('substituição pede chave de 44 caracteres e o tipo', () => {
+    const f = normal();
+    f.substitution = {enabled: true, original_key: '123', type: ''};
+    expect(bpeTicketSchema.safeParse(f).success).toBe(false);
+    f.substitution = {enabled: true, original_key: KEY, type: '1'};
+    expect(bpeTicketSchema.safeParse(f).success).toBe(true);
+    const body = toBpeTicketBody(f);
+    expect(body.substitution).toEqual({original_key: KEY, type: '1'});
+  });
+
+  it('agência pede CNPJ válido e endereço; vai no corpo só quando marcada', () => {
+    const f = normal();
+    f.agency = {enabled: true, name: 'Agencia Teste', cnpj: '11.222.333/0001-81', address};
+    expect(bpeTicketSchema.safeParse(f).success).toBe(true);
+    expect(toBpeTicketBody(f).agency).toMatchObject({name: 'Agencia Teste', cnpj: '11222333000181'});
+    f.agency.cnpj = '11222333000180';
+    expect(bpeTicketSchema.safeParse(f).success).toBe(false);
+    expect(toBpeTicketBody(normal()).agency).toBeUndefined();
+  });
+
+  it('o PDF417 (só no comum) tem 50 a 1000 caracteres', () => {
+    const f = normal();
+    f.board_pass = 'curto';
+    expect(bpeTicketSchema.safeParse(f).success).toBe(false);
+    f.board_pass = 'A'.repeat(60);
+    expect(bpeTicketSchema.safeParse(f).success).toBe(true);
+    expect(toBpeTicketBody(f)).toMatchObject({board_pass: 'A'.repeat(60)});
+  });
+
+  it('o TA normal exige passageiro identificado', () => {
+    const f = ta();
+    f.passage.identified = false;
+    expect(bpeTicketSchema.safeParse(f).success).toBe(false);
+  });
+
+  it('o múltiplo exige comprador e não leva passageiro', () => {
+    const f = ta();
+    f.purchase_type = 'multiple';
+    expect(bpeTicketSchema.safeParse(f).success).toBe(false);
+    f.buyer = buyerOn();
+    expect(bpeTicketSchema.safeParse(f).success).toBe(true);
+    const body = toBpeTicketBody(f);
+    if (body.variant !== 'ta') throw new Error('ta');
+    expect(body.purchase_type).toBe('multiple');
+    expect(body.passage.passenger).toBeUndefined();
+    expect(body.buyer).toMatchObject({cnpj: '11222333000181'});
+  });
+
+  it('o vinculado leva a chave do múltiplo e nenhum valor, imposto ou pagamento', () => {
+    const f = ta();
+    f.purchase_type = 'linked';
+    expect(bpeTicketSchema.safeParse(f).success).toBe(false);
+    f.multiple_key = KEY;
+    f.components = [];
+    f.payments = [];
+    f.tax = {...f.tax, class_trib: ''};
+    expect(bpeTicketSchema.safeParse(f).success).toBe(true);
+    const body = toBpeTicketBody(f);
+    if (body.variant !== 'ta') throw new Error('ta');
+    expect(body).toMatchObject({purchase_type: 'linked', multiple_key: KEY});
+    expect(body.components).toBeUndefined();
+    expect(body.payments).toBeUndefined();
+    expect(body.tax).toBeUndefined();
+  });
+});
+
 describe('toBpeTicketBody', () => {
   it('monta o corpo comum com data-hora e deslocamento, sem campos vazios', () => {
     const body = toBpeTicketBody(normal());
@@ -158,7 +232,7 @@ describe('toBpeTicketBody', () => {
     if (body.variant !== 'ta') return;
     expect(body.trips[0]).toMatchObject({flight_number: '1234', carrier: 'LA', from_airport: 'GRU'});
     expect(body.tax).toMatchObject({class_trib: '000001'});
-    expect('cst' in body.tax).toBe(false);
+    expect('cst' in (body.tax ?? {})).toBe(false);
     expect('icms' in body).toBe(false);
   });
 

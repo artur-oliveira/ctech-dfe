@@ -4,7 +4,7 @@ package bpes
 // API (inglês, snake_case); cada campo aponta para a tag do leiaute. Escolha fechada é `oneof` com os valores do XSD (a UI
 // mostra seletores). O servidor calcula o que não entra aqui: vBP (soma dos componentes), vPgto, vTroco, base e valor do ICMS e
 // a chave de acesso. O TM e o TA têm corpos próprios (dto_tm.go, dto_ta.go).
-// Fora desta versão: agência, substituição (`tpBPe` 3), ICMS 20 e partilha.
+// Fora desta versão: ICMS 20 e partilha.
 
 // Variantes do BP-e. Nesta versão só a comum está disponível.
 const (
@@ -29,15 +29,35 @@ type BpeEmitBody struct {
 	Components  []BpeComponent `json:"components" validate:"required,min=1,max=20,dive"`
 	Discount    *string        `json:"discount" validate:"omitempty"`
 	// DiscountType é tpDesconto (01 a 13 e 99); com desconto maior que zero é obrigatório, com a descrição.
-	DiscountType   *string      `json:"discount_type" validate:"omitempty,oneof=01 02 03 04 05 06 07 08 09 10 11 12 13 99"`
-	DiscountDesc   *string      `json:"discount_desc" validate:"omitempty,min=2,max=100"`
-	DiscountCode   *string      `json:"discount_code" validate:"omitempty,max=20"`
-	Payments       []BpePayment `json:"payments" validate:"required,min=1,max=10,dive"`
-	ICMS           BpeICMS      `json:"icms" validate:"required"`
-	AdditionalInfo *string      `json:"additional_info" validate:"omitempty,max=5000"`
-	AuthorizedXML  []string     `json:"authorized_xml" validate:"omitempty,max=10,dive,cpfcnpj"`
+	DiscountType *string      `json:"discount_type" validate:"omitempty,oneof=01 02 03 04 05 06 07 08 09 10 11 12 13 99"`
+	DiscountDesc *string      `json:"discount_desc" validate:"omitempty,min=2,max=100"`
+	DiscountCode *string      `json:"discount_code" validate:"omitempty,max=20"`
+	Payments     []BpePayment `json:"payments" validate:"required,min=1,max=10,dive"`
+	ICMS         BpeICMS      `json:"icms" validate:"required"`
+	// Substitution marca o bilhete como substituto (tpBPe 3) de outro da organização; Agency é a agência que vendeu o bilhete.
+	Substitution *BpeSubstitution `json:"substitution" validate:"omitempty"`
+	Agency       *BpeAgency       `json:"agency" validate:"omitempty"`
+	// BoardPass é o conteúdo do PDF417 do DABPE (boardPassBPe, 50 a 1000 caracteres), só no bilhete comum.
+	BoardPass      *string  `json:"board_pass" validate:"omitempty,min=50,max=1000"`
+	AdditionalInfo *string  `json:"additional_info" validate:"omitempty,max=5000"`
+	AuthorizedXML  []string `json:"authorized_xml" validate:"omitempty,max=10,dive,cpfcnpj"`
 	// ContingencyReason é a justificativa (xJust) na contingência offline: 15 a 256 caracteres.
 	ContingencyReason *string `json:"contingency_reason" validate:"omitempty,min=15,max=256"`
+}
+
+// BpeSubstitution é o grupo infBPeSub: a chave do bilhete substituído e o tipo (tpSub). No bilhete comum valem 1 remarcação, 2
+// transferência e 3 transferência e remarcação; o TA aceita também 4 erro de tarifa, 5 erro de tributação, 6 decisão judicial,
+// 7 erro cadastral e 9 outros.
+type BpeSubstitution struct {
+	OriginalKey string `json:"original_key" validate:"required,dfe_access_key=63"`
+	Type        string `json:"type" validate:"required,oneof=1 2 3 4 5 6 7 9"`
+}
+
+// BpeAgency é a agência ou ponto de venda que não pertence ao emitente (grupo agencia).
+type BpeAgency struct {
+	Name    string     `json:"name" validate:"required,min=2,max=60"`
+	CNPJ    string     `json:"cnpj" validate:"required,cnpj"`
+	Address BpeAddress `json:"address" validate:"required"`
 }
 
 // BpePlace é a UF e o município (código IBGE) do início ou do fim da viagem.

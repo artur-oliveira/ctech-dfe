@@ -2135,6 +2135,17 @@ export interface BpeTripIn {
   platform?: string
 }
 
+export interface BpeAddressIn {
+  street: string
+  number: string
+  neighborhood: string
+  ibge_code: string
+  city: string
+  uf: string
+  postal_code?: string
+  complement?: string
+}
+
 /** Comprador opcional (grupo comp): um entre cnpj, cpf e foreign_id. */
 export interface BpeBuyerIn {
   name: string
@@ -2142,10 +2153,18 @@ export interface BpeBuyerIn {
   cpf?: string
   foreign_id?: string
   ie?: string
-  address: {
-    street: string; number: string; complement?: string; neighborhood: string
-    ibge_code: string; city: string; postal_code?: string; uf: string
-  }
+  address: BpeAddressIn
+}
+
+export interface BpeAgencyIn {
+  name: string
+  cnpj: string
+  address: BpeAddressIn
+}
+
+export interface BpeSubstitutionIn {
+  original_key: string
+  type: string
 }
 
 interface BpeTicketBase {
@@ -2153,12 +2172,14 @@ interface BpeTicketBase {
   origin: BpePlaceIn
   destination: BpePlaceIn
   buyer?: BpeBuyerIn
-  components: { type: string; value: string }[]
+  agency?: BpeAgencyIn
+  substitution?: BpeSubstitutionIn
+  components?: { type: string; value: string }[]
   discount?: string
   discount_type?: string
   discount_desc?: string
   discount_code?: string
-  payments: { type: string; value: string; desc?: string }[]
+  payments?: { type: string; value: string; desc?: string }[]
   additional_info?: string
   contingency_reason?: string
 }
@@ -2177,13 +2198,16 @@ export interface BpeNormalEmit extends BpeTicketBase {
   }
   trips: BpeTripIn[]
   icms: BpeIcmsIn
+  board_pass?: string
 }
 
 export interface BpeTaEmit extends BpeTicketBase {
   variant: 'ta'
+  purchase_type?: string
+  multiple_key?: string
   passage: { boarding: string; validity: string; passenger?: { name: string; doc_type: string; doc_number: string } }
   trips: BpeTripIn[]
-  tax: {
+  tax?: {
     /** cClassTrib da tabela do TA; o CST sai da própria linha da tabela. */
     class_trib: string
     donation?: boolean

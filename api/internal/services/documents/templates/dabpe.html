@@ -28,6 +28,12 @@
 {% if ctx.is_cancelada %}<div class="watermark">{{ ctx.text.cancelada }}</div>{% endif %}
 {% if ctx.is_homologacao %}<div class="watermark">{{ ctx.text.homologacao }}</div>{% endif %}
 
+{% if ctx.agencia %}
+<div class="block muted">
+  <span class="b">Agência:</span> {{ ctx.agencia.nome }} &nbsp; <span class="b">CNPJ:</span> {{ ctx.agencia.doc }}<br>
+  {{ ctx.agencia.endereco }}, {{ ctx.agencia.mun }} - {{ ctx.agencia.uf }} &nbsp; CEP: {{ ctx.agencia.cep }}
+</div>
+{% endif %}
 <table class="block"><tr>
   <td style="width:70%">
     {% if ctx.brand.logo_b64 %}<div class="logo-band"><img class="logo" src="{{ ctx.brand.logo_b64 }}" alt="logo"></div>{% endif %}
@@ -82,6 +88,7 @@
   <tr><td>Troco R$</td><td class="right">{{ ctx.valores.troco }}</td></tr>
 </table>
 
+{% if ctx.board_pass %}<div class="barcode-band"><img class="barcode" src="{{ ctx.board_pass }}" alt="Boarding pass"></div>{% endif %}
 <div class="block"><span class="b">{{ ctx.text.consulta }}</span> {{ ctx.consulta_url }}</div>
 <div class="block chave"><span class="b">Chave de acesso:</span> {{ ctx.chave_fmt }}</div>
 {% if ctx.chave_barcode %}<div class="barcode-band"><img class="barcode" src="{{ ctx.chave_barcode }}" alt="chave"></div>{% endif %}

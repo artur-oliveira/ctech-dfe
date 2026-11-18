@@ -2,28 +2,43 @@ package bpes
 
 // Corpo da emissão do BP-e TA (transporte aéreo, modal 2; NT 2025.002 v2.00). Mesma ideia do bilhete comum, com a viagem
 // por voo (companhia, número, aeroportos) e sem poltrona, plataforma, prefixo nem percurso. O emitente precisa de
-// credenciamento específico para o TA. Nesta versão só a compra normal (`tpCompra` 0): BP-e múltiplo e vinculado a múltiplo,
-// substituição, agência, o evento de ajuste 112130 e a vinculação de pagamento ficam fora.
+// credenciamento específico para o TA. Compra normal, BP-e múltiplo (fretamento) e vinculado a múltiplo, substituição e
+// agência entram; o evento de ajuste 112130 (sem especificação na NT) e a vinculação de pagamento ficam fora.
+
+// Tipos de compra do TA (`tpCompra`).
+const (
+	PurchaseNormal   = "normal"
+	PurchaseMultiple = "multiple"
+	PurchaseLinked   = "linked"
+)
 
 // BpeTAEmitBody é o corpo de POST /bpes com `variant` igual a `ta`.
 type BpeTAEmitBody struct {
 	Variant string `json:"variant" validate:"required,eq=ta"`
 	// Presence é indPres: 1 presencial, 2 internet, 3 teleatendimento, 4 entrega em domicílio, 5 presencial fora do estabelecimento, 9 outros.
-	Presence    string           `json:"presence" validate:"required,oneof=1 2 3 4 5 9"`
-	Origin      BpePlace         `json:"origin" validate:"required"`
-	Destination BpePlace         `json:"destination" validate:"required"`
-	Buyer       *BpeBuyer        `json:"buyer" validate:"omitempty"`
-	Passage     BpeTAPassage     `json:"passage" validate:"required"`
-	Trips       []BpeTATrip      `json:"trips" validate:"required,min=1,max=20,dive"`
-	Components  []BpeTAComponent `json:"components" validate:"required,min=1,max=20,dive"`
-	Discount    *string          `json:"discount" validate:"omitempty"`
+	Presence    string       `json:"presence" validate:"required,oneof=1 2 3 4 5 9"`
+	Origin      BpePlace     `json:"origin" validate:"required"`
+	Destination BpePlace     `json:"destination" validate:"required"`
+	Buyer       *BpeBuyer    `json:"buyer" validate:"omitempty"`
+	Passage     BpeTAPassage `json:"passage" validate:"required"`
+	Trips       []BpeTATrip  `json:"trips" validate:"required,min=1,max=20,dive"`
+	// PurchaseType é tpCompra: normal (padrão), multiple (fretamento, sem passageiro e com comprador) ou linked (vinculado a um
+	// BP-e múltiplo, com MultipleKey e sem valores, imposto nem pagamento).
+	PurchaseType string  `json:"purchase_type" validate:"omitempty,oneof=normal multiple linked"`
+	MultipleKey  *string `json:"multiple_key" validate:"omitempty,dfe_access_key=63"`
+	// Substitution marca o bilhete como substituto (tpBPe 3); Agency é a agência que vendeu o bilhete.
+	Substitution *BpeSubstitution `json:"substitution" validate:"omitempty"`
+	Agency       *BpeAgency       `json:"agency" validate:"omitempty"`
+	Components   []BpeTAComponent `json:"components" validate:"omitempty,min=1,max=20,dive"`
+	Discount     *string          `json:"discount" validate:"omitempty"`
 	// DiscountType é tpDesconto do TA: 03, 09, 10, 11, 12, 13 e 99.
 	DiscountType *string      `json:"discount_type" validate:"omitempty,oneof=03 09 10 11 12 13 99"`
 	DiscountDesc *string      `json:"discount_desc" validate:"omitempty,min=2,max=100"`
 	DiscountCode *string      `json:"discount_code" validate:"omitempty,max=20"`
-	Payments     []BpePayment `json:"payments" validate:"required,min=1,max=10,dive"`
+	Payments     []BpePayment `json:"payments" validate:"omitempty,min=1,max=10,dive"`
 	// Tax é o IBS/CBS (o TA não tem ICMS): CST e classificação tributária da tabela do MOC, e as alíquotas quando houver tributo.
-	Tax BpeTATax `json:"tax" validate:"required"`
+	// Obrigatório, menos no vinculado a múltiplo.
+	Tax BpeTATax `json:"tax" validate:"omitempty"`
 	// IATANumber é nroBPIATA, o número do bilhete na IATA.
 	IATANumber        *string  `json:"iata_number" validate:"omitempty,min=1,max=20"`
 	AdditionalInfo    *string  `json:"additional_info" validate:"omitempty,max=5000"`
@@ -73,7 +88,7 @@ func (b BpeTAEmitBody) common() BpeEmitBody {
 		Passage:    BpePassage{Boarding: b.Passage.Boarding, Validity: b.Passage.Validity, Passenger: b.Passage.Passenger},
 		Trips:      trips,
 		Components: comps, Discount: b.Discount, DiscountType: b.DiscountType, DiscountDesc: b.DiscountDesc,
-		DiscountCode: b.DiscountCode, Payments: b.Payments, ICMS: BpeICMS{CST: "40"},
+		DiscountCode: b.DiscountCode, Payments: b.Payments, ICMS: BpeICMS{CST: "40"}, Substitution: b.Substitution, Agency: b.Agency,
 		AdditionalInfo: b.AdditionalInfo, AuthorizedXML: b.AuthorizedXML, ContingencyReason: b.ContingencyReason,
 	}
 }

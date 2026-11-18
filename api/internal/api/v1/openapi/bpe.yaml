@@ -21,8 +21,14 @@ paths:
         Na contingência offline (`PUT /bpe-emission`), o bilhete é assinado no egress, o QR Code leva `sign` e o documento
         fica pendente (`contingency_state=pending`) até o reenvio com a mesma chave.
 
-        Fora desta versão: agência, substituição, ICMS 20 e partilha (o TA usa IBS/CBS, sem regras F76 a F111). A emissão é cobrada pelo medidor `bpe`:
-        plano sem `quota_bpe` recebe 402.
+        Substituição (`substitution`, `tpBPe` 3): o bilhete original precisa ser da organização, estar autorizado, ser da mesma
+        variante (comum com comum, TA com TA), repetir UF, município e comprador e, se o embarque já passou, ter o evento de não
+        embarque; senão 422. Autorizado o substituto, o original passa a `substituted`. Agência (`agency`) imprime a Divisão I do
+        DABPE e `board_pass` (só no comum) o PDF417 da Divisão IX. No TA, `purchase_type` escolhe compra normal, BP-e múltiplo
+        (fretamento, sem passageiro e com comprador) ou vinculado a um múltiplo (`multiple_key`, sem valores, imposto nem pagamento).
+
+        Fora desta versão: ICMS 20 e partilha (o TA usa IBS/CBS, sem regras F76 a F111) e o evento de ajuste 112130 do TA (a NT
+        o deixa sem especificação). A emissão é cobrada pelo medidor `bpe`: plano sem `quota_bpe` recebe 402.
       operationId: emitBpe
       parameters:
         - $ref: '#/components/parameters/OrgHeader'
@@ -478,11 +484,31 @@ components:
             cst: { type: string, enum: [ '00', '40', '41', '51', '90', sn ], description: '`sn` é Simples Nacional (CST 90, indSN 1).' }
             rate: { type: string, description: Alíquota em %; obrigatória em 00 e 90. }
         additional_info: { type: string, maxLength: 5000 }
+        substitution: { $ref: '#/components/schemas/BpeSubstitution' }
+        agency: { $ref: '#/components/schemas/BpeAgency' }
+        board_pass: { type: string, minLength: 50, maxLength: 1000, description: Conteúdo do PDF417 do DABPE (`boardPassBPe`). }
         authorized_xml:
           type: array
           maxItems: 10
           items: { type: string }
         contingency_reason: { type: string, minLength: 15, maxLength: 256 }
+
+    BpeSubstitution:
+      type: object
+      required: [ original_key, type ]
+      description: Grupo `infBPeSub`. No comum valem os tipos 1 a 3; o TA aceita também 4 a 7 e 9.
+      properties:
+        original_key: { type: string, minLength: 44, maxLength: 44, description: Chave do BP-e substituído. }
+        type: { type: string, enum: [ '1', '2', '3', '4', '5', '6', '7', '9' ], description: '`tpSub`: 1 remarcação, 2 transferência, 3 transferência e remarcação, 4 erro de tarifa, 5 erro de tributação, 6 decisão judicial, 7 erro cadastral, 9 outros.' }
+
+    BpeAgency:
+      type: object
+      required: [ name, cnpj, address ]
+      description: Agência ou ponto de venda que não pertence ao emitente (grupo `agencia`).
+      properties:
+        name: { type: string, minLength: 2, maxLength: 60 }
+        cnpj: { type: string }
+        address: { $ref: '#/components/schemas/BpeBuyer/properties/address' }
 
     BpeTmEmitBody:
       type: object
@@ -551,9 +577,9 @@ components:
     BpeTaEmitBody:
       type: object
       description: |
-        BP-e TA (aéreo, modal 2): viagem por voo, sem poltrona nem percurso, imposto IBS/CBS (sem ICMS). Só compra normal.
+        BP-e TA (aéreo, modal 2): viagem por voo, sem poltrona nem percurso, imposto IBS/CBS (sem ICMS). Compra normal, múltiplo ou vinculado (`purchase_type`); `components`, `payments` e `tax` são obrigatórios menos no vinculado.
         Com alíquotas em `tax`, o servidor calcula base (valor pago), IBS da UF e do município e CBS; `vTotDFe` é o valor pago.
-      required: [ variant, presence, origin, destination, passage, trips, components, payments, tax ]
+      required: [ variant, presence, origin, destination, passage, trips ]
       properties:
         variant: { type: string, enum: [ ta ] }
         presence: { type: string, enum: [ '1', '2', '3', '4', '5', '9' ] }
@@ -614,7 +640,7 @@ components:
         tax:
           type: object
           description: |
-            IBS e CBS do TA. `class_trib` é um cClassTrib da tabela do IT 2025.002 RT v1.71 com `indBPeTA` (oito classificações:
+            IBS e CBS do TA (omitido só no vinculado a múltiplo). `class_trib` é um cClassTrib da tabela do IT 2025.002 RT v1.71 com `indBPeTA` (oito classificações:
             000001, 200050, 222001, 410001, 410003, 410004, 410026 e 410999); o CST sai da linha da tabela e os grupos exigidos ou
             vedados saem dos indicadores do CST e da classificação. As alíquotas de 2026 a 2028 (IBS) e de 2026 (CBS) são as da
             lei e o servidor as aplica; informá-las onde a lei já as fixa é 400, e omiti-las onde ainda não existem também.
@@ -677,6 +703,10 @@ components:
                 cbs_rate: { type: string }
             total_taxes: { type: string, description: '`vTotTrib`.' }
             fiscal_info: { type: string, minLength: 1, maxLength: 2000, description: '`infAdFisco`.' }
+        purchase_type: { type: string, enum: [ normal, multiple, linked ], description: '`tpCompra`: normal (padrão), multiple (BP-e múltiplo) ou linked (vinculado a múltiplo).' }
+        multiple_key: { type: string, minLength: 44, maxLength: 44, description: Só no `linked`; chave do BP-e múltiplo. }
+        substitution: { $ref: '#/components/schemas/BpeSubstitution' }
+        agency: { $ref: '#/components/schemas/BpeAgency' }
         iata_number: { type: string, minLength: 1, maxLength: 20 }
         additional_info: { type: string, maxLength: 5000 }
         authorized_xml:

@@ -47,6 +47,8 @@ export default function GuideBpe() {
                 <GuideTerm term="TA">
                   Transporte aéreo: cada trecho é um voo (companhia, número, aeroportos de origem e destino), sem poltrona nem linha. O
                   imposto é IBS e CBS no lugar do ICMS: a classificação tributária (tabela oficial, define o CST) e, quando o caso pede, doação, estorno de crédito, compra governamental e devolução. As alíquotas fixadas em lei o servidor aplica.
+                  O tipo de compra pode ser normal (passageiro identificado), BP-e múltiplo (fretamento: sem passageiro e com comprador) ou
+                  vinculado a um múltiplo (só o passageiro e a chave do múltiplo; sem valores, imposto nem pagamento).
                 </GuideTerm>
                 <GuideTerm term="TM">
                   Transporte metropolitano: não há bilhete individual. É uma apuração por grupo de viagem (UF, placa, prefixo) com itens
@@ -64,6 +66,17 @@ export default function GuideBpe() {
                 <li>Os municípios saem de uma lista do IBGE: escolha pelo nome e a UF é preenchida junto.</li>
                 <li>No bilhete impresso, o DABPE tem o formato A4 e o reduzido (bobina de 58 mm). Em contingência sai com duas vias, a segunda marcada &quot;Via do Estabelecimento&quot;.</li>
                 <li>Os horários seguem o fuso do seu navegador (no Brasil, -03:00).</li>
+                <li>
+                  <b>Comprador</b> e <b>agência</b> são opcionais (o comprador é obrigatório no BP-e múltiplo). A agência sai na Divisão
+                  I do DABPE.
+                </li>
+                <li>
+                  <b>Substituição</b>: marque que o bilhete substitui outro e informe a chave e o tipo (remarcação, transferência e,
+                  no TA, também erro de tarifa, de tributação, decisão judicial, erro cadastral e outros). O original precisa estar
+                  autorizado, repetir origem, destino e comprador e, se o embarque já passou, ter o evento de não embarque. Autorizado
+                  o substituto, o original passa a <b>Substituído</b>.
+                </li>
+                <li>No bilhete comum, o conteúdo do código de embarque (PDF417) é opcional e sai na Divisão IX do DABPE.</li>
                 <li>Antes de reservar o número, o bilhete passa pelas regras do MOC; o que a SEFAZ rejeitaria com certeza volta como erro apontando o campo.</li>
               </GuideBullets>
             </>
