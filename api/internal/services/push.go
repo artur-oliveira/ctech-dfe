@@ -128,6 +128,19 @@ func (s *PushService) Subscribe(ctx context.Context, companyPK, sub string, in P
 	if _, err := webpush.ParseSubscription(in.Endpoint, in.P256dh, in.Auth); err != nil {
 		return nil, problem.BadRequest("inscrição de notificação inválida")
 	}
+	// One browser endpoint belongs to one person: whoever held it before (a shared computer where the previous person never
+	// logged out cleanly) loses it now, so only the person signed in on that browser is notified. Failing here aborts the
+	// subscription instead of leaving two owners.
+	owners, err := s.repo.OtherOwners(ctx, in.Endpoint, sub)
+	if err != nil {
+		return nil, err
+	}
+	endpointID := repositories.PushSubscriptionID(in.Endpoint)
+	for _, previous := range owners {
+		if err := s.repo.DeleteSubscription(ctx, previous, endpointID); err != nil && !errors.Is(err, repositories.ErrPushSubscriptionNotFound) {
+			return nil, err
+		}
+	}
 	label := pushDeviceLabel(in.UserAgent)
 	id, err := s.repo.UpsertSubscription(ctx, sub, repositories.PushSubscription{
 		Endpoint: in.Endpoint, P256dh: in.P256dh, Auth: in.Auth, VapidKID: s.kid, Device: label,

@@ -84,6 +84,19 @@ describe('push table', () => {
     ]))
   })
 
+  test('endpoint-index is sparse and KEYS_ONLY: only subscription rows, so one browser endpoint is found across people without a Scan', () => {
+    expect(push().Properties.GlobalSecondaryIndexes).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        IndexName: 'endpoint-index',
+        KeySchema: [
+          { AttributeName: 'endpoint_id', KeyType: 'HASH' },
+          { AttributeName: 'pk', KeyType: 'RANGE' },
+        ],
+        Projection: { ProjectionType: 'KEYS_ONLY' },
+      }),
+    ]))
+  })
+
   test('uses the AWS-owned key (no billed KMS)', () => {
     expect(push().Properties.Replicas[0].SSESpecification).toBeUndefined()
   })

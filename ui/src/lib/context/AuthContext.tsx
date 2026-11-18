@@ -142,6 +142,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       if (!result) {
         if (cached) localStorage.removeItem(STORAGE_KEY_USER);
+        // No session at all (not a transient failure, that is the catch above): this browser must stop notifying the person
+        // who is gone. Without a token only the local part works, which is what makes the push service drop the row.
+        void removeThisDevicePush();
         setLoading(false);
         return;
       }

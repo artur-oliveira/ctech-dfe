@@ -3,6 +3,7 @@ import {existsSync, readFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import {apiClient} from '@/lib/api/client';
+import {STORAGE_KEY_PUSH_STAMP, STORAGE_KEY_PUSH_USER} from '@/lib/constants/storage';
 import {currentPushDeviceId, pushDeviceId} from '@/lib/push/device';
 import {PUSH_LOGOUT_TIMEOUT_MS, removeThisDevicePush} from '@/lib/push/logout';
 import {orgOfPath} from '@/lib/push/navigate';
@@ -36,6 +37,14 @@ describe('service worker e manifest', () => {
   });
 });
 
+describe('contrato com o pacote', () => {
+  // The app removes the stamp by name to force a resend; a rename in the package would silently turn that into a no-op.
+  it('a chave do carimbo é a mesma que o @aoctech/push-client grava', () => {
+    const client = readFileSync(resolve(ROOT, 'node_modules/@aoctech/push-client/dist/client.js'), 'utf8');
+    expect(client).toContain(`'${STORAGE_KEY_PUSH_STAMP}'`);
+  });
+});
+
 describe('pushDeviceId', () => {
   // Same rule as `repositories.PushSubscriptionID` in the API: 16 hex characters of SHA-256(endpoint).
   it('é o prefixo de 8 bytes do SHA-256 do endpoint, em hexadecimal', async () => {
@@ -66,28 +75,49 @@ describe('currentPushDeviceId', () => {
 });
 
 describe('removeThisDevicePush (logout)', () => {
-  beforeEach(() => vi.useFakeTimers({shouldAdvanceTime: true}));
+  beforeEach(() => {
+    localStorage.clear();
+    vi.useFakeTimers({shouldAdvanceTime: true});
+  });
   afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
 
-  it('apaga a linha do servidor e a inscrição do navegador', async () => {
-    const unsubscribe = vi.fn().mockResolvedValue(true);
-    stubServiceWorker({endpoint: ENDPOINT, unsubscribe});
-    const del = vi.spyOn(apiClient, 'deletePushDevice').mockResolvedValue(undefined);
+  it('cancela a inscrição do navegador ANTES de apagar a linha do servidor', async () => {
+    const calls: string[] = [];
+    stubServiceWorker({endpoint: ENDPOINT, unsubscribe: async () => (calls.push('local'), true)});
+    const del = vi.spyOn(apiClient, 'deletePushDevice').mockImplementation(async () => {
+      calls.push('server');
+    });
     await removeThisDevicePush();
+    expect(calls).toEqual(['local', 'server']);
     expect(del).toHaveBeenCalledWith(await pushDeviceId(ENDPOINT));
-    expect(unsubscribe).toHaveBeenCalledTimes(1);
   });
 
-  it('falha no servidor não impede de apagar a inscrição local nem de sair', async () => {
+  it('falha de rede no DELETE não deixa a inscrição local viva nem trava o logout', async () => {
     const unsubscribe = vi.fn().mockResolvedValue(true);
     stubServiceWorker({endpoint: ENDPOINT, unsubscribe});
     vi.spyOn(apiClient, 'deletePushDevice').mockRejectedValue(new Error('rede'));
     await expect(removeThisDevicePush()).resolves.toBeUndefined();
     expect(unsubscribe).toHaveBeenCalledTimes(1);
+  });
+
+  it('esquece o carimbo da última sincronização e de quem era, mesmo sem inscrição', async () => {
+    localStorage.setItem(STORAGE_KEY_PUSH_STAMP, '{"at":1,"kid":"k"}');
+    localStorage.setItem(STORAGE_KEY_PUSH_USER, 'u1');
+    stubServiceWorker(null);
+    await removeThisDevicePush();
+    expect(localStorage.getItem(STORAGE_KEY_PUSH_STAMP)).toBeNull();
+    expect(localStorage.getItem(STORAGE_KEY_PUSH_USER)).toBeNull();
+  });
+
+  it('o carimbo cai antes de qualquer espera de rede (o próximo login reenvia)', async () => {
+    localStorage.setItem(STORAGE_KEY_PUSH_STAMP, '{"at":1,"kid":"k"}');
+    stubServiceWorker({endpoint: ENDPOINT, unsubscribe: () => new Promise(() => undefined)});
+    void removeThisDevicePush();
+    expect(localStorage.getItem(STORAGE_KEY_PUSH_STAMP)).toBeNull();
   });
 
   it('sem inscrição não chama a API', async () => {
@@ -97,16 +127,20 @@ describe('removeThisDevicePush (logout)', () => {
     expect(del).not.toHaveBeenCalled();
   });
 
-  it('um servidor que não responde não segura o logout além do limite', async () => {
-    stubServiceWorker({endpoint: ENDPOINT, unsubscribe: async () => true});
+  it('um servidor que não responde não segura o logout além do limite, com a inscrição local já cancelada', async () => {
+    const unsubscribe = vi.fn().mockResolvedValue(true);
+    stubServiceWorker({endpoint: ENDPOINT, unsubscribe});
     vi.spyOn(apiClient, 'deletePushDevice').mockReturnValue(new Promise(() => undefined));
-    const done = vi.fn();
-    const pending = removeThisDevicePush().then(done);
-    await vi.advanceTimersByTimeAsync(PUSH_LOGOUT_TIMEOUT_MS - 100);
-    expect(done).not.toHaveBeenCalled();
-    await vi.advanceTimersByTimeAsync(200);
-    await pending;
-    expect(done).toHaveBeenCalled();
+    // Real timers and a short limit: the point is that the call returns although the server never answers.
+    vi.useRealTimers();
+    const started = Date.now();
+    await removeThisDevicePush(60);
+    expect(Date.now() - started).toBeLessThan(PUSH_LOGOUT_TIMEOUT_MS);
+    expect(unsubscribe).toHaveBeenCalledTimes(1);
+  });
+
+  it('o limite padrão do logout é de 2 s', () => {
+    expect(PUSH_LOGOUT_TIMEOUT_MS).toBe(2000);
   });
 });
 

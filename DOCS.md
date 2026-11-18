@@ -1000,7 +1000,7 @@ eventos quer; o DF-e avisa quando o resultado de um documento é terminal ou qua
 | Método | Rota | Descrição |
 |--------|------|-----------|
 | GET    | `/v1.0/push/config` | `{enabled, public_key, vapid_kid, event_types, defaults, max_subscriptions}`. `enabled: false` sem chave VAPID pública ou sem a Lambda; não exige o header da empresa |
-| PUT    | `/v1.0/push/subscriptions` | `{endpoint, keys: {p256dh, auth}}` (o `PushSubscription.toJSON()`). Idempotente pelo hash do endpoint; o 11º dispositivo substitui o visto há mais tempo. 400 inscrição inválida; 503 desativado |
+| PUT    | `/v1.0/push/subscriptions` | `{endpoint, keys: {p256dh, auth}}` (o `PushSubscription.toJSON()`). Idempotente pelo hash do endpoint; o 11º dispositivo substitui o visto há mais tempo. **O mesmo endpoint de outra pessoa é religado a quem chama** (a linha anterior é apagada). 400 inscrição inválida; 503 desativado |
 | GET    | `/v1.0/push/subscriptions` | Os dispositivos da pessoa (`id`, `device`, datas); nunca o endpoint |
 | DELETE | `/v1.0/push/subscriptions/{id}` | Remove um dispositivo (id de 16 hex); 404 se não existe |
 | GET    | `/v1.0/push/preferences` | Eventos que a pessoa quer da empresa do header (`[]` se nunca escolheu) |
@@ -1061,8 +1061,19 @@ qualquer forma). Consultas de Logs Insights prontas: `fields @timestamp, event_i
   caixas de marcar por evento da empresa selecionada (nunca texto livre) e "Meus dispositivos" com remover (o id do aparelho é
   `sha256(endpoint)[:8]` em hex, calculado no cliente por `lib/push/device.ts`, o que também marca "Este dispositivo"). Instalação sem chave
   responde `enabled: false` e a tela diz "indisponível".
-- **Logout** (`AuthContext.logout`): antes de revogar o token, `removeThisDevicePush` apaga a linha do servidor e a inscrição do navegador,
-  com teto de 2 s e sem nunca impedir a saída (evita que o próximo usuário do aparelho receba os avisos do anterior).
+- **Um navegador, uma pessoa** (computador compartilhado; o logout não pode falhar aberto). `removeThisDevicePush` (`lib/push/logout.ts`)
+  roda, nesta ordem: (1) esquece o carimbo da última sincronização e de quem era (síncrono); (2) cancela a inscrição **do navegador**
+  (local e rápido: o serviço de push passa a responder 410 e o `push-sender` apaga a linha sozinho, mesmo que o resto falhe); (3) apaga a
+  linha no servidor com o token ainda válido, limitado a 2 s. Nunca lança, nunca impede a saída. Roda no `AuthContext.logout` (antes de
+  limpar o token) e também quando a sessão é dada como inexistente: o refresh da abertura responde "sem sessão" (falha transitória não
+  conta) e o 401 que não consegue renovar (`ApiClient`); sem token só vale a parte local, que é a que importa. Consequência aceita: sessão
+  expirada desfaz a inscrição do navegador, e a pessoa liga de novo na tela.
+- **Troca de pessoa no mesmo navegador.** O carimbo do `syncOnLoad` é por navegador; `PushProvider` guarda o `user_id` de quem sincronizou por
+  último (`ctech-dfe:push-user`) e, se quem entrou é outro, apaga o carimbo (o efeito roda antes da sincronização) para o cliente reenviar a
+  inscrição. No servidor, `PUT /push/subscriptions` **religa** o endpoint: `PushRepository.OtherOwners` acha, pelo `endpoint-index`, as linhas
+  do mesmo endpoint de outras pessoas e o `Subscribe` as apaga (liberando a vaga delas) antes de gravar a do usuário atual; se a consulta ou o
+  delete falhar, a inscrição é recusada em vez de deixar dois donos. Linhas gravadas antes do índice não têm `endpoint_id` e não são
+  achadas por ele (o 410 do serviço de push as limpa).
 - **Escopos.** `dfe:notifications:read|write` já estão em `DFE_USER_SCOPES`; o teste de contrato (`oauth-scopes.test.ts`) cobre a lista.
 - **Guia** `/guide/notifications`, com capturas `notifications.webp` e `notifications-ios.webp` (a segunda usa o agente de usuário do
   iPhone via `userAgent` na entrada de `CAPTURES`, sem atalho no app).

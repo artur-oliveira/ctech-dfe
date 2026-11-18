@@ -5,6 +5,7 @@ import {useRouter} from 'next/navigation';
 import {useQueryClient} from '@tanstack/react-query';
 import {onNavigateMessage, registerServiceWorker, usePushSubscription, type PushCallbacks, type UsePushSubscriptionResult} from '@aoctech/push-client';
 import {queryKeys} from '@/lib/api/query-keys';
+import {STORAGE_KEY_PUSH_STAMP, STORAGE_KEY_PUSH_USER} from '@/lib/constants/storage';
 import {useAuth} from '@/lib/hooks/useAuth';
 import {pushCallbacks} from '@/lib/push/callbacks';
 import {orgOfPath} from '@/lib/push/navigate';
@@ -78,6 +79,23 @@ export function PushProvider({children}: { children: ReactNode }) {
       void qc.invalidateQueries({queryKey: queryKeys.push.devices()});
     },
   }), [qc]);
+
+  // One browser, one person. The sync stamp is per browser, so a different person signing in on a shared browser would be
+  // told "synced 5 minutes ago" and the subscription would stay on the previous person's row. Dropping the stamp when
+  // the signed-in person changes makes `syncOnLoad` resend it, and the API moves the endpoint to the current person.
+  // Declared before `usePushSubscription` on purpose: effects run in order, so this one runs before the sync.
+  const userId = user?.user_id;
+  useEffect(() => {
+    if (!userId) return;
+    try {
+      if (localStorage.getItem(STORAGE_KEY_PUSH_USER) !== userId) {
+        localStorage.removeItem(STORAGE_KEY_PUSH_STAMP);
+        localStorage.setItem(STORAGE_KEY_PUSH_USER, userId);
+      }
+    } catch {
+      // Storage unavailable: the stamp's own 24 h expiry still resends the subscription.
+    }
+  }, [userId]);
 
   // The API needs the company header on every write, so wait for one.
   const push = usePushSubscription({...callbacks, enabled: !!user && !!selectedOrg});

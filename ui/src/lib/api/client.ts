@@ -307,6 +307,10 @@ function createAxiosInstance(): AxiosInstance {
         // Refresh failed — start OAuth flow (imported lazily to avoid SSR issues).
         // Never use /callback as returnTo; that would loop back into the callback handler.
         if (typeof window !== 'undefined') {
+          // The session cannot be renewed: stop this browser from notifying the person who is gone (local part only, there is
+          // no token left). Dynamic import: `push/logout` imports this client.
+          const {removeThisDevicePush} = await import('@/lib/push/logout');
+          await removeThisDevicePush();
           const {startOAuthFlow, currentReturnTo} = await import('@/lib/auth/oauth');
           await startOAuthFlow(currentReturnTo());
         }

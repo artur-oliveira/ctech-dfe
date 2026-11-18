@@ -54,7 +54,9 @@ paths:
       description: |
         Corpo é o `PushSubscription.toJSON()` do navegador. A inscrição é validada (https, serviço de push conhecido,
         chave P-256 válida, segredo de 16 bytes; 400 caso contrário). O mesmo endpoint cai na mesma linha, então o PUT é
-        idempotente e a abertura do app o repete para renovar. O 11º dispositivo substitui o visto há mais tempo.
+        idempotente e a abertura do app o repete para renovar. Um endpoint pertence a uma pessoa por vez: se outra pessoa já
+        o tinha (computador compartilhado), a linha dela é apagada e o endpoint passa a quem chama. O 11º dispositivo
+        substitui o visto há mais tempo.
         Um dispositivo novo começa com só `distribution.received` ligado para a empresa do header, sem sobrescrever uma
         escolha já feita. 503 quando as notificações estão desativadas na instalação.
       operationId: putPushSubscription

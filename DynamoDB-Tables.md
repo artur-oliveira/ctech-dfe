@@ -67,7 +67,7 @@ PITR: enabled in production only.
 | 57 | `organization_nfcom_subscribers` | `{org_pk}`           | `NFCOMSUB_{uuid}`                        | `name-index`                                       |
 | 58 | `organization_nfcom_plans`  | `{org_pk}`                   | `NFCOMPLAN_{uuid}`                       | `name-index`                                       |
 | 59 | `organization_bpe_lines`    | `{org_pk}`                   | `BPELINE_{uuid}`                         | `name-index`                                       |
-| 60 | `push`                      | `USER#{sub}` / `COMPANY#{pk}` | `SUB#…` / `META#counts` / `USER#…` / `EVENT#…` / `THROTTLE#…` | `user-index` (sparse, KEYS_ONLY) |
+| 60 | `push`                      | `USER#{sub}` / `COMPANY#{pk}` | `SUB#…` / `META#counts` / `USER#…` / `EVENT#…` / `THROTTLE#…` | `user-index`, `endpoint-index` (both sparse, KEYS_ONLY) |
 | 50 | `webhooks`                  | `ORG_{organization_id}`      | `ENDPOINT#…` / `META#counts` / `DELIVERY#…` / `ATTEMPT#…` | `due-index` (sparse)          |
 
 ---
@@ -1217,6 +1217,13 @@ Web Push (spec `docs/specs/2026-11-17-web-push.md`): devices, choices and marker
 `user-index` (hash `user_sub`, range `pk`, **KEYS_ONLY**) is **sparse**: only preference rows carry `user_sub`. It lets the erasure of a person
 and the removal of a member find their rows without a Scan. Access: `GetItem` of a preference, `Query USER#u begins_with SUB#` (at most 10
 rows), the fan-out `Query COMPANY#c begins_with USER#` (100 per page), one `Query USER#u` per recipient in the sender. No Scan anywhere.
+
+`endpoint-index` (hash `endpoint_id`, range `pk`, **KEYS_ONLY**) is **sparse** the same way: only subscription rows carry `endpoint_id` (the endpoint
+hash, equal to their `sk` suffix). One browser endpoint belongs to one person at a time: on `PUT /push/subscriptions` the API
+(`PushRepository.OtherOwners`) lists the other people's rows for the endpoint through it and deletes them before writing the current person's,
+so a shared computer notifies only whoever is signed in. One extra `Query` (and a write per previous owner, rare) per subscription call, which
+the client makes at most once a day per device. Rows written before the index have no `endpoint_id`; the push service's 410 cleans them. Eventually
+consistent, so the logout cleanup (cancel the browser subscription first) is the primary guard and this one corrects the rest.
 
 Cost: on-demand with a cap (1000 read/write units, like `webhooks`), PITR in prod, AWS-owned key; under US$ 1 a month for 10 thousand users.
 Erasure: `ScopePush`: the company partition goes with the company (`purgeTable`); a person's partition and preference rows go with the person

@@ -585,11 +585,19 @@ func createTables(ctx context.Context, db *dynamodb.Client) error {
 				{AttributeName: aws.String("pk"), AttributeType: types.ScalarAttributeTypeS},
 				{AttributeName: aws.String("sk"), AttributeType: types.ScalarAttributeTypeS},
 				{AttributeName: aws.String(repositories.AttrPushUserSub), AttributeType: types.ScalarAttributeTypeS},
+				{AttributeName: aws.String(repositories.AttrPushEndpointID), AttributeType: types.ScalarAttributeTypeS},
 			},
 			GlobalSecondaryIndexes: []types.GlobalSecondaryIndex{{
 				IndexName: aws.String(repositories.IndexPushUser),
 				KeySchema: []types.KeySchemaElement{
 					{AttributeName: aws.String(repositories.AttrPushUserSub), KeyType: types.KeyTypeHash},
+					{AttributeName: aws.String("pk"), KeyType: types.KeyTypeRange},
+				},
+				Projection: &types.Projection{ProjectionType: types.ProjectionTypeKeysOnly},
+			}, {
+				IndexName: aws.String(repositories.IndexPushEndpoint),
+				KeySchema: []types.KeySchemaElement{
+					{AttributeName: aws.String(repositories.AttrPushEndpointID), KeyType: types.KeyTypeHash},
 					{AttributeName: aws.String("pk"), KeyType: types.KeyTypeRange},
 				},
 				Projection: &types.Projection{ProjectionType: types.ProjectionTypeKeysOnly},
