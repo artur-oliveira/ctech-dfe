@@ -10,7 +10,14 @@ import * as schedulerTargets from 'aws-cdk-lib/aws-scheduler-targets'
 import * as iam from 'aws-cdk-lib/aws-iam'
 import * as ssm from 'aws-cdk-lib/aws-ssm'
 import {Construct} from 'constructs'
-import {CIOT_SSM_PARAMETER_PATH, CONTINGENCY_WORKER_ID, DISTRIBUTION_WORKER_ID, WorkerDefinition} from './worker-definitions'
+import {
+  CIOT_SSM_PARAMETER_PATH,
+  CONTINGENCY_WORKER_ID,
+  DISTRIBUTION_WORKER_ID,
+  pushParameterPath,
+  pushSenderFunctionName,
+  WorkerDefinition,
+} from './worker-definitions'
 import {Environment} from './types'
 import path from 'node:path'
 import {goLambdaCode} from './go-code'
@@ -510,6 +517,75 @@ export class WorkerStack extends cdk.Stack {
       schedule: scheduler.ScheduleExpression.rate(Duration.minutes(1)),
       target: new schedulerTargets.LambdaInvoke(webhookDeliverer),
       enabled: true,
+    })
+
+    // =========================
+    // PUSH SENDER
+    // =========================
+    // Sends one Web Push notification the API rendered (docs/specs/2026-11-17-web-push.md). The API invokes it
+    // asynchronously per event (Lambda queues it and retries twice, nothing waits for it); it reads each recipient's
+    // devices from the `push` table and sends through go-common/webpush, deleting a device the push service says is gone.
+    // Built from the api module (it drives api/internal/repositories), like the webhook deliverer.
+    //
+    // The four SSM parameters are written by an operator (cmd/push-keygen prints the commands), never by CDK; until they
+    // exist the function logs a warning and returns, and the API never invokes it (it needs the public key too).
+    // Reserved concurrency 5 caps a burst of events at five sends in parallel.
+    //
+    // Cost note: invoked only when a person asked for the event, ~300 ms at 128 MB arm64 (50 thousand sends a month is
+    // inside the Lambda free tier), a Query per recipient on an on-demand table, no schedule and nothing between events.
+    const pushTableArn = `arn:aws:dynamodb:${this.region}:${this.account}:table/${tablePrefix}_push`
+    const pushParameterArns = ['vapid-private-key', 'vapid-private-key-previous', 'vapid-public-key']
+      .map((name) => `arn:aws:ssm:${this.region}:${this.account}:parameter${pushParameterPath(environment, name)}`)
+    const pushAppUrlArn = `arn:aws:ssm:${this.region}:${this.account}:parameter/ctech-dfe/${environment}/app-url`
+    const pushSenderRole = new iam.Role(this, 'push-sender-role', {
+      roleName: `${environment}-push-sender-role`,
+      assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
+      managedPolicies: [
+        iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AWSLambdaBasicExecutionRole'),
+      ],
+    })
+    // Devices of a person (Query), and the delete of a device that is gone (the count row moves in the same transaction).
+    pushSenderRole.addToPrincipalPolicy(new iam.PolicyStatement({
+      actions: ['dynamodb:Query', 'dynamodb:DeleteItem', 'dynamodb:UpdateItem'],
+      resources: [pushTableArn],
+    }))
+    pushSenderRole.addToPrincipalPolicy(new iam.PolicyStatement({
+      actions: ['ssm:GetParameter'],
+      resources: [...pushParameterArns, pushAppUrlArn],
+    }))
+    pushSenderRole.addToPrincipalPolicy(new iam.PolicyStatement({
+      actions: ['kms:Decrypt'],
+      resources: [`arn:aws:kms:${this.region}:${this.account}:key/*`],
+      conditions: {
+        StringEquals: {'kms:ViaService': `ssm.${this.region}.amazonaws.com`},
+        StringLike: {'kms:EncryptionContext:PARAMETER_ARN': pushParameterArns.map((arn) => arn)},
+      },
+    }))
+    pushSenderRole.addToPrincipalPolicy(new iam.PolicyStatement({
+      actions: ['sns:Publish'],
+      resources: [alertsTopicArn],
+    }))
+    new lambda.Function(this, 'push-sender', {
+      functionName: pushSenderFunctionName(environment),
+      runtime: lambda.Runtime.PROVIDED_AL2023,
+      handler: 'bootstrap',
+      code: goLambdaCode(CTECH_API_DIR, './cmd/push-sender'),
+      role: pushSenderRole,
+      architecture: lambda.Architecture.ARM_64,
+      timeout: Duration.seconds(30),
+      memorySize: 128,
+      reservedConcurrentExecutions: 5,
+      retryAttempts: 2,
+      maxEventAge: Duration.hours(1),
+      environment: {
+        APP_ENVIRONMENT: environment,
+        TABLE_PREFIX: tablePrefix,
+        PUSH_VAPID_PRIVATE_KEY_SSM_PATH: pushParameterPath(environment, 'vapid-private-key'),
+        PUSH_VAPID_PRIVATE_KEY_PREVIOUS_SSM_PATH: pushParameterPath(environment, 'vapid-private-key-previous'),
+        PUSH_VAPID_PUBLIC_KEY_SSM_PATH: pushParameterPath(environment, 'vapid-public-key'),
+        PUSH_SUBJECT_SSM_PATH: `/ctech-dfe/${environment}/app-url`,
+        ALERTS_TOPIC_ARN: alertsTopicArn,
+      },
     })
 
     // =========================

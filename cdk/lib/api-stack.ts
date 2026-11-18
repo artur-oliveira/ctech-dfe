@@ -8,6 +8,7 @@ import * as ssm from 'aws-cdk-lib/aws-ssm';
 import {Construct} from 'constructs';
 import {Ec2ScriptRunner, HaproxyEc2Service, SSM as CtechSSM} from '@aoctech/cdk';
 import {Environment} from './types';
+import {pushParameterPath, pushSenderFunctionName} from './worker-definitions';
 
 /** Emits `cat > /etc/nginx/conf.d/<name> << 'DELIM' … DELIM` for a checked-in file. */
 function nginxFragment(name: string, delimiter: string): string[] {
@@ -196,6 +197,8 @@ export class ApiStack extends cdk.Stack {
       `DFE_TOPIC_ARN=${nfeEmissionTopicArn}`,
       `DFE_RESULTS_QUEUE_URL=${resultsQueueUrl}`,
       `DFE_DISTRIBUTION_FUNCTION_NAME=${distributionFunctionName}`,
+      // Web Push sender Lambda; the feature stays off until the VAPID public key parameter exists too.
+      `PUSH_SENDER_FUNCTION_NAME=${pushSenderFunctionName(environment)}`,
       `ERASURE_QUEUE_URL=${erasureQueueUrl}`,
       // Shared operator-alert topic (failed account-deletion purge); not a secret.
       `ALERTS_TOPIC_ARN=${ssm.StringParameter.valueForStringParameter(this, `/ctech/${environment}/alerts/topic-arn`)}`,
@@ -224,6 +227,8 @@ export class ApiStack extends cdk.Stack {
       `ACCOUNT_WORKSPACE_CLIENT_ID=${accountWorkspaceClientIdParameter}`,
       `ACCOUNT_WORKSPACE_CLIENT_SECRET=${accountWorkspaceClientSecretParameter}`,
       `WEBHOOK_SECRET_KEY=${webhookSecretKeyParameter}`,
+      // VAPID public key browsers subscribe with. Absent reads as empty (setup-ssm-env tolerates it): Web Push off.
+      `PUSH_VAPID_PUBLIC_KEY=${pushParameterPath(environment, 'vapid-public-key')}`,
     ];
     if (isAlpine) {
       const quoted = ssmEnvArgs.map((a) => `'${a.replace(/'/g, `'\\''`)}'`).join(' ');

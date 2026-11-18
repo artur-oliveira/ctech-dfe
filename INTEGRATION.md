@@ -412,7 +412,9 @@ To retire a scope, publish it as `deprecated` before removing it in a later
 release. Publishing a scope does not grant it to existing clients or API keys.
 
 The UI asks for scopes from `DFE_USER_SCOPES` (`ui/src/lib/auth/oauth.ts`); a scope missing there is never in the token and every route
-of that family answers 403. `ui/src/__tests__/lib/oauth-scopes.test.ts` fails when the list drifts from the manifest. A session
+of that family answers 403. `ui/src/__tests__/lib/oauth-scopes.test.ts` fails when the list drifts from the manifest. `dfe:notifications:read|write` (Web Push) is a family of its own with no RBAC resource: the push routes need a member of the company
+and, for a scoped token, that scope; only the UI client receives it, existing API keys are not changed.
+A session
 that predates a scope fix gets 403 `escopo do token insuficiente`; the API client then signs in again once per scope set
 (`reauthForMissingScopes`, guard in `sessionStorage`) so Account reissues the token, and a scope Account really denies surfaces as a
 plain 403 instead of a redirect loop.

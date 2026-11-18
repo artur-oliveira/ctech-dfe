@@ -156,6 +156,9 @@ func (s *ErasureService) purgePerson(ctx context.Context, m erasure.Message, cou
 		}
 		start = page.Next
 	}
+	if err := s.erasePush(ctx, raw, counts); err != nil {
+		return err
+	}
 	if err := s.anonymizeActor(ctx, raw, counts); err != nil {
 		return err
 	}
@@ -176,6 +179,35 @@ func (s *ErasureService) purgePerson(ctx context.Context, m erasure.Message, cou
 		cacheDelete(ctx, s.cache, k)
 	}
 	return nil
+}
+
+// erasePush removes a person's Web Push data: every device (endpoint and keys) and, through the sparse user-index,
+// their choice of events in every company.
+func (s *ErasureService) erasePush(ctx context.Context, raw string, counts map[string]int) error {
+	if err := s.purgePartition(ctx, "", repositories.TablePush, skKey, repositories.PushUserPK(raw), counts); err != nil {
+		return err
+	}
+	var start map[string]types.AttributeValue
+	for {
+		page, err := s.repo.QueryIndex(ctx, repositories.TablePush, repositories.IndexPushUser, repositories.AttrPushUserSub, raw, start)
+		if err != nil {
+			return err
+		}
+		keys := make([]map[string]types.AttributeValue, 0, len(page.Items))
+		for _, it := range page.Items {
+			keys = append(keys, rowKey(it, skKey))
+		}
+		if len(keys) > 0 {
+			if err := s.repo.DeleteKeys(ctx, repositories.TablePush, keys); err != nil {
+				return err
+			}
+			counts[repositories.TablePush] += len(keys)
+		}
+		if page.Next == nil {
+			return nil
+		}
+		start = page.Next
+	}
 }
 
 func anonymousActor(raw string) string {
@@ -221,6 +253,14 @@ func (s *ErasureService) leaveOrganization(ctx context.Context, org, raw string,
 			break
 		}
 		start = page.Next
+	}
+	// The person's Web Push choice for this company goes with the membership.
+	if existed, err := s.repo.DeleteKey(ctx, repositories.TablePush, map[string]types.AttributeValue{
+		"pk": repositories.SAV(repositories.PushCompanyPK(org)), skKey: repositories.SAV(repositories.PushPrefSK(raw)),
+	}); err != nil {
+		return err
+	} else if existed {
+		counts[repositories.TablePush]++
 	}
 	memberSK := repositories.BuildMemberSK(raw)
 	for _, id := range []string{raw, memberSK} { // both spellings are in use as resource_id

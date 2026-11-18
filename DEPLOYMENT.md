@@ -93,6 +93,30 @@ boot log says so at WARN. That is a supported deployment — it is what a dev
 environment needs — so a production instance missing these parameters starts
 successfully and must be caught by reading the log, not by a crash.
 
+### Web Push (VAPID keys)
+
+Web Push stays **off** until an operator writes the VAPID parameters; nothing fails without them (the API serves `enabled: false`, the
+`push-sender` Lambda returns at once, and the API never invokes it). The private key is read **only** by the `push-sender` Lambda; the API
+role has an explicit `Deny` on it.
+
+| Parameter | Type | Read by |
+|-----------|------|---------|
+| `/ctech-dfe/{env}/push/vapid-private-key` | SecureString (PEM PKCS#8, P-256) | `push-sender` only |
+| `/ctech-dfe/{env}/push/vapid-public-key` | String (base64url, 65 bytes) | the API (`PUSH_VAPID_PUBLIC_KEY`) and `push-sender` (it must match the private key) |
+| `/ctech-dfe/{env}/push/vapid-private-key-previous` | SecureString, optional | `push-sender`, only during a rotation |
+| `/ctech-dfe/{env}/app-url` | String (already exists) | `push-sender`, as the VAPID `sub` |
+
+```bash
+cd api && go run ./cmd/push-keygen -env prod            # prints the aws ssm put-parameter commands; writes nothing
+go run ./cmd/push-keygen -env prod -rotate               # same, plus keeping the current key as -previous first
+```
+
+Review the output and run the two `aws ssm put-parameter` commands on purpose (the private key is printed once). Then restart the API (it
+reads the public key at start). Order: deploy first (the table and the Lambda), keys second, UI last (F4). A dev, stage and prod each get
+their own pair (a push subscription is tied to the key it was made with). Rotation: write the new pair with `-rotate`; each device keeps
+its `vapid_kid`, the sender finds the right key by it, and clients resubscribe when they see a new `vapid_kid` in `GET /push/config`; remove
+`-previous` after 30 days.
+
 ### Account-deletion participant (LGPD)
 
 Order matters; the participant stays dark until step 4.

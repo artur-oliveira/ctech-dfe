@@ -40,6 +40,12 @@ type Config struct {
 	// asynchronously (InvocationType Event) — no queue sits in front of it.
 	DistributionFunctionName string `env:"DFE_DISTRIBUTION_FUNCTION_NAME"`
 
+	// PushVapidPublicKey is the Web Push (VAPID) public key the browsers subscribe with, and PushSenderFunctionName the
+	// Lambda that sends. Either empty leaves Web Push off: the screen hides, nothing is sent, nothing fails. The private
+	// key is read only by that Lambda, never by the API (docs/specs/2026-11-17-web-push.md).
+	PushVapidPublicKey     string `env:"PUSH_VAPID_PUBLIC_KEY"`
+	PushSenderFunctionName string `env:"PUSH_SENDER_FUNCTION_NAME"`
+
 	// SQS
 	ResultsQueueURL string `env:"DFE_RESULTS_QUEUE_URL"`
 	// ErasureQueueURL is the account-deletion queue subscribed to ctech-account's

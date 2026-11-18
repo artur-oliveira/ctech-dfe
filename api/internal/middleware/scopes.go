@@ -56,6 +56,9 @@ var scopeFamilies = map[string][]string{
 	"organization_persons":             {"organization_persons"},
 	"organizations":                    {"organizations"},
 	"organization_certificates":        {"organization_certificates"},
+	// Notifications (Web Push) are personal, not a role resource: a person's own devices and choices. The family exists so
+	// a scoped token needs `dfe:notifications:*`; RBAC does not grant them (the routes use RequireMember).
+	"notifications": {"notifications"},
 }
 
 // readActions / writeActions map a scope access level to RBAC actions.

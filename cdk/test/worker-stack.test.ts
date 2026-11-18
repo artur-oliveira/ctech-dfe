@@ -311,8 +311,12 @@ describe('ciot-operation worker', () => {
     const ssmReads = statements.filter(st => actionsOf(st).includes('ssm:GetParameter') && ciotOnly(st))
     expect(ssmReads).toHaveLength(1)
     expect(JSON.stringify(ssmReads[0].Resource)).toContain('parameter/ctech-dfe/*/ciot/*')
+    // The other Lambdas read their own parameters: the webhook deliverer's key and the push sender's VAPID keys.
     expect(statements.filter(st => actionsOf(st).includes('ssm:GetParameter') && !ciotOnly(st)).map(st => JSON.stringify(st.Resource)))
-      .toEqual([expect.stringContaining('/ctech-dfe/dev/webhooks/secret-key')])
+      .toEqual(expect.arrayContaining([
+        expect.stringContaining('/ctech-dfe/dev/webhooks/secret-key'),
+        expect.stringContaining('/ctech-dfe/dev/push/vapid-private-key'),
+      ]))
     const decrypts = statements.filter(st => actionsOf(st).includes('kms:Decrypt') && ciotOnly(st))
     expect(decrypts).toHaveLength(1)
     expect(JSON.stringify(decrypts[0].Condition.StringEquals['kms:ViaService'])).toContain('ssm.')

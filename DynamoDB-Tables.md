@@ -67,6 +67,7 @@ PITR: enabled in production only.
 | 57 | `organization_nfcom_subscribers` | `{org_pk}`           | `NFCOMSUB_{uuid}`                        | `name-index`                                       |
 | 58 | `organization_nfcom_plans`  | `{org_pk}`                   | `NFCOMPLAN_{uuid}`                       | `name-index`                                       |
 | 59 | `organization_bpe_lines`    | `{org_pk}`                   | `BPELINE_{uuid}`                         | `name-index`                                       |
+| 60 | `push`                      | `USER#{sub}` / `COMPANY#{pk}` | `SUB#…` / `META#counts` / `USER#…` / `EVENT#…` / `THROTTLE#…` | `user-index` (sparse, KEYS_ONLY) |
 | 50 | `webhooks`                  | `ORG_{organization_id}`      | `ENDPOINT#…` / `META#counts` / `DELIVERY#…` / `ATTEMPT#…` | `due-index` (sparse)          |
 
 ---
@@ -1199,6 +1200,27 @@ the index when delivered or closed. The `webhook-deliverer` Lambda Query reads a
 
 Cost: on-demand, PITR in prod, AWS-owned key. Deliveries and attempts expire after 90 days (`ttl`); endpoints and the counter do not.
 Erasure: `ScopeOrgAccount`, the whole `ORG_{organization_id}` partition goes with the account organization (`eraseOrganizationWebhooks`).
+
+## 60. `push`
+
+Web Push (spec `docs/specs/2026-11-17-web-push.md`): devices, choices and markers in one table, by prefix.
+
+| `pk` | `sk` | Row | Notes |
+|------|------|-----|-------|
+| `USER#{sub}` | `SUB#{sha256(endpoint)[:16] hex}` | one browser of one person | `endpoint`, `p256dh`, `auth` (not sealed: a push service refuses a send without the VAPID private key, and the table is encrypted at rest), `vapid_kid`, `device` (coarse label such as "Chrome no Android"), `created_at`, `last_seen_at`, `ttl` = last sync + 60 days (the client renews it on every app load) |
+| `USER#{sub}` | `META#counts` | the limit's guard | `subscriptions` (N). Written in one transaction conditioned on `subscriptions < 10`; a full person loses the device seen least recently in the same transaction as the new one |
+| `COMPANY#{company_pk}` | `USER#{sub}` | the events this person wants for the company | `events`, `user_sub`, `updated_at`. No row when nothing is ticked |
+| `COMPANY#{company_pk}` | `EVENT#{dedupe}` | marker | put-if-absent, `ttl` 24 h: the event was already handed to the sender |
+| `COMPANY#{company_pk}` | `THROTTLE#{event type}` | grouping window | `until`, `ttl` = `until` + 1 h; conditional put `attribute_not_exists(pk) OR until < :now` (fixed-width stamps, so strings order in time) |
+| `USER#{sub}` | `THROTTLE#test` | the test notification's rate limit | 1 per minute per person |
+
+`user-index` (hash `user_sub`, range `pk`, **KEYS_ONLY**) is **sparse**: only preference rows carry `user_sub`. It lets the erasure of a person
+and the removal of a member find their rows without a Scan. Access: `GetItem` of a preference, `Query USER#u begins_with SUB#` (at most 10
+rows), the fan-out `Query COMPANY#c begins_with USER#` (100 per page), one `Query USER#u` per recipient in the sender. No Scan anywhere.
+
+Cost: on-demand with a cap (1000 read/write units, like `webhooks`), PITR in prod, AWS-owned key; under US$ 1 a month for 10 thousand users.
+Erasure: `ScopePush`: the company partition goes with the company (`purgeTable`); a person's partition and preference rows go with the person
+(`erasePush`); leaving a company deletes that choice (`leaveOrganization`).
 
 ## 51–53. `organization_nfcom_configs` / `nfcoms` / `nfcom_events`
 

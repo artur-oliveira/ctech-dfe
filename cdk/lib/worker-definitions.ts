@@ -10,6 +10,14 @@ export const DISTRIBUTION_WORKER_ID = 'distribution'
  * (a plain string, not a cross-stack reference, so the Worker stack can deploy last). */
 export const distributionFunctionName = (environment: string) => `${environment}-distribution-worker`
 
+/** Sends Web Push notifications; invoked asynchronously by the API (no SNS subscription, no schedule). Built from the api
+ * module. Plain string like the others: the API and IAM stacks build its ARN from it. */
+export const pushSenderFunctionName = (environment: string) => `${environment}-push-sender`
+
+/** SSM parameters of Web Push (docs/specs/2026-11-17-web-push.md). Written by an operator, never by CDK, so a missing one
+ * only turns Web Push off. The API reads the public key; only the sender reads the private ones. */
+export const pushParameterPath = (environment: string, name: string) => `/ctech-dfe/${environment}/push/${name}`
+
 /** Retransmits documents issued in EPEC/offline contingency; invoked by its dispatcher only. */
 export const CONTINGENCY_WORKER_ID = 'contingency-retransmit'
 

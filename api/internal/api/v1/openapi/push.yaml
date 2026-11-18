@@ -1,0 +1,208 @@
+paths:
+
+  # ── Notificações no navegador (Web Push) ───────────────────────────────────
+  #
+  # docs/specs/2026-11-17-web-push.md: cada pessoa ativa as notificações por dispositivo e escolhe, por empresa, quais
+  # eventos quer. O conteúdo é genérico (sem valor, emitente, destinatário, CNPJ, número ou motivo da SEFAZ) e o link
+  # do clique vai cifrado de ponta a ponta. As rotas são pessoais: exigem membro da empresa (header
+  # Dfe-Organization-Pk, qualquer papel, inclusive viewer) e, no token com escopo, `dfe:notifications:read` ou
+  # `dfe:notifications:write`. Chaves de API não alcançam estas rotas.
+
+  /v1.0/push/config:
+    get:
+      tags: [ Push ]
+      summary: Configuração das notificações
+      description: |
+        O que o navegador precisa para se inscrever (`public_key`, a chave VAPID pública, e `vapid_kid`) e o que a tela
+        lista. `enabled: false` significa que a instalação não tem chave VAPID ou Lambda de envio: a tela se esconde e
+        as escritas respondem 503. Não exige o header da empresa.
+      operationId: getPushConfig
+      responses:
+        '200':
+          description: Configuração
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PushConfig' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /v1.0/push/subscriptions:
+    get:
+      tags: [ Push ]
+      summary: Meus dispositivos
+      description: Os dispositivos da pessoa (no máximo `max_subscriptions`). O endpoint da inscrição nunca é devolvido.
+      operationId: listPushSubscriptions
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+      responses:
+        '200':
+          description: Dispositivos
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/PushDevice' }
+                  max_subscriptions: { type: integer }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    put:
+      tags: [ Push ]
+      summary: Ativa ou renova este dispositivo
+      description: |
+        Corpo é o `PushSubscription.toJSON()` do navegador. A inscrição é validada (https, serviço de push conhecido,
+        chave P-256 válida, segredo de 16 bytes; 400 caso contrário). O mesmo endpoint cai na mesma linha, então o PUT é
+        idempotente e a abertura do app o repete para renovar. O 11º dispositivo substitui o visto há mais tempo.
+        Um dispositivo novo começa com só `distribution.received` ligado para a empresa do header, sem sobrescrever uma
+        escolha já feita. 503 quando as notificações estão desativadas na instalação.
+      operationId: putPushSubscription
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PushSubscriptionBody' }
+      responses:
+        '200':
+          description: Dispositivo registrado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PushDevice' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '503':
+          description: Notificações desativadas nesta instalação
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+  /v1.0/push/subscriptions/{id}:
+    delete:
+      tags: [ Push ]
+      summary: Remove um dispositivo
+      operationId: deletePushSubscription
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+        - name: id
+          in: path
+          required: true
+          description: Id do dispositivo (16 caracteres hexadecimais).
+          schema: { type: string, pattern: '^[0-9a-f]{16}$' }
+      responses:
+        '204': { description: Removido }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /v1.0/push/preferences:
+    get:
+      tags: [ Push ]
+      summary: Eventos que a pessoa quer desta empresa
+      description: Lista vazia quando a pessoa nunca escolheu para a empresa do header.
+      operationId: getPushPreferences
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+      responses:
+        '200':
+          description: Eventos escolhidos
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PushPreferences' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    put:
+      tags: [ Push ]
+      summary: Escolhe os eventos desta empresa
+      description: |
+        Só tipos de `event_types` (400 para um desconhecido); repetido vale uma vez. Lista vazia desliga tudo para a
+        empresa. Os eventos de resultado começam desligados; só `distribution.received` começa ligado.
+      operationId: putPushPreferences
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PushPreferences' }
+      responses:
+        '200':
+          description: Eventos salvos
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PushPreferences' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '503':
+          description: Notificações desativadas nesta instalação
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+  /v1.0/push/test:
+    post:
+      tags: [ Push ]
+      summary: Envia uma notificação de teste
+      description: Chega em todos os dispositivos da pessoa. No máximo uma por minuto por pessoa (429).
+      operationId: sendPushTest
+      parameters:
+        - $ref: '#/components/parameters/OrgHeader'
+      responses:
+        '202': { description: Enfileirada }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '503':
+          description: Notificações desativadas nesta instalação
+          content:
+            application/problem+json:
+              schema: { $ref: '#/components/schemas/Problem' }
+
+components:
+  schemas:
+    PushConfig:
+      type: object
+      required: [ enabled, event_types, defaults, max_subscriptions ]
+      properties:
+        enabled: { type: boolean }
+        public_key: { type: string, description: Chave VAPID pública em base64url (ponto P-256 não comprimido). Ausente quando desativado. }
+        vapid_kid: { type: string, description: Identificador curto da chave; o cliente se reinscreve quando muda. }
+        event_types:
+          type: array
+          items: { type: string, enum: [ distribution.received, document.authorized, document.rejected, document.failed ] }
+        defaults:
+          type: array
+          items: { type: string }
+          description: Eventos com que um dispositivo novo começa.
+        max_subscriptions: { type: integer }
+    PushSubscriptionBody:
+      type: object
+      required: [ endpoint, keys ]
+      properties:
+        endpoint: { type: string, maxLength: 2048 }
+        keys:
+          type: object
+          required: [ p256dh, auth ]
+          properties:
+            p256dh: { type: string, maxLength: 128 }
+            auth: { type: string, maxLength: 64 }
+    PushDevice:
+      type: object
+      properties:
+        id: { type: string }
+        device: { type: string, description: 'Rótulo grosso do aparelho, como "Chrome no Android".' }
+        created_at: { type: string }
+        last_seen_at: { type: string }
+    PushPreferences:
+      type: object
+      required: [ events ]
+      properties:
+        events:
+          type: array
+          maxItems: 8
+          items: { type: string, enum: [ distribution.received, document.authorized, document.rejected, document.failed ] }
