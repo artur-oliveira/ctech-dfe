@@ -2012,59 +2012,66 @@ export interface NfcomListOut extends ContingencyDocFields {
 
 export type NfcomDetailOut = NfcomListOut
 
-export interface NfcomAddressIn {
-  street: string
-  number: string
-  complement?: string
-  neighborhood: string
-  ibge_code: string
-  city: string
-  postal_code: string
-  uf: string
-  phone?: string
-  email?: string
-}
-
+/** Linha da fatura: o plano do cadastro e o que muda a cada fatura. */
 export interface NfcomItemIn {
-  code: string
-  description: string
-  class_code: string
-  cfop?: string
-  unit: string
+  plan_id: string
   quantity: string
-  unit_value: string
+  unit_value?: string
   discount?: string
   other_charges?: string
-  icms: { cst: string; rate?: string }
-  pis?: { cst: string; rate: string }
-  cofins?: { cst: string; rate: string }
 }
 
+/** Corpo de `POST /nfcoms`: assinante e planos por id; o servidor resolve cliente, endereço, IE, classificação e tributos. */
 export interface NfcomEmit {
-  customer: {
-    name: string
-    cnpj?: string
-    cpf?: string
-    other_id?: string
-    ie_indicator: string
-    ie?: string
-    municipal_registration?: string
-    address: NfcomAddressIn
-  }
-  subscriber: {
-    code: string
-    type: string
-    service_used: string
-    contract_number?: string
-    contract_start?: string
-    contract_end?: string
-    primary_terminal?: string
-  }
+  subscriber_id: string
   items: NfcomItemIn[]
   invoice?: { competence: string; due_date: string; bar_code: string }
   prepaid?: boolean
   additional_info?: string
   contingency_reason?: string
+}
+
+export interface NfcomSubscriberCreate extends Record<string, unknown> {
+  name: string
+  person_id: string
+  code: string
+  type: string
+  service_used: string
+  contract_number?: string | null
+  contract_start?: string | null
+  contract_end?: string | null
+  primary_terminal?: string | null
+  primary_uf?: string | null
+  primary_ibge_code?: string | null
+}
+
+export interface NfcomSubscriberItemOut extends NfcomSubscriberCreate {
+  pk: string
+  sk: string
+  created_at?: string
+  updated_at?: string
+}
+
+export interface NfcomTaxGroup { cst: string; rate?: string | null }
+
+export interface NfcomPlanCreate extends Record<string, unknown> {
+  name: string
+  code: string
+  description: string
+  class_code: string
+  unit: string
+  unit_value?: string | null
+  cfop?: string | null
+  icms: NfcomTaxGroup
+  pis?: { cst: string; rate: string } | null
+  cofins?: { cst: string; rate: string } | null
+}
+
+export interface NfcomPlanItemOut extends NfcomPlanCreate {
+  pk: string
+  sk: string
+  created_at?: string
+  updated_at?: string
 }
 
 // ── BP-e (modelo 63: comum, TM e TA) ─────────────────────────────────────────

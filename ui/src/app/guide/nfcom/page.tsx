@@ -7,7 +7,7 @@ export default function GuideNfcom() {
     <GuidePage
       currentHref="/guide/nfcom"
       title="Emitir NFCom"
-      description="A nota fiscal fatura de serviço de comunicação (modelo 62): internet, telefonia e TV por assinatura. Você informa cliente, assinante, itens e fatura; o sistema calcula valores, tributos e totais."
+      description="A nota fiscal fatura de serviço de comunicação (modelo 62): internet, telefonia e TV por assinatura. Você cadastra assinantes e planos uma vez; na fatura só escolhe e informa quantidades, e o sistema calcula valores, tributos e totais."
       sections={[
         {
           id: 'config',
@@ -27,30 +27,70 @@ export default function GuideNfcom() {
           ),
         },
         {
+          id: 'subscribers',
+          title: 'Cadastre o assinante uma vez',
+          summary: 'Pessoa, código, tipo, serviço e contrato ficam num cadastro; a fatura só escolhe o assinante.',
+          image: {
+            src: '/guide/nfcom-subscribers.webp',
+            alt: 'Lista de assinantes da NFCom, com nome, código, tipo de assinante e serviço utilizado',
+          },
+          body: (
+            <>
+              <p>
+                Em <b>NFCom &gt; Assinantes</b>, cada assinante aponta uma <b>pessoa</b> do cadastro de Pessoas: o
+                documento, o endereço e a inscrição estadual vêm de lá, então nada disso é digitado de novo a cada
+                fatura. A pessoa precisa ter o endereço nacional completo (logradouro, bairro, município, CEP e UF).
+              </p>
+              <GuideTerms>
+                <GuideTerm term="Código do assinante">Identificador do contrato no seu sistema; só letras, números, ponto, barra, hífen e sublinhado.</GuideTerm>
+                <GuideTerm term="Tipo e serviço">Seletores do leiaute: comercial, residencial, órgão público...; telefonia, dados, TV, internet...</GuideTerm>
+                <GuideTerm term="Contrato e terminal">Opcionais: número, datas de início e fim (o fim não pode ser anterior ao início), terminal principal e município dele.</GuideTerm>
+              </GuideTerms>
+            </>
+          ),
+        },
+        {
+          id: 'plans',
+          title: 'Cadastre os planos uma vez',
+          summary: 'Classificação, unidade, valor padrão e tributação ficam no plano; a fatura informa só a quantidade.',
+          image: {
+            src: '/guide/nfcom-plans.webp',
+            alt: 'Lista de planos da NFCom, com nome, código, unidade e valor padrão',
+          },
+          body: (
+            <>
+              <p>
+                Em <b>NFCom &gt; Planos</b> ficam o código, a descrição que sai na fatura, a classificação (cClass, 7
+                dígitos), a unidade e os tributos do item: ICMS (com o CFOP de uma lista), PIS e COFINS.
+              </p>
+              <GuideBullets>
+                <li>Com <b>valor padrão</b>, a fatura não pede o valor; sem ele, a fatura informa o valor de cada linha.</li>
+                <li>O CFOP é obrigatório, exceto quando o ICMS é &ldquo;sem situação tributária&rdquo; (aí ele não pode ser informado).</li>
+                <li>A alíquota do ICMS só vale nas situações 00 e 90.</li>
+                <li>O plano é recusado com as mesmas regras de item da emissão, então um plano salvo emite.</li>
+              </GuideBullets>
+            </>
+          ),
+        },
+        {
           id: 'emit',
-          title: 'Uma tela, quatro blocos',
-          summary: 'Cliente, assinante, itens e fatura. Tudo que é escolha fechada é um seletor.',
+          title: 'A fatura: escolher e informar quantidades',
+          summary: 'Assinante, linhas de plano e fatura. Nada de cliente, endereço ou imposto digitado.',
           image: {
             src: '/guide/nfcom-emit.webp',
-            alt: 'Emissão de NFCom com o bloco do cliente: nome, documento, situação na inscrição estadual e endereço',
+            alt: 'Emissão de NFCom com a escolha do assinante, as linhas de plano com quantidade e o bloco da fatura',
           },
           body: (
             <>
               <GuideTerms>
-                <GuideTerm term="Cliente">
-                  O destinatário da fatura: CNPJ, CPF ou outro identificador, a situação na inscrição estadual e o
-                  endereço. Cliente contribuinte exige a IE; isento leva ISENTO; não contribuinte não tem IE.
-                </GuideTerm>
-                <GuideTerm term="Assinante">
-                  Código do assinante, tipo (comercial, residencial, órgão público...) e o serviço utilizado. O
-                  contrato e o terminal principal são opcionais.
-                </GuideTerm>
+                <GuideTerm term="Assinante">Escolhido da lista; o cliente, o endereço e a situação na inscrição estadual vêm do cadastro.</GuideTerm>
                 <GuideTerm term="Itens">
-                  Código, descrição, classificação (7 dígitos), unidade, quantidade e valor. O ICMS é uma escolha
-                  entre as situações do leiaute; PIS e COFINS são opcionais.
+                  Uma linha por plano, com a quantidade. Desconto e outras despesas são opcionais; o valor unitário só
+                  aparece quando o plano não tem valor padrão.
                 </GuideTerm>
                 <GuideTerm term="Fatura">
-                  Competência, vencimento e código de barras. Em serviço pré-pago a fatura é dispensada.
+                  Competência (lista dos últimos 12 meses) e vencimento já vêm sugeridos; informe o código de barras. Em
+                  serviço pré-pago a fatura é dispensada.
                 </GuideTerm>
               </GuideTerms>
               <p>
@@ -58,8 +98,7 @@ export default function GuideNfcom() {
                 o valor dos tributos e os totais. O total mostrado na barra inferior é só uma estimativa.
               </p>
               <GuideBullets>
-                <li>O CFOP é obrigatório, exceto quando o ICMS é &ldquo;sem situação tributária&rdquo; (aí ele não pode ser informado).</li>
-                <li>A alíquota do ICMS só vale nas situações 00 e 90.</li>
+                <li>Sem assinante ou plano cadastrado, a tela avisa e leva ao cadastro; a emissão fica bloqueada.</li>
                 <li>Antes de reservar o número, a nota passa pelas regras do MOC; o que a SEFAZ rejeitaria com certeza volta como erro apontando o campo.</li>
               </GuideBullets>
             </>

@@ -194,7 +194,16 @@ export const DOC_CONTEXTS: DocContext[] = [
     icon: <CreditCardIcon/>,
     keywords: ['telecom', 'internet', 'telefonia', 'fatura', 'comunicação', 'assinante', 'modelo 62', 'provedor'],
     emit: {href: '/nfcom/emit', label: 'Emitir NFCom', icon: <CreditCardIcon/>, keywords: ['fatura', 'internet', 'telecom']},
-    items: [],
+    items: [
+      {
+        href: '/nfcom-subscribers', label: 'Assinantes', icon: <CreditCardIcon/>,
+        keywords: ['assinante', 'cliente', 'contrato', 'terminal', 'telecom', 'nfcom'],
+      },
+      {
+        href: '/nfcom-plans', label: 'Planos', icon: <PackageIcon/>,
+        keywords: ['plano', 'serviço', 'internet', 'cclass', 'classificação', 'cfop', 'icms', 'pis', 'cofins', 'nfcom'],
+      },
+    ],
   },
   {
     key: 'bpe',

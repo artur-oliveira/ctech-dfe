@@ -68,6 +68,8 @@ var erasureCatalog = []ErasureTable{
 	{CDK: "fuel_pumps", Name: repositories.TableFuelPumps, Scope: ScopeOrgPartition, SortKey: skKey},
 	{CDK: "vehicle_sets", Name: repositories.TableVehicleSets, Scope: ScopeOrgPartition, SortKey: skKey},
 	{CDK: "service_locations", Name: repositories.TableServiceLocations, Scope: ScopeOrgPartition, SortKey: skKey},
+	{CDK: "nfcom_subscribers", Name: repositories.TableNfcomSubscribers, Scope: ScopeOrgPartition, SortKey: skKey},
+	{CDK: "nfcom_plans", Name: repositories.TableNfcomPlans, Scope: ScopeOrgPartition, SortKey: skKey},
 	{CDK: "reference_documents", Name: repositories.TableReferenceDocuments, Scope: ScopeOrgPartition, SortKey: skKey},
 	{CDK: "nfe_configs", Name: "organization_nfe_configs", Scope: ScopeOrgItem},
 	{CDK: "nfce_configs", Name: "organization_nfce_configs", Scope: ScopeOrgItem},

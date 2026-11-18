@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
@@ -295,4 +296,26 @@ func GenerateAccessKey(uf, cnpj, model string, serie, number int, now time.Time,
 	cNF := fmt.Sprintf("%08d", 10_000_000+rand.Intn(90_000_000))
 	key43 := fmt.Sprintf("%s%s%s%s%03d%09d%s%s", cUF, aamm, cnpj, model, serie, number, tpEmis, cNF)
 	return key43 + CalcMod11DV(key43)
+}
+
+// CleanText normaliza texto livre antes de validar e gravar: tira controles, troca qualquer espaçamento por um espaço,
+// junta repetições e apara as pontas. Não corta tamanho nem caracteres fora do leiaute; quem rejeita isso é o validador
+// `fiscaltext` (a UI mostra o erro em vez de mudar o que a pessoa digitou).
+func CleanText(s string) string {
+	var b strings.Builder
+	space := false
+	for _, r := range s {
+		switch {
+		case unicode.IsSpace(r):
+			space = b.Len() > 0
+		case unicode.IsControl(r):
+		default:
+			if space {
+				b.WriteByte(' ')
+				space = false
+			}
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }

@@ -68,6 +68,14 @@ export const queryKeys = {
     list: (orgPk: string | undefined) => ['service-locations', orgPk] as const,
     detail: (id: string) => ['service-location', id] as const,
   },
+  nfcomSubscribers: {
+    list: (orgPk: string | undefined) => ['nfcom-subscribers', orgPk] as const,
+    detail: (id: string) => ['nfcom-subscriber', id] as const,
+  },
+  nfcomPlans: {
+    list: (orgPk: string | undefined) => ['nfcom-plans', orgPk] as const,
+    detail: (id: string) => ['nfcom-plan', id] as const,
+  },
   referenceDocuments: {
     list: (orgPk: string | undefined) => ['reference-documents', orgPk] as const,
     detail: (id: string) => ['reference-document', id] as const,

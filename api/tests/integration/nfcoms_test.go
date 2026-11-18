@@ -112,7 +112,7 @@ func TestNfcom_ListEventsChecksTenant(t *testing.T) {
 	if _, err := events.CreateEvent(ctx, key, "110111", 1, "pending", nil, nil, nil, testUserID, testUserName); err != nil {
 		t.Fatal(err)
 	}
-	svc := nfcoms.NewNfcomService(nil, nil, nfcomConfigRepo, nfcomRepo, events, nil, nil, nil, nil, "", nfcoms.TechData{}, nil)
+	svc := nfcoms.NewNfcomService(nil, nil, nfcomConfigRepo, nfcomRepo, events, nil, nil, nil, nil, nil, nil, nil, "", nfcoms.TechData{}, nil)
 
 	res, err := svc.ListNFComEvents(ctx, orgA, key, 50, nil)
 	if err != nil || len(res.Items) != 1 {

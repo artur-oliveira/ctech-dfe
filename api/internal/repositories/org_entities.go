@@ -53,6 +53,14 @@ const (
 	// escrituração, então o registro não tem TTL.
 	TableReferenceDocuments = "organization_reference_documents"
 
+	// TableNfcomSubscribers guarda os assinantes da NFCom: a pessoa (tomador) mais código, tipo, serviço e contrato,
+	// que não mudam de uma fatura para outra.
+	TableNfcomSubscribers = "organization_nfcom_subscribers"
+	// TableNfcomPlans guarda os planos e serviços da NFCom: classificação, unidade, valor padrão e tributação do item.
+	TableNfcomPlans = "organization_nfcom_plans"
+
+	SKPrefixNfcomSubscriber = "NFCOMSUB_"
+	SKPrefixNfcomPlan       = "NFCOMPLAN_"
 	SKPrefixTaxProfile      = "TAXPROFILE_"
 	SKPrefixOperation       = "OPERATION_"
 	SKPrefixPaymentTerm     = "PAYMENTTERM_"
@@ -332,4 +340,17 @@ type TaxProfileRepository struct{ OrgEntityRepository }
 
 func NewTaxProfileRepository(db *dynamodb.Client, cfg *config.Config) *TaxProfileRepository {
 	return &TaxProfileRepository{newOrgEntityRepository(db, cfg, TableTaxProfiles, SKPrefixTaxProfile)}
+}
+
+// NfcomSubscriberRepository e NfcomPlanRepository: os cadastros da emissão de NFCom.
+type NfcomSubscriberRepository struct{ OrgEntityRepository }
+
+func NewNfcomSubscriberRepository(db *dynamodb.Client, cfg *config.Config) *NfcomSubscriberRepository {
+	return &NfcomSubscriberRepository{newOrgEntityRepository(db, cfg, TableNfcomSubscribers, SKPrefixNfcomSubscriber)}
+}
+
+type NfcomPlanRepository struct{ OrgEntityRepository }
+
+func NewNfcomPlanRepository(db *dynamodb.Client, cfg *config.Config) *NfcomPlanRepository {
+	return &NfcomPlanRepository{newOrgEntityRepository(db, cfg, TableNfcomPlans, SKPrefixNfcomPlan)}
 }

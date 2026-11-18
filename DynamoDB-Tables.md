@@ -64,6 +64,8 @@ PITR: enabled in production only.
 | 54 | `organization_bpe_configs`  | `{org_pk}`                   | —                                        | `sweep-index`                                      |
 | 55 | `bpes`                      | `{env}#{org_pk}`             | `{access_key}`                           | `number-index-v2`, `dfe-index`, `contingency-index` |
 | 56 | `bpe_events`                | `{access_key}`               | `{ulid}`                                 | `org-event-key-index`                              |
+| 57 | `organization_nfcom_subscribers` | `{org_pk}`           | `NFCOMSUB_{uuid}`                        | `name-index`                                       |
+| 58 | `organization_nfcom_plans`  | `{org_pk}`                   | `NFCOMPLAN_{uuid}`                       | `name-index`                                       |
 | 50 | `webhooks`                  | `ORG_{organization_id}`      | `ENDPOINT#…` / `META#counts` / `DELIVERY#…` / `ATTEMPT#…` | `due-index` (sparse)          |
 
 ---
@@ -1204,6 +1206,13 @@ empresa (`sweep-index`, sem `auto-contingency-index`: a troca automática de con
 documento (`nfcoms`, chave de acesso de 44 posições como `sk`, `number-index-v2`, `dfe-index` e o `contingency-index` esparso
 da retransmissão offline) e os eventos (`nfcom_events`: cancelamento 110111 e vinculação de pagamento 110300 e 110301).
 Sem tabela de distribuição: a NFCom não tem serviço de distribuição. On-demand, PITR em prod, chave própria da AWS; sem TTL.
+
+## 57–58. `organization_nfcom_subscribers` / `organization_nfcom_plans`
+
+Cadastros da emissão de NFCom (mesma forma dos demais cadastros da organização: `pk = {org_pk}`, `sk = NFCOMSUB_{uuid}` ou
+`NFCOMPLAN_{uuid}`, `name-index` para busca por prefixo). O assinante guarda `person_id` (a chave da pessoa), código, tipo,
+serviço, contrato e terminal principal; o plano guarda código, descrição, `cClass`, unidade, valor padrão, CFOP e os grupos
+`icms`, `pis` e `cofins`. A fatura referencia os dois por id. Erasure: `ScopeOrgPartition`. On-demand, PITR em prod; sem TTL.
 
 ## 54–56. `organization_bpe_configs` / `bpes` / `bpe_events`
 

@@ -19,7 +19,7 @@ function NfcomEmitContent() {
           </div>
           <h1 className="text-2xl font-semibold text-gray-900">Emitir NFCom</h1>
           <p className="text-gray-500 text-sm mt-0.5">
-            Preencha o cliente, o assinante, os itens e a fatura. O servidor calcula valores, tributos e totais.
+            Escolha o assinante e os planos e informe as quantidades. Cliente, endereço e tributos vêm dos cadastros; o servidor calcula valores e totais.
           </p>
         </div>
         <RequireFiscalConfig variant="nfcom">

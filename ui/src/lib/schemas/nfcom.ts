@@ -1,89 +1,42 @@
 import {z} from 'zod';
-import {validateCNPJ, validateCPF} from '@/lib/utils/validators';
 import {NFCOM_CLASS_CODE_LENGTH, NFCOM_ICMS_WITH_RATE, NFCOM_ITEMS_MAX} from '@/lib/constants/nfcom';
-import type {NfcomEmit, NfcomItemIn} from '@/lib/types/api';
+import {cleanOptional, cleanText, FISCAL_TEXT, FISCAL_TEXT_MESSAGE, REF_CODE, REF_CODE_MESSAGE} from '@/lib/utils/fiscal-text';
+import type {NfcomEmit, NfcomPlanCreate, NfcomSubscriberCreate} from '@/lib/types/api';
 
 const SEM_CST = 'sem_cst';
-const digits = (s: string) => s.replace(/\D/g, '');
 const decimal = /^\d+(\.\d+)?$/;
 const blank = (s: string) => s.trim() === '';
+const optionalDecimal = (label: string) => z.string().refine((v) => blank(v) || decimal.test(v), `${label} inválido`);
 
-const addressSchema = z.object({
-  street: z.string().trim().min(2, 'Informe o logradouro').max(60),
-  number: z.string().trim().min(1, 'Informe o número').max(60),
-  complement: z.string().max(60),
-  neighborhood: z.string().trim().min(2, 'Informe o bairro').max(60),
-  ibge_code: z.string().regex(/^\d{7}$/, 'Código IBGE com 7 dígitos'),
-  city: z.string().trim().min(2, 'Informe o município').max(60),
-  postal_code: z.string().refine((v) => digits(v).length === 8, 'CEP com 8 dígitos'),
-  uf: z.string().length(2, 'Selecione a UF'),
-  phone: z.string(),
-  email: z.string(),
-});
+/** Texto livre: normalizado pelo mapeador antes de enviar; aqui valida o que a pessoa digitou. */
+const fiscalText = (label: string, min: number, max: number) =>
+  z.string().transform(cleanText).pipe(z.string().min(min, `Informe ${label}`).max(max, `Até ${max} caracteres`).regex(FISCAL_TEXT, FISCAL_TEXT_MESSAGE));
+const refCode = (label: string, max: number) =>
+  z.string().trim().min(1, `Informe ${label}`).max(max, `Até ${max} caracteres`).regex(REF_CODE, REF_CODE_MESSAGE);
+
+// ── Emissão: assinante e planos por id; só o que varia a cada fatura ───────────────────────────────────────────────
 
 const itemSchema = z.object({
-  code: z.string().trim().min(1, 'Informe o código').max(60),
-  description: z.string().trim().min(1, 'Informe a descrição').max(120),
-  class_code: z.string().regex(new RegExp(`^\\d{${NFCOM_CLASS_CODE_LENGTH}}$`), 'Classificação com 7 dígitos'),
-  cfop: z.string(),
-  unit: z.string().min(1, 'Selecione a unidade'),
+  plan_id: z.string().min(1, 'Selecione o plano'),
   quantity: z.string().regex(decimal, 'Quantidade inválida').refine((v) => Number(v) > 0, 'A quantidade deve ser maior que zero'),
-  unit_value: z.string().regex(decimal, 'Valor inválido'),
-  discount: z.string().refine((v) => blank(v) || decimal.test(v), 'Desconto inválido'),
-  other_charges: z.string().refine((v) => blank(v) || decimal.test(v), 'Valor inválido'),
-  icms_cst: z.string().min(1, 'Selecione o ICMS'),
-  icms_rate: z.string(),
-  pis_cst: z.string(),
-  pis_rate: z.string(),
-  cofins_cst: z.string(),
-  cofins_rate: z.string(),
-}).superRefine((it, ctx) => {
-  const issue = (path: string, message: string) => ctx.addIssue({code: 'custom', path: [path], message});
-  const semCst = it.icms_cst === SEM_CST;
-  if (semCst && !blank(it.cfop)) issue('cfop', 'Item sem situação tributária não leva CFOP');
-  if (!semCst && !/^\d{4}$/.test(it.cfop)) issue('cfop', 'Informe o CFOP (4 dígitos)');
-  if (NFCOM_ICMS_WITH_RATE.includes(it.icms_cst) && !decimal.test(it.icms_rate)) issue('icms_rate', 'Informe a alíquota do ICMS');
-  if (!blank(it.pis_cst) && !decimal.test(it.pis_rate)) issue('pis_rate', 'Informe a alíquota do PIS');
-  if (!blank(it.cofins_cst) && !decimal.test(it.cofins_rate)) issue('cofins_rate', 'Informe a alíquota da COFINS');
+  unit_value: optionalDecimal('Valor'),
+  discount: optionalDecimal('Desconto'),
+  other_charges: optionalDecimal('Valor'),
 });
 
 export const nfcomEmitSchema = z.object({
-  customer: z.object({
-    name: z.string().trim().min(2, 'Informe o nome').max(60),
-    document_kind: z.enum(['cnpj', 'cpf', 'other']),
-    document: z.string().trim().min(1, 'Informe o documento'),
-    ie_indicator: z.enum(['1', '2', '9']),
-    ie: z.string(),
-    address: addressSchema,
-  }),
-  subscriber: z.object({
-    code: z.string().trim().min(1, 'Informe o código do assinante').max(30),
-    type: z.string().min(1, 'Selecione o tipo'),
-    service_used: z.string().min(1, 'Selecione o serviço'),
-    contract_number: z.string().max(20),
-    contract_start: z.string(),
-    contract_end: z.string(),
-    primary_terminal: z.string().max(12),
-  }),
+  subscriber_id: z.string().min(1, 'Selecione o assinante'),
   items: z.array(itemSchema).min(1, 'Informe ao menos um item').max(NFCOM_ITEMS_MAX),
   prepaid: z.boolean(),
   invoice: z.object({competence: z.string(), due_date: z.string(), bar_code: z.string()}),
-  additional_info: z.string().max(3000),
+  additional_info: z.string().max(3000, 'Até 3000 caracteres'),
 }).superRefine((f, ctx) => {
   const issue = (path: (string | number)[], message: string) => ctx.addIssue({code: 'custom', path, message});
-  const c = f.customer;
-  if (c.document_kind === 'cnpj' && !validateCNPJ(c.document)) issue(['customer', 'document'], 'CNPJ inválido');
-  if (c.document_kind === 'cpf' && !validateCPF(c.document)) issue(['customer', 'document'], 'CPF inválido');
-  if (c.ie_indicator === '1' && blank(c.ie)) issue(['customer', 'ie'], 'Informe a IE do cliente contribuinte');
-  if (c.ie_indicator === '2' && c.ie.trim().toUpperCase() !== 'ISENTO') issue(['customer', 'ie'], 'A IE do cliente isento deve ser ISENTO');
-  if (c.ie_indicator === '9' && !blank(c.ie)) issue(['customer', 'ie'], 'Cliente não contribuinte não tem IE');
-  const s = f.subscriber;
-  if (!blank(s.contract_start) && !blank(s.contract_end) && s.contract_end < s.contract_start) {
-    issue(['subscriber', 'contract_end'], 'O fim do contrato não pode ser anterior ao início');
-  }
+  const info = cleanText(f.additional_info);
+  if (info !== '' && !FISCAL_TEXT.test(info)) issue(['additional_info'], FISCAL_TEXT_MESSAGE);
   if (!f.prepaid) {
     const inv = f.invoice;
-    if (!/^\d{6}$/.test(inv.competence)) issue(['invoice', 'competence'], 'Competência no formato AAAAMM');
+    if (!/^\d{6}$/.test(inv.competence)) issue(['invoice', 'competence'], 'Selecione a competência');
     if (!/^\d{4}-\d{2}-\d{2}$/.test(inv.due_date)) issue(['invoice', 'due_date'], 'Informe o vencimento');
     if (!/^\d{1,48}$/.test(inv.bar_code)) issue(['invoice', 'bar_code'], 'Código de barras com até 48 dígitos');
   }
@@ -93,66 +46,125 @@ export type NfcomFormData = z.infer<typeof nfcomEmitSchema>
 export type NfcomItemForm = NfcomFormData['items'][number]
 
 export function emptyNfcomItem(): NfcomItemForm {
+  return {plan_id: '', quantity: '1', unit_value: '', discount: '', other_charges: ''};
+}
+
+/** Competência sugerida: o mês corrente (AAAAMM); o vencimento sugerido é 10 dias adiante. */
+export function suggestedInvoice(now = new Date()): NfcomFormData['invoice'] {
+  const due = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 10);
+  const pad = (n: number) => String(n).padStart(2, '0');
   return {
-    code: '', description: '', class_code: '', cfop: '', unit: '4', quantity: '1', unit_value: '', discount: '', other_charges: '',
-    icms_cst: '00', icms_rate: '', pis_cst: '', pis_rate: '', cofins_cst: '', cofins_rate: '',
+    competence: `${now.getFullYear()}${pad(now.getMonth() + 1)}`,
+    due_date: `${due.getFullYear()}-${pad(due.getMonth() + 1)}-${pad(due.getDate())}`,
+    bar_code: '',
   };
 }
 
-export function emptyNfcomForm(): NfcomFormData {
-  return {
-    customer: {
-      name: '', document_kind: 'cnpj', document: '', ie_indicator: '9', ie: '',
-      address: {street: '', number: '', complement: '', neighborhood: '', ibge_code: '', city: '', postal_code: '', uf: '', phone: '', email: ''},
-    },
-    subscriber: {code: '', type: '', service_used: '', contract_number: '', contract_start: '', contract_end: '', primary_terminal: ''},
-    items: [emptyNfcomItem()],
-    prepaid: false,
-    invoice: {competence: '', due_date: '', bar_code: ''},
-    additional_info: '',
-  };
+export function emptyNfcomForm(now = new Date()): NfcomFormData {
+  return {subscriber_id: '', items: [emptyNfcomItem()], prepaid: false, invoice: suggestedInvoice(now), additional_info: ''};
 }
 
 const orUndefined = (s: string): string | undefined => (blank(s) ? undefined : s.trim());
 
-function toItem(it: NfcomItemForm): NfcomItemIn {
+/** Corpo de `POST /nfcoms`: ids e valores que variam, sem campo vazio. */
+export function toNfcomEmit(f: NfcomFormData): NfcomEmit {
   return {
-    code: it.code.trim(), description: it.description.trim(), class_code: it.class_code,
-    cfop: orUndefined(it.cfop), unit: it.unit, quantity: it.quantity, unit_value: it.unit_value,
-    discount: orUndefined(it.discount), other_charges: orUndefined(it.other_charges),
-    icms: {cst: it.icms_cst, ...(NFCOM_ICMS_WITH_RATE.includes(it.icms_cst) ? {rate: it.icms_rate} : {})},
-    pis: blank(it.pis_cst) ? undefined : {cst: it.pis_cst, rate: it.pis_rate},
-    cofins: blank(it.cofins_cst) ? undefined : {cst: it.cofins_cst, rate: it.cofins_rate},
+    subscriber_id: f.subscriber_id,
+    items: f.items.map((it) => ({
+      plan_id: it.plan_id, quantity: it.quantity,
+      unit_value: orUndefined(it.unit_value), discount: orUndefined(it.discount), other_charges: orUndefined(it.other_charges),
+    })),
+    invoice: f.prepaid ? undefined : {competence: f.invoice.competence, due_date: f.invoice.due_date, bar_code: f.invoice.bar_code},
+    prepaid: f.prepaid ? true : undefined,
+    additional_info: cleanOptional(f.additional_info),
   };
 }
 
-/** Corpo de `POST /nfcoms`: documentos só com dígitos (CNPJ alfanumérico mantém as letras) e sem campo vazio. */
-export function toNfcomEmit(f: NfcomFormData): NfcomEmit {
-  const c = f.customer;
-  const doc = c.document_kind === 'cpf' ? digits(c.document) : c.document.replace(/[^0-9A-Za-z]/g, '').toUpperCase();
-  const a = c.address;
+// ── Cadastro de assinante ────────────────────────────────────────────────────────────────────────────────────────
+
+export const nfcomSubscriberSchema = z.object({
+  name: fiscalText('o nome', 2, 60),
+  person_id: z.string().min(1, 'Selecione a pessoa'),
+  code: refCode('o código do assinante', 30),
+  type: z.string().min(1, 'Selecione o tipo'),
+  service_used: z.string().min(1, 'Selecione o serviço'),
+  contract_number: z.string().refine((v) => blank(v) || (REF_CODE.test(v.trim()) && v.trim().length <= 20), REF_CODE_MESSAGE),
+  contract_start: z.string(),
+  contract_end: z.string(),
+  primary_terminal: z.string().refine((v) => blank(v) || /^\d{1,12}$/.test(v.trim()), 'Até 12 dígitos'),
+  primary_ibge_code: z.string(),
+  primary_uf: z.string(),
+}).superRefine((f, ctx) => {
+  if (!blank(f.contract_start) && !blank(f.contract_end) && f.contract_end < f.contract_start) {
+    ctx.addIssue({code: 'custom', path: ['contract_end'], message: 'O fim do contrato não pode ser anterior ao início'});
+  }
+});
+
+export type NfcomSubscriberFormData = z.input<typeof nfcomSubscriberSchema>
+
+export function emptyNfcomSubscriber(): NfcomSubscriberFormData {
   return {
-    customer: {
-      name: c.name.trim(),
-      cnpj: c.document_kind === 'cnpj' ? doc : undefined,
-      cpf: c.document_kind === 'cpf' ? doc : undefined,
-      other_id: c.document_kind === 'other' ? c.document.trim() : undefined,
-      ie_indicator: c.ie_indicator,
-      ie: orUndefined(c.ie),
-      address: {
-        street: a.street.trim(), number: a.number.trim(), complement: orUndefined(a.complement), neighborhood: a.neighborhood.trim(),
-        ibge_code: a.ibge_code, city: a.city.trim(), postal_code: digits(a.postal_code), uf: a.uf,
-        phone: orUndefined(digits(a.phone)), email: orUndefined(a.email),
-      },
-    },
-    subscriber: {
-      code: f.subscriber.code.trim(), type: f.subscriber.type, service_used: f.subscriber.service_used,
-      contract_number: orUndefined(f.subscriber.contract_number), contract_start: orUndefined(f.subscriber.contract_start),
-      contract_end: orUndefined(f.subscriber.contract_end), primary_terminal: orUndefined(f.subscriber.primary_terminal),
-    },
-    items: f.items.map(toItem),
-    invoice: f.prepaid ? undefined : {competence: f.invoice.competence, due_date: f.invoice.due_date, bar_code: f.invoice.bar_code},
-    prepaid: f.prepaid ? true : undefined,
-    additional_info: orUndefined(f.additional_info),
+    name: '', person_id: '', code: '', type: '', service_used: '', contract_number: '', contract_start: '', contract_end: '',
+    primary_terminal: '', primary_ibge_code: '', primary_uf: '',
+  };
+}
+
+export function toNfcomSubscriber(f: z.output<typeof nfcomSubscriberSchema>): NfcomSubscriberCreate {
+  return {
+    name: f.name, person_id: f.person_id, code: f.code.trim(), type: f.type, service_used: f.service_used,
+    contract_number: orUndefined(f.contract_number) ?? null,
+    contract_start: orUndefined(f.contract_start) ?? null,
+    contract_end: orUndefined(f.contract_end) ?? null,
+    primary_terminal: orUndefined(f.primary_terminal) ?? null,
+    primary_uf: orUndefined(f.primary_uf) ?? null,
+    primary_ibge_code: orUndefined(f.primary_ibge_code) ?? null,
+  };
+}
+
+// ── Cadastro de plano ─────────────────────────────────────────────────────────────────────────────────────────────
+
+const taxRate = z.string().refine((v) => decimal.test(v) && Number(v) <= 100, 'Alíquota entre 0 e 100');
+
+export const nfcomPlanSchema = z.object({
+  name: fiscalText('o nome', 2, 60),
+  code: refCode('o código', 60),
+  description: fiscalText('a descrição', 1, 120),
+  class_code: z.string().regex(new RegExp(`^\\d{${NFCOM_CLASS_CODE_LENGTH}}$`), 'Classificação com 7 dígitos'),
+  unit: z.string().min(1, 'Selecione a unidade'),
+  unit_value: optionalDecimal('Valor'),
+  cfop: z.string(),
+  icms_cst: z.string().min(1, 'Selecione o ICMS'),
+  icms_rate: z.string(),
+  pis_cst: z.string(),
+  pis_rate: z.string(),
+  cofins_cst: z.string(),
+  cofins_rate: z.string(),
+}).superRefine((p, ctx) => {
+  const issue = (path: string, message: string) => ctx.addIssue({code: 'custom', path: [path], message});
+  const semCst = p.icms_cst === SEM_CST;
+  if (semCst && !blank(p.cfop)) issue('cfop', 'Plano sem situação tributária não leva CFOP');
+  if (!semCst && !/^\d{4}$/.test(p.cfop)) issue('cfop', 'Selecione o CFOP');
+  if (NFCOM_ICMS_WITH_RATE.includes(p.icms_cst) && !taxRate.safeParse(p.icms_rate).success) issue('icms_rate', 'Informe a alíquota do ICMS');
+  if (!blank(p.pis_cst) && !taxRate.safeParse(p.pis_rate).success) issue('pis_rate', 'Informe a alíquota do PIS');
+  if (!blank(p.cofins_cst) && !taxRate.safeParse(p.cofins_rate).success) issue('cofins_rate', 'Informe a alíquota da COFINS');
+});
+
+export type NfcomPlanFormData = z.input<typeof nfcomPlanSchema>
+
+export function emptyNfcomPlan(): NfcomPlanFormData {
+  return {
+    name: '', code: '', description: '', class_code: '', unit: '4', unit_value: '', cfop: '',
+    icms_cst: '00', icms_rate: '', pis_cst: '', pis_rate: '', cofins_cst: '', cofins_rate: '',
+  };
+}
+
+export function toNfcomPlan(f: z.output<typeof nfcomPlanSchema>): NfcomPlanCreate {
+  return {
+    name: f.name, code: f.code.trim(), description: f.description, class_code: f.class_code, unit: f.unit,
+    unit_value: orUndefined(f.unit_value) ?? null,
+    cfop: f.icms_cst === SEM_CST ? null : f.cfop,
+    icms: {cst: f.icms_cst, rate: NFCOM_ICMS_WITH_RATE.includes(f.icms_cst) ? f.icms_rate : null},
+    pis: blank(f.pis_cst) ? null : {cst: f.pis_cst, rate: f.pis_rate},
+    cofins: blank(f.cofins_cst) ? null : {cst: f.cofins_cst, rate: f.cofins_rate},
   };
 }

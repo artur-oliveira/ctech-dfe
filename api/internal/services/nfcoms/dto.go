@@ -91,18 +91,18 @@ type NfcomItem struct {
 // calcula a base (valor do item) e o valor do ICMS.
 type NfcomICMS struct {
 	CST  string  `json:"cst" validate:"required,oneof=00 40 41 51 90 sn sem_cst"`
-	Rate *string `json:"rate" validate:"omitempty"`
+	Rate *string `json:"rate" validate:"omitempty,percent"`
 }
 
 // NfcomPIS e NfcomCOFINS: CST do leiaute e alíquota em %; base = valor do item, valor calculado pelo servidor.
 type NfcomPIS struct {
 	CST  string `json:"cst" validate:"required,oneof=01 02 06 07 08 09 49"`
-	Rate string `json:"rate" validate:"required"`
+	Rate string `json:"rate" validate:"required,percent"`
 }
 
 type NfcomCOFINS struct {
 	CST  string `json:"cst" validate:"required,oneof=01 02 06 07 08 09 49"`
-	Rate string `json:"rate" validate:"required"`
+	Rate string `json:"rate" validate:"required,percent"`
 }
 
 // NfcomInvoice é a fatura (gFat).

@@ -15,7 +15,7 @@ func RegisterNFComs(router fiber.Router, svc *nfcomsvc.NfcomService, userSvc *se
 
 	// POST /nfcoms: emit a new NFCom
 	g.Post("", perm.Require("create.nfcoms"), func(c fiber.Ctx) error {
-		var body nfcomsvc.NfcomEmitBody
+		var body nfcomsvc.NfcomEmitRequest
 		if p := bindJSON(c, &body); p != nil {
 			return sendProblem(c, p)
 		}

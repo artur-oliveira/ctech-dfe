@@ -66,10 +66,15 @@ var regexValidators = map[string]*regexp.Regexp{
 	"canaref": regexp.MustCompile(`^(0[1-9]|1[0-2])/2\d{3}$`),
 	"canadia": regexp.MustCompile(`^([1-9]|[12]\d|3[01])$`),
 	// Vehicle-product (veicProd) micro-formats
-	"d1":  regexp.MustCompile(`^\d$`),
-	"d12": regexp.MustCompile(`^\d{1,2}$`),
-	"d4":  regexp.MustCompile(`^\d{4}$`),
-	"d16": regexp.MustCompile(`^\d{1,6}$`),
+	// fiscaltext: texto livre que vai ao XML. Sem espaço nas pontas, sem controle, só até U+00FF (TString do leiaute)
+	// e sem < nem >. Pareia com services.CleanText, que normaliza o valor antes da validação final.
+	"fiscaltext": regexp.MustCompile(`^[!-;=?-ÿ](?:[ -;=?-ÿ]*[!-;=?-ÿ])?$`),
+	// refcode: código de referência curto (assinante, plano, contrato): letras, dígitos, ponto, barra, hífen, sublinhado.
+	"refcode": regexp.MustCompile(`^[A-Za-z0-9._/\-]{1,60}$`),
+	"d1":      regexp.MustCompile(`^\d$`),
+	"d12":     regexp.MustCompile(`^\d{1,2}$`),
+	"d4":      regexp.MustCompile(`^\d{4}$`),
+	"d16":     regexp.MustCompile(`^\d{1,6}$`),
 }
 
 // isoDateValidator valida uma data civil ISO 8601 completa, incluindo os

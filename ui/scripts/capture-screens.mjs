@@ -339,7 +339,9 @@ const CAPTURES = [
 
   // ── NFS-e ────────────────────────────────────────────────────────────────
   {slug: 'nfcom-list', route: '/nfcom', waitText: 'Cliente Exemplo LTDA'},
-  {slug: 'nfcom-emit', route: '/nfcom/emit', waitText: 'Cliente (destinatário)'},
+  {slug: 'nfcom-emit', route: '/nfcom/emit', waitText: 'Assinante *'},
+  {slug: 'nfcom-subscribers', route: '/nfcom-subscribers', waitText: 'ASS-001'},
+  {slug: 'nfcom-plans', route: '/nfcom-plans', waitText: 'PLANO100'},
   {slug: 'nfcom-detail', route: `/nfcom/detail?key=${NFCOM_KEY}`, waitText: 'Cliente Exemplo LTDA'},
   {
     slug: 'nfcom-payment-link',

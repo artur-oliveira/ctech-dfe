@@ -81,6 +81,8 @@ var Module = fx.Options(
 		repositories.NewProductLotRepository,
 		repositories.NewServiceLocationRepository,
 		repositories.NewReferenceDocumentRepository,
+		repositories.NewNfcomSubscriberRepository,
+		repositories.NewNfcomPlanRepository,
 		repositories.NewFuelPumpRepository,
 		repositories.NewVehicleSetRepository,
 		repositories.NewPersonRepository,
@@ -135,6 +137,8 @@ var Module = fx.Options(
 		newProductLotService,
 		newServiceLocationService,
 		newReferenceDocumentService,
+		newNfcomSubscriberService,
+		newNfcomPlanService,
 		newFuelPumpService,
 		newVehicleSetService,
 		newPersonService,
@@ -358,6 +362,14 @@ func newProductLotService(repo *repositories.ProductLotRepository, auditRepo *re
 	return services.NewProductLotService(repo, auditRepo, c)
 }
 
+func newNfcomSubscriberService(repo *repositories.NfcomSubscriberRepository, auditRepo *repositories.AuditLogRepository, c cache.Backend) *services.NfcomSubscriberService {
+	return services.NewNfcomSubscriberService(repo, auditRepo, c)
+}
+
+func newNfcomPlanService(repo *repositories.NfcomPlanRepository, auditRepo *repositories.AuditLogRepository, c cache.Backend) *services.NfcomPlanService {
+	return services.NewNfcomPlanService(repo, auditRepo, c)
+}
+
 func newServiceLocationService(repo *repositories.ServiceLocationRepository, auditRepo *repositories.AuditLogRepository, c cache.Backend) *services.ServiceLocationService {
 	return services.NewServiceLocationService(repo, auditRepo, c)
 }
@@ -547,6 +559,9 @@ func newNFComService(
 	certRepo *repositories.CertificateRepository,
 	configRepo *repositories.NfcomConfigRepository,
 	nfcomRepo *repositories.NfcomRepository,
+	personRepo *repositories.PersonRepository,
+	subscriberRepo *repositories.NfcomSubscriberRepository,
+	planRepo *repositories.NfcomPlanRepository,
 	clients *awsclient.Clients,
 	workerSvc *services.WorkerService,
 	db *dynamodb.Client,
@@ -557,7 +572,7 @@ func newNFComService(
 ) *nfcomsvc.NfcomService {
 	eventRepo := repositories.NewDocumentEventRepository(db, cfg, "nfcom")
 	return nfcomsvc.NewNfcomService(
-		orgRepo, certRepo, configRepo, nfcomRepo, eventRepo,
+		orgRepo, certRepo, configRepo, nfcomRepo, eventRepo, personRepo, subscriberRepo, planRepo,
 		clients, workerSvc, billingSvc, documentSvc, cfg.S3BucketDocuments,
 		nfcomsvc.TechData{
 			CNPJ:    cfg.TechnicalCNPJ,
@@ -681,6 +696,8 @@ type Services struct {
 	ProductLotSvc   *services.ProductLotService
 	SvcLocationSvc  *services.ServiceLocationService
 	RefDocSvc       *services.ReferenceDocumentService
+	NfcomSubSvc     *services.NfcomSubscriberService
+	NfcomPlanSvc    *services.NfcomPlanService
 	FuelPumpSvc     *services.FuelPumpService
 	VehSetSvc       *services.VehicleSetService
 	PersonSvc       *services.PersonService
@@ -738,6 +755,8 @@ func registerRoutes(app *fiber.App, svcs Services) {
 		ProductLot:      svcs.ProductLotSvc,
 		ServiceLocation: svcs.SvcLocationSvc,
 		ReferenceDoc:    svcs.RefDocSvc,
+		NfcomSubscriber: svcs.NfcomSubSvc,
+		NfcomPlan:       svcs.NfcomPlanSvc,
 		FuelPump:        svcs.FuelPumpSvc,
 		VehicleSet:      svcs.VehSetSvc,
 		Person:          svcs.PersonSvc,

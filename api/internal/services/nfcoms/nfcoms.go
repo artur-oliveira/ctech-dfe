@@ -59,18 +59,22 @@ type dfeCaller = services.EgressCaller
 
 // NfcomService manages the NFCom lifecycle.
 type NfcomService struct {
-	orgRepo     *repositories.OrganizationRepository
-	certRepo    *repositories.CertificateRepository
-	configRepo  *repositories.NfcomConfigRepository
-	nfcomRepo   *repositories.NfcomRepository
-	eventRepo   *repositories.DocumentEventRepository
-	clients     *awsclient.Clients
-	workerSvc   *services.WorkerService
-	billingSvc  *services.BillingService
-	documentSvc *documents.Service
-	bucketDocs  string
-	tech        TechData
-	egress      dfeCaller
+	orgRepo    *repositories.OrganizationRepository
+	certRepo   *repositories.CertificateRepository
+	configRepo *repositories.NfcomConfigRepository
+	nfcomRepo  *repositories.NfcomRepository
+	eventRepo  *repositories.DocumentEventRepository
+	// Cadastros que a emissão resolve: o assinante aponta a pessoa; cada linha da fatura aponta um plano.
+	personRepo     *repositories.PersonRepository
+	subscriberRepo *repositories.NfcomSubscriberRepository
+	planRepo       *repositories.NfcomPlanRepository
+	clients        *awsclient.Clients
+	workerSvc      *services.WorkerService
+	billingSvc     *services.BillingService
+	documentSvc    *documents.Service
+	bucketDocs     string
+	tech           TechData
+	egress         dfeCaller
 }
 
 func NewNfcomService(
@@ -79,6 +83,9 @@ func NewNfcomService(
 	configRepo *repositories.NfcomConfigRepository,
 	nfcomRepo *repositories.NfcomRepository,
 	eventRepo *repositories.DocumentEventRepository,
+	personRepo *repositories.PersonRepository,
+	subscriberRepo *repositories.NfcomSubscriberRepository,
+	planRepo *repositories.NfcomPlanRepository,
 	clients *awsclient.Clients,
 	workerSvc *services.WorkerService,
 	billingSvc *services.BillingService,
@@ -93,6 +100,7 @@ func NewNfcomService(
 	}
 	return &NfcomService{
 		orgRepo: orgRepo, certRepo: certRepo, configRepo: configRepo, nfcomRepo: nfcomRepo, eventRepo: eventRepo,
+		personRepo: personRepo, subscriberRepo: subscriberRepo, planRepo: planRepo,
 		clients: clients, workerSvc: workerSvc, billingSvc: billingSvc, documentSvc: documentSvc,
 		bucketDocs: bucketDocs, tech: tech, egress: egress,
 	}
